@@ -75,7 +75,7 @@ LOOP_N_Layers:
         v.fdiv.vf v2, v1, x3;
         v.sv v2, x2, hidden_size;           Store back vector to the address starting from hidden_size
         addi x2, x2, MLEN; 
-        addi x1, x1, 0xfff ;                counter, -1 every loop
+        addi x1, x1, 0xfff;                counter, -1 every loop
         blt x0, x1, LOOP_MLEN_VEC2;
 
     
@@ -122,6 +122,12 @@ LOOP_N_Layers:
 
         addi x8, x8, 0xfff;
         blt x0, x8, LOOP_Q_K_V_PROJECT
+
+    // <-------------------- RoPE ------------------------>
+
+    
+
+    // <-------------------- FlashAttention ------------------------>
 
 
 
