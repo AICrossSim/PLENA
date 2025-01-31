@@ -8,33 +8,20 @@
 ; vocab_size = 128256
 ; intermediate_size: 14336
 ; max_position_embeddings: 131072
-; 
+; num_attention_heads = 32
+; num_key_value_heads = 8
+; head_dim = h_qkv = config.hidden_size // config.num_attention_heads = 128
+; attention_bias = false
+
+; Computation
+; MLEN = 128
+; Num_of_Tiles_Matrix = (hidden_size / MLEN)^2 = 1024
+; Num_of_Tiles_Vector = hidden_size / MLEN = 32
+; epsilon = 1e-6
 
 
-; OFFSET:
-; MEM_Region from csr_adr[0] + x0000_0000 to 0x6000_0000
-; ( Weight for ith hidden layer Q, K, V, each cover hidden_size * hidden_size * 3 * FP8 = 0x3000000 )
 
-; MEM_Region from csr_adr[1] + 0x0000_0000 to 0x0006_0000
-; ( Offest for ith hidden layer Q, K, V, each cover hidden_size * 3 * 1 * FP8 = 0x3000 )
-
-; MEM_Region from csr_adr[2] + 0x0000_0000 to 0xC_0000_0000
-; ( Cached for ith hidden layer Q, K, V, each cover hidden_size * max_position_embeddings * 3 * FP8 = 0x30_0000)
-
-; MEM_Region from csr_adr[3] + 0x0000_0000 to 0x1F50_0000
-; (Embeddings, hidden_size * vocab_size * FP8 = 0x1F500000 )
-
-; MEM_Region from csr_adr[4] + 0x1000
-; (RoPE Weights, hidden_size * 1 * FP8 = 0x1000 )
-
-; MEM_Region from csr_adr[5] + 0x0000_0000 to (SLEN)
-; (MLP_Weights, each layer: hidden_size * intermediate_size * FP8 = 0x1000 )
-
-; MEM_Region from TOKEN_ADDR
-; MEM_Region from PC Start
-
-
-// Single Head Case and Decoding Stage.........
+// Decoding Stage.........
 
 // <-------------------- Embeddings ------------------------>
 // Preparing the embedded data
@@ -45,6 +32,7 @@ mv x10, x0;                                 x5 stores the index of N hidden laye
 v.fetch x5, x2, csr_adr[3];                 Fetch the corresponding embeddings according to (token_value) in the vocab library. Fetch the embedding and stored in the addr 0x00000 in SRAM as scratchpad.
 
 LOOP_N_Layers: 
+
 
     // <--------------------RMS Norm------------------------>
     addi x1, x0, (hidden_size / MLEN);
@@ -78,60 +66,66 @@ LOOP_N_Layers:
         addi x1, x1, 0xfff;                counter, -1 every loop
         blt x0, x1, LOOP_MLEN_VEC2;
 
-    
 
     // <-------------------- Projection ------------------------>
-
-    lui x1, 3 * hidden_size; 
-    lui x2, hidden_size;
-    mul x2, x2, x10;
-    mul x2, x2, x1;    Addr Offset to weights Q_i, K_i, V_i, 3 * hidden_size * hidden_size
-
-
-    lui x3, max_position_embeddings;
-    mul x3, x3, x10;
-    mul x3, x3, x1; Addr Offset to cached Q_i, K_i, V_i, 3 * hidden_size * max_position_embeddings;
-    addi x3, x3, s_index * hidden_size;
-
-    mul x4, x10, x1; Addr Offset to offset Q_i, K_i, V_i, 3 * hidden_size
-
-    lui x5, hidden_size;                        Address to embedded vector after RMSNorm in SRAMS
-    addi x6, x5, hidden_size;                   Address to QKV offsets in SRAMS
-    addi x7, x6, hidden_size;                   Address to MVM results in SRAMS
-
-    addi x8, 0x3;                                  x8 is the index in {Q, K, V}
-
-    LOOP_Q_K_V_PROJECT:
-        slli x9, x8, hidden_size * hidden_size
-        m.fetch x2, csr_adr[0];
-        v.fetch x6, csr_adr[1];
-
-        mv x11, x0;
-        addi x1, x0, 3;
-        LOOP_MLEN_MATRIX:
-            slli, x15, x11, hidden_size; 
-            addi x12, x5, x15;           Current tile addr for embedded vector
-            addi x13, x6, x15;           Current tile addr for QKV offsets
-            addi x14, x7, x15;           Current tile addr for MVM results
-            m.mv x14, x11, x12, 0;         x11 th tiled matrix from SRAM multiplied with vector stored in x12 and store the computed results to x14.
-            v.fadd.vv  x14, x14, x13; 
-            addi x11, x11, 0x1;      
-            blt x11, x1, LOOP_MLEN_MATRIX;
-        
-        v.store_to_bram x3, x7, csr_adr[2]; 
-
-        addi x8, x8, 0xfff;
-        blt x0, x8, LOOP_Q_K_V_PROJECT
-
-    // <-------------------- RoPE ------------------------>
+    // ## Q Projection:
+    lui x1, hidden_size;            Storing the address for embeddings in SSRAM.
+    lui x2, head_dim * num_attention_heads
+    add x3, x2, x1;                 Storing the offset q_new in SSRAM.
+    m.fetch x0, csr_adr[0];         Fetch the Q weights from HBM to MVM SRAM.
+    mul x2, x1, x2;                 Storing the address for Q offsets in HBM.
+    v.fetch x3, x2, csr_adr[1];     Fetch the Q offsets from HBM to SSRAM.
+    add x4, x3, x1;                 Storing the address for q_new in SSRAM.
+    
+    lui x5, Num_of_Tiles_Matrix;                  
+    lui x6, hidden_size;
+    lui x7, MLEN;                   TILE_SIZE
+    mv x8, x1;                      Current tile addr for embedded vector in SSRAM
+    mv x9, x0;                      Current tile addr for MVM results in accumulator
+    lui x11, 0x0;                   ith tile in the matrix
+    // MVM
+    LOOP_MLEN_MATRIX:
+        beq x9, x6, RESET_VECTOR_ADDR;
+        j   WITHOUT_RESET_VECTOR_ADDR;
+        RESET_VECTOR_ADDR:
+            mv x8, x1;                      Current tile addr for embedded vector in SSRAM
+            mv x9, x0;                      Current tile addr for MVM results in accumulator
+            j   END_VECTOR_ADDR;
+        WITHOUT_RESET_VECTOR_ADDR:
+            addi x8, x8, x7;           Current tile addr for embedded vector in SSRAM
+            addi x9, x9, x7;           Current tile addr for MVM results in accumulator
+        END_VECTOR_ADDR:
+            m.mv x9, x11, x8; 
+        addi x11, x11, 0x1;      
+        blt x11, x5, LOOP_MLEN_MATRIX;
+    m.extract x4;
+    // Add the bias
+    lui x5, hidden_size;
+    LOOP_MLEN_VECTOR:
+        v.lv v1, x4, 0;
+        v.lv v2, x3, 0;
+        v.fadd.vv v1, v1, v2;
+        v.sv v1, x4, 0;
+        addi x4, x4, MLEN;
+        addi x3, x3, MLEN;
+    
+    // RoPE
 
     
+
+
+
 
     // <-------------------- FlashAttention ------------------------>
 
 
 
-
+    // <--------------------CSR_Addr Settings------------------------>
+    c.addi csr_addr[0], csr_addr[0], hidden_size * (head_dim * num_attention_heads + 1);
+    c.addi csr_addr[1], csr_addr[1], hidden_size * (head_dim * num_key_value_heads + 1); 
+    c.addi csr_addr[2], csr_addr[2], hidden_size * (head_dim * num_key_value_heads + 1);
+    c.addi csr_addr[3], csr_addr[3], hidden_size * max_position_embeddings;
+    c.addi csr_addr[4], csr_addr[4], hidden_size * max_position_embeddings;
 
 
     
