@@ -8,3 +8,6 @@ Q3. Should we assume MLEN is shared between matrix machine and the vector machin
 Q4. Consider offset? for Q, K, V linear.
 
 Q5. Dimensions mismatch
+e.g. Fetching k_i in flashatten
+
+Q6. How to effectively address a matrix?

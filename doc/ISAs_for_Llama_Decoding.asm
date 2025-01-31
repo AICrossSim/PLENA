@@ -1,8 +1,6 @@
 ; Assume Dimension
 ; hidden_size = h = 4096
 ; num_hidden_layers = 32
-; sequence_length = s_q = 1
-; s_max = maximum sequence length supported = 256 ? To be confirmed.
 ; floating_type = FP8 = 8 bits
 ; fixed data_type = fixed8 = 8bits
 ; vocab_size = 128256
@@ -10,14 +8,18 @@
 ; max_position_embeddings: 131072
 ; num_attention_heads = 32
 ; num_key_value_heads = 8
+; num_head_groups = num_attention_heads / num_key_value_heads = 4
 ; head_dim = h_qkv = config.hidden_size // config.num_attention_heads = 128
 ; attention_bias = false
 
 ; Computation
-; MLEN = 128
-; Num_of_Tiles_Matrix = (hidden_size / MLEN)^2 = 1024
-; Num_of_Tiles_Vector = hidden_size / MLEN = 32
+; MLEN = 64
+; Num_of_Tiles_Matrix = (hidden_size / MLEN)^2 = 4096
+; Num_of_Tiles_Vector = hidden_size / MLEN = 64
 ; epsilon = 1e-6
+; Bc = MLEN = 64
+; Tc = head_dim / MLEN = 2
+
 
 
 
@@ -68,7 +70,7 @@ LOOP_N_Layers:
 
 
     // <-------------------- Projection ------------------------>
-    // ## Q Projection:
+    // ## 1. Q Projection:
     lui x1, hidden_size;            Storing the address for embeddings in SSRAM.
     lui x2, head_dim * num_attention_heads;
     add x3, x2, x1;                 Storing the offset q_new in SSRAM.
@@ -113,39 +115,92 @@ LOOP_N_Layers:
         blt x0, x5, LOOP_MLEN_VECTOR;
     
     // RoPE Assuming qnew with shape (s_q, heads, head_dim), x3 to store the result after RoPE
-    v.fetch x4, csr_addr[6];        Fetch the RoPE weights from HBM to MVM SRAM. (head_dim * 2, [cos, sin, else])
+    v.fetch x4, csr_addr[6];            Fetch the RoPE weights from HBM to MVM SRAM. (head_dim * 2, [cos, sin, else])
+    addi x10, x4, 2* head_dim;           Storing the address for rotated_q;
+    mv x11, x3;                          Storing the address for q_new in SSRAM;
+
     lui x5, num_attention_heads;
     LOOP_NUM_HEAD:
+        // Apply RoPE to each head
         mv x6, x4;                  Current tile addr for cos RoPE weights in SSRAM 
         addi x8, x4, head_dim;      
         mv x8, x4;                  Current tile addr for sin RoPE weights in SSRAM
-        lui x7, (head_dim/MLEN);
+        lui x7, (head_dim/MLEN);    Counter for RoPE 
+
+        // Prepare the rotated_q
+        //if MLEN == head_dim: vector masking is introduced, or vslidedown.vx,
+        //Storing rotated_q (1, num_attention_heads * head_dim) in x10
+        
         LOOP_MLEN_VECTOR_IN_HEAD:
-            v.lv v1, x6, 0;
+            // assuming head_dim | MLEN
+            // cos[i : i + MLEN] * q[i : i + MLEN]
+            v.lv v1, x6, 0; cos
             v.lv v2, x4, 0;
             v.fmul.vv v3, v1, v2;
-            TODO: (-x2, x1)
-            v.lv v1, x8, 0;
+            // sin[i : i + MLEN] * rotated_q[i : i + MLEN]
+            v.lv v1, x8, 0; sin
+            v.lv v2, x10, 0; rotated_q
             v.fmul v4, v1, v2;
             v.fadd.vv v3, v3, v4;
-            v.sv v3, x3, 0;
+            v.lv 
+            v.sv x3, v3, 0;
             addi x6, x6, MLEN;
             addi x8, x8, MLEN;
             addi x4, x4, MLEN;
             addi x3, x3, MLEN;
             addi x7, x7, 0xfff;
             blt x0, x7, LOOP_MLEN_VECTOR_IN_HEAD;
+
+
+    // ## 2. K Projection (Similar to Q Projection, but the weight dimension changes to (hidden_size, (head_dim * num_key_value_heads)))
+    // Storing the k_new into HBM, kv_cache
+    mv x3, x11;
+    mv x4, x0;
+    lui x5, Num_of_Tiles_Matrix;
+    LOOP_MLEN_VECTOR:
+        v.store_to_hbm x3, x4, csr_adr[3];
+        addi x3, x3, MLEN;
+        addi x4, x4, MLEN;
+        addi x5, x5, 0xfff;
+        blt x0, x5, LOOP_MLEN_VECTOR;
+
     
+    // ## 3. V Projection (Similar to K Projection, but without RoPE)
 
-
-
-    
-
-
-
-
+    mv x1, x0;                      x1 stores the index of in q head
     // <-------------------- FlashAttention ------------------------>
+    lw x5, ; (s_num)
+    LOOP_ATTENTION_Q_HEADS:
+        lui x2, ; (index of in q head // num_head_groups)
+        lui x3, head_dim;
+        mul x2, x2, x3;                memory offset to csr_adr[3].
 
+        
+        lui x4, Tc;
+        LOOP_FETCH_TILE:
+            m.fetch
+
+        LOOP_Bc:
+
+
+    // Assuming the shape of Bc equals the MLEN
+
+
+    // Fetching k_cached to the MVM SRAM
+        m.fetch 
+        
+
+
+    // <-------------------- Residual ------------------------>
+
+
+    // <-------------------- LayerNorm ------------------------>
+
+
+    // <-------------------- MLP ------------------------>
+
+
+    // <-------------------- Residual ------------------------>
 
 
     // <--------------------CSR_Addr Settings------------------------>
