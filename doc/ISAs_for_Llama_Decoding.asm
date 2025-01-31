@@ -16,9 +16,10 @@
 ; MLEN = 64
 ; Num_of_Tiles_Matrix = (hidden_size / MLEN)^2 = 4096
 ; Num_of_Tiles_Vector = hidden_size / MLEN = 64
+; Num_of_Tiles_Head = head_dim / MLEN = 2
 ; epsilon = 1e-6
 ; Bc = MLEN = 64
-; Tc = head_dim / MLEN = 2
+; Tc = max_position_embeddings / MLEN
 
 
 
@@ -169,25 +170,40 @@ LOOP_N_Layers:
 
     mv x1, x0;                      x1 stores the index of in q head
     // <-------------------- FlashAttention ------------------------>
-    lw x5, ; (s_num)
+    lw x10, ; (s_num)
+    mv x11, ;  address for q_new (1, num_attention_heads, head_dim) in SSRAM
+
     LOOP_ATTENTION_Q_HEADS:
         lui x2, ; (index of in q head // num_head_groups)
         lui x3, head_dim;
-        mul x2, x2, x3;                memory offset to csr_adr[3].
+        mul x4, x2, x3;                memory offset to csr_adr[3].
+        lui x5, Tc;
+        lui x6, Bc;
+        LOOP_ATTENTION_PER_HEAD:
+            mv x7, x0;                      x7 stores the address in MVM SRAM
+            mv x8, x0;                      x8 stores the address for sequence_index in HBM
+            mv x9, x0;                      x9 stores the address offset in HBM
+            // Fetching K of ((Bc), specified_idx, head_dim) from HBM () to MVM SRAM
+            LOOP_Bc:
+                mv          x9, x8;
+                addi        x9, x9, x4;
+                m.fetch     x7, x9, csr_adr[3];
+                addi        x8, x8, head_dim * num_key_value_heads;
+                addi        x7, x7, head_dim;
 
+            // Fetching Q from SSRAM (1, head_dim) and Q @ K^T (Bc, head_dim)
+            LOOP_MLEN_MATRIX:
+            
+                
+
+            
         
-        lui x4, Tc;
-        LOOP_FETCH_TILE:
-            m.fetch
+        
 
-        LOOP_Bc:
+            
 
 
-    // Assuming the shape of Bc equals the MLEN
 
-
-    // Fetching k_cached to the MVM SRAM
-        m.fetch 
         
 
 

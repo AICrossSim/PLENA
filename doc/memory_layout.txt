@@ -11,7 +11,7 @@ MEM_Region from csr_adr[2] + 0x0000_0000 to 0x6000_0000
 ( Weight for ith hidden layer V, each cover hidden_size * (head_dim * num_key_value_heads + 1) * FP8 = 0x3000000 )
 
 MEM_Region from csr_adr[3] + 0x0000_0000 to 0xC_0000_0000
-( Cached for ith hidden layer K, each cover hidden_size * max_position_embeddings * FP8 = 0x30_0000)
+( Cached for ith hidden layer K, each cover (head_dim * num_key_value_heads) * max_position_embeddings * FP8 = 0x30_0000)
 
 MEM_Region from csr_adr[4] + 0x0000_0000 to 0xC_0000_0000
 ( Cached for ith hidden layer V, each cover hidden_size * max_position_embeddings * FP8 = 0x30_0000)
