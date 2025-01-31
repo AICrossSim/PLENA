@@ -70,12 +70,12 @@ LOOP_N_Layers:
     // <-------------------- Projection ------------------------>
     // ## Q Projection:
     lui x1, hidden_size;            Storing the address for embeddings in SSRAM.
-    lui x2, head_dim * num_attention_heads
+    lui x2, head_dim * num_attention_heads;
     add x3, x2, x1;                 Storing the offset q_new in SSRAM.
     m.fetch x0, csr_adr[0];         Fetch the Q weights from HBM to MVM SRAM.
     mul x2, x1, x2;                 Storing the address for Q offsets in HBM.
     v.fetch x3, x2, csr_adr[1];     Fetch the Q offsets from HBM to SSRAM.
-    add x4, x3, x1;                 Storing the address for q_new in SSRAM.
+    add x4, x3, x2;                 Storing the address for q_new in SSRAM.
     
     lui x5, Num_of_Tiles_Matrix;                  
     lui x6, hidden_size;
@@ -99,6 +99,7 @@ LOOP_N_Layers:
         addi x11, x11, 0x1;      
         blt x11, x5, LOOP_MLEN_MATRIX;
     m.extract x4;
+
     // Add the bias
     lui x5, hidden_size;
     LOOP_MLEN_VECTOR:
@@ -108,8 +109,35 @@ LOOP_N_Layers:
         v.sv v1, x4, 0;
         addi x4, x4, MLEN;
         addi x3, x3, MLEN;
+        addi x5, x5, 0xfff;
+        blt x0, x5, LOOP_MLEN_VECTOR;
     
-    // RoPE
+    // RoPE Assuming qnew with shape (s_q, heads, head_dim), x3 to store the result after RoPE
+    v.fetch x4, csr_addr[6];        Fetch the RoPE weights from HBM to MVM SRAM. (head_dim * 2, [cos, sin, else])
+    lui x5, num_attention_heads;
+    LOOP_NUM_HEAD:
+        mv x6, x4;                  Current tile addr for cos RoPE weights in SSRAM 
+        addi x8, x4, head_dim;      
+        mv x8, x4;                  Current tile addr for sin RoPE weights in SSRAM
+        lui x7, (head_dim/MLEN);
+        LOOP_MLEN_VECTOR_IN_HEAD:
+            v.lv v1, x6, 0;
+            v.lv v2, x4, 0;
+            v.fmul.vv v3, v1, v2;
+            TODO: (-x2, x1)
+            v.lv v1, x8, 0;
+            v.fmul v4, v1, v2;
+            v.fadd.vv v3, v3, v4;
+            v.sv v3, x3, 0;
+            addi x6, x6, MLEN;
+            addi x8, x8, MLEN;
+            addi x4, x4, MLEN;
+            addi x3, x3, MLEN;
+            addi x7, x7, 0xfff;
+            blt x0, x7, LOOP_MLEN_VECTOR_IN_HEAD;
+    
+
+
 
     
 
