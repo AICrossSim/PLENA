@@ -1,3 +1,6 @@
 [submodule "Llama_Experiments"]
 	path = Llama_Experiments
 	url = https://github.com/ChengZhang-98/aria-llama-ops.git
+[submodule "RTL_Experiments/mase"]
+	path = RTL_Experiments/mase
+	url = https://github.com/DeepWok/mase.git
