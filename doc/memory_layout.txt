@@ -25,6 +25,18 @@ MEM_Region from csr_adr[6] + 0x1000
 MEM_Region from csr_adr[7] + 0x0000_0000 to (SLEN)
 (MLP_Weights, each layer: hidden_size * intermediate_size * FP8 = 0x1000 )
 
+MEM_Region from csr_adr[8] 
+(Embedded Vector 1, hidden_size * FP8 )
+
+MEM_Region from csr_adr[9] 
+(Embedded Vector 2, hidden_size * FP8 )
+
+MEM_Region from csr_adr[10] 
+(Embedded Vector 3, hidden_size * FP8 )
+
+MEM_Region from csr_adr[11] 
+(Embedded Vector 4, hidden_size * FP8 )
+
 MEM_Region from TOKEN_ADDR
 MEM_Region from PC Start
 

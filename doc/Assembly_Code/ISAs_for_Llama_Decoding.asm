@@ -73,8 +73,7 @@ LOOP_N_Layers:
     // <-------------------- Projection ------------------------>
     // ## 1. Q Projection:
     lui x1, hidden_size;            Storing the address for embeddings in SSRAM.
-    lui x2, head_dim * num_attention_heads;
-    add x3, x2, x1;                 Storing the offset q_new in SSRAM.
+    add x3, x1, x1;                 Storing the offset q_new in SSRAM.
     m.fetch x0, csr_adr[0];         Fetch the Q weights from HBM to MVM SRAM.
     mul x2, x1, x2;                 Storing the address for Q offsets in HBM.
     v.fetch x3, x2, csr_adr[1];     Fetch the Q offsets from HBM to SSRAM.
@@ -86,6 +85,7 @@ LOOP_N_Layers:
     mv x8, x1;                      Current tile addr for embedded vector in SSRAM
     mv x9, x0;                      Current tile addr for MVM results in accumulator
     lui x11, 0x0;                   ith tile in the matrix
+    
     // MVM
     LOOP_MLEN_MATRIX:
         beq x9, x6, RESET_VECTOR_ADDR;
