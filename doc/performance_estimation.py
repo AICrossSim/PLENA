@@ -18,7 +18,7 @@ class model_config:
         self.DataTypeSize = 8
         self.mvm_tile_size_entry_num = 64 # MVM memory size determined by MVM_MEM_ENTRY_LEN * MLEN * DataTypeSize
         self.mvm_tile_size_entry_num = 64 # SRAM memory size determined by SRAM_MEM_ENTRY_LEN * MLEN * DataTypeSize
-        
+        self.theoratical_frequency = 10**9 # 1 GHz
 
 
     def rms_layer(self):
@@ -134,7 +134,10 @@ class model_config:
         overall_inst_num += self.rms_layer()
         overall_inst_num += self.mlp()
         print("Overall instruction number: ", overall_inst_num)
-        return overall_inst_num
+        overall_exe_cycle = overall_inst_num * 3
+        theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
+        print("Theoratical execution time: ", theoratical_execution_time)
+        return overall_inst_num, theoratical_execution_time
 
 
 if __name__ == "__main__":
