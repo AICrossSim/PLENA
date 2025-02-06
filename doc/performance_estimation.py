@@ -138,11 +138,22 @@ class model_config:
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
         print("Theoratical execution time: ", theoratical_execution_time)
         return overall_inst_num, theoratical_execution_time
+    
+    def resource_utilization_estimation(self):
+        MVM_SRAM = 2 * self.Tile_Size * self.Tile_Size * self.DataTypeSize  
+        print("MVM SRAM Utilization: ", MVM_SRAM  / 1024 / 8, "KB")
+        Scratchpad_SRAM = 4 * self.Tile_Size * self.DataTypeSize
+        print("Scratchpad SRAM Utilization: ", Scratchpad_SRAM / 1024 / 8, "KB")
+        SRAM_Utilization = MVM_SRAM + Scratchpad_SRAM
+        print("SRAM Utilization: ", SRAM_Utilization / 1024 / 8, "KB")
+        return SRAM_Utilization
+
 
 
 if __name__ == "__main__":
     model = model_config("Model_Lib/llama-3.1-70b.json")
-    print(model.compute_overall_inst())
+    model.compute_overall_inst()
+    model.resource_utilization_estimation()
 
 
 

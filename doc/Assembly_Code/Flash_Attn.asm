@@ -57,3 +57,48 @@ LOOP_ATTENTION_Q_HEADS:
         lui x3, (memory to store previous m);
         ld f1, x3, 0;
         fmax.s f1, f1, f2;
+
+        // m_new = max(m, rowmax_s_j)
+
+
+        // s_j_shifted = s_j - m_new
+
+
+        // p = torch.exp(s_j_shifted)
+
+
+        // m_res = m - m_new
+
+
+        // m = m_new
+
+
+        // l_scale = math.exp(m_res)
+
+
+        // p_row_sum = p.sum().cpu().item()
+
+
+        // l_scale * l
+
+
+        // l = l_scale * l + p_row_sum
+
+
+        // o_scale = math.exp(m_res)
+
+
+        // o_scale * o
+
+
+        // p @ v_j
+
+
+        // o = o_scale * o + p @ v_j
+
+
+        // 1 / l
+
+
+        // o = 1 / l * o
+
