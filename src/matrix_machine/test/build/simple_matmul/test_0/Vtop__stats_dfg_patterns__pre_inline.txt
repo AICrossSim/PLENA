@@ -1,0 +1,144 @@
+DFG 'pre inline' patterns with depth 1
+            4 (CONCAT '0:a vA:a):b
+            4 (CONCAT vA:1 _A:a):b
+            4 (CONCAT vA:1 vB:1):a
+            4 (COND _A:1 _B:a _C:a):a
+            2 (ADD _A:a _B:a)*:a
+            2 (AND vA:1 _A:1):1
+            2 (ARRAYSEL vA:(w8)u[1:0] '0:1):a
+            2 (ARRAYSEL vA:(w8)u[1:0] '1:1):a
+            2 (ARRAYSEL vA:(w8)u[3:0] cA:a):b
+            2 (CONCAT '0:a _A:b):c
+            2 (CONCAT _A:1 _B:a):b
+            2 (COND vA:1 vB:a vC:a):a
+            2 (EQ '0:a _A:a):1
+            2 (EXTENDS _A:a):b
+            2 (EXTENDS vA:a):b
+            2 (GTE _A:a _B:a):1
+            2 (NOT _A:1):1
+            2 (NOT _A:a):a
+            2 (OR _A:1 _B:1):1
+            2 (SEL@0 _A:a)*:b
+            2 (SEL@0 _A:a):b
+            2 (SEL@0 vA:a):1
+            2 (SEL@0 vA:a):b
+            2 (SEL@A vA:a)*:1
+            2 (SEL@A vA:a):1
+            1 (ADD cA:a _A:a)*:a
+            1 (ARRAYSEL vA:(w34)u[1:0] '0:1):a
+            1 (ARRAYSEL vA:(w8)u[3:0] '0:a):b
+            1 (ARRAYSEL vA:(w8)u[3:0] '1:a):b
+            1 (CONCAT '0:a _A:a)*:b
+            1 (CONCAT '0:a vA:1):b
+            1 (CONCAT _A:1 '0:a)*:b
+            1 (CONCAT _A:1 '1:a):b
+            1 (CONCAT _A:1 _B:1):a
+            1 (CONCAT vA:a vB:a):b
+            1 (COND _A:1 '0:a _B:a):a
+            1 (COND _A:1 _B:a _C:a)*:a
+            1 (MULS _A:a _B:a):a
+            1 (REDAND vA:a):1
+            1 (SEL@0 _A:a):1
+            1 (SEL@0 vA:a)*:1
+            1 (SEL@0 vA:a)*:b
+            1 (SEL@A vA:a)*:b
+            1 (SEL@A vA:a):b
+            1 (SUB _A:a cA:a):a
+
+DFG 'pre inline' patterns with depth 2
+            2 (AND vA:1 (OR _A:1 _B:1):1):1
+            2 (CONCAT vA:1 (CONCAT vB:1 _A:a):b):c
+            2 (CONCAT vA:1 (CONCAT vB:1 vC:1):a):b
+            2 (GTE (ADD _A:a _B:a)*:a (CONCAT '0:b vA:b):a):1
+            1 (ADD (CONCAT '0:a _A:b):c (CONCAT '0:d vA:1):c)*:c
+            1 (ADD (EXTENDS _A:a):b (EXTENDS _B:a):b)*:b
+            1 (ADD cA:a (NOT _A:a):a)*:a
+            1 (CONCAT '0:a (SEL@0 _A:b)*:c):b
+            1 (CONCAT '0:a (SEL@0 _A:b)*:c):d
+            1 (CONCAT '0:a (SEL@0 vA:b):a)*:c
+            1 (CONCAT (AND vA:1 _A:1):1 (AND vA:1 _B:1):1):a
+            1 (CONCAT (SEL@A vA:a)*:1 '0:b)*:c
+            1 (CONCAT (SEL@A vA:a)*:1 '1:b):c
+            1 (CONCAT (SEL@A vA:a)*:1 (SEL@0 _A:b)*:c):d
+            1 (CONCAT (SEL@A vA:a)*:1 (SEL@0 _A:b):c):d
+            1 (COND (EQ '0:a _A:a):1 '0:b (CONCAT _B:1 _C:c):b):b
+            1 (COND (EQ '0:a _A:a):1 (CONCAT _B:1 '0:b)*:a (COND _C:1 '0:a _D:a):a):a
+            1 (COND (GTE _A:a _B:a):1 (CONCAT _C:1 '0:b)*:c (COND _D:1 _E:c _F:c):c):c
+            1 (COND (GTE _A:a _B:a):1 (CONCAT _C:1 '1:b):c (CONCAT _C:1 _D:b):c):c
+            1 (COND (SEL@A vA:a)*:1 (COND _A:1 _B:b _C:b):b (COND _D:1 _E:b _F:b):b):b
+            1 (COND (SEL@A vA:a)*:1 (NOT _A:b):b (CONCAT '0:c _B:c)*:b)*:b
+            1 (EQ '0:a (ADD _A:a _B:a)*:a):1
+            1 (EQ '0:a (SEL@0 _A:b)*:a):1
+            1 (EXTENDS (SEL@0 vA:a)*:b):c
+            1 (EXTENDS (SEL@A vA:a)*:b):c
+            1 (MULS (EXTENDS vA:a):b (EXTENDS vB:a):b):b
+            1 (NOT (CONCAT '0:a _A:b):c):c
+            1 (NOT (SEL@0 vA:a)*:1):1
+            1 (NOT (SEL@A vA:a)*:1):1
+            1 (NOT (SUB _A:a cA:a):a):a
+            1 (OR (NOT _A:1):1 (SEL@0 vA:a)*:1):1
+            1 (OR (NOT _A:1):1 (SEL@A vA:a)*:1):1
+            1 (SEL@0 (ADD _A:a _B:a)*:a)*:b
+            1 (SEL@0 (ADD cA:a _A:a)*:a):b
+            1 (SEL@0 (ARRAYSEL vA:(w34)u[1:0] '0:1):a):b
+            1 (SEL@0 (COND _A:1 _B:a _C:a)*:a)*:b
+            1 (SEL@0 (COND _A:1 _B:a _C:a)*:a):1
+            1 (SUB (CONCAT '0:a _A:a)*:b cA:b):b
+
+DFG 'pre inline' patterns with depth 3
+            2 (CONCAT vA:1 (CONCAT vB:1 (CONCAT vC:1 vD:1):a):b):c
+            2 (GTE (ADD (CONCAT '0:a _A:b):c (CONCAT '0:d vA:1):c)*:c (CONCAT '0:e vB:e):c):1
+            1 (ADD (CONCAT '0:a (SEL@0 _A:b)*:c):d (CONCAT '0:e vA:1):d)*:d
+            1 (ADD (EXTENDS (SEL@0 vA:a)*:b):c (EXTENDS (SEL@A vA:a)*:b):c)*:c
+            1 (ADD cA:a (NOT (CONCAT '0:b _A:c):a):a)*:a
+            1 (AND vA:1 (OR (NOT _A:1):1 (SEL@0 vB:a)*:1):1):1
+            1 (AND vA:1 (OR (NOT _A:1):1 (SEL@A vB:a)*:1):1):1
+            1 (CONCAT '0:a (SEL@0 (ADD _A:b _B:b)*:b)*:c):b
+            1 (CONCAT '0:a (SEL@0 (COND _A:1 _B:b _C:b)*:b)*:c):d
+            1 (CONCAT (AND vA:1 (OR _A:1 _B:1):1):1 (AND vA:1 (OR _C:1 _D:1):1):1):a
+            1 (CONCAT (SEL@A vA:a)*:1 (SEL@0 (ADD _A:b _B:b)*:b)*:c):d
+            1 (CONCAT (SEL@A vA:a)*:1 (SEL@0 (ADD cA:b _A:b)*:b):c):d
+            1 (COND (EQ '0:a (ADD _A:a _B:a)*:a):1 '0:b (CONCAT (SEL@A vA:c)*:1 (SEL@0 _C:a):d):b):b
+            1 (COND (EQ '0:a (SEL@0 _A:b)*:a):1 (CONCAT (SEL@A vA:c)*:1 '0:d)*:a (COND (EQ '0:e _B:e):1 '0:a (CONCAT _C:1 _D:d):a):a):a
+            1 (COND (GTE (ADD _A:a _B:a)*:a (CONCAT '0:b vA:b):a):1 (CONCAT (SEL@A vB:b)*:1 '0:c)*:d (COND (EQ '0:d _C:d):1 (CONCAT _D:1 '0:c)*:d (COND _E:1 '0:d _F:d):d):d):d
+            1 (COND (GTE (ADD _A:a _B:a)*:a (CONCAT '0:b vA:b):a):1 (CONCAT (SEL@A vB:b)*:1 '1:c):d (CONCAT (SEL@A vB:b)*:1 (SEL@0 _C:a)*:c):d):d
+            1 (COND (SEL@A vA:a)*:1 (COND (GTE _A:b _B:b):1 (CONCAT _C:1 '0:c)*:d (COND _D:1 _E:d _F:d):d):d (COND (GTE _A:b _G:b):1 (CONCAT _C:1 '1:c):d (CONCAT _C:1 _H:c):d):d):d
+            1 (COND (SEL@A vA:a)*:1 (NOT (SUB _A:b cA:b):b):b (CONCAT '0:c (SEL@0 vA:a):c)*:b)*:b
+            1 (EQ '0:a (ADD (CONCAT '0:b _A:c):a (CONCAT '0:d vA:1):a)*:a):1
+            1 (EQ '0:a (SEL@0 (COND _A:1 _B:b _C:b)*:b)*:a):1
+            1 (NOT (CONCAT '0:a (SEL@0 _A:b)*:c):b):b
+            1 (NOT (SUB (CONCAT '0:a _A:a)*:b cA:b):b):b
+            1 (OR (NOT (SEL@0 vA:a)*:1):1 (SEL@A vA:a)*:1):1
+            1 (OR (NOT (SEL@A vA:a)*:1):1 (SEL@0 vA:a)*:1):1
+            1 (SEL@0 (ADD (CONCAT '0:a _A:b):c (CONCAT '0:d vA:1):c)*:c)*:e
+            1 (SEL@0 (ADD cA:a (NOT _A:a):a)*:a):b
+            1 (SEL@0 (COND (SEL@A vA:a)*:1 (NOT _A:b):b (CONCAT '0:c _B:c)*:b)*:b)*:c
+            1 (SEL@0 (COND (SEL@A vA:a)*:1 (NOT _A:b):b (CONCAT '0:c _B:c)*:b)*:b):1
+            1 (SUB (CONCAT '0:a (SEL@0 vA:b):a)*:c cA:c):c
+
+DFG 'pre inline' patterns with depth 4
+            2 (GTE (ADD (CONCAT '0:a (SEL@0 _A:b)*:c):d (CONCAT '0:e vA:1):d)*:d (CONCAT '0:f vB:f):d):1
+            1 (ADD (CONCAT '0:a (SEL@0 (COND _A:1 _B:b _C:b)*:b)*:c):d (CONCAT '0:e vA:1):d)*:d
+            1 (ADD cA:a (NOT (CONCAT '0:b (SEL@0 _A:a)*:c):a):a)*:a
+            1 (AND vA:1 (OR (NOT (SEL@0 vB:a)*:1):1 (SEL@A vB:a)*:1):1):1
+            1 (AND vA:1 (OR (NOT (SEL@A vB:a)*:1):1 (SEL@0 vB:a)*:1):1):1
+            1 (CONCAT '0:a (SEL@0 (ADD (CONCAT '0:b _A:c):d (CONCAT '0:e vA:1):d)*:d)*:f):d
+            1 (CONCAT '0:a (SEL@0 (COND (SEL@A vA:b)*:1 (NOT _A:c):c (CONCAT '0:d _B:d)*:c)*:c)*:d):e
+            1 (CONCAT (AND vA:1 (OR (NOT _A:1):1 (SEL@0 vB:a)*:1):1):1 (AND vA:1 (OR (NOT _B:1):1 (SEL@A vB:a)*:1):1):1):a
+            1 (CONCAT (SEL@A vA:a)*:1 (SEL@0 (ADD (CONCAT '0:b _A:c):d (CONCAT '0:e vB:1):d)*:d)*:f):c
+            1 (CONCAT (SEL@A vA:a)*:1 (SEL@0 (ADD cA:b (NOT _A:b):b)*:b):c):d
+            1 (COND (EQ '0:a (ADD (CONCAT '0:b _A:c):a (CONCAT '0:d vA:1):a)*:a):1 '0:c (CONCAT (SEL@A vB:e)*:1 (SEL@0 (ADD cA:a _B:a)*:a):f):c):c
+            1 (COND (EQ '0:a (SEL@0 (COND _A:1 _B:b _C:b)*:b)*:a):1 (CONCAT (SEL@A vA:c)*:1 '0:d)*:a (COND (EQ '0:e (ADD _D:e _E:e)*:e):1 '0:a (CONCAT (SEL@A vA:c)*:1 (SEL@0 _F:e):d):a):a):a
+            1 (COND (GTE (ADD (CONCAT '0:a _A:b):c (CONCAT '0:d vA:1):c)*:c (CONCAT '0:e vB:e):c):1 (CONCAT (SEL@A vC:e)*:1 '0:f)*:b (COND (EQ '0:b (SEL@0 _B:g)*:b):1 (CONCAT (SEL@A vC:e)*:1 '0:f)*:b (COND (EQ '0:c _C:c):1 '0:b (CONCAT _D:1 _E:f):b):b):b):b
+            1 (COND (GTE (ADD (CONCAT '0:a _A:b):c (CONCAT '0:d vA:1):c)*:c (CONCAT '0:e vB:e):c):1 (CONCAT (SEL@A vC:e)*:1 '1:f):b (CONCAT (SEL@A vC:e)*:1 (SEL@0 (ADD _B:c _C:c)*:c)*:f):b):b
+            1 (COND (SEL@A vA:a)*:1 (COND (GTE (ADD _A:b _B:b)*:b (CONCAT '0:a vB:a):b):1 (CONCAT (SEL@A vA:a)*:1 '0:c)*:d (COND (EQ '0:d _C:d):1 (CONCAT _D:1 '0:c)*:d (COND _E:1 '0:d _F:d):d):d):d (COND (GTE (ADD _A:b _B:b)*:b (CONCAT '0:a vC:a):b):1 (CONCAT (SEL@A vA:a)*:1 '1:c):d (CONCAT (SEL@A vA:a)*:1 (SEL@0 _G:b)*:c):d):d):d
+            1 (COND (SEL@A vA:a)*:1 (NOT (SUB (CONCAT '0:b _A:b)*:c cA:c):c):c (CONCAT '0:b (SEL@0 vA:a):b)*:c)*:c
+            1 (EQ '0:a (ADD (CONCAT '0:b (SEL@0 _A:c)*:d):a (CONCAT '0:e vA:1):a)*:a):1
+            1 (EQ '0:a (SEL@0 (COND (SEL@A vA:b)*:1 (NOT _A:c):c (CONCAT '0:a _B:a)*:c)*:c)*:a):1
+            1 (NOT (CONCAT '0:a (SEL@0 (ADD _A:b _B:b)*:b)*:c):b):b
+            1 (NOT (SUB (CONCAT '0:a (SEL@0 vA:b):a)*:c cA:c):c):c
+            1 (SEL@0 (ADD (CONCAT '0:a (SEL@0 _A:b)*:c):d (CONCAT '0:e vA:1):d)*:d)*:f
+            1 (SEL@0 (ADD cA:a (NOT (CONCAT '0:b _A:c):a):a)*:a):c
+            1 (SEL@0 (COND (SEL@A vA:a)*:1 (NOT (SUB _A:b cA:b):b):b (CONCAT '0:c (SEL@0 vA:a):c)*:b)*:b)*:c
+            1 (SEL@0 (COND (SEL@A vA:a)*:1 (NOT (SUB _A:b cA:b):b):b (CONCAT '0:c (SEL@0 vA:a):c)*:b)*:b):1
+

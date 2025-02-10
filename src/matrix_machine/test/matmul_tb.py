@@ -9,15 +9,14 @@ import math
 from copy import copy
 
 import numpy as np
-
 import cocotb
 from cocotb.triggers import *
 
-from mase_cocotb.testbench import Testbench
-from mase_cocotb.interfaces.streaming import StreamDriver, StreamMonitor
-from mase_cocotb.z_qlayers import quantize_to_int
-from mase_cocotb.runner import mase_runner
-from mase_cocotb.utils import bit_driver, sign_extend_t
+from ac_cocotb.testbench import Testbench
+from ac_cocotb.interfaces.streaming import StreamDriver, StreamMonitor
+from ac_cocotb.z_qlayers import quantize_to_int
+from ac_cocotb.runner import veri_runner
+from ac_cocotb.utils import bit_driver, sign_extend_t
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)
@@ -251,7 +250,9 @@ def generate_random_widths():
 @pytest.mark.dev
 def test_simple_matmul():
     # Run tests with different params
-    mase_runner(
+    veri_runner(
+        group = "matrix_machine",
+        module = "simple_matmul",
         module_param_list=[
             {"N": 2, "M": 2, "K": 2},
             {"N": 2, "M": 3, "K": 4},
