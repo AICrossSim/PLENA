@@ -101,6 +101,7 @@ def _single_test(
             parameters=module_params if not hierarchical else {},
             build_dir=test_work_dir,
         )
+
     try:
         runner.test(
             hdl_toplevel=module,
@@ -153,16 +154,9 @@ def veri_runner(
 
     # Group path is components/<group>
     test_filepath = inspect.stack()[1].filename
-    print("test file path")
-    print(test_filepath)
     group_path = Path(test_filepath).parent.parent
-    print("group path")
-    print(group_path)
     # Components path is components
-    
     module_path = group_path.joinpath("rtl").joinpath(f"{module}.sv")
-    print("module path")
-    print(module_path)
 
     if template:
         template_path = group_path.joinpath("rtl").joinpath(f"{module}.sv.template")

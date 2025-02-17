@@ -1,0 +1,6 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1739241151" />
+    <testcase name="small_positive_nums" classname="simple_matmul_tb" file="/home/hw1020/Documents/ARIA/Coprocessor_for_Llama/src/matrix_machine/test/simple_matmul_tb.py" lineno="108" time="0.01167917251586914" sim_time_ns="1040.001" ratio_time="89047.49018707385" />
+  </testsuite>
+</testsuites>
