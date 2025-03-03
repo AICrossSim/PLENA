@@ -1,8 +1,42 @@
 import json
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
+
+def find_max_x(const1, const2):
+    """
+    Finds the maximum power-of-2 integer x satisfying the inequality:
+    x^2 + x * const1 <= const2
+    
+    :param const1: A given constant (real number)
+    :param const2: A given constant (real number)
+    :return: The maximum power-of-2 integer x satisfying the inequality
+    """
+    # Solve the quadratic equation x^2 + const1*x - const2 = 0
+    a, b, c = 1, const1, -const2
+    
+    # Compute the discriminant
+    discriminant = b**2 - 4*a*c
+    
+    if discriminant < 0:
+        return None  # No real solutions exist
+    
+    # Compute the two roots
+    x1 = (-b + math.sqrt(discriminant)) / (2 * a)
+    x2 = (-b - math.sqrt(discriminant)) / (2 * a)
+    
+    # The maximum integer satisfying the inequality is the floor of the positive root
+    max_x = math.floor(max(x1, x2))
+    
+    # Find the maximum power of 2 less than or equal to max_x
+    power_of_2_x = 2 ** int(math.log2(max_x)) if max_x > 0 else None
+    
+    return power_of_2_x
 
 class model_config:
-    def __init__(self, model_param_path):
+    def __init__(self, model_param_path, tile_size = 64, hbm_bandwidth = 256, sram_bandwidth = 256):
         model_param = json.load(open(model_param_path))
         self.hidden_size = model_param["hidden_size"]
         self.num_attention_heads = model_param["num_attention_heads"]
@@ -15,10 +49,11 @@ class model_config:
         self.num_head_groups = self.num_attention_heads // self.num_key_value_heads
         self.vocab_size = model_param["vocab_size"]
         self.Tile_Size = 64
-        self.DataTypeSize = 8
-        self.mvm_tile_size_entry_num = 64 # MVM memory size determined by MVM_MEM_ENTRY_LEN * MLEN * DataTypeSize
-        self.mvm_tile_size_entry_num = 64 # SRAM memory size determined by SRAM_MEM_ENTRY_LEN * MLEN * DataTypeSize
+        self.DataTypeSize = 4
+        self.hbm_bandwidth = 256        # GigaByte per second
         self.theoratical_frequency = 10**9 # 1 GHz
+        self.batch_size = 1
+        self.seq_len = 50
 
 
     def rms_layer(self):
@@ -70,7 +105,7 @@ class model_config:
         # -- Attention
         q_heads = self.num_attention_heads
         settings_in_each_attention = 7
-        internel_Tc_Loop = 50 // self.Tile_Size # Assuming 50 for s_kv
+        internel_Tc_Loop = self.seq_len // self.Tile_Size # Assuming 50 for s_kv
 
         # Internel Tc Loop
         # Q_KT Loop
@@ -133,10 +168,10 @@ class model_config:
             overall_inst_num += self.residual()
         overall_inst_num += self.rms_layer()
         overall_inst_num += self.mlp()
-        print("Overall instruction number: ", overall_inst_num)
+        # print("Overall instruction number: ", overall_inst_num)
         overall_exe_cycle = overall_inst_num * 3
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
-        print("Theoratical execution time: ", theoratical_execution_time)
+        # print("Theoratical execution time: ", theoratical_execution_time)
         return overall_inst_num, theoratical_execution_time
     
     def resource_utilization_estimation(self):
@@ -147,14 +182,76 @@ class model_config:
         SRAM_Utilization = MVM_SRAM + Scratchpad_SRAM
         print("SRAM Utilization: ", SRAM_Utilization / 1024 / 8, "KB")
         return SRAM_Utilization
+    
+
+    def matrix_mult_flop_in_overall_process(self):
+        max_flops_per_cycle = self.Tile_Size * self.Tile_Size * 2 * self.batch_size
+        inst_num = 0
+        # Q, K, V Projection
+        inst_num += 3 * (self.hidden_size // self.Tile_Size) ** 2
+        # Flash Attention
+        inst_num += (self.head_dim // self.Tile_Size) * (self.seq_len // self.Tile_Size) * 2
+        # MLP
+        inst_num += (self.hidden_size * self.intermediate_size) // (self.Tile_Size * self.Tile_Size)
+
+        return (inst_num * max_flops_per_cycle * self.num_hidden_layers)
+
+    def vector_operation_flop_in_overall_process(self):
+        max_flops_per_cycle = self.Tile_Size * 2 * self.batch_size
+        inst_num = 0
+        # RMS
+        inst_num += 2 * (self.hidden_size // self.Tile_Size)
+        # Q, K, V Projection
+        inst_num += 3 * (self.hidden_size // self.Tile_Size)
+        # Flash Attention
+        inst_num += (self.head_dim // self.Tile_Size) * (self.seq_len // self.Tile_Size)
+        # Residual
+        inst_num += 2 * (self.hidden_size // self.Tile_Size)
+        # Feed Forward
+        inst_num += 2 * (self.hidden_size // self.Tile_Size)
+        # MLP
+        inst_num += 2 * (self.hidden_size // self.Tile_Size)
+        return (inst_num * max_flops_per_cycle * self.num_hidden_layers)
+    
+    def compute_theoratical_performance(self):
+        matrix_mult_flop = self.matrix_mult_flop_in_overall_process()
+        vector_operation_flop = self.vector_operation_flop_in_overall_process()
+        total_flop = matrix_mult_flop + vector_operation_flop
+        mcycles = self.compute_overall_inst()[0] * 8
+        flops = ((total_flop // mcycles) * self.theoratical_frequency) / 10**12
+        print("Theoratical Performance: ", flops, "TFLOP/s")
+        return flops
+    
+
+    def determine_max_tile_size(self, batch_size, hbm_bandwidth):
+        cycle_bandwidth = (hbm_bandwidth * 1024 * 1024 * 1024 * 8) / (self.DataTypeSize * self.theoratical_frequency)
+        max_tile_size = find_max_x(batch_size, cycle_bandwidth)
+        self.batch_size = batch_size
+        return max_tile_size
+
 
 
 
 if __name__ == "__main__":
     model = model_config("Model_Lib/llama-3.1-8b.json")
-    model.compute_overall_inst()
-    model.resource_utilization_estimation()
+    # plot a graph, 
+    batch_size_selection = [1, 2, 4, 8, 16, 32]
+    hbm_bandwidth_selection = [64, 128, 256]
+    flops = np.zeros((len(batch_size_selection), len(hbm_bandwidth_selection)))
+    for j in range(len(hbm_bandwidth_selection)):
+        for i in range(len(batch_size_selection)):      
+            model.determine_max_tile_size(batch_size_selection[i], hbm_bandwidth_selection[j])
+            flops[i][j] = model.compute_theoratical_performance()
 
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    X, Y = np.meshgrid(hbm_bandwidth_selection, batch_size_selection)
+    ax.plot_surface(X, Y, flops, cmap='viridis')
+    ax.set_xlabel('HBM Bandwidth (GB/s)')
+    ax.set_ylabel('Batch Size')
+    ax.set_zlabel('Theoratical Performance (TFLOP/s)')
+    plt.savefig("performance_estimation.png")
 
 
 

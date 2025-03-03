@@ -22,7 +22,7 @@ LOOP_ATTENTION_Q_HEADS:
         LOOP_Bc:
             add x13, x7, x8;
             m.fetch     x13, csr_adr[3];    
-            v.fetch     x0, x0, csr_adr[8];
+            v.fetch     x0, x0, csr_adr[8]; 
             mv          x9, x8;
             addi        x9, x9, x4;
             addi        x8, x8, Head_Dim * num_key_value_heads;
