@@ -1,7 +1,7 @@
 .venv
 ./src/matrix_machine/test/build/
-./src/matrix_machine/test/_pycache_/
-./src/ac_cocotb/_pycache_/
-./src/ac_cocotb/interfaces/_pycache_/
-./src/ac_cocotb/z_qlayers/_pycache_/
+./src/matrix_machine/test/__pycache__/
+./src/ac_cocotb/__pycache__/
+./src/ac_cocotb/interfaces/__pycache__/
+./src/ac_cocotb/z_qlayers/__pycache__/
 .DS_Store
