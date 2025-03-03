@@ -11,15 +11,15 @@ LOOP_MLEN_MATRIX:
     beq x9, x6, RESET_VECTOR_ADDR;
     j   WITHOUT_RESET_VECTOR_ADDR;
     RESET_VECTOR_ADDR:
-        mv x8, x0;                      Current tile addr for embedded vector in SSRAM
-        mv x9, x0;                      Current tile addr for MVM results in accumulator
+        mv x8, x0;                          Current tile addr for embedded vector in SSRAM
+        mv x9, x0;                          Current tile addr for MVM results in accumulator
         j   END_VECTOR_ADDR;
     WITHOUT_RESET_VECTOR_ADDR:
-        addi x8, x8, Tile_Size;           Current tile addr for embedded vector in SSRAM
-        addi x9, x9, Tile_Size;           Current tile addr for MVM results in accumulator
+        addi x8, x8, Tile_Size;             Current tile addr for embedded vector in SSRAM
+        addi x9, x9, Tile_Size;             Current tile addr for MVM results in accumulator
     END_VECTOR_ADDR:
-        m.fetch x11, csr_adr[0];    Fetch the weight for ith hidden layer Q from HBM to MVM SRAM
-        v.fetch x0, x8, csr_adr[8];    Fetch the embedded vector from HBM to MVM SRAM
+        m.fetch x11, csr_adr[0];            Fetch the weight for ith hidden layer Q from HBM to MVM SRAM
+        v.fetch x0, x8, csr_adr[8];         Fetch the embedded vector from HBM to MVM SRAM
         m.mv x9, x0;  
     addi x11, x11, Tile_Size * Tile_Size;            Storing the address for the next tile in MVM SRAM
     addi x5, x5, 0xfff;                              Counter for MVM
@@ -33,11 +33,11 @@ mv x4, x0;                          Storing the address for RoPE Sin weights in 
 lui x5, Head_Dim;                          Storing the address for RoPE Cos weights in SSRAM;
 // Loading RoPE weights from HBM to MVM SRAM
 LOOP_TILE_VECTOR_IN_HEAD:
-        v.fetch x4, csr_addr[6];            Fetch the RoPE weights from HBM to MVM SRAM. (Head_Dim * 2, [cos, sin, else])
-        v.fetch x5, csr_addr[6];            Fetch the RoPE weights from HBM to MVM SRAM. (Head_Dim * 2, [cos, sin, else])
-        addi x4, x4, Tile_Size;             Storing the address for the next tile in MVM SRAM
-        addi x1, x1, 0xfff;                  Counter for RoPE
-        blt x0, x1, LOOP_TILE_VECTOR_IN_HEAD;
+    v.fetch x4, csr_addr[6];            Fetch the RoPE weights from HBM to MVM SRAM. (Head_Dim * 2, [cos, sin, else])
+    v.fetch x5, csr_addr[6];            Fetch the RoPE weights from HBM to MVM SRAM. (Head_Dim * 2, [cos, sin, else])
+    addi x4, x4, Tile_Size;             Storing the address for the next tile in MVM SRAM
+    addi x1, x1, 0xfff;                  Counter for RoPE
+    blt x0, x1, LOOP_TILE_VECTOR_IN_HEAD;
 
 addi x11, x4, 3 * Head_Dim;           Storing the address for q_projected and q_roped in SSRAM;
 addi x10, x4, 3 * Head_Dim;           Storing the address for rotated_q;

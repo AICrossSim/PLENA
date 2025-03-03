@@ -151,7 +151,7 @@ class model_config:
 
 
 if __name__ == "__main__":
-    model = model_config("Model_Lib/llama-3.1-70b.json")
+    model = model_config("Model_Lib/llama-3.1-8b.json")
     model.compute_overall_inst()
     model.resource_utilization_estimation()
 

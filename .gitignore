@@ -4,3 +4,5 @@
 ./src/ac_cocotb/_pycache_/
 ./src/ac_cocotb/interfaces/_pycache_/
 ./src/ac_cocotb/z_qlayers/_pycache_/
+./src/ac_cocotb/_pycache_
+.DS_Store
