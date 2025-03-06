@@ -16,7 +16,6 @@ module muntjac_dcache import muntjac_pkg::*; import tl_pkg::*; # (
 
     parameter int unsigned TlbNumWays = 32,
     parameter int unsigned TlbSetsWidth = 0,
-
     parameter bit          EnableHpm   = 0
 
 ) (

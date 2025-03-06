@@ -43,7 +43,7 @@ def find_max_x(const1, const2):
 
 
 class model_config:
-    def __init__(self, model_param_path, TileSize = 64, hbm_bandwidth = 256, sram_bandwidth = 256):
+    def __init__(self, model_param_path, hbm_bandwidth = 256):
         model_param = json.load(open(model_param_path))
         self.hidden_size = model_param["hidden_size"]
         self.num_attention_heads = model_param["num_attention_heads"]
@@ -55,9 +55,8 @@ class model_config:
         self.head_dim = self.hidden_size // self.num_attention_heads
         self.num_head_groups = self.num_attention_heads // self.num_key_value_heads
         self.vocab_size = model_param["vocab_size"]
-        TileSize = 64
         self.DataTypeSize = 4
-        self.hbm_bandwidth = 256        # GigaByte per second
+        self.hbm_bandwidth = hbm_bandwidth        # GigaByte per second
         self.theoratical_frequency = 10**9 # 1 GHz
         self.batch_size = 1
         self.seq_len = 50
