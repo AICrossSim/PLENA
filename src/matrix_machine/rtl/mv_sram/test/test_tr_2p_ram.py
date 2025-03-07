@@ -16,7 +16,7 @@ async def my_first_test(dut):
     await Timer(5, units="ns")  # Allow some settling time
 
     # Apply test stimulus
-    for cycle in range(10):
+    for cycle in range(1000):
         dut.sram_addr.value = 10
         dut.transpose_read.value = 0
         dut.stall.value = 0
