@@ -9,11 +9,7 @@ project_path = Path(__file__).resolve().parent.parent
 verilator_args = [
     "--trace",               # Enable standard VCD tracing
     "--trace-structs",       # Capture struct signals
-    "--trace-params",        # Trace parameters
-    "--trace-underscore",    # Include signals starting with "_"
     "--trace-fst",           # Enable FST (faster than VCD)
-    "--trace-max-array", "1024",  # Ensure large arrays are dumped
-    "--public-flat-rw",      # Prevent Verilator from optimizing signals away
 ]
 
 def test_my_design_runner():
@@ -31,11 +27,13 @@ def test_my_design_runner():
         sources=sources,
         hdl_toplevel="ram_access_mapping",
         build_args=verilator_args,
+        waves=True,  # Enable waveform generation
         always=True  # Ensures rebuild when the source changes
     )
 
     # Run the test
     runner.test(
+        waves=True,  # Enable waveform generation
         hdl_toplevel="ram_access_mapping",
         test_module="test_tr_2p_ram"  # Remove the comma
     )
