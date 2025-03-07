@@ -24,5 +24,5 @@ async def my_first_test(dut):
         await Timer(2, units="ns")  # Align with clock period
     
     # Log and check outputs
-    dut._log.info("sub_sram_addr_array = %s", dut.sub_sram_addr_array.value)
+    # dut._log.info("sub_sram_addr_array = %s", dut.sub_sram_addr_array.value)
     # assert int(dut.my_signal_2.value) == 0, "ERROR: my_signal_2 is not 0!"

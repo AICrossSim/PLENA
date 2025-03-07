@@ -2,45 +2,43 @@ import os
 from pathlib import Path
 from cocotb.runner import get_runner
 
-# Project path
+# # Project path
 project_path = Path(__file__).resolve().parent.parent
 
-# Verilator-specific arguments for better waveform tracing
+# # Verilator arguments for tracing
 verilator_args = [
-    "--trace",               # Enable VCD tracing
-    "--trace-structs",       # Capture struct signals
-    "--trace-fst",           # Enable FST (faster than VCD)
-    "-DVM_TRACE_FST",        # Define the FST format
-    "--trace-depth", "1",    # Limit trace depth
+    "--trace",              # Enable VCD/FST tracing
+    "--trace-structs",      # Capture struct signals
 ]
 
 def test_my_design_runner():
-    # Detect simulator from environment variable
+    # Detect simulator from environment
     sim = os.getenv("SIM", "verilator")  # Default to Verilator
-
     os.environ["WAVES"] = "1"
 
-    # Source files (ensure this contains 'ram_access_mapping' module)
-    sources = [project_path / "tr_2p_ram.sv"]
+    # Source files (ensure 'ram_access_mapping' is defined inside these files)
+    sources = [
+        project_path / "tr_2p_ram.sv",
+    ]
 
-    # Get appropriate runner
+    # Get simulator runner
     runner = get_runner(sim)
 
-    # Build the simulation (force recompile with always=True)
+    # Build the simulation
     runner.build(
-        sources=sources,
+        verilog_sources=sources,
         hdl_toplevel="ram_access_mapping",
         build_args=verilator_args,
-        # waves=True,  # Enable waveform generation
-        always=True  # Ensures rebuild when the source changes
+        always=True  # Force rebuild if source changes
     )
 
     # Run the test
     runner.test(
-        waves=True,  # Enable waveform generation
         hdl_toplevel="ram_access_mapping",
-        test_module="test_tr_2p_ram"  # Remove the comma
+        test_args={"results_xml": "results.xml"},  # Ensure correct argument
+        test_module="test_tr_2p_ram"
     )
+
 
 if __name__ == "__main__":
     test_my_design_runner()
