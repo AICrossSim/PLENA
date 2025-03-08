@@ -11,14 +11,16 @@ verilator_args = [
     "--trace-structs",      # Capture struct signals
 ]
 
+icarus_args = []
+
 def test_my_design_runner():
     # Detect simulator from environment
-    sim = os.getenv("SIM", "verilator")  # Default to Verilator
-    os.environ["WAVES"] = "1"
+    sim = os.getenv("SIM", "icarus")  # Default to Verilator
+    # os.environ["WAVES"] = "1"
 
     # Source files (ensure 'ram_access_mapping' is defined inside these files)
     sources = [
-        project_path / "tr_2p_ram.sv",
+        project_path / "ram_access_mapping.sv",
     ]
 
     # Get simulator runner
@@ -28,14 +30,14 @@ def test_my_design_runner():
     runner.build(
         verilog_sources=sources,
         hdl_toplevel="ram_access_mapping",
-        build_args=verilator_args,
+        build_args=verilator_args if sim == "verilator" else icarus_args,
         always=True  # Force rebuild if source changes
     )
 
     # Run the test
     runner.test(
         hdl_toplevel="ram_access_mapping",
-        test_args={"results_xml": "results.xml"},  # Ensure correct argument
+        # test_args={"results_xml": "results.xml"},  # Ensure correct argument
         test_module="test_tr_2p_ram"
     )
 

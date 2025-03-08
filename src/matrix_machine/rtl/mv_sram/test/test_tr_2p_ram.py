@@ -1,5 +1,5 @@
 import cocotb
-from cocotb.triggers import Timer
+from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
 @cocotb.test()
@@ -16,13 +16,21 @@ async def my_first_test(dut):
     await Timer(5, units="ns")  # Allow some settling time
 
     # Apply test stimulus
-    for cycle in range(1000):
+    for cycle in range(100):
         dut.sram_addr.value = 10
         dut.transpose_read.value = 0
         dut.stall.value = 0
         dut.read_en.value = 1
-        await Timer(2, units="ns")  # Align with clock period
+        await RisingEdge(dut.clk)  # Synchronize with clock edges
     
-    # Log and check outputs
-    # dut._log.info("sub_sram_addr_array = %s", dut.sub_sram_addr_array.value)
-    # assert int(dut.my_signal_2.value) == 0, "ERROR: my_signal_2 is not 0!"
+    for cycle in range(100):
+        dut.sram_addr.value = 10
+        dut.transpose_read.value = 1
+        dut.stall.value = 0
+        dut.read_en.value = 1
+        await RisingEdge(dut.clk)  # Synchronize with clock edges
+
+    # Keep simulation running to observe clock
+    await Timer(500, units="ns")
+
+
