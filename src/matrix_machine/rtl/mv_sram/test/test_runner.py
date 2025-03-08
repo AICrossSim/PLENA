@@ -20,7 +20,8 @@ def test_my_design_runner():
 
     # Source files (ensure 'ram_access_mapping' is defined inside these files)
     sources = [
-        project_path / "ram_access_mapping.sv",
+        project_path / "subsram.sv",
+        project_path / "sub_tile_transpose.sv",
     ]
 
     # Get simulator runner
@@ -29,16 +30,16 @@ def test_my_design_runner():
     # Build the simulation
     runner.build(
         verilog_sources=sources,
-        hdl_toplevel="ram_access_mapping",
+        hdl_toplevel="subsram",
         build_args=verilator_args if sim == "verilator" else icarus_args,
         always=True  # Force rebuild if source changes
     )
 
     # Run the test
     runner.test(
-        hdl_toplevel="ram_access_mapping",
+        hdl_toplevel="subsram",
         # test_args={"results_xml": "results.xml"},  # Ensure correct argument
-        test_module="test_tr_2p_ram"
+        test_module="test_subsram",
     )
 
 

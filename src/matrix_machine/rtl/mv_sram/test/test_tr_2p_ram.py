@@ -10,9 +10,9 @@ async def my_first_test(dut):
     cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
 
     # Apply Reset
-    dut.rst.value = 1
-    await Timer(5, units="ns")  # Hold reset for 5ns
     dut.rst.value = 0
+    await Timer(5, units="ns")  # Hold reset for 5ns
+    dut.rst.value = 1
     await Timer(5, units="ns")  # Allow some settling time
 
     # Apply test stimulus
