@@ -30,6 +30,8 @@ async def mv_functional_test(dut):
         dut.addr.value = 0
         dut.parallel_rd_index.value = i
         await RisingEdge(dut.clk)
+        # cocotb.log.info(f"Read data: {dut.smst.out_data.value}")
+        cocotb.log.info(f"Read data: {dut.rdata.value}")
 
     # Read from sram transposed
     for i in range(2):

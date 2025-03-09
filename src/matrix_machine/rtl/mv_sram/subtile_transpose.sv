@@ -1,12 +1,10 @@
 `timescale 1ns/1ps
 
 /// Assuming the input data is {a, b, c, d}
-/// THe matrix_in will be | a , b |
-///                       | c , d |
 /// The output will be [ a, c, b, d ]
 
 
-module sub_tile_transpose #(
+module subtile_transpose #(
     parameter Dim = 2,
     parameter DataWidth = 4
 ) (
@@ -16,13 +14,13 @@ module sub_tile_transpose #(
 );
 
     
-    initial begin
-        $dumpfile("dump.vcd");  // Save waveform to dump.vcd
-        $dumpvars(0, sub_tile_transpose); // Dump all signals in my_design
-        for (int i = 0; i < Dim*Dim; i++) begin
-            $dumpvars(0, out_data[i]);
-        end
-    end
+    // initial begin
+    //     $dumpfile("dump.vcd");  // Save waveform to dump.vcd
+    //     $dumpvars(0, subtile_transpose); // Dump all signals in my_design
+    //     for (int i = 0; i < Dim*Dim; i++) begin
+    //         $dumpvars(0, out_data[i]);
+    //     end
+    // end
 
     // Transpose the matrix
     genvar row, col;

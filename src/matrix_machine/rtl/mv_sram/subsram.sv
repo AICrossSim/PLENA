@@ -3,11 +3,11 @@
 module subsram #(
 
   parameter  int DataWidth                  = 4, 
-  parameter  int Depth                      = 128,
+  parameter  int SRAM_Depth                      = 128,
   parameter  int SubSRAMIndex               = 0,                        // Index of the sub SRAM    
   parameter  int SubSRAM_Amount             = 8,                        // The dimension of the sub SRAM, or the TileSize of the matrix.
   parameter  int Parallel_Rd_Amount         = 2,                        // The number of row/col read in parallel
-  localparam int AdrWidth                   = $clog2(Depth),             // derived parameter
+  localparam int AdrWidth                   = $clog2(SRAM_Depth),             // derived parameter
   localparam int Parallel_Rd_Index_Width    = $clog2(SubSRAM_Amount/Parallel_Rd_Amount), // The width of the parallel read index
   localparam int ElementWidth               = DataWidth * (Parallel_Rd_Amount ** 2),   // The width of each element in the sub SRAM
   localparam int Element_Amount             = Parallel_Rd_Amount ** 2 // The number of data in a single element
@@ -28,7 +28,7 @@ module subsram #(
 // -----
 // Wires
 // -----
-logic [ElementWidth-1:0]            mem [Depth];
+logic [ElementWidth-1:0]            mem [SRAM_Depth];
 logic [AdrWidth-1:0]                addr_for_sub_sram;
 logic [ElementWidth-1:0]            raw_rdata;
 logic transpose_rawdata;
@@ -38,9 +38,6 @@ initial begin
     $dumpvars(0, subsram); // Dump all signals in my_design
     for (int j = 0; j < Element_Amount; j++) begin
         $dumpvars(0, rdata[j]);
-    end
-    for (int i = 0; i < Element_Amount; i++) begin
-        $dumpvars(0, mem[i]);
     end
 end
 
@@ -56,7 +53,6 @@ always_comb begin
 end
 
 // Transposed Read
-
 always @(posedge clk) begin
     if (req) begin
         if (write_en) begin
@@ -70,14 +66,28 @@ always @(posedge clk) begin
     end
 end
 
-sub_tile_transpose #(
-    .Dim(Parallel_Rd_Amount),
-    .DataWidth(DataWidth)
-) smst (
-    .in_data(raw_rdata),
-    .transposed_read(transpose_rawdata),
-    .out_data(rdata)
-);
+
+// Transpose the matrix
+genvar row, col;
+generate
+    for (row = 0; row < Parallel_Rd_Amount; row++) begin : transpose_rows
+        for (col = 0; col < Parallel_Rd_Amount; col++) begin : transpose_cols
+            assign rdata[col*Parallel_Rd_Amount + row] = transposed_read ?
+                raw_rdata[((row * Parallel_Rd_Amount + col) + 1) * DataWidth - 1 : (row * Parallel_Rd_Amount + col) * DataWidth] :
+                raw_rdata[((col * Parallel_Rd_Amount + row) + 1) * DataWidth - 1 : (col * Parallel_Rd_Amount + row) * DataWidth];
+        end
+    end
+endgenerate
+
+// subtile_transpose #(
+//     .Dim(Parallel_Rd_Amount),
+//     .DataWidth(DataWidth)
+// ) smst (
+//     .in_data(raw_rdata),
+//     .transposed_read(transpose_rawdata),
+//     .out_data(rdata)
+// );
+
 
 endmodule
 

@@ -21,7 +21,7 @@ def test_my_design_runner():
     # Source files (ensure 'ram_access_mapping' is defined inside these files)
     sources = [
         project_path / "subsram.sv",
-        project_path / "sub_tile_transpose.sv",
+        project_path / "subtile_transpose.sv",
     ]
 
     # Get simulator runner
