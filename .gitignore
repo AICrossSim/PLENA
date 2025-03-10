@@ -2,10 +2,12 @@
 **/.venv
 
 __pycache__/
+build/
 
 src/matrix_machine/test/build/
 src/matrix_machine/rtl/mv_unit/test/build/
 src/matrix_machine/rtl/mv_sram/test/sim_build/
+tools/ac_cocotb/
 
 .DS_Store
 **/.DS_Store

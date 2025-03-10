@@ -7,7 +7,7 @@ module rdata_transform #(
     parameter int MLEN = 8,                                             // The TileSize of the matrix.
     parameter int Parallel_Wr_Dim = 2,                                  // The number of row/col write in parallel
     parameter int Parallel_Rd_Dim = 2,                                  // The number of row/col read in parallel
-    localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Amount), 
+    localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Dim), 
     localparam int AdrWidth                   = $clog2(SRAM_Depth),     // Address Space for the SRAM
     localparam int SubSRAM_Amount             = MLEN / Parallel_Rd_Dim                        // The dimension of the sub SRAM, or the TileSize of the matrix.
     
@@ -27,7 +27,6 @@ localparam int Parallel_Wr_Element_Amount   = Parallel_Wr_Dim / Parallel_Rd_Dim 
 localparam int Parallel_Wr_Amount           = MLEN / Parallel_Wr_Dim; // The number of row/col read in parallel
 
 localparam int SubSRAMWrWidth               = DataWidth * (Parallel_Wr_Dim * Parallel_Rd_Dim);
-localparam int SubSRAM_Amount               = MLEN / Parallel_Rd_Dim;                        // The dimension of the sub SRAM, or the TileSize of the matrix.
 localparam int SubSRAM_Index_Width          = $clog2(SubSRAM_Amount); // The width of the parallel read index
 localparam int SubTile_Index_Width          = $clog2(SubSRAM_Amount * Parallel_Wr_Element_Amount); // The width of the parallel read index
 
@@ -43,7 +42,10 @@ end
 always @(posedge clk) begin
     for (int i = 0; i < Parallel_Rd_Dim; i++) begin
         for (int j = 0; j < SubSRAM_Amount; j++) begin
-            out_data[i * MLEN + j +: DataWidth] = in_data[(parallel_rd_index + j) % SubSRAM_Amount][i * DataWidth +: DataWidth];
+            out_data[((i * MLEN + j * Parallel_Rd_Dim) )] <= 
+            in_data[(parallel_rd_index + j) % SubSRAM_Amount]
+            [(i * DataWidth) +: DataWidth];  // Convert to explicit range
+            // out_data[((i * MLEN + j + 1) * DataWidth - 1) : ((i * MLEN + j ) * DataWidth)] = in_data[(parallel_rd_index + j) % SubSRAM_Amount][i * DataWidth +: DataWidth];
         end
     end
 end

@@ -1,18 +1,17 @@
 `timescale 1ns/1ps
 
-
 module mv_sram #(
     parameter int DataWidth = 4, 
     parameter int SRAM_Depth = 128,
     parameter int MLEN = 8,                                             // The TileSize of the matrix.
     parameter int Parallel_Wr_Dim = 2,                                  // The number of row/col write in parallel
     parameter int Parallel_Rd_Dim = 2,                                  // The number of row/col read in parallel
-    localparam int AdrWidth                   = $clog2(SRAM_Depth),     // Address Space for the SRAM
+    localparam int AddrLen                   = $clog2(SRAM_Depth)     // Address Space for the SRAM
     
 ) (
     input  logic clk,
 
-    input  logic rst,
+    // input  logic rst,
     input  logic req,
     input  logic transposed_read,
     input  logic write_en,
@@ -67,7 +66,7 @@ generate
             .DataWidth(DataWidth),
             .SRAM_Depth(SRAM_Depth),
             .SubSRAMIndex(sub_sram_index),
-            .SubSRAM_Amount(SubSRAM_Amount),
+            .MLEN(MLEN),
             .Parallel_Wr_Amount(Parallel_Wr_Amount),
             .Parallel_Rd_Amount(Parallel_Rd_Dim)
         ) sub_sram_1 (
@@ -76,10 +75,9 @@ generate
             .write_en(write_en),
             .transposed_read(transposed_read),
             .addr(sram_addr),   
-            .parallel_rd_index(),
             .wdata(sub_sram_wdata[sub_sram_index]),
             .rdata(sub_sram_rdata[sub_sram_index])
-        )
+        );
     end
 endgenerate
 
@@ -91,10 +89,11 @@ wdata_transform #(
     .Parallel_Wr_Dim(Parallel_Wr_Dim),
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
 ) wdata_transform_1 (
-    .write_data(write_data),
+    .clk(clk),
+    .in_data(write_data),
     .addr(sram_addr),
-    .sub_sram_wdata(sub_sram_wdata),
-)
+    .sub_sram_wdata(sub_sram_wdata)
+);
 
 // Read Data Transformation
 rdata_transform #(
@@ -107,7 +106,7 @@ rdata_transform #(
     .in_data(sub_sram_rdata),
     .sram_addr(sram_addr),
     .out_data(out_data)
-)
+);
 
 
 

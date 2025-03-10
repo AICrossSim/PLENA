@@ -27,9 +27,9 @@ module subtile_transpose #(
     generate
         for (row = 0; row < Dim; row++) begin : transpose_rows
             for (col = 0; col < Dim; col++) begin : transpose_cols
-                assign out_data[((col * Dim + row) + 1) * DataWidth - 1 +: DataWidth] = transposed_read ?
-                    in_data[((row * Dim + col) + 1) * DataWidth - 1 +: DataWidth] :
-                    in_data[((col * Dim + row) + 1) * DataWidth - 1 +: DataWidth];
+                assign out_data[(col * Dim + row) * DataWidth +: DataWidth] = transposed_read ?
+                    in_data[(row * Dim + col) * DataWidth +: DataWidth] :
+                    in_data[(col * Dim + row) * DataWidth +: DataWidth];
             end
         end
     endgenerate
