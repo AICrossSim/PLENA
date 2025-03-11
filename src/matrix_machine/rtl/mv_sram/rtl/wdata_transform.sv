@@ -11,7 +11,7 @@ module wdata_transform #(
     
 ) (
     input  logic clk,
-    input  logic [Parallel_Rd_Dim * MLEN * DataWidth - 1:0] in_data,     // Packed input vector
+    input  logic [Parallel_Wr_Dim * MLEN * DataWidth - 1:0] in_data,     // Packed input vector
     input  logic [AdrWidth-1:0] addr,
     output logic [ElementWidth * Parallel_Wr_Element_Amount - 1 : 0]   sub_sram_wdata [SubSRAM_Amount]
 );
@@ -43,21 +43,23 @@ end
 // -----
 
 // Write Data Preparation
-logic [SubTile_Index_Width-1:0] subtile_row_offset, subtile_col_index, subtile_index;
+logic [SubTile_Index_Width-1:0] subtile_row_offset, subtile_col_index;
 logic [SubSRAM_Index_Width-1:0] start_subsram_index, subsram_index;
-assign start_subsram_index = addr[SubSRAM_Index_Width-1:0];
+logic [AdrWidth-1:0] sub_sram_data_offset;
+integer subtile_index;
 logic [$clog2(SubSRAM_Amount) - 1: 0] row_index_in_tile;
+
+assign start_subsram_index = addr[SubSRAM_Index_Width-1:0];
 
 always @(posedge clk) begin
     for (subtile_index = 0; subtile_index < SubSRAM_Amount * Parallel_Wr_Element_Amount; subtile_index++) begin
         
+        sub_sram_data_offset = (subtile_index / SubSRAM_Amount) * ElementWidth;
         subtile_row_offset  = (subtile_index / SubSRAM_Amount) * Parallel_Rd_Dim;
         subtile_col_index   = subtile_index % SubSRAM_Amount;
-
         subsram_index = (subtile_index[SubSRAM_Index_Width-1:0]  + start_subsram_index);
-
         for (row_index_in_tile = 0; row_index_in_tile < Parallel_Rd_Dim; row_index_in_tile++) begin
-            sub_sram_wdata[subsram_index][ row_index_in_tile * ElementRowWidth +: ElementRowWidth] 
+            sub_sram_wdata[subsram_index][ sub_sram_data_offset + row_index_in_tile * ElementRowWidth +: ElementRowWidth] 
             = in_data[  (subtile_row_offset  + row_index_in_tile) * MLEN * DataWidth + subtile_col_index * ElementRowWidth +: ElementRowWidth];
         end
     end

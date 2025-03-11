@@ -15,6 +15,7 @@ module rdata_transform #(
     input  logic                        clk,
     input  logic [ElementWidth-1:0]     in_data     [SubSRAM_Amount],
     input  logic [AdrWidth-1:0]         sram_addr,
+    input  logic                        read_data_valid,
     output logic [DataWidth-1:0]        out_data    [Parallel_Rd_Dim * MLEN-1:0]
 );
 

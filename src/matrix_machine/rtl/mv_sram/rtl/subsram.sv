@@ -22,6 +22,7 @@ module subsram #(
   
   input  logic [AdrWidth-1:0]                   addr,
   input  logic [ElementWidth-1:0]               wdata, // To be confirmed
+  output logic                                  write_response,
   output logic [ElementWidth-1:0]               rdata  // Read data. Data is returned one cycle after req_i is high.
 );
 
@@ -57,16 +58,20 @@ end
 always @(posedge clk) begin
     if (req) begin
         if (write_en) begin
-            // TO be confirmed
+            // To be confirmed, how to effectively write to the sram.
             for (int i = 0; i < Parallel_Wr_Amount; i++) begin
-                mem[addr + i]<= wdata[i*DataWidth - 1 +: DataWidth];
+                mem[addr + i] <= wdata[i * ElementWidth - 1 +: ElementWidth];
             end
-
+            write_response <= 1'b1;
         end 
         else begin
+            write_response <= 1'b0;
             raw_rdata <= mem[addr_for_sub_sram];
             transpose_rawdata <= transposed_read;
         end
+    end
+    else begin
+        write_response <= 1'b0;
     end
 end
 
@@ -91,7 +96,6 @@ subtile_transpose #(
     .transposed_read(transpose_rawdata),
     .out_data(rdata)
 );
-
 
 endmodule
 
