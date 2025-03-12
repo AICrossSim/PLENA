@@ -17,7 +17,6 @@ module mv_sram #(
     input  logic write_en,
     // input  logic last_write,
     output logic write_response,
-    output logic read_data_valid,
 
     input  logic [AddrLen-1:0] sram_addr,
     input  logic stall,                                                     // Indicates whether the read is stalled
@@ -51,13 +50,17 @@ logic [ElementWidth * Parallel_Wr_Element_Amount - 1 : 0]   sub_sram_wdata [SubS
 logic [ElementWidth-1:0]                                    sub_sram_rdata [SubSRAM_Amount];
 
 logic individual_subs_sram_write_response [SubSRAM_Amount];
+logic individual_subs_sram_read_valid [SubSRAM_Amount];
+logic read_data_valid;
 
 // Control Signals
 // assign write_response = & individual_subs_sram_write_response;
 always_comb begin
     write_response = 1'b1;
+    read_data_valid = 1'b1;
     for (int i = 0; i < SubSRAM_Amount; i++) begin
         write_response &= individual_subs_sram_write_response[i];
+        read_data_valid &= individual_subs_sram_read_valid[i];
     end
 end 
 
@@ -80,6 +83,7 @@ generate
             .addr(sram_addr),   
             .wdata(sub_sram_wdata[sub_sram_index]),
             .write_response(individual_subs_sram_write_response[sub_sram_index]),
+            .read_data_valid(individual_subs_sram_read_valid[sub_sram_index]),
             .rdata(sub_sram_rdata[sub_sram_index])
         );
     end

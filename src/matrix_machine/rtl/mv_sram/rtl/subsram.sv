@@ -23,6 +23,7 @@ module subsram #(
   input  logic [AdrWidth-1:0]                   addr,
   input  logic [ElementWidth-1:0]               wdata, // To be confirmed
   output logic                                  write_response,
+  output logic                                  read_data_valid,
   output logic [ElementWidth-1:0]               rdata  // Read data. Data is returned one cycle after req_i is high.
 );
 
@@ -36,11 +37,9 @@ logic transpose_rawdata;
 logic [Parallel_Rd_Index_Width-1:0]    parallel_rd_index;
 
 initial begin
-    $dumpfile("dump.vcd");  // Save waveform to dump.vcd
-    $dumpvars(0, subsram); // Dump all signals in my_design
-    for (int j = 0; j < Element_Amount; j++) begin
-        $dumpvars(0, rdata[j]);
-    end
+    // $dumpvars(0, subsram); // Dump all signals in my_design
+    // $dumpfile("dump.vcd");  // Save waveform to dump.vcd
+    
 end
 
 assign parallel_rd_index = addr[Parallel_Rd_Index_Width-1:0];
@@ -63,15 +62,18 @@ always @(posedge clk) begin
                 mem[addr + i] <= wdata[i * ElementWidth - 1 +: ElementWidth];
             end
             write_response <= 1'b1;
+            read_data_valid <= 1'b0;
         end 
         else begin
             write_response <= 1'b0;
             raw_rdata <= mem[addr_for_sub_sram];
             transpose_rawdata <= transposed_read;
+            read_data_valid <= 1'b1;
         end
     end
     else begin
         write_response <= 1'b0;
+        read_data_valid <= 1'b0;
     end
 end
 

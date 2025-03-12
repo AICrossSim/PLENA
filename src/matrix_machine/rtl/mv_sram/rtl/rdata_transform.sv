@@ -14,6 +14,7 @@ module rdata_transform #(
 ) (
     input  logic                        clk,
     input  logic [ElementWidth-1:0]     in_data     [SubSRAM_Amount],
+    input  logic                        in_data_valid,
     input  logic [AdrWidth-1:0]         sram_addr,
     input  logic                        read_data_valid,
     output logic [DataWidth-1:0]        out_data    [Parallel_Rd_Dim * MLEN-1:0]
@@ -41,12 +42,16 @@ initial begin
 end
 
 always @(posedge clk) begin
-    for (int i = 0; i < Parallel_Rd_Dim; i++) begin
-        for (int j = 0; j < SubSRAM_Amount; j++) begin
-            out_data[((i * MLEN + j * Parallel_Rd_Dim) )] <= 
-            in_data[(parallel_rd_index + j) % SubSRAM_Amount]
-            [(i * DataWidth) +: DataWidth];  // Convert to explicit range
-            // out_data[((i * MLEN + j + 1) * DataWidth - 1) : ((i * MLEN + j ) * DataWidth)] = in_data[(parallel_rd_index + j) % SubSRAM_Amount][i * DataWidth +: DataWidth];
+    if (in_data_valid) begin
+        for (int i = 0; i < Parallel_Rd_Dim; i++) begin
+            // Row
+            for (int j = 0; j < MLEN; j++) begin
+                // Column
+                out_data[((i * MLEN + j))] <= 
+                in_data[(parallel_rd_index + (j / Parallel_Rd_Dim) ) % SubSRAM_Amount]
+                [(i * ElementRowWidth) + (j % Parallel_Rd_Dim) * DataWidth +: DataWidth];  // Convert to explicit range
+                // out_data[((i * MLEN + j + 1) * DataWidth - 1) : ((i * MLEN + j ) * DataWidth)] = in_data[(parallel_rd_index + j) % SubSRAM_Amount][i * DataWidth +: DataWidth];
+            end
         end
     end
 end
