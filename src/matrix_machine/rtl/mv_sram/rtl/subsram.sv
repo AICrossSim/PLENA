@@ -21,7 +21,7 @@ module subsram #(
   input  logic                                  transposed_read,
   
   input  logic [AdrWidth-1:0]                   addr,
-  input  logic [ElementWidth-1:0]               wdata, // To be confirmed
+  input  logic [ElementWidth * Parallel_Wr_Amount -1:0]               wdata, // To be confirmed
   output logic                                  write_response,
   output logic                                  read_data_valid,
   output logic [ElementWidth-1:0]               rdata  // Read data. Data is returned one cycle after req_i is high.
