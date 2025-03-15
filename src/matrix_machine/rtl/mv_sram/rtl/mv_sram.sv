@@ -1,3 +1,10 @@
+// Description:
+// This module is the top module of the Matrix SRAM. It supports parallel row / column read and write.
+// Assumption:
+// 1. The addressing mode is Little Endian.
+
+
+
 `timescale 1ns/1ps
 
 module mv_sram #(

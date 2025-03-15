@@ -11,8 +11,8 @@ module subsram #(
   localparam int AdrWidth                   = $clog2(SRAM_Depth),               // derived parameter
   localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Amount),  // The width of the parallel read index
   localparam int ElementWidth               = DataWidth * (Parallel_Rd_Amount ** 2),   // The width of each element in the sub SRAM
-  localparam int Element_Amount             = Parallel_Rd_Amount ** 2           // The number of data in a single element
-
+  localparam int Element_Amount             = Parallel_Rd_Amount ** 2,           // The number of data in a single element
+  localparam int Parallel_Wr_Element_Amount = Parallel_Wr_Amount / Parallel_Rd_Amount // The number of element written to a single sub SRAM in one cycle
 ) (
   input  logic                                  clk,
 
@@ -21,7 +21,7 @@ module subsram #(
   input  logic                                  transposed_read,
   
   input  logic [AdrWidth-1:0]                   addr,
-  input  logic [ElementWidth * Parallel_Wr_Amount -1:0]               wdata, // To be confirmed
+  input  logic [ElementWidth * Parallel_Wr_Element_Amount -1:0]               wdata, // To be confirmed
   output logic                                  write_response,
   output logic                                  read_data_valid,
   output logic [ElementWidth-1:0]               rdata  // Read data. Data is returned one cycle after req_i is high.
@@ -39,7 +39,6 @@ logic [Parallel_Rd_Index_Width-1:0]    parallel_rd_index;
 initial begin
     // $dumpvars(0, subsram); // Dump all signals in my_design
     // $dumpfile("dump.vcd");  // Save waveform to dump.vcd
-    
 end
 
 assign parallel_rd_index = addr[Parallel_Rd_Index_Width-1:0];
@@ -49,7 +48,7 @@ always_comb begin
         addr_for_sub_sram = { (AdrWidth - Parallel_Rd_Index_Width)'('b0), SubSRAMIndex[Parallel_Rd_Index_Width-1:0] - parallel_rd_index} + addr;
     end
     else begin
-        addr_for_sub_sram = { (AdrWidth - Parallel_Rd_Index_Width)'('b0), parallel_rd_index} + addr;
+        addr_for_sub_sram = addr;
     end
 end
 
@@ -58,8 +57,8 @@ always @(posedge clk) begin
     if (req) begin
         if (write_en) begin
             // To be confirmed, how to effectively write to the sram.
-            for (int i = 0; i < Parallel_Wr_Amount; i++) begin
-                mem[addr + i] <= wdata[i * ElementWidth - 1 +: ElementWidth];
+            for (int i = 0; i < Parallel_Wr_Element_Amount; i++) begin
+                mem[addr_for_sub_sram + i] <= wdata[i * ElementWidth +: ElementWidth];
             end
             write_response <= 1'b1;
             read_data_valid <= 1'b0;

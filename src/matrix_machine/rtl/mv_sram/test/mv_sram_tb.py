@@ -9,16 +9,7 @@ import os
 from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
-# # Absolute path to your package directory
-# cocotb_tool_path = "/home/george/Documents/Cambridge/Coprocessor_for_Llama/tools/cfl_cocotb"
-
-# # Ensure the path exists and is not already in sys.path
-# if os.path.exists(cocotb_tool_path) and cocotb_tool_path not in sys.path:
-#     sys.path.append(cocotb_tool_path)
-
-# print("Updated sys.path:", sys.path)
-
-from cfl_cocotb import veri_runner
+from cfl_cocotb import veri_runner, packed_array_analyser
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)
@@ -40,6 +31,8 @@ def print_verilog_output(out_data):
 async def mv_sram_functional_test(dut):
     """Basic Cocotb test for my design."""
     
+    array_analyser = packed_array_analyser(DataWidth, MLEN, Parallel_Wr_Dim, Parallel_Rd_Dim)
+
     # Start clock generation
     cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
     await Timer(5, units="ns")
@@ -52,20 +45,26 @@ async def mv_sram_functional_test(dut):
         dut.write_en.value = 1
         dut.sram_addr.value = i
         dut.write_data.value = sum(((i + j) << (j * DataWidth)) for j in range(MLEN * Parallel_Wr_Dim))  # Concatenate 8-bit values
+        
+        # raise Exception("Stop")
         await RisingEdge(dut.clk)
         await RisingEdge(dut.clk)
-        # cocotb.log.info(f"Write Addr: {dut.sram_addr.value}")
-        # cocotb.log.info(f"Write Data: {dut.sub_sram[1].sub_sram_1.wdata.value}")
+        array_analyser.print_wdata_from_hbm(f"{dut.write_data.value}")
+        cocotb.log.info(f"Write Addr: {dut.sram_addr.value}")
+        array_analyser.print_write_data_to_sram(f"{dut.sub_sram_wdata.value}", [3])
     
     # Read from sram
     dut.req.value = 1
     dut.write_en.value = 0
     dut.sram_addr.value = 0
-    dut.transposed_read = 0
+    dut.transposed_read.value = 0
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
-    # cocotb.log.info(f"Read from SRAM: {dut.sub_sram[1].sub_sram_1.rdata.value}")
-    
+    print(dir(dut))
+    # cocotb.log.info(f"Read Addr: {dut.sub_sram[0].sub_sram_1.raw_rdata.value}")
+    cocotb.log.info(f"Output : {dut.sub_sram_rdata.value}")
+    array_analyser.print_read_data_from_sram(f"{dut.sub_sram_rdata.value}", [3])
+
     # # Transposed Read from sram
     # dut.req.value = 1
     # dut.write_en.value = 0
