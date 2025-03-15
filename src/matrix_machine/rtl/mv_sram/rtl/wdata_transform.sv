@@ -13,7 +13,7 @@ module wdata_transform #(
     input  logic clk,
     input  logic [Parallel_Wr_Dim * MLEN * DataWidth - 1:0] in_data,     // Packed input vector
     input  logic [AdrWidth-1:0] addr,
-    output logic [ElementWidth * Parallel_Wr_Element_Amount - 1 : 0]   sub_sram_wdata [SubSRAM_Amount]
+    output logic [SubSRAM_Amount -1 : 0] [ElementWidth * Parallel_Wr_Element_Amount - 1 : 0]   sub_sram_wdata 
 );
 
 // -----

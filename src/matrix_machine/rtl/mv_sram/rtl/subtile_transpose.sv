@@ -8,9 +8,9 @@ module subtile_transpose #(
     parameter Dim = 2,
     parameter DataWidth = 4
 ) (
-    input  logic [Dim*Dim*DataWidth-1:0] in_data,  // Packed input vector
+    input  logic [Dim * Dim * DataWidth-1:0] in_data,  // Packed input vector
     input  logic transposed_read,
-    output logic [Dim*Dim*DataWidth-1:0] out_data  // Unpacked output array
+    output logic [Dim * Dim * DataWidth-1:0] out_data  // Unpacked output array
 );
 
     

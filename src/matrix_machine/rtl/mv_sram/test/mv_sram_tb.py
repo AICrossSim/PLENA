@@ -10,7 +10,7 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
 # # Absolute path to your package directory
-# cocotb_tool_path = "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/tools/cfl_cocotb"
+# cocotb_tool_path = "/home/george/Documents/Cambridge/Coprocessor_for_Llama/tools/cfl_cocotb"
 
 # # Ensure the path exists and is not already in sys.path
 # if os.path.exists(cocotb_tool_path) and cocotb_tool_path not in sys.path:
@@ -18,7 +18,7 @@ from cocotb.clock import Clock
 
 # print("Updated sys.path:", sys.path)
 
-from runner import veri_runner
+from cfl_cocotb import veri_runner
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)
@@ -54,8 +54,8 @@ async def mv_sram_functional_test(dut):
         dut.write_data.value = sum(((i + j) << (j * DataWidth)) for j in range(MLEN * Parallel_Wr_Dim))  # Concatenate 8-bit values
         await RisingEdge(dut.clk)
         await RisingEdge(dut.clk)
-        cocotb.log.info(f"Write Addr: {dut.sram_addr.value}")
-        cocotb.log.info(f"Write Data: {dut.sub_sram[1].sub_sram_1.wdata.value}")
+        # cocotb.log.info(f"Write Addr: {dut.sram_addr.value}")
+        # cocotb.log.info(f"Write Data: {dut.sub_sram[1].sub_sram_1.wdata.value}")
     
     # Read from sram
     dut.req.value = 1
@@ -64,8 +64,8 @@ async def mv_sram_functional_test(dut):
     dut.transposed_read = 0
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
-    cocotb.log.info(f"Read from SRAM: {dut.sub_sram[1].sub_sram_1.rdata.value}")
-    print_verilog_output(dut.out_data)
+    # cocotb.log.info(f"Read from SRAM: {dut.sub_sram[1].sub_sram_1.rdata.value}")
+    
     # # Transposed Read from sram
     # dut.req.value = 1
     # dut.write_en.value = 0

@@ -22,7 +22,7 @@ module mv_sram #(
     input  logic stall,                                                     // Indicates whether the read is stalled
     input  logic read_en,
     input  logic [Parallel_Wr_Dim * MLEN * DataWidth - 1:0] write_data,     // Packed input vector
-    output logic [DataWidth-1:0] out_data [Parallel_Rd_Dim * MLEN-1:0]      // Unpacked output array
+    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data       // Unpacked output array
 );
 
 // -----
@@ -46,11 +46,11 @@ end
 // -----
 // Wires
 // -----
-logic [ElementWidth * Parallel_Wr_Element_Amount - 1 : 0]   sub_sram_wdata [SubSRAM_Amount];
-logic [ElementWidth-1:0]                                    sub_sram_rdata [SubSRAM_Amount];
+logic [SubSRAM_Amount - 1 : 0] [ElementWidth * Parallel_Wr_Element_Amount - 1 : 0]   sub_sram_wdata ;
+logic [SubSRAM_Amount - 1 : 0] [ElementWidth-1:0]                                    sub_sram_rdata ;
 
-logic individual_subs_sram_write_response [SubSRAM_Amount];
-logic individual_subs_sram_read_valid [SubSRAM_Amount];
+logic [SubSRAM_Amount-1:0] individual_subs_sram_write_response ;
+logic [SubSRAM_Amount-1:0] individual_subs_sram_read_valid ;
 logic read_data_valid;
 
 // Control Signals
@@ -58,10 +58,8 @@ logic read_data_valid;
 always_comb begin
     write_response = 1'b1;
     read_data_valid = 1'b1;
-    for (int i = 0; i < SubSRAM_Amount; i++) begin
-        write_response &= individual_subs_sram_write_response[i];
-        read_data_valid &= individual_subs_sram_read_valid[i];
-    end
+    write_response =  (individual_subs_sram_write_response == {SubSRAM_Amount{1'b1}});
+    read_data_valid = (individual_subs_sram_read_valid == {SubSRAM_Amount{1'b1}});
 end 
 
 // Instantiate the sub SRAMs

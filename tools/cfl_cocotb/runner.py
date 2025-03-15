@@ -100,7 +100,7 @@ def _single_test(
             test_module=module + "_tb",
             seed=seed,
             results_xml="results.xml",
-            build_dir=test_work_dir,
+            build_dir=test_work_dir
         )
         num_tests, fail = get_results(test_work_dir.joinpath("results.xml"))
     except Exception as e:
