@@ -22,11 +22,6 @@ MLEN = 8
 Parallel_Wr_Dim = 4
 Parallel_Rd_Dim = 2
 
-def print_verilog_output(out_data):
-    for i, data in enumerate(out_data):
-        print(f"out_data[{i}] = {data}")  # Pri
-
-
 @cocotb.test()
 async def mv_sram_functional_test(dut):
     """Basic Cocotb test for my design."""
@@ -40,7 +35,7 @@ async def mv_sram_functional_test(dut):
     cocotb.log.info("Starting SRAM test")
 
     # Write to sram
-    for i in range(2):
+    for i in range(1):
         dut.req.value = 1
         dut.write_en.value = 1
         dut.sram_addr.value = i
@@ -60,10 +55,13 @@ async def mv_sram_functional_test(dut):
     dut.transposed_read.value = 0
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
-    print(dir(dut))
     # cocotb.log.info(f"Read Addr: {dut.sub_sram[0].sub_sram_1.raw_rdata.value}")
-    cocotb.log.info(f"Output : {dut.sub_sram_rdata.value}")
     array_analyser.print_read_data_from_sram(f"{dut.sub_sram_rdata.value}", [3])
+    print(dut.rdata_transform_1.in_data.value)
+    await RisingEdge(dut.clk)
+    print(dut.out_data.value)
+    array_analyser.print_rdata_from_overall_sram(f"{dut.out_data.value}")
+    
 
     # # Transposed Read from sram
     # dut.req.value = 1

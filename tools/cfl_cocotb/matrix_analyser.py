@@ -32,8 +32,15 @@ class packed_array_analyser:
     def print_wdata_from_hbm(self, wdata):
         print("[")
         for i in range(self.Parallel_Wr_Dim):
-            row_wdata = binary_string_to_hex(wdata[i * self.MLEN * self.Data_Width: (i + 1) * self.MLEN * self.Data_Width], self.Data_Width)
+            row_wdata = binary_string_to_hex(wdata[i * self.MLEN * self.Data_Width : (i + 1) * self.MLEN * self.Data_Width], self.Data_Width)
             print(row_wdata)
+        print("]")
+    
+    def print_rdata_from_overall_sram(self, rdata):
+        print("[")
+        for i in range(self.Parallel_Rd_Dim):
+            row_rdata = binary_string_to_hex(rdata[i * self.MLEN * self.Data_Width : (i + 1) * self.MLEN * self.Data_Width], self.Data_Width)
+            print(row_rdata)
         print("]")
 
     def print_in_matrix_format(self, element_data):
@@ -47,6 +54,7 @@ class packed_array_analyser:
     def print_write_data_to_sram(self, input_data, sram_to_monitor):
         # Packed array struct  = []
         print("Write data from SRAM")
+        print(input_data)
         wdata_width_per_sram = self.Data_Width * self.Parallel_Wr_Dim * self.Parallel_Rd_Dim
         for sram_index in sram_to_monitor:
             wdata_per_sram = binary_string_to_hex(input_data[sram_index * wdata_width_per_sram: (sram_index + 1) * wdata_width_per_sram], self.Data_Width)
@@ -55,8 +63,9 @@ class packed_array_analyser:
     
     def print_read_data_from_sram(self, output_data, sram_to_monitor):
         print("Read data from SRAM")
+        print(output_data)
         for sram_index in sram_to_monitor:
-            print("element", self.ElementWidth)
+            print(output_data[sram_index * self.ElementWidth : (sram_index + 1) * self.ElementWidth])
             rdata_per_sram = binary_string_to_hex(output_data[sram_index * self.ElementWidth : (sram_index + 1) * self.ElementWidth], self.Data_Width)
             print(rdata_per_sram)
             self.print_in_matrix_format(rdata_per_sram)
