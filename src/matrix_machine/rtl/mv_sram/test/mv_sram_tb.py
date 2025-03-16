@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 DataWidth = 8
 SRAM_Depth = 128
 MLEN = 8
-Parallel_Wr_Dim = 4
+Parallel_Wr_Dim = 2
 Parallel_Rd_Dim = 2
 
 @cocotb.test()
@@ -35,24 +35,24 @@ async def mv_sram_functional_test(dut):
     cocotb.log.info("Starting SRAM test")
 
     # Write to sram
-    for i in range(1):
+    for i in range(MLEN // Parallel_Wr_Dim):
         dut.req.value = 1
         dut.write_en.value = 1
-        dut.sram_addr.value = i
-        dut.write_data.value = sum(((i + j) << (j * DataWidth)) for j in range(MLEN * Parallel_Wr_Dim))  # Concatenate 8-bit values
+        dut.sram_addr.value = (Parallel_Wr_Dim // Parallel_Rd_Dim) * i
+        dut.write_data.value = sum(((i * MLEN * Parallel_Wr_Dim + j) << (j * DataWidth)) for j in range(MLEN * Parallel_Wr_Dim))  # Concatenate 8-bit values
         
         # raise Exception("Stop")
         await RisingEdge(dut.clk)
         await RisingEdge(dut.clk)
         array_analyser.print_wdata_from_hbm(f"{dut.write_data.value}")
         cocotb.log.info(f"Write Addr: {dut.sram_addr.value}")
-        array_analyser.print_write_data_to_sram(f"{dut.sub_sram_wdata.value}", [3])
+        array_analyser.print_write_data_to_sram(f"{dut.sub_sram_wdata.value}", [0])
     
     # Read from sram
     dut.req.value = 1
     dut.write_en.value = 0
     dut.sram_addr.value = 0
-    dut.transposed_read.value = 0
+    dut.transposed_read.value = 1
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
     # cocotb.log.info(f"Read Addr: {dut.sub_sram[0].sub_sram_1.raw_rdata.value}")
@@ -82,7 +82,7 @@ def test_simple_mvsram():
         group = "mv_sram",
         module = "mv_sram",
         module_param_list=[
-            {"DataWidth": DataWidth, "SRAM_Depth": SRAM_Depth, "MLEN": MLEN, "Parallel_Wr_Dim": Parallel_Wr_Dim, "Parallel_Rd_Dim": Parallel_Rd_Dim},
+            {"DataWidth": DataWidth, "SRAM_Depth": SRAM_Depth, "MLEN": MLEN, "Parallel_Rd_Dim": Parallel_Rd_Dim},
         ],
         trace = False,
     )

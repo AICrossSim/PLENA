@@ -6,13 +6,11 @@ module subsram #(
   parameter  int SRAM_Depth                 = 128,
   parameter  int SubSRAMIndex               = 0,                                // Index of the sub SRAM    
   parameter  int MLEN                       = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
-  parameter  int Parallel_Wr_Amount         = 2,                                // The number of row/col write in parallel
   parameter  int Parallel_Rd_Amount         = 2,                                // The number of row/col read in parallel
   localparam int AdrWidth                   = $clog2(SRAM_Depth),               // derived parameter
   localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Amount),  // The width of the parallel read index
   localparam int ElementWidth               = DataWidth * (Parallel_Rd_Amount ** 2),   // The width of each element in the sub SRAM
-  localparam int Element_Amount             = Parallel_Rd_Amount ** 2,           // The number of data in a single element
-  localparam int Parallel_Wr_Element_Amount = Parallel_Wr_Amount / Parallel_Rd_Amount // The number of element written to a single sub SRAM in one cycle
+  localparam int Element_Amount             = Parallel_Rd_Amount ** 2           // The number of data in a single element
 ) (
   input  logic                                  clk,
 
@@ -21,7 +19,7 @@ module subsram #(
   input  logic                                  transposed_read,
   
   input  logic [AdrWidth-1:0]                   addr,
-  input  logic [ElementWidth * Parallel_Wr_Element_Amount -1:0]               wdata, // To be confirmed
+  input  logic [ElementWidth -1:0]               wdata, // To be confirmed
   output logic                                  write_response,
   output logic                                  read_data_valid,
   output logic [ElementWidth-1:0]               rdata  // Read data. Data is returned one cycle after req_i is high.
@@ -34,18 +32,22 @@ logic [ElementWidth-1:0]            mem [SRAM_Depth];
 logic [AdrWidth-1:0]                addr_for_sub_sram;
 logic [ElementWidth-1:0]            raw_rdata;
 logic transpose_rawdata;
-logic [Parallel_Rd_Index_Width-1:0]    parallel_rd_index;
+
+logic signed [Parallel_Rd_Index_Width-1:0]    sram_index, addr_offset;
 
 initial begin
     // $dumpvars(0, subsram); // Dump all signals in my_design
     // $dumpfile("dump.vcd");  // Save waveform to dump.vcd
+    sram_index = SubSRAMIndex[Parallel_Rd_Index_Width-1:0];
 end
 
-assign parallel_rd_index = addr[Parallel_Rd_Index_Width-1:0];
 // Address Translation
-always_comb begin
+always @(*) begin
+
+    addr_offset = sram_index - addr[Parallel_Rd_Index_Width-1:0];
+
     if (transposed_read) begin
-        addr_for_sub_sram = { (AdrWidth - Parallel_Rd_Index_Width)'('b0), SubSRAMIndex[Parallel_Rd_Index_Width-1:0] - parallel_rd_index} + addr;
+        addr_for_sub_sram = { addr[AdrWidth - 1 : Parallel_Rd_Index_Width], addr_offset};
     end
     else begin
         addr_for_sub_sram = addr;
@@ -56,10 +58,7 @@ end
 always @(posedge clk) begin
     if (req) begin
         if (write_en) begin
-            // To be confirmed, how to effectively write to the sram.
-            for (int i = 0; i < Parallel_Wr_Element_Amount; i++) begin
-                mem[addr_for_sub_sram + i] <= wdata[i * ElementWidth +: ElementWidth];
-            end
+            mem[addr_for_sub_sram] <= wdata;
             write_response <= 1'b1;
             read_data_valid <= 1'b0;
         end 

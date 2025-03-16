@@ -5,7 +5,6 @@ module rdata_transform #(
     parameter int DataWidth = 4, 
     parameter int SRAM_Depth = 128,
     parameter int MLEN = 8,                                             // The TileSize of the matrix.
-    parameter int Parallel_Wr_Dim = 2,                                  // The number of row/col write in parallel
     parameter int Parallel_Rd_Dim = 2,                                  // The number of row/col read in parallel
     localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Dim), 
     localparam int AdrWidth                   = $clog2(SRAM_Depth),     // Address Space for the SRAM
@@ -24,13 +23,6 @@ module rdata_transform #(
 // -----
  // The width of each element in the sub SRAM
 localparam int ElementRowWidth              = DataWidth * Parallel_Rd_Dim; // The width of each row in the sub SRAM
-localparam int Parallel_Wr_Element_Amount   = Parallel_Wr_Dim / Parallel_Rd_Dim ; // The number of element written to a single sub SRAM in one cycle
-localparam int Parallel_Wr_Amount           = MLEN / Parallel_Wr_Dim; // The number of row/col read in parallel
-
-localparam int SubSRAMWrWidth               = DataWidth * (Parallel_Wr_Dim * Parallel_Rd_Dim);
-localparam int SubSRAM_Index_Width          = $clog2(SubSRAM_Amount); // The width of the parallel read index
-localparam int SubTile_Index_Width          = $clog2(SubSRAM_Amount * Parallel_Wr_Element_Amount); // The width of the parallel read index
-
 
 logic [Parallel_Rd_Index_Width - 1 : 0] parallel_rd_index;
 
