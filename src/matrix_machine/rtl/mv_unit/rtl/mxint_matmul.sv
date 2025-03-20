@@ -11,6 +11,7 @@ Description : This module does a matrix multiplcation between matrices X & Y.
               Python equivalent:
               out = np.matmul(X, Y)
 */
+
 `timescale 1ns / 1ps
 
 module mxint_matmul #(
