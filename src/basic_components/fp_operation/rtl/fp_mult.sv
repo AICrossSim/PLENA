@@ -1,64 +1,47 @@
-module fp_multiplier (
-    input  logic [31:0] a,   // First IEEE 754 floating-point number
-    input  logic [31:0] b,   // Second IEEE 754 floating-point number
-    output logic [31:0] result // Result of multiplication
+`timescale 1ns / 1ps
+// fixed-point multiplier
+
+module fp_mult #(
+    parameter   A_MAN_WIDTH = 4,
+    parameter   A_EXP_WIDTH = 3,
+    parameter   B_MAN_WIDTH = 4,
+    parameter   B_EXP_WIDTH = 3,
+    localparam  RESULT_MAN_WIDTH = A_MAN_WIDTH + B_MAN_WIDTH + 1,
+    localparam  RESULT_EXP_WIDTH = A_EXP_WIDTH
+) (
+    input   logic [A_MAN_WIDTH + A_EXP_WIDTH : 0] data_a,
+    input   logic [B_MAN_WIDTH + B_EXP_WIDTH : 0] data_b,
+    output  logic [RESULT_MAN_WIDTH + RESULT_EXP_WIDTH : 0] product
 );
 
-    logic sign_a, sign_b, sign_res;
-    logic [7:0] exp_a, exp_b, exp_res;
-    logic [23:0] mant_a, mant_b;
-    logic [47:0] mant_res;
-    logic [7:0] final_exp;
-    logic [22:0] final_mant;
-    logic rounding_bit;
-    
-    // Extract sign, exponent, and mantissa
-    assign sign_a = a[31];
-    assign sign_b = b[31];
-    assign exp_a  = a[30:23];
-    assign exp_b  = b[30:23];
-    assign mant_a = {1'b1, a[22:0]}; // Implicit leading 1
-    assign mant_b = {1'b1, b[22:0]}; // Implicit leading 1
+    // Internal signals
+    logic sign_a, sign_b, sign_product;
+    logic [A_EXP_WIDTH-1:0] exp_a;
+    logic [B_EXP_WIDTH-1:0] exp_b;
+    logic [A_MAN_WIDTH-1:0] man_a;
+    logic [B_MAN_WIDTH-1:0] man_b;
+    logic [RESULT_MAN_WIDTH-1:0] mant_product;
+    logic [RESULT_EXP_WIDTH-1:0] exp_product;
+
+    // Extract fields from input
+    assign sign_a = data_a[A_MAN_WIDTH + A_EXP_WIDTH];
+    assign exp_a  = data_a[A_MAN_WIDTH + A_EXP_WIDTH - 1 : A_MAN_WIDTH];
+    assign man_a  = data_a[A_MAN_WIDTH - 1 : 0];
+
+    assign sign_b = data_b[B_MAN_WIDTH + B_EXP_WIDTH];
+    assign exp_b  = data_b[B_MAN_WIDTH + B_EXP_WIDTH - 1 : B_MAN_WIDTH];
+    assign man_b  = data_b[B_MAN_WIDTH - 1 : 0];
 
     // Compute sign
-    assign sign_res = sign_a ^ sign_b;
+    assign sign_product = sign_a ^ sign_b;
 
-    // Compute exponent (bias = 127)
-    assign exp_res = exp_a + exp_b - 8'd127;
+    // Multiply mantissas (unsigned)
+    assign mant_product = man_a * man_b;
 
-    // Multiply mantissas (24-bit * 24-bit)
-    assign mant_res = mant_a * mant_b;
+    // Add exponents (unsigned), assume no overflow
+    assign exp_product = exp_a + exp_b;
 
-    always_comb begin
-        if (mant_res[47]) begin
-            // Normalization (Shift right and increase exponent)
-            final_mant = mant_res[46:24];
-            rounding_bit = mant_res[23];
-            final_exp = exp_res + 1;
-        end else begin
-            // No normalization needed
-            final_mant = mant_res[45:23];
-            rounding_bit = mant_res[22];
-            final_exp = exp_res;
-        end
-
-        // Rounding (Round to nearest even)
-        if (rounding_bit && final_mant != 23'h7FFFFF)
-            final_mant = final_mant + 1;
-    end
-
-    // Handle special cases
-    always_comb begin
-        if (exp_a == 8'hFF || exp_b == 8'hFF) begin
-            // Handle NaN and Infinity
-            result = {sign_res, 8'hFF, 23'h0}; // Inf or NaN
-        end else if (a == 32'h0 || b == 32'h0) begin
-            // Handle multiplication by zero
-            result = 32'h0;
-        end else begin
-            // Normal case
-            result = {sign_res, final_exp, final_mant};
-        end
-    end
+    // Concatenate the result
+    assign product = {sign_product, exp_product, mant_product};
 
 endmodule
