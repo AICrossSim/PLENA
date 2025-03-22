@@ -5,7 +5,7 @@ module fp_dot_product #(
     parameter   B_MAN_WIDTH = 4,
     parameter   B_EXP_WIDTH = 3,
     parameter   VEC_DIM     = 8,
-    localparam  PRODUCT_MAN_WIDTH = A_MAN_WIDTH + B_MAN_WIDTH + 1,   // TODO
+    localparam  PRODUCT_MAN_WIDTH = A_MAN_WIDTH + B_MAN_WIDTH + 1, 
     localparam  PRODUCT_EXP_WIDTH = A_EXP_WIDTH
     localparam  EXT_BITS_PER_LAYER = 1 << PRODUCT_EXP_WIDTH,
     localparam  RESULT_MAN_WIDTH = PRODUCT_MAN_WIDTH + $clog2(IN_SIZE),
@@ -69,7 +69,7 @@ module fp_dot_product #(
   // sum the products
   // sum = sum(pv)
   fp_adder_tree #(
-      .IN_SIZE (IN_SIZE),
+      .LAYER_DIM (IN_SIZE),
       .IN_WIDTH(PRODUCT_WIDTH)
   ) fp_full_precision_add_tree (
       .clk(clk),
