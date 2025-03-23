@@ -1,47 +1,72 @@
 `timescale 1ns / 1ps
-// fixed-point multiplier
+
+/*
+Module      : Floating Point Multiplication (Full-Precision, With Sign)
+Description : Multiply two FP numbers with different exponents and signs.
+              Aligns mantissas, preserves full precision (no bits discarded).
+              Output format: {sign, exp_out, mant_out}.
+              No rounding.
+              It needs normalisation.
+*/
 
 module fp_mult #(
-    parameter   A_MAN_WIDTH = 4,
-    parameter   A_EXP_WIDTH = 3,
-    parameter   B_MAN_WIDTH = 4,
-    parameter   B_EXP_WIDTH = 3,
-    localparam  RESULT_MAN_WIDTH = A_MAN_WIDTH + B_MAN_WIDTH + 1,
-    localparam  RESULT_EXP_WIDTH = A_EXP_WIDTH
+    parameter   MANT_WIDTH = 4,
+    parameter   EXP_WIDTH = 3,
+    localparam  EXT_MANT_WIDTH = MANT_WIDTH + 1,                            // account for implicit 1
+    localparam  RESULT_MAN_WIDTH = 2 * EXT_MANT_WIDTH - 1,                 // result after mantissa mult
+    localparam  RESULT_EXP_WIDTH = EXP_WIDTH + 1                           // allow for exponent growth
 ) (
-    input   logic [A_MAN_WIDTH + A_EXP_WIDTH : 0] data_a,
-    input   logic [B_MAN_WIDTH + B_EXP_WIDTH : 0] data_b,
-    output  logic [RESULT_MAN_WIDTH + RESULT_EXP_WIDTH : 0] product
+    input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_a,
+    input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_b,
+    output  logic [RESULT_MAN_WIDTH + RESULT_EXP_WIDTH : 0] data_out
 );
 
     // Internal signals
     logic sign_a, sign_b, sign_product;
-    logic [A_EXP_WIDTH-1:0] exp_a;
-    logic [B_EXP_WIDTH-1:0] exp_b;
-    logic [A_MAN_WIDTH-1:0] man_a;
-    logic [B_MAN_WIDTH-1:0] man_b;
-    logic [RESULT_MAN_WIDTH-1:0] mant_product;
+    logic [EXP_WIDTH-1:0] exp_a, exp_b;
+    logic [MANT_WIDTH-1:0] man_a, man_b;
+    logic [EXT_MANT_WIDTH-1:0] man_a_ext, man_b_ext;
+    logic [2*EXT_MANT_WIDTH-1:0] mant_product_full;
+    logic [RESULT_MAN_WIDTH-1:0] mant_product_norm;
+    logic [RESULT_EXP_WIDTH-1:0] exp_product_raw;
     logic [RESULT_EXP_WIDTH-1:0] exp_product;
 
-    // Extract fields from input
-    assign sign_a = data_a[A_MAN_WIDTH + A_EXP_WIDTH];
-    assign exp_a  = data_a[A_MAN_WIDTH + A_EXP_WIDTH - 1 : A_MAN_WIDTH];
-    assign man_a  = data_a[A_MAN_WIDTH - 1 : 0];
+    // Extract fields
+    assign sign_a = data_a[MANT_WIDTH + EXP_WIDTH];
+    assign exp_a  = data_a[MANT_WIDTH + EXP_WIDTH - 1 : MANT_WIDTH];
+    assign man_a  = data_a[MANT_WIDTH - 1 : 0];
 
-    assign sign_b = data_b[B_MAN_WIDTH + B_EXP_WIDTH];
-    assign exp_b  = data_b[B_MAN_WIDTH + B_EXP_WIDTH - 1 : B_MAN_WIDTH];
-    assign man_b  = data_b[B_MAN_WIDTH - 1 : 0];
+    assign sign_b = data_b[MANT_WIDTH + EXP_WIDTH];
+    assign exp_b  = data_b[MANT_WIDTH + EXP_WIDTH - 1 : MANT_WIDTH];
+    assign man_b  = data_b[MANT_WIDTH - 1 : 0];
 
-    // Compute sign
+    // Sign
     assign sign_product = sign_a ^ sign_b;
 
-    // Multiply mantissas (unsigned)
-    assign mant_product = man_a * man_b;
+    // Add implicit leading 1
+    assign man_a_ext = {1'b1, man_a};
+    assign man_b_ext = {1'b1, man_b};
 
-    // Add exponents (unsigned), assume no overflow
-    assign exp_product = exp_a + exp_b;
+    // Multiply mantissas
+    assign mant_product_full = man_a_ext * man_b_ext; // 2*(MANT_WIDTH+1) bits
 
-    // Concatenate the result
-    assign product = {sign_product, exp_product, mant_product};
+    // Raw exponent sum (before normalisation correction)
+    assign exp_product_raw = exp_a + exp_b;
+
+    // Normalisation logic
+    always_comb begin
+        if (mant_product_full[2*EXT_MANT_WIDTH-1] == 1'b1) begin
+            // MSB is 1, already normalised (no need to shift)
+            mant_product_norm = mant_product_full[2*EXT_MANT_WIDTH-1 -: RESULT_MAN_WIDTH];
+            exp_product = exp_product_raw + 1;
+        end else begin
+            // Need to shift left by 1 to normalise
+            mant_product_norm = mant_product_full[2*EXT_MANT_WIDTH-2 -: RESULT_MAN_WIDTH];
+            exp_product = exp_product_raw;
+        end
+    end
+
+    // Output
+    assign data_out = {sign_product, exp_product, mant_product_norm};
 
 endmodule

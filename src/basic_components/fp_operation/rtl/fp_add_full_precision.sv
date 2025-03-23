@@ -25,8 +25,8 @@ module fp_add_full_precision #(
     logic [EXP_WIDTH-1:0] exp_a, exp_b;
     logic [MANT_WIDTH-1:0] mant_a, mant_b;
 
-    logic [MANT_WIDTH + EXT_BITS - 1:0] full_mant_a, full_mant_b;
-    logic [MANT_WIDTH + EXT_BITS - 1:0] mant_a_shifted, mant_b_shifted;
+    logic [MANT_WIDTH + EXT_BITS + 1:0] full_mant_a, full_mant_b;
+    logic [MANT_WIDTH + EXT_BITS + 1:0] mant_a_shifted, mant_b_shifted;
     logic [MANT_WIDTH + EXT_BITS + 1:0] mant_sum;
 
     logic [EXP_WIDTH - 1:0] exp_diff;
@@ -43,8 +43,8 @@ module fp_add_full_precision #(
         mant_b = data_b[MANT_WIDTH-1:0];
 
         // Add implicit 1 and pad for alignment
-        full_mant_a = {2'b1, mant_a, {EXT_BITS{1'b0}}};
-        full_mant_b = {2'b1, mant_b, {EXT_BITS{1'b0}}};
+        full_mant_a = {2'b01, mant_a, {EXT_BITS{1'b0}}};
+        full_mant_b = {2'b01, mant_b, {EXT_BITS{1'b0}}};
 
         // Align mantissas
         if (exp_a > exp_b) begin
@@ -74,7 +74,7 @@ module fp_add_full_precision #(
         end
 
         // Overflow handling (e.g., normalisation)
-        if (mant_sum[MANT_WIDTH + EXT_BITS]) begin
+        if (mant_sum[MANT_WIDTH + EXT_BITS + 1] == 1'b1) begin
             mant_sum = mant_sum >> 1;
             exp_max = exp_max + 1;
         end
