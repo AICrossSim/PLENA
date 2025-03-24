@@ -39,7 +39,10 @@ async def random_fp_test(dut):
         cocotb.log.info(f"Value a : {fp_values[0]}, Result a : {generator.custom_fp_to_float(results[0])} Binary: {dut.data_a.value}")
         cocotb.log.info(f"Value b : {fp_values[1]}, Result b : {generator.custom_fp_to_float(results[1])} Binary: {dut.data_b.value}")
         await Timer(1, units="ns")
-        cocotb.log.info(f"Expected result : {fp_values[0] * fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(exp_width, output_man_width, dut.data_out.value)}")
+        cocotb.log.info(f"Internal mant_product_full: {dut.mant_product_full.value}")
+        cocotb.log.info(f"Internal mant_product_norm : {dut.mant_product_norm.value}")
+        cocotb.log.info(f"Internal exp_product : {dut.exp_product.value}, raw_exp_product : {dut.exp_product_raw.value}")
+        cocotb.log.info(f"Expected result : {fp_values[0] * fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
 
 
 

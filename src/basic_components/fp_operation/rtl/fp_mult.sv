@@ -6,7 +6,9 @@ Description : Multiply two FP numbers with different exponents and signs.
               Aligns mantissas, preserves full precision (no bits discarded).
               Output format: {sign, exp_out, mant_out}.
               No rounding.
-              It needs normalisation.
+              It needs normalisation and re-biased.
+              (Ea - B) + (Eb - B) = (Ea + Eb - 2B)
+              Extended_Exp = 0Ea + 0Eb - (1 << (Extended_Exp_WIDTH - 1)) - 1
 */
 
 module fp_mult #(
@@ -20,6 +22,10 @@ module fp_mult #(
     input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_b,
     output  logic [RESULT_MAN_WIDTH + RESULT_EXP_WIDTH : 0] data_out
 );
+
+    localparam int BIAS = (1 << (EXP_WIDTH - 1)) - 1;
+    localparam int NEW_BIAS = (1 << (RESULT_EXP_WIDTH - 1)) - 1;
+    localparam int UPDATED_BIAS = NEW_BIAS - 2*BIAS;
 
     // Internal signals
     logic sign_a, sign_b, sign_product;
@@ -51,18 +57,18 @@ module fp_mult #(
     assign mant_product_full = man_a_ext * man_b_ext; // 2*(MANT_WIDTH+1) bits
 
     // Raw exponent sum (before normalisation correction)
-    assign exp_product_raw = exp_a + exp_b;
+    assign exp_product_raw = {1'b0, exp_a} + {1'b0, exp_b} + UPDATED_BIAS;
 
     // Normalisation logic
     always_comb begin
-        if (mant_product_full[2*EXT_MANT_WIDTH-1] == 1'b1) begin
-            // MSB is 1, already normalised (no need to shift)
-            mant_product_norm = mant_product_full[2*EXT_MANT_WIDTH-1 -: RESULT_MAN_WIDTH];
-            exp_product = exp_product_raw + 1;
-        end else begin
-            // Need to shift left by 1 to normalise
-            mant_product_norm = mant_product_full[2*EXT_MANT_WIDTH-2 -: RESULT_MAN_WIDTH];
+        if (mant_product_full[2*EXT_MANT_WIDTH-1] == 1'b0) begin
+            // 
+            mant_product_norm = {mant_product_full[2*EXT_MANT_WIDTH - 3 -: (RESULT_MAN_WIDTH - 1)], 1'b0};
             exp_product = exp_product_raw;
+        end else begin
+            // Need normalization
+            mant_product_norm = mant_product_full[2*EXT_MANT_WIDTH-2 -: RESULT_MAN_WIDTH];
+            exp_product = exp_product_raw + 1;
         end
     end
 

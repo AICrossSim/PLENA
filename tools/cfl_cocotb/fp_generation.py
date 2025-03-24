@@ -24,7 +24,6 @@ class FpGenerator:
             fp_values.append(val)
             fp_bits = self.float_to_custom_fp(val)
             results.append(fp_bits)
-            print(f"Value: {val}, Binary: {bin(fp_bits)}")
         return fp_values, results
     
     def generate_boundary_values(self):
