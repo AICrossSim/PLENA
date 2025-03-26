@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module float_round #(
+module fp_round #(
     parameter EXP_WIDTH      = 5,
     parameter IN_MANT_WIDTH  = 10,
     parameter OUT_MANT_WIDTH = 5

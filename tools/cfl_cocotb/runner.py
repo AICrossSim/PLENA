@@ -45,6 +45,7 @@ def _verilator_args(hierarchical, trace):
 def _single_test(
     i: int,  # id
     include_files: Path,
+    extra_include_files: str,
     module: str,
     module_params: dict,
     module_path: Path,
@@ -73,6 +74,7 @@ def _single_test(
             tool_args = _verilator_args(hierarchical, trace)
             sources = [module_path]
             includes = [str(include_files) + "/rtl/"]
+            includes.append(extra_include_files + "/rtl/" )
         elif sim == "icarus":
             tool_args = []
             sources = [module_path]
@@ -117,6 +119,7 @@ def _single_test(
 def veri_runner(
     module=None,
     group=None,
+    additional_include_paths=None,
     module_param_list: list[dict[str, Any]] = [dict()],
     sim: str = "verilator",
     extra_build_args: list[str] = [],
@@ -170,6 +173,7 @@ def veri_runner(
             results = _single_test(
                 i=i,
                 include_files=group_path,
+                extra_include_files=additional_include_paths,
                 module=module,
                 module_params=module_params,
                 module_path=module_path,

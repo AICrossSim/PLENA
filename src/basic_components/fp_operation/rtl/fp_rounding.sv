@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module fixed_rounding #(
+module fp_rounding #(
     parameter LAYER_DIM = 3,
     parameter EXP_WIDTH = 3,
     parameter IN_MANT_WIDTH = 8,
