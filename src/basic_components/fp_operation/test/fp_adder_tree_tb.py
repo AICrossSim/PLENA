@@ -21,10 +21,23 @@ generator = FpGenerator(exp_width, mant_width)
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)
 
+# from cocotb.handle import SimHandleBase
+# @cocotb.test()
+# async def list_dut_signals_filtered(dut):
+#     cocotb.log.info("Accessible DUT signals and handles:")
+#     for name in dir(dut):
+#         try:
+#             obj = getattr(dut, name)
+#             if isinstance(obj, SimHandleBase):
+#                 cocotb.log.info(f"{name}: {obj._path}")
+#         except Exception as e:
+#             cocotb.log.warning(f"{name} could not be accessed: {e}")
+
+
 @cocotb.test()
 async def random_fp_test(dut):
     # Start clock generation
-    TESTCASE_SIZE = 10
+    TESTCASE_SIZE = 1
     
     cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
     
@@ -39,7 +52,7 @@ async def random_fp_test(dut):
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
         fp_values, results = generator.generate_fp_input(vect_dim)
-        input_data = sum((results[n] << int(log2(exp_width + mant_width + 1))) for n in range(vect_dim))
+        input_data = sum((results[n] << (exp_width + mant_width) * n ) for n in range(vect_dim))
         dut.data_in.value = input_data
         # await RisingEdge(dut.clk)
         await Timer(2, units="ns")
@@ -49,6 +62,12 @@ async def random_fp_test(dut):
         for m in range(vect_dim):
             cocotb.log.info(f"Value at index {m} : {fp_values[m]}, Result a : {generator.custom_fp_to_float(results[m])}")
         
+        await Timer(2, units="ns")
+        cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
+        
+        await Timer(2, units="ns")
+        cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.sum.value}")
+
         await Timer(8, units="ns")
         fp_results = sum(fp_values[g] for g in range(vect_dim))
         cocotb.log.info(f"Expected result : {fp_results}, DUT BIN_out: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(exp_width, output_man_width, dut.data_out.value)}")

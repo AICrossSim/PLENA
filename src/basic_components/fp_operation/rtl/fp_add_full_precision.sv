@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 /*
 Module      : Floating Point Adder (Full-Precision, With Sign)
+Timing      : Combinatorial Logic
 Description : Adds two FP numbers with different exponents and signs.
               Aligns mantissas, preserves full precision (no bits discarded).
               Output format: {sign, exp_out, mant_out}.

@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 /*
 Module      : Floating Point Adder Tree
+Timing      : Combinatorial Logic
 Description : Every two elements are added together in a tree-like structure, 
 This module contains the computation within each layer.
 The computation process does not sacrifice any precision.

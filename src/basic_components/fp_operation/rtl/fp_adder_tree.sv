@@ -3,7 +3,7 @@
 /*
 Module      : Floating Point Adder Tree
 Description : This module contains hierarchical adder tree for floating point numbers.
-
+Timing      :
 Input   d1  |   d12  |  d1234  Output
         d2  |   d34  |  x
         d3  |   x    |  x
@@ -48,8 +48,8 @@ module fp_adder_tree #(
 
     end else begin : gen_adder_tree
 
-      // data & sum wires are oversized on purpose for vivado.
-      logic [OUT_WIDTH*VEC_DIM-1:0] data [LEVELS:0];
+      // data_storage & sum wires are oversized on purpose for vivado.
+      logic [OUT_WIDTH*VEC_DIM-1:0] data_storage [LEVELS:0];
       logic [OUT_WIDTH*VEC_DIM-1:0] sum  [LEVELS-1:0];
       logic valid[VEC_DIM-1:0];
       logic ready[VEC_DIM-1:0];
@@ -68,7 +68,7 @@ module fp_adder_tree #(
             .IN_MAN_WIDTH (LEVEL_IN_MAN_WIDTH),
             .IN_EXP_WIDTH (IN_EXP_WIDTH)
         ) full_precision_add_layer (
-            .data_in  (data[i]),                          // flattened LEVEL_IN_SIZE * LEVEL_IN_WIDTH
+            .data_in  (data_storage[i]),                          // flattened LEVEL_IN_SIZE * LEVEL_IN_WIDTH
             .data_out (sum[i])                            // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
         );
 
@@ -80,7 +80,7 @@ module fp_adder_tree #(
             .data_in       (sum[i]),
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),
-            .data_out      (data[i+1]),
+            .data_out      (data_storage[i+1]),
             .data_out_valid(valid[i+1]),
             .data_out_ready(ready[i+1])
         );
@@ -88,13 +88,13 @@ module fp_adder_tree #(
       end
 
       for (genvar i = 0; i < VEC_DIM; i++) begin : gen_input_assign
-        assign data[0][(i+1)*IN_WIDTH-1 : i*IN_WIDTH] = data_in[i];
+        assign data_storage[0][(i+1)*IN_WIDTH-1 : i*IN_WIDTH] = data_in[i];
       end
 
       assign valid[0] = data_in_valid;
       assign data_in_ready = ready[0];
 
-      assign data_out = data[LEVELS][OUT_WIDTH-1:0];
+      assign data_out = data_storage[LEVELS][OUT_WIDTH-1:0];
       assign data_out_valid = valid[LEVELS];
       assign ready[LEVELS] = data_out_ready;
 
