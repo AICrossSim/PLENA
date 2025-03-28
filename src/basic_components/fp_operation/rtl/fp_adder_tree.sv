@@ -58,9 +58,11 @@ module fp_adder_tree #(
       for (genvar i = 0; i < LEVELS; i++) begin : level
 
         localparam LEVEL_IN_SIZE = (VEC_DIM + ((1 << i) - 1)) >> i;     // Ceiling(VEC_DIM / 2^i)
+        localparam LEVEL_IN_MAN_WIDTH   = IN_MAN_WIDTH + i * EXT_BITS_PER_LAYER;
+        
         localparam LEVEL_OUT_SIZE = (LEVEL_IN_SIZE + 1) / 2;
-        localparam LEVEL_IN_MAN_WIDTH = IN_WIDTH + i * EXT_BITS_PER_LAYER;
-        localparam LEVEL_OUT_WIDTH = LEVEL_IN_MAN_WIDTH + IN_EXP_WIDTH + 1;
+        localparam LEVEL_OUT_MAN_WIDTH  = IN_MAN_WIDTH + (i + 1) * EXT_BITS_PER_LAYER;
+        localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + IN_EXP_WIDTH + 1;
 
         fp_adder_tree_layer #(
             .OVERALL_INPUT_WIDTH (OUT_WIDTH*VEC_DIM),
@@ -69,15 +71,15 @@ module fp_adder_tree #(
             .IN_EXP_WIDTH (IN_EXP_WIDTH)
         ) full_precision_add_layer (
             .data_in  (data_storage[i]),                          // flattened LEVEL_IN_SIZE * LEVEL_IN_WIDTH
-            .data_out (sum[i])                            // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
+            .data_out (sum[i])                                    // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
         );
 
         skid_buffer #(
             .DATA_WIDTH(LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),
-            .rst           (rst),
-            .data_in       (sum[i]),
+            .rst           (!rst),                        // Inverted reset
+            .data_in       (sum[i]),                      // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),
             .data_out      (data_storage[i+1]),

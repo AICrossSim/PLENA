@@ -18,14 +18,15 @@ module fp_adder_tree_layer #(
     // Max possible shift bits needed
     localparam int EXT_BITS = (1 << IN_EXP_WIDTH),
     localparam OUT_DIM  = (LAYER_DIM + 1) / 2,
-    localparam INPUT_DATA_WIDTH = IN_MAN_WIDTH + IN_EXP_WIDTH,
-    localparam OUTPUT_DATA_WIDTH = IN_MAN_WIDTH + EXT_BITS + IN_EXP_WIDTH
+    localparam INPUT_DATA_WIDTH = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
+    localparam OUTPUT_DATA_WIDTH = IN_MAN_WIDTH + EXT_BITS + IN_EXP_WIDTH + 1
 ) (
     input   logic [OVERALL_INPUT_WIDTH -1 : 0] data_in,
     output  logic [OVERALL_INPUT_WIDTH -1 : 0] data_out
 );
 
     logic last_element_sign;
+    localparam UNUSED_BITS = OVERALL_INPUT_WIDTH - OUTPUT_DATA_WIDTH * LAYER_DIM;
 
     generate;
         for (genvar i = 0; i < LAYER_DIM / 2; i++) begin : pair
@@ -45,6 +46,7 @@ module fp_adder_tree_layer #(
             last_element_sign = data_in[(LAYER_DIM)*INPUT_DATA_WIDTH - 1];
             data_out[(OUT_DIM-1)*OUTPUT_DATA_WIDTH +: INPUT_DATA_WIDTH] = {last_element_sign, {EXT_BITS{1'b0}} ,data_in[(LAYER_DIM-1) * INPUT_DATA_WIDTH +: (INPUT_DATA_WIDTH - 1 )]};
         end
+        // assign data_out[OVERALL_INPUT_WIDTH -1 -: OVERALL_INPUT_WIDTH] = {OVERALL_INPUT_WIDTH{1'b0}};
         
     end
 
