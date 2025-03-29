@@ -14,6 +14,7 @@ from cfl_cocotb import veri_runner, FpGenerator
 exp_width = 4
 mant_width = 3
 output_man_width = mant_width + (1<<exp_width)
+output_exp_width = exp_width + 1
 generator = FpGenerator(exp_width, mant_width)
 
 logger = logging.getLogger("testbench")
@@ -37,7 +38,7 @@ async def random_fp_test(dut):
         cocotb.log.info(f"Value a : {fp_values[0]}, Result a : {generator.custom_fp_to_float(results[0])} Binary: {dut.data_a.value}")
         cocotb.log.info(f"Value b : {fp_values[1]}, Result b : {generator.custom_fp_to_float(results[1])} Binary: {dut.data_b.value}")
         await Timer(1, units="ns")
-        cocotb.log.info(f"Expected result : {fp_values[0] + fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(exp_width, output_man_width, dut.data_out.value)}")
+        cocotb.log.info(f"Expected result : {fp_values[0] + fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
 
 
 

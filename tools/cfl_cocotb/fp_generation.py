@@ -26,6 +26,15 @@ class FpGenerator:
             results.append(fp_bits)
         return fp_values, results
     
+    def generate_specified_value_fp_input(self, values):
+        fp_values = []
+        results = []
+        for val in values:
+            fp_values.append(val)
+            fp_bits = self.float_to_custom_fp(val)
+            results.append(fp_bits)
+        return fp_values, results
+    
     def generate_boundary_values(self):
         negative_max = self.float_to_custom_fp(-self.max_val)
         negative_min = self.float_to_custom_fp(-self.min_val)
@@ -94,7 +103,15 @@ class FpGenerator:
 
 
 if __name__ == "__main__":
+    import math
+    vect_dim = 4
     exp_width = 4
     mant_width = 3
-    generator = FpGenerator(exp_width, mant_width)
-    generator.generate_fp_input(10)
+    # TEMP
+    intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
+    generator = FpGenerator(exp_width, intermediate_man_width)
+    # # generator.generate_fp_input(10)
+    binary_str = "0 1110 1111000000000000000"
+    # binary_str = "0 1111 0101000000000000000"
+    # results =    "0 0000 001 0010 0000 0000 0000 0000 0000 0000 0000"
+    print(generator.custom_fp_to_float(int(binary_str, 2)))

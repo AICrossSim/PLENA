@@ -74,7 +74,8 @@ def _single_test(
             tool_args = _verilator_args(hierarchical, trace)
             sources = [module_path]
             includes = [str(include_files) + "/rtl/"]
-            includes.append(extra_include_files + "/rtl/" )
+            if extra_include_files:
+                includes.append(extra_include_files + "/rtl/" )
         elif sim == "icarus":
             tool_args = []
             sources = [module_path]

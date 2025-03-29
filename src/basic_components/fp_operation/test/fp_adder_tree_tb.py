@@ -10,12 +10,21 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 from cfl_cocotb import veri_runner, FpGenerator
 from math import ceil, log2
+import math
 
 exp_width = 4
 mant_width = 3
-vect_dim =2
+vect_dim = 4
 
-output_man_width = mant_width + (1<<exp_width) * int(log2(vect_dim))
+output_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim))
+output_exp_width = exp_width + math.ceil(math.log2(vect_dim))
+print("output_man_width ", output_man_width)
+
+# TEMP
+intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
+print("intermediate_man_width ", intermediate_man_width)
+
+
 generator = FpGenerator(exp_width, mant_width)
 
 logger = logging.getLogger("testbench")
@@ -38,7 +47,10 @@ async def random_fp_test(dut):
 
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
-        fp_values, results = generator.generate_fp_input(vect_dim)
+        # fp_values, results = generator.generate_fp_input(vect_dim)
+        
+        fp_values, results = generator.generate_specified_value_fp_input([40.517, 218.18, 129.98, 210.00])
+        
         input_data = sum((results[n] << (exp_width + mant_width + 1) * n ) for n in range(vect_dim))
         dut.data_in.value = input_data
         # await RisingEdge(dut.clk)
@@ -54,22 +66,35 @@ async def random_fp_test(dut):
 
         await Timer(2, units="ns")
         cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
-        cocotb.log.info(f"Internal valid: {dut.gen_adder_tree.valid.value}")
-        cocotb.log.info(f"Internal ready: {dut.gen_adder_tree.ready.value}")
+        # cocotb.log.info(f"Internal valid: {dut.gen_adder_tree.valid.value}")
+        # cocotb.log.info(f"Internal ready: {dut.gen_adder_tree.ready.value}")
         # cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
-        cocotb.log.info(f"Internal data_out: {dut.gen_adder_tree.level[0].register_slice.data_in.value}")
+        cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
+        cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
         
         await Timer(2, units="ns")
         cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
         cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
+        cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
+        cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
+
+        
+        await Timer(2, units="ns")
+        cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
+        cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
+        cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
+        cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
 
         await Timer(2, units="ns")
         cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
         cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
+        cocotb.log.info(f"Internal valid: {dut.gen_adder_tree.valid.value}")
+        cocotb.log.info(f"Internal ready: {dut.gen_adder_tree.ready.value}")
 
-        await Timer(8, units="ns")
+
+        await Timer(4, units="ns")
         fp_results = sum(fp_values[g] for g in range(vect_dim))
-        cocotb.log.info(f"Expected result : {fp_results}, DUT BIN_out: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(exp_width, output_man_width, dut.data_out.value)}")
+        cocotb.log.info(f"Expected result : {fp_results}, DUT BIN_out: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
 
 
 @pytest.mark.dev

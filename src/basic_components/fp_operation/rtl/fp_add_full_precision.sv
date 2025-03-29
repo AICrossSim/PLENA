@@ -9,29 +9,41 @@ Description : Adds two FP numbers with different exponents and signs.
               It needs normalisation.
 */
 
+`define FULL_PRECISION_EN
+
 module fp_add_full_precision #(
     parameter int EXP_WIDTH = 5,
     parameter int MANT_WIDTH = 10,
-
-    // Max possible shift bits needed
-    localparam int EXT_BITS = (1 << EXP_WIDTH)
+    // Amount of bits needed to shift mantissas for alignment
+    localparam int EXT_MANT_BITS = (1 << EXP_WIDTH),
+    // Need to increase exp width by 1 to handle overflow
+    localparam int EXT_EXP_BITS = 1
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
-    output logic [EXP_WIDTH + MANT_WIDTH + EXT_BITS : 0] data_out // {sign, exp, mant}
+    `ifdef FULL_PRECISION_EN
+        output logic [EXP_WIDTH + EXT_EXP_BITS + MANT_WIDTH + EXT_MANT_BITS : 0] data_out
+    `else
+        output logic [EXP_WIDTH + MANT_WIDTH + EXT_MANT_BITS : 0] data_out
+    `endif
 );
+
+    localparam int BIAS = (1 << (EXP_WIDTH - 1)) - 1;
+    localparam int NEW_BIAS = (1 << ((EXP_WIDTH + EXT_EXP_BITS) - 1)) - 1;
+    localparam int UPDATED_BIAS = NEW_BIAS - BIAS;
 
     // Bit field declarations
     logic sign_a, sign_b, sign_res;
     logic [EXP_WIDTH-1:0] exp_a, exp_b;
     logic [MANT_WIDTH-1:0] mant_a, mant_b;
 
-    logic [MANT_WIDTH + EXT_BITS + 1:0] full_mant_a, full_mant_b;
-    logic [MANT_WIDTH + EXT_BITS + 1:0] mant_a_shifted, mant_b_shifted;
-    logic [MANT_WIDTH + EXT_BITS + 1:0] mant_sum;
+    logic [MANT_WIDTH + EXT_MANT_BITS + 1:0] full_mant_a, full_mant_b;
+    logic [MANT_WIDTH + EXT_MANT_BITS + 1:0] mant_a_shifted, mant_b_shifted;
+    logic [MANT_WIDTH + EXT_MANT_BITS + 1:0] mant_sum;
 
     logic [EXP_WIDTH - 1:0] exp_diff;
     logic [EXP_WIDTH - 1:0] exp_max;
+    logic [EXP_WIDTH + EXT_EXP_BITS - 1:0] exp_out;
 
     always_comb begin
         // Extract sign, exponent, mantissa
@@ -44,8 +56,8 @@ module fp_add_full_precision #(
         mant_b = data_b[MANT_WIDTH-1:0];
 
         // Add implicit 1 and pad for alignment
-        full_mant_a = {2'b01, mant_a, {EXT_BITS{1'b0}}};
-        full_mant_b = {2'b01, mant_b, {EXT_BITS{1'b0}}};
+        full_mant_a = {2'b01, mant_a, {EXT_MANT_BITS{1'b0}}};
+        full_mant_b = {2'b01, mant_b, {EXT_MANT_BITS{1'b0}}};
 
         // Align mantissas
         if (exp_a > exp_b) begin
@@ -74,14 +86,28 @@ module fp_add_full_precision #(
             end
         end
 
+    `ifdef FULL_PRECISION_EN
         // Overflow handling (e.g., normalisation)
-        if (mant_sum[MANT_WIDTH + EXT_BITS + 1] == 1'b1) begin
+        if (mant_sum[MANT_WIDTH + EXT_MANT_BITS + 1] == 1'b1) begin
+            mant_sum = mant_sum >> 1;
+            exp_out = {{EXT_EXP_BITS{1'b0}}, exp_max} + 1 + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_BITS - 1:0];
+        end else begin
+            exp_out = {{EXT_EXP_BITS{1'b0}}, exp_max} + UPDATED_BIAS;
+        end
+
+        // Output final packed value: {sign, exponent, extended mantissa}
+        data_out = {sign_res, exp_out, mant_sum[MANT_WIDTH + EXT_MANT_BITS - 1:0]};
+
+    `else
+        if (mant_sum[MANT_WIDTH + EXT_MANT_BITS + 1] == 1'b1) begin
             mant_sum = mant_sum >> 1;
             exp_max = exp_max + 1;
         end
 
-        // Output final packed value: {sign, exponent, extended mantissa}
-        data_out = {sign_res, exp_max, mant_sum[MANT_WIDTH + EXT_BITS - 1:0]};
+        // Output final packed value: {sign, exponent, mantissa}
+        data_out = {sign_res, exp_max, mant_sum[MANT_WIDTH + EXT_MANT_BITS - 1:0]};
+    `endif
+
     end
 
 endmodule

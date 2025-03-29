@@ -16,10 +16,15 @@ module fp_adder_tree #(
     parameter IN_EXP_WIDTH  = 3,
     parameter IN_MAN_WIDTH  = 4,
     localparam IN_WIDTH     = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
-    localparam EXT_BITS_PER_LAYER = 1 << IN_EXP_WIDTH,
-    localparam OVERALL_EXT_BITS = $clog2(VEC_DIM) * EXT_BITS_PER_LAYER, 
-    localparam OUT_MAN_WIDTH = OVERALL_EXT_BITS + IN_MAN_WIDTH,    // TODO: 
-    localparam OUT_WIDTH = OUT_MAN_WIDTH + IN_EXP_WIDTH + 1
+    
+    localparam EXT_MANT_BITS_PER_LAYER = 1 << IN_EXP_WIDTH,
+    localparam OVERALL_MANT_EXT_BITS = $clog2(VEC_DIM) * EXT_MANT_BITS_PER_LAYER, 
+    localparam OUT_MAN_WIDTH = OVERALL_MANT_EXT_BITS + IN_MAN_WIDTH,    
+
+    localparam EXT_EXP_BITS_PER_LAYER = 1,
+    localparam OVERALL_EXP_EXT_BITS = $clog2(VEC_DIM),
+    localparam OUT_EXP_WIDTH = OVERALL_EXP_EXT_BITS + IN_EXP_WIDTH,
+    localparam OUT_WIDTH = OUT_MAN_WIDTH + OUT_EXP_WIDTH + 1
 ) (
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic                 clk,
@@ -42,7 +47,7 @@ module fp_adder_tree #(
   generate
     if (LEVELS == 0) begin : gen_skip_adder_tree
 
-      assign data_out = {{OVERALL_EXT_BITS{1'b0}}, data_in[0]};
+      assign data_out = {{OVERALL_MANT_EXT_BITS{1'b0}}, data_in[0]};
       assign data_out_valid = data_in_valid;
       assign data_in_ready = data_out_ready;
 
@@ -58,17 +63,19 @@ module fp_adder_tree #(
       for (genvar i = 0; i < LEVELS; i++) begin : level
 
         localparam LEVEL_IN_SIZE = (VEC_DIM + ((1 << i) - 1)) >> i;     // Ceiling(VEC_DIM / 2^i)
-        localparam LEVEL_IN_MAN_WIDTH   = IN_MAN_WIDTH + i * EXT_BITS_PER_LAYER;
+        localparam LEVEL_IN_MAN_WIDTH   = IN_MAN_WIDTH + i * EXT_MANT_BITS_PER_LAYER;
+        localparam LEVEL_IN_EXP_WIDTH   = IN_EXP_WIDTH + i * EXT_EXP_BITS_PER_LAYER;
         
         localparam LEVEL_OUT_SIZE = (LEVEL_IN_SIZE + 1) / 2;
-        localparam LEVEL_OUT_MAN_WIDTH  = IN_MAN_WIDTH + (i + 1) * EXT_BITS_PER_LAYER;
-        localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + IN_EXP_WIDTH + 1;
+        localparam LEVEL_OUT_MAN_WIDTH  = IN_MAN_WIDTH + (i + 1) * EXT_MANT_BITS_PER_LAYER;
+        localparam LEVEL_OUT_EXP_WIDTH  = IN_EXP_WIDTH + (i + 1) * EXT_EXP_BITS_PER_LAYER;
+        localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + LEVEL_OUT_EXP_WIDTH + 1;
 
         fp_adder_tree_layer #(
             .OVERALL_INPUT_WIDTH (OUT_WIDTH*VEC_DIM),
             .LAYER_DIM (LEVEL_IN_SIZE),
             .IN_MAN_WIDTH (LEVEL_IN_MAN_WIDTH),
-            .IN_EXP_WIDTH (IN_EXP_WIDTH)
+            .IN_EXP_WIDTH (LEVEL_IN_EXP_WIDTH)
         ) full_precision_add_layer (
             .data_in  (data_storage[i]),                          // flattened LEVEL_IN_SIZE * LEVEL_IN_WIDTH
             .data_out (sum[i])                                    // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
@@ -86,7 +93,6 @@ module fp_adder_tree #(
             .data_out_valid(valid[i+1]),
             .data_out_ready(ready[i+1])
         );
-
       end
 
       for (genvar i = 0; i < VEC_DIM; i++) begin : gen_input_assign
