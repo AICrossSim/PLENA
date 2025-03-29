@@ -11,7 +11,7 @@ from cocotb.clock import Clock
 
 from cfl_cocotb import veri_runner, FpGenerator
 
-exp_width = 4
+exp_width = 5
 mant_width = 3
 ext_mant_width = 0
 ext_exp_width = 1
@@ -34,7 +34,8 @@ async def random_fp_test(dut):
 
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
-        fp_values, results = generator.generate_fp_input(2)
+        # fp_values, results = generator.generate_fp_input(2)
+        fp_values, results = generator.generate_specified_value_fp_input([240.0, 320.0])
         dut.data_a.value = results[0]
         dut.data_b.value = results[1]
         # await RisingEdge(dut.clk)
@@ -43,7 +44,7 @@ async def random_fp_test(dut):
         cocotb.log.info(f"Value b : {fp_values[1]}, Result b : {generator.custom_fp_to_float(results[1])} Binary: {dut.data_b.value}")
         await Timer(1, units="ns")
         cocotb.log.info(f"Expected result : {fp_values[0] + fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
-
+        quit()
 
 
 

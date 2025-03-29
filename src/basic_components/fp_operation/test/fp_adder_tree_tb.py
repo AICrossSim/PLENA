@@ -14,15 +14,17 @@ import math
 
 exp_width = 4
 mant_width = 3
+ext_mant_width = 0
+ext_exp_width = 1
 vect_dim = 4
+level = math.ceil(math.log2(vect_dim))
 
-output_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim))
-output_exp_width = exp_width + math.ceil(math.log2(vect_dim))
-print("output_man_width ", output_man_width)
+output_man_width = mant_width + ext_mant_width * level
+output_exp_width = exp_width + ext_exp_width * level
 
 # TEMP
-intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
-print("intermediate_man_width ", intermediate_man_width)
+# intermediate_man_width = mant_width + (1<<exp_width) * 
+# print("intermediate_man_width ", intermediate_man_width)
 
 
 generator = FpGenerator(exp_width, mant_width)
@@ -75,21 +77,22 @@ async def random_fp_test(dut):
         await Timer(2, units="ns")
         cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
         cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
-        cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
-        cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
+        cocotb.log.info(f"Internal Level 1 data_a: {dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_a.value}")
+        cocotb.log.info(f"Internal Level 1 data_b: {dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_b.value}")
+        cocotb.log.info(f"Internal Level 1 data_out: {dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_out.value}")
 
         
-        await Timer(2, units="ns")
-        cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
-        cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
-        cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
-        cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
+        # await Timer(2, units="ns")
+        # cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
+        # cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
+        # cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
+        # cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
 
-        await Timer(2, units="ns")
-        cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
-        cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
-        cocotb.log.info(f"Internal valid: {dut.gen_adder_tree.valid.value}")
-        cocotb.log.info(f"Internal ready: {dut.gen_adder_tree.ready.value}")
+        # await Timer(2, units="ns")
+        # cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
+        # cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
+        # cocotb.log.info(f"Internal valid: {dut.gen_adder_tree.valid.value}")
+        # cocotb.log.info(f"Internal ready: {dut.gen_adder_tree.ready.value}")
 
 
         await Timer(4, units="ns")
@@ -105,7 +108,7 @@ def test_simple_fp_addition():
         module = "fp_adder_tree",
         additional_include_paths = "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
         module_param_list=[
-            {"VEC_DIM" : vect_dim, "IN_EXP_WIDTH" : exp_width, "IN_MAN_WIDTH" : mant_width},
+            {"VEC_DIM" : vect_dim, "IN_EXP_WIDTH" : exp_width, "IN_MAN_WIDTH" : mant_width, "EXT_MANT_WIDTH_PER_LAYER" : ext_mant_width, "EXT_EXP_BITS_PER_LAYER" : ext_exp_width},
         ],
         trace = True,
     )

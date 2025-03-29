@@ -15,16 +15,21 @@ module fp_adder_tree #(
     parameter VEC_DIM       = 4,
     parameter IN_EXP_WIDTH  = 3,
     parameter IN_MAN_WIDTH  = 4,
-    localparam IN_WIDTH     = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
     
-    localparam EXT_MANT_BITS_PER_LAYER = 1 << IN_EXP_WIDTH,
-    localparam OVERALL_MANT_EXT_BITS = $clog2(VEC_DIM) * EXT_MANT_BITS_PER_LAYER, 
+    
+    parameter EXT_MANT_WIDTH_PER_LAYER = 1,
+    parameter EXT_EXP_BITS_PER_LAYER = 1,
+    
+    localparam LEVELS = $clog2(VEC_DIM),
+
+    localparam OVERALL_MANT_EXT_BITS = LEVELS * EXT_MANT_WIDTH_PER_LAYER, 
     localparam OUT_MAN_WIDTH = OVERALL_MANT_EXT_BITS + IN_MAN_WIDTH,    
 
-    localparam EXT_EXP_BITS_PER_LAYER = 1,
-    localparam OVERALL_EXP_EXT_BITS = $clog2(VEC_DIM),
-    localparam OUT_EXP_WIDTH = OVERALL_EXP_EXT_BITS + IN_EXP_WIDTH,
-    localparam OUT_WIDTH = OUT_MAN_WIDTH + OUT_EXP_WIDTH + 1
+    localparam OVERALL_EXP_EXT_BITS = LEVELS * EXT_EXP_BITS_PER_LAYER,
+    localparam OUT_EXP_WIDTH  = OVERALL_EXP_EXT_BITS + IN_EXP_WIDTH,
+    
+    localparam IN_WIDTH       = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
+    localparam OUT_WIDTH      = OUT_MAN_WIDTH + OUT_EXP_WIDTH + 1
 ) (
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic                 clk,
@@ -37,8 +42,6 @@ module fp_adder_tree #(
     output logic                 data_out_valid,
     input  logic                 data_out_ready
 );
-
-  localparam LEVELS = $clog2(VEC_DIM);
 
   initial begin
     assert (VEC_DIM > 0);
@@ -54,7 +57,7 @@ module fp_adder_tree #(
     end else begin : gen_adder_tree
 
       // data_storage & sum wires are oversized on purpose for vivado.
-      logic [OUT_WIDTH*VEC_DIM-1:0] data_storage [LEVELS:0];
+      logic [OUT_WIDTH*VEC_DIM-1:0] data_storage [LEVELS:0];  // TODO: Need to be optimized, memory inefficient
       logic [OUT_WIDTH*VEC_DIM-1:0] sum  [LEVELS-1:0];
       logic valid[VEC_DIM-1:0];
       logic ready[VEC_DIM-1:0];
@@ -62,31 +65,33 @@ module fp_adder_tree #(
       // Generate adder for each layer
       for (genvar i = 0; i < LEVELS; i++) begin : level
 
-        localparam LEVEL_IN_SIZE = (VEC_DIM + ((1 << i) - 1)) >> i;     // Ceiling(VEC_DIM / 2^i)
-        localparam LEVEL_IN_MAN_WIDTH   = IN_MAN_WIDTH + i * EXT_MANT_BITS_PER_LAYER;
+        localparam LEVEL_IN_DIM = (VEC_DIM + ((1 << i) - 1)) >> i;     // Ceiling(VEC_DIM / 2^i)
+        localparam LEVEL_IN_MAN_WIDTH   = IN_MAN_WIDTH + i * EXT_MANT_WIDTH_PER_LAYER;
         localparam LEVEL_IN_EXP_WIDTH   = IN_EXP_WIDTH + i * EXT_EXP_BITS_PER_LAYER;
         
-        localparam LEVEL_OUT_SIZE = (LEVEL_IN_SIZE + 1) / 2;
-        localparam LEVEL_OUT_MAN_WIDTH  = IN_MAN_WIDTH + (i + 1) * EXT_MANT_BITS_PER_LAYER;
+        localparam LEVEL_OUT_DIM = (LEVEL_IN_DIM + 1) / 2;
+        localparam LEVEL_OUT_MAN_WIDTH  = IN_MAN_WIDTH + (i + 1) * EXT_MANT_WIDTH_PER_LAYER;
         localparam LEVEL_OUT_EXP_WIDTH  = IN_EXP_WIDTH + (i + 1) * EXT_EXP_BITS_PER_LAYER;
         localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + LEVEL_OUT_EXP_WIDTH + 1;
 
         fp_adder_tree_layer #(
-            .OVERALL_INPUT_WIDTH (OUT_WIDTH*VEC_DIM),
-            .LAYER_DIM (LEVEL_IN_SIZE),
-            .IN_MAN_WIDTH (LEVEL_IN_MAN_WIDTH),
-            .IN_EXP_WIDTH (LEVEL_IN_EXP_WIDTH)
+            .OVERALL_INPUT_WIDTH  (OUT_WIDTH*VEC_DIM),
+            .LAYER_DIM            (LEVEL_IN_DIM),
+            .IN_MAN_WIDTH         (LEVEL_IN_MAN_WIDTH),
+            .IN_EXP_WIDTH         (LEVEL_IN_EXP_WIDTH),
+            .EXT_MANT_BITS        (EXT_MANT_WIDTH_PER_LAYER),
+            .EXT_EXP_BITS         (EXT_EXP_BITS_PER_LAYER)
         ) full_precision_add_layer (
-            .data_in  (data_storage[i]),                          // flattened LEVEL_IN_SIZE * LEVEL_IN_WIDTH
-            .data_out (sum[i])                                    // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
+            .data_in              (data_storage[i]),                          // flattened LEVEL_IN_DIM * LEVEL_IN_WIDTH
+            .data_out             (sum[i])                                    // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
         );
 
         skid_buffer #(
-            .DATA_WIDTH(LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH)
+            .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),
             .rst           (!rst),                        // Inverted reset
-            .data_in       (sum[i]),                      // flattened LEVEL_OUT_SIZE * LEVEL_OUT_WIDTH
+            .data_in       (sum[i]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),
             .data_out      (data_storage[i+1]),

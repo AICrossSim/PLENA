@@ -16,8 +16,9 @@ module fp_adder_tree_layer #(
     parameter IN_EXP_WIDTH  = 3, 
     
     // Max possible shift bits needed
-    localparam EXT_MANT_BITS = (1 << IN_EXP_WIDTH),
-    localparam EXT_EXP_BITS = 1,    
+    parameter EXT_MANT_BITS = 1,
+    parameter EXT_EXP_BITS = 1,   
+
     localparam OUT_DIM  = (LAYER_DIM + 1) / 2,
     localparam INPUT_DATA_WIDTH = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
     localparam OUTPUT_DATA_WIDTH = IN_MAN_WIDTH + EXT_MANT_BITS + IN_EXP_WIDTH + EXT_EXP_BITS + 1
@@ -31,10 +32,12 @@ module fp_adder_tree_layer #(
 
     generate;
         for (genvar i = 0; i < LAYER_DIM / 2; i++) begin : pair
-            fp_add_full_precision #(
+            fp_cp_adder #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
-                .MANT_WIDTH(IN_MAN_WIDTH)
-            )   full_precision_fp_add (
+                .MANT_WIDTH(IN_MAN_WIDTH),
+                .EXT_MANT_WIDTH(EXT_MANT_BITS),
+                .EXT_EXP_WIDTH(EXT_EXP_BITS)
+            )   fp_add (
                 .data_a(data_in[2*i*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
                 .data_b(data_in[(2*i + 1)*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
                 .data_out(data_out[i * OUTPUT_DATA_WIDTH +: OUTPUT_DATA_WIDTH])
