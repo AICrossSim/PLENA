@@ -91,7 +91,7 @@ module fp_cp_adder #(
             end
 
         end else begin
-            exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + UPDATED_BIAS;
+            exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
         end
 
         // Output final packed value: {sign, exponent, extended mantissa}

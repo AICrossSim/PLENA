@@ -16,14 +16,18 @@ exp_width = 4
 mant_width = 3
 ext_mant_width = 0
 ext_exp_width = 1
-vect_dim = 4
+vect_dim = 3
 level = math.ceil(math.log2(vect_dim))
 
 output_man_width = mant_width + ext_mant_width * level
+
 output_exp_width = exp_width + ext_exp_width * level
 
+
+
 # TEMP
-# intermediate_man_width = mant_width + (1<<exp_width) * 
+intermediate_man_width = mant_width + ext_mant_width 
+intermediate_exp_width = exp_width + ext_exp_width
 # print("intermediate_man_width ", intermediate_man_width)
 
 
@@ -60,25 +64,30 @@ async def random_fp_test(dut):
         cocotb.log.info("<-------  INPUT DATA  --------->")
         cocotb.log.info(f"Input Binary {dut.data_in.value}")
         for m in range(vect_dim):
-            cocotb.log.info(f"Value at index {m} : {fp_values[m]}, Result : {generator.custom_fp_to_float(results[m])}")
+            cocotb.log.info(f"Value at index {m} : {fp_values[m]}, Result : {generator.custom_fp_to_float(results[m])}, Binary: {bin(results[m])}")
         
         cocotb.log.info(f"Input Binary {dut.data_in.value}")
         dut.data_in_valid.value = 1
         dut.data_out_ready.value = 1
 
         await Timer(2, units="ns")
-        cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
+        # cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
         # cocotb.log.info(f"Internal valid: {dut.gen_adder_tree.valid.value}")
         # cocotb.log.info(f"Internal ready: {dut.gen_adder_tree.ready.value}")
         # cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
-        cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
-        cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
+        # cocotb.log.info(f"Internal Level 1 data_in: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_in.value}")
+        # cocotb.log.info(f"Internal Level 1 data_ou: {dut.gen_adder_tree.level[1].full_precision_add_layer.data_out.value}")
         
         await Timer(2, units="ns")
         cocotb.log.info(f"Internal data_storage: {dut.gen_adder_tree.data_storage.value}")
         cocotb.log.info(f"Internal sum: {dut.gen_adder_tree.sum.value}")
+        
+        cocotb.log.info(f"Internal Level 0 updated exp: {dut.gen_adder_tree.level[0].full_precision_add_layer.updated_exp.value}")
+        cocotb.log.info(f"Internal Level 0  UPDATED_BIAS: {dut.gen_adder_tree.level[0].full_precision_add_layer.UPDATED_BIAS.value}")
         cocotb.log.info(f"Internal Level 1 data_a: {dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_a.value}")
+        cocotb.log.info(f"converted: {generator.full_precision_fp_float_convertion(intermediate_exp_width, intermediate_man_width, dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_a.value)}")        
         cocotb.log.info(f"Internal Level 1 data_b: {dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_b.value}")
+        cocotb.log.info(f"converted: {generator.full_precision_fp_float_convertion(intermediate_exp_width, intermediate_man_width, dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_b.value)}")   
         cocotb.log.info(f"Internal Level 1 data_out: {dut.gen_adder_tree.level[1].full_precision_add_layer.pair[0].fp_add.data_out.value}")
 
         

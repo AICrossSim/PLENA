@@ -27,7 +27,7 @@ module fp_adder_tree #(
 
     localparam OVERALL_EXP_EXT_BITS = LEVELS * EXT_EXP_BITS_PER_LAYER,
     localparam OUT_EXP_WIDTH  = OVERALL_EXP_EXT_BITS + IN_EXP_WIDTH,
-    
+
     localparam IN_WIDTH       = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
     localparam OUT_WIDTH      = OUT_MAN_WIDTH + OUT_EXP_WIDTH + 1
 ) (
@@ -79,8 +79,8 @@ module fp_adder_tree #(
             .LAYER_DIM            (LEVEL_IN_DIM),
             .IN_MAN_WIDTH         (LEVEL_IN_MAN_WIDTH),
             .IN_EXP_WIDTH         (LEVEL_IN_EXP_WIDTH),
-            .EXT_MANT_BITS        (EXT_MANT_WIDTH_PER_LAYER),
-            .EXT_EXP_BITS         (EXT_EXP_BITS_PER_LAYER)
+            .EXT_MANT_WIDTH        (EXT_MANT_WIDTH_PER_LAYER),
+            .EXT_EXP_WIDTH         (EXT_EXP_BITS_PER_LAYER)
         ) full_precision_add_layer (
             .data_in              (data_storage[i]),                          // flattened LEVEL_IN_DIM * LEVEL_IN_WIDTH
             .data_out             (sum[i])                                    // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
