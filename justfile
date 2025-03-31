@@ -1,21 +1,16 @@
-# justfile for managing environment
 set shell := ["bash", "-cu"]
 
-# Set PYTHONPATH for current session
-set-pythonpath:
-    export PYTHONPATH="/home/george/Coprocessor_for_Llama/tools"
-    echo "PYTHONPATH set to: $PYTHONPATH"
+# Define the project root as the directory containing the justfile
+ROOT := "{{justfile() | dirname}}"
 
-# Set PYTHONPATH and launch Python
 python:
-    export PYTHONPATH="/home/george/Coprocessor_for_Llama/tools"
-    python
+    export PYTHONPATH="${ROOT}/tools"
+    cd "${ROOT}" && python
 
-# Verify PYTHONPATH
 check-pythonpath:
+    export PYTHONPATH="${ROOT}/tools"
     echo "PYTHONPATH is: $PYTHONPATH"
 
-# Remove __pycache__ to avoid import issues
 clean:
-    rm -rf /home/george/Coprocessor_for_Llama/tools/cfl_cocotb/__pycache__
+    rm -rf "${ROOT}/tools/cfl_cocotb/__pycache__"
     echo "Removed __pycache__"
