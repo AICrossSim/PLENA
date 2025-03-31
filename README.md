@@ -8,4 +8,4 @@ This project contains the implementation of a coprocessor for LlaMA model's infe
 **Operations Summary:**  
 [View Document on Google Docs](https://docs.google.com/document/d/1xQtkr6eg5apWwtI2o2SvgR1BDwq4dD6h9cY41vHd4UU/edit?usp=sharing)
 
-![Figure 1: Diagram of the Coprocessor](doc/Coprocessor_Design.png)
+![Figure 1: Diagram of the Coprocessor](doc/CoProcessor_Design.png)
