@@ -1,12 +1,10 @@
 `timescale 1ns / 1ps
 module fp_dot_product #(
-    parameter   A_MAN_WIDTH = 4,
-    parameter   A_EXP_WIDTH = 3,
-    parameter   B_MAN_WIDTH = 4,
-    parameter   B_EXP_WIDTH = 3,
+    parameter   MAN_WIDTH = 4,
+    parameter   EXP_WIDTH = 3,
     parameter   VEC_DIM     = 8,
-    localparam  PRODUCT_MAN_WIDTH = A_MAN_WIDTH + B_MAN_WIDTH + 1, 
-    localparam  PRODUCT_EXP_WIDTH = A_EXP_WIDTH
+    localparam  PRODUCT_MAN_WIDTH = MAN_WIDTH + MAN_WIDTH + 1, 
+    localparam  PRODUCT_EXP_WIDTH = EXP_WIDTH
     localparam  EXT_BITS_PER_LAYER = 1 << PRODUCT_EXP_WIDTH,
     localparam  RESULT_MAN_WIDTH = PRODUCT_MAN_WIDTH + $clog2(IN_SIZE),
     localparam  RESULT_EXP_WIDTH = PRODUCT_EXP_WIDTH
@@ -17,12 +15,12 @@ module fp_dot_product #(
     input rst,
 
     // input port A
-    input  logic [VEC_DIM-1:0] [(A_MAN_WIDTH + A_EXP_WIDTH):0] data_a_in,
+    input  logic [VEC_DIM-1:0] [(MAN_WIDTH + EXP_WIDTH):0] data_a_in,
     input                       data_a_in_valid,
     output                      data_a_in_ready,
 
     // input port B
-    input  logic [VEC_DIM-1:0] [(B_MAN_WIDTH + B_EXP_WIDTH):0] data_b_in,
+    input  logic [VEC_DIM-1:0] [(MAN_WIDTH + EXP_WIDTH):0] data_b_in,
     input                       data_b_in_valid,
     output                      data_b_in_ready,
 
@@ -44,10 +42,10 @@ module fp_dot_product #(
   logic                     sum_ready;
 
   fp_vector_mult #(
-      .A_MAN_WIDTH(A_MAN_WIDTH),
-      .A_EXP_WIDTH(A_EXP_WIDTH),
-      .B_MAN_WIDTH(B_MAN_WIDTH),
-      .B_EXP_WIDTH(B_EXP_WIDTH),
+      .MAN_WIDTH(MAN_WIDTH),
+      .EXP_WIDTH(EXP_WIDTH),
+      .MAN_WIDTH(MAN_WIDTH),
+      .EXP_WIDTH(EXP_WIDTH),
       .VEC_DIM(VEC_DIM),
       .RESULT_EXP_WIDTH(RESULT_MAN_WIDTH),
       .RESULT_EXP_WIDTH(RESULT_EXP_WIDTH)

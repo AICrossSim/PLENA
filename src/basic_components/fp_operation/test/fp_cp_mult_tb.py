@@ -13,8 +13,11 @@ from cfl_cocotb import veri_runner, FpGenerator
 
 exp_width = 4
 mant_width = 3
-output_man_width = mant_width * 2 + 1
-output_exp_width = exp_width + 1
+ext_mant_width = 0
+ext_exp_width = 1
+
+output_man_width = mant_width + ext_mant_width
+output_exp_width = exp_width + ext_exp_width
 
 generator = FpGenerator(exp_width, mant_width)
 
@@ -39,12 +42,11 @@ async def random_fp_test(dut):
         cocotb.log.info(f"Value a : {fp_values[0]}, Result a : {generator.custom_fp_to_float(results[0])} Binary: {dut.data_a.value}")
         cocotb.log.info(f"Value b : {fp_values[1]}, Result b : {generator.custom_fp_to_float(results[1])} Binary: {dut.data_b.value}")
         await Timer(1, units="ns")
+        cocotb.log.info(f"Internal man_a_ext: {dut.man_a_ext.value}, Internal man_b_ext: {dut.man_b_ext.value}")
         cocotb.log.info(f"Internal mant_product_full: {dut.mant_product_full.value}")
         cocotb.log.info(f"Internal mant_product_norm : {dut.mant_product_norm.value}")
         cocotb.log.info(f"Internal exp_product : {dut.exp_product.value}, raw_exp_product : {dut.exp_product_raw.value}")
         cocotb.log.info(f"Expected result : {fp_values[0] * fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
-
-
 
 
 @pytest.mark.dev
@@ -52,9 +54,9 @@ def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
         group = "fp_operation",
-        module = "fp_mult",
+        module = "fp_cp_mult",
         module_param_list=[
-            {"EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width},
+            {"EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width, "EXT_MANT_WIDTH" : ext_mant_width, "EXT_EXP_WIDTH" : ext_exp_width},
         ],
         trace = False,
     )
