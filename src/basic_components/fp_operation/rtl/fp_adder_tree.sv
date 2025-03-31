@@ -16,7 +16,7 @@ module fp_adder_tree #(
     parameter IN_EXP_WIDTH  = 3,
     parameter IN_MAN_WIDTH  = 4,
     
-    
+    // Precision Control
     parameter EXT_MANT_WIDTH_PER_LAYER = 1,
     parameter EXT_EXP_BITS_PER_LAYER = 1,
     

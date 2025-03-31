@@ -10,6 +10,16 @@ def get_fp_range(exp_width, mant_width):
     min_val = 1.0 * (2 ** (min_exponent - bias))
     return min_val, max_val
 
+def extract_bitfields(value: int, bitwidth: int, vec_dim: int):
+    mask = (1 << bitwidth) - 1  # e.g., if bitwidth=4 -> 0b1111
+    result = []
+    for i in range(vec_dim):
+        shift_amount = i * bitwidth
+        field = (value >> shift_amount) & mask
+        result.append(field)
+    return result
+
+
 class FpGenerator:
     def __init__(self, exp_width, mant_width):
         self.exp_width = exp_width
@@ -97,6 +107,16 @@ class FpGenerator:
 
         val = mantissa_val * (2 ** exponent)
         return -val if sign == 1 else val
+    
+
+    def translate_packed_array_fp(self, vec_dim, output_exp_width, output_man_width, input_data):
+        print(f"Input data: {input_data}")
+        extracted_vect_ele = extract_bitfields(input_data, output_exp_width + output_man_width + 1, vec_dim)
+        converted_fp = []
+        for i in range(vec_dim):
+            converted_fp.append(self.full_precision_fp_float_convertion(output_exp_width, output_man_width, extracted_vect_ele[i]))
+        print(f"Converted FP: {converted_fp}")
+        pass
 
 
 

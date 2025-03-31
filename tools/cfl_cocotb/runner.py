@@ -75,7 +75,9 @@ def _single_test(
             sources = [module_path]
             includes = [str(include_files) + "/rtl/"]
             if extra_include_files:
-                includes.append(extra_include_files + "/rtl/" )
+                for exclude in extra_include_files:
+                    includes.append(exclude+ "/rtl/")
+                    
         elif sim == "icarus":
             tool_args = []
             sources = [module_path]

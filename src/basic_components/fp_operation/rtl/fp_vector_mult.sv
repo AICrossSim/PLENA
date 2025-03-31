@@ -1,7 +1,12 @@
 `timescale 1ns / 1ps
 /*
-Module      : two floating point vectors' elementwise multiplication
-Description : FP datatype Sign Bit + MAN_WIDTH + EXP_WIDTH
+Module      : Floating Point Configurable Precision Multiplier (With Sign)
+Timing      : Combinatorial Logic
+Description : Multiply two FP numbers with different exponents and signs.
+              Aligns mantissas, preserves full precision (no bits discarded).
+              Output format: {sign, exp_out, mant_out}.
+              No rounding.
+              It needs normalisation.
 */
 module fp_vector_mult #(
     parameter   MANT_WIDTH = 4,
@@ -33,19 +38,21 @@ module fp_vector_mult #(
 );
 
   // pv[i] = data_in[i] * w[i]
-  logic [VEC_DIM-1:0] [(RESULT_MAN_WIDTH + RESULT_EXP_WIDTH):0]  product_vector;
+  logic [VEC_DIM-1:0] [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH:0]  product_vector;
   logic product_data_in_valid;
   logic product_data_in_ready;
 
 
   for (genvar i = 0; i < VEC_DIM; i = i + 1) begin : parallel_mult
-    fp_mult #(
-        .IN_A_WIDTH(IN_WIDTH),
-        .IN_B_WIDTH(WEIGHT_WIDTH)
+    fp_cp_mult #(
+        .MANT_WIDTH(MANT_WIDTH),
+        .EXP_WIDTH(EXP_WIDTH),
+        .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
+        .EXT_EXP_WIDTH(EXT_EXP_WIDTH)
     ) fp_vector_element_mult (
-        .data_a (data_in[i]),
-        .data_b (weight[i]),
-        .product(product_vector[i])
+        .data_a (data_a_in[i]),
+        .data_b (data_b_in[i]),
+        .data_out(product_vector[i])
     );
   end
 
@@ -57,10 +64,10 @@ module fp_vector_mult #(
   );
 
   skid_buffer #(
-      .DATA_WIDTH($bits(product_vector))
+      .DATA_WIDTH(VEC_DIM * (EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH + 1)) 
   ) register_slice (
       .clk           (clk),
-      .rst           (rst),
+      .rst           (!rst),
       .data_in       (product_vector),
       .data_in_valid (product_data_in_valid),
       .data_in_ready (product_data_in_ready),

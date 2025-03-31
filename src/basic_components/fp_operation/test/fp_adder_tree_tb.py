@@ -12,7 +12,7 @@ from cfl_cocotb import veri_runner, FpGenerator
 from math import ceil, log2
 import math
 
-exp_width = 4
+exp_width = 5
 mant_width = 3
 ext_mant_width = 0
 ext_exp_width = 1
@@ -55,7 +55,7 @@ async def random_fp_test(dut):
         # Generate random floating point values
         # fp_values, results = generator.generate_fp_input(vect_dim)
         
-        fp_values, results = generator.generate_specified_value_fp_input([40.517, 218.18, 129.98, 210.00])
+        fp_values, results = generator.generate_specified_value_fp_input([1152.0, 8192.0, 9216.0, 3584.0])
         
         input_data = sum((results[n] << (exp_width + mant_width + 1) * n ) for n in range(vect_dim))
         dut.data_in.value = input_data
@@ -115,7 +115,9 @@ def test_simple_fp_addition():
     veri_runner(
         group = "fp_operation",
         module = "fp_adder_tree",
-        additional_include_paths = "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
+        additional_include_paths = [
+            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer"
+        ],       
         module_param_list=[
             {"VEC_DIM" : vect_dim, "IN_EXP_WIDTH" : exp_width, "IN_MAN_WIDTH" : mant_width, "EXT_MANT_WIDTH_PER_LAYER" : ext_mant_width, "EXT_EXP_BITS_PER_LAYER" : ext_exp_width},
         ],
