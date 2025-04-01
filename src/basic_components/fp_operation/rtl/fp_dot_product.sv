@@ -1,4 +1,11 @@
 `timescale 1ns / 1ps
+
+/*
+Module      : Floating Point Configurable Precision Dot Product Unit (With Sign)
+Timing      : Sequential, Takes 2 cycles to compute the dot product
+Description : Dot Product of two FP vectors.
+*/
+
 module fp_dot_product #(
     parameter   MANT_WIDTH = 4,
     parameter   EXP_WIDTH = 3,
@@ -15,8 +22,8 @@ module fp_dot_product #(
     localparam  PRODUCT_EXP_WIDTH = EXP_WIDTH + PRODUCT_EXT_EXP_WIDTH,
 
     // Adder width
-    localparam  ADD_MAN_WIDTH = MANT_WIDTH + ADD_EXT_MANT_WIDTH * $clog2(VEC_DIM),
-    localparam  ADD_EXP_WIDTH = EXP_WIDTH + ADD_EXT_EXP_WIDTH * $clog2(VEC_DIM)
+    localparam  ADD_MAN_WIDTH = PRODUCT_MAN_WIDTH + ADD_EXT_MANT_WIDTH * $clog2(VEC_DIM),
+    localparam  ADD_EXP_WIDTH = PRODUCT_EXP_WIDTH + ADD_EXT_EXP_WIDTH * $clog2(VEC_DIM)
 
     // parameter OUT_WIDTH = IN_WIDTH + WEIGHT_WIDTH + $clog2(IN_SIZE) * 
 ) (

@@ -115,8 +115,7 @@ class FpGenerator:
         converted_fp = []
         for i in range(vec_dim):
             converted_fp.append(self.full_precision_fp_float_convertion(output_exp_width, output_man_width, extracted_vect_ele[i]))
-        print(f"Converted FP: {converted_fp}")
-        pass
+        return converted_fp
 
 
 

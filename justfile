@@ -3,6 +3,10 @@ set shell := ["bash", "-cu"]
 # Define the project root as the directory containing the justfile
 ROOT := "{{justfile() | dirname}}"
 
+set-pythonpath:
+    export PYTHONPATH="/home/george/Coprocessor_for_Llama/tools"
+    echo "PYTHONPATH set to: $PYTHONPATH"
+    
 python:
     export PYTHONPATH="${ROOT}/tools"
     cd "${ROOT}" && python
