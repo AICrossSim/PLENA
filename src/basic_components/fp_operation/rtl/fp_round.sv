@@ -16,6 +16,14 @@ module fp_round #(
     input  logic [IN_EXP_WIDTH + IN_MANT_WIDTH:0] data_in,
     output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH:0] data_out
 );
+
+  initial begin
+    assert(IN_EXP_WIDTH >= OUT_EXP_WIDTH)
+    else $fatal("OUT_EXP_WIDTH must be less than or equal to IN_EXP_WIDTH");
+    assert(IN_MANT_WIDTH >= OUT_MANT_WIDTH)
+    else $fatal("OUT_MANT_WIDTH must be less than or equal to IN_MANT_WIDTH");
+  end
+
   // Widths
   localparam IN_WIDTH  = IN_EXP_WIDTH + IN_MANT_WIDTH + 1;
   localparam OUT_WIDTH = OUT_EXP_WIDTH + OUT_MANT_WIDTH + 1;
@@ -42,20 +50,44 @@ module fp_round #(
   logic [OUT_MANT_WIDTH-1:0]  mant_final;
   logic                       exp_overflow;
 
+  // mantissa truncation
+  generate
+    if (OUT_MANT_WIDTH < IN_MANT_WIDTH) begin : gen_truncate
+      assign  mant_trunc = mant_in[IN_MANT_WIDTH-1 -: OUT_MANT_WIDTH];
+      assign  round_section = mant_in[IN_MANT_WIDTH - OUT_MANT_WIDTH - 1:0];
+    end else begin : gen_no_truncate
+      assign mant_trunc = mant_in;
+      assign round_section = '0;
+    end
+  endgenerate
+
+  // Guard, Round, Sticky bits
+  generate;
+    if (RND_BITS >= 1) begin : gen_g
+      assign guard = round_section[RND_BITS-1];
+    end else begin : gen_no_g
+      assign guard = 1'b0;
+    end
+
+    if (RND_BITS >= 2) begin : gen_r
+      assign round_bit = round_section[RND_BITS-2];
+    end else begin : gen_no_r
+      assign round_bit = 1'b0;
+    end
+
+    if (RND_BITS > 2) begin : gen_s
+      assign sticky = |round_section[RND_BITS-3:0];
+    end else begin : gen_no_s
+      assign sticky = 1'b0;
+    end
+
+  endgenerate
+
   always_comb begin
     // Decompose input
     sign     = data_in[IN_WIDTH-1];
     exp_in   = data_in[IN_WIDTH-2 -: IN_EXP_WIDTH];
     mant_in  = data_in[IN_MANT_WIDTH-1:0];
-
-    // Truncate mantissa
-    mant_trunc     = mant_in[IN_MANT_WIDTH-1 -: OUT_MANT_WIDTH];
-    round_section  = mant_in[IN_MANT_WIDTH - OUT_MANT_WIDTH -1:0];
-
-    // GRS bits
-    guard     = (RND_BITS >= 1) ? round_section[RND_BITS-1] : 1'b0;
-    round_bit = (RND_BITS >= 2) ? round_section[RND_BITS-2] : 1'b0;
-    sticky    = (RND_BITS > 2)  ? | round_section[RND_BITS-3:0] : 1'b0; // TODO: There is a warning here e.g. [-1:0] if RND_BITS = 2
 
     // Round to Nearest Even
     round_up      = guard && (round_bit || sticky || mant_trunc[0]);

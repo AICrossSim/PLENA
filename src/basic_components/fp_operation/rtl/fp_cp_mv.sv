@@ -67,8 +67,8 @@ module fp_cp_mv #(
   logic [COMPUTE_DIM-1:0] dot_product_valid;
   logic [COMPUTE_DIM-1:0] sync_ready;
 
-  logic [COMPUTE_DIM - 1 : 0][ACC_EXP_WIDTH + ACC_MANT_WIDTH - 1:0] dot_product_data_out;
-  logic [COMPUTE_DIM - 1 : 0][OUT_EXP_WIDTH + OUT_MAN_WIDTH - 1:0]  rounded_dot_product;
+  logic [COMPUTE_DIM - 1 : 0][ACC_EXP_WIDTH + ACC_MANT_WIDTH:0] dot_product_data_out;
+  logic [COMPUTE_DIM - 1 : 0][OUT_EXP_WIDTH + OUT_MAN_WIDTH:0]  rounded_dot_product;
 
 
   // -----
@@ -86,7 +86,7 @@ module fp_cp_mv #(
 
 
   // Instantiate COMPUTE_DIM number of dot products
-  for (genvar i = 0; i < COMPUTE_DIM; i++) begin : multi_row
+  for (genvar i = 0; i < COMPUTE_DIM; i++) begin : row_matrix_by_vec
 
       fp_dot_product #(
         .MANT_WIDTH(IN_MAN_WIDTH),
@@ -95,12 +95,11 @@ module fp_cp_mv #(
         .PRODUCT_EXT_EXP_WIDTH(PRODUCT_EXT_EXP_WIDTH),
         .PRODUCT_EXT_MANT_WIDTH(PRODUCT_EXT_MANT_WIDTH),
         .ADD_EXT_EXP_WIDTH(ADD_EXT_EXP_WIDTH),
-        .ADD_EXT_MANT_WIDTH(ADD_EXT_MANT_WIDTH),
-
+        .ADD_EXT_MANT_WIDTH(ADD_EXT_MANT_WIDTH)
       ) dot_product_inst (
           .clk           (clk),
           .rst           (rst),
-          .data_a_in       (m_data[((i+1)*COMPUTE_DIM)-1 : i*M]),
+          .data_a_in       (m_data[((i+1)*COMPUTE_DIM)-1 : i*COMPUTE_DIM]),
           .data_a_in_valid (inputs_valid),
           .data_a_in_ready (sync_ready[i]),
           .data_b_in        (v_data),
@@ -114,10 +113,10 @@ module fp_cp_mv #(
       if (OUTPUT_ROUNDING) begin : rounding
         // Rounded output
         fp_round #(
-            .IN_WIDTH      (ACC_WIDTH),
-            .IN_FRAC_WIDTH (ACC_FRAC_WIDTH),
-            .OUT_WIDTH     (OUT_WIDTH),
-            .OUT_FRAC_WIDTH(OUT_FRAC_WIDTH)
+            .IN_EXP_WIDTH       (ACC_EXP_WIDTH),
+            .IN_MANT_WIDTH      (ACC_MANT_WIDTH),
+            .OUT_EXP_WIDTH      (OUT_EXP_WIDTH),
+            .OUT_MANT_WIDTH     (OUT_MAN_WIDTH)
         ) round_inst (
             .data_in (dot_product_data_out[i]),
             .data_out(rounded_dot_product[i])
