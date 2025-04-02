@@ -11,7 +11,7 @@ Input   d1  |   d12  |  d1234  Output
 Status      : Passed Simple Tests
 */
 
-module fp_adder_tree #(
+module mx_fp_unit_adder_tree #(
     parameter VEC_DIM       = 4,
     parameter IN_EXP_WIDTH  = 3,
     parameter IN_MAN_WIDTH  = 4,

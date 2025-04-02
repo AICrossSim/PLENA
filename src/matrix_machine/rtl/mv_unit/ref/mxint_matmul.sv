@@ -442,7 +442,6 @@ module mxint_matmul #(
 
   assign sm_out_ready = acc_in_ready[self.matrix_acc_ptr];
 
-
   // Logic to handle accumulator selection & output selection.
   always_comb begin
     next_self = self;

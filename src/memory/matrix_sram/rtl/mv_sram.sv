@@ -1,7 +1,10 @@
-// Description:
-// This module is the top module of the Matrix SRAM. It supports parallel row / column read and write.
-// Assumption:
-// 1. The addressing mode is Little Endian.
+/*
+Module      : Matrix Machine SRAM Unit
+Timing      : Sequential Logic : Require x cycles for the read process.
+Description : This module is the top module of the Matrix SRAM. It supports parallel row / column read and write.
+            : The addressing mode is Little Endian.
+Status      : Passed Simple Row/Col Read/Write Tests
+*/
 
 
 

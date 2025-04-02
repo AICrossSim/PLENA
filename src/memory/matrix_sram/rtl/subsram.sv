@@ -1,5 +1,12 @@
 `timescale 1ns/1ps
 
+/*
+Module      : Sub SRAM units within the Matrix Machine SRAM
+Timing      : Sequential Logic, 1 cycle for read/write process.
+Description : 
+Status      : Passed Simple Tests
+*/
+
 module subsram #(
 
   parameter  int DataWidth                  = 4, 
@@ -74,19 +81,6 @@ always @(posedge clk) begin
         read_data_valid <= 1'b0;
     end
 end
-
-
-// Transpose the matrix
-// genvar row, col;
-// generate
-//     for (row = 0; row < Parallel_Rd_Amount; row++) begin : transpose_rows
-//         for (col = 0; col < Parallel_Rd_Amount; col++) begin : transpose_cols
-//             assign rdata[col*Parallel_Rd_Amount + row] = transposed_read ?
-//                 raw_rdata[((row * Parallel_Rd_Amount + col) + 1) * DataWidth - 1 : (row * Parallel_Rd_Amount + col) * DataWidth] :
-//                 raw_rdata[((col * Parallel_Rd_Amount + row) + 1) * DataWidth - 1 : (col * Parallel_Rd_Amount + row) * DataWidth];
-//         end
-//     end
-// endgenerate
 
 subtile_transpose #(
     .Dim(Parallel_Rd_Amount),

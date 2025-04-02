@@ -4,6 +4,7 @@
 Module      : Count of Leading Zeros (CLZ) in a Binary Number
 Timing      : Combinatorial Logic
 Description : Computes the count of leading zeros (CLZ) in an input binary number.
+Status      : Library
 */
 
 

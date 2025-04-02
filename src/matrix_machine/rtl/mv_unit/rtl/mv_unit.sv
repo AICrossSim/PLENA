@@ -10,7 +10,7 @@ Description : This module does a matrix @ vector + offset vector.
 
 `timescale 1ns / 1ps
 
-module mxint_mv_unit #(
+module mv_unit #(
     // Total dimensions
     parameter MLEN = 8,
     parameter Parallel_Rd_Dim

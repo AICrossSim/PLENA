@@ -1,8 +1,8 @@
 `timescale 1ns/1ps
 
+
 /// Assuming the input data is {a, b, c, d}
 /// The output will be [ a, c, b, d ]
-
 
 module subtile_transpose #(
     parameter Dim = 2,
@@ -12,16 +12,6 @@ module subtile_transpose #(
     input  logic transposed_read,
     output logic [Dim * Dim * DataWidth-1:0] out_data  // Unpacked output array
 );
-
-    
-    // initial begin
-    //     $dumpfile("dump.vcd");  // Save waveform to dump.vcd
-    //     $dumpvars(0, subtile_transpose); // Dump all signals in my_design
-    //     for (int i = 0; i < Dim*Dim; i++) begin
-    //         $dumpvars(0, out_data[i]);
-    //     end
-    // end
-
     // Transpose the matrix
     genvar row, col;
     generate

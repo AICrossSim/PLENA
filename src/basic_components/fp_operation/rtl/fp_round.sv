@@ -5,6 +5,7 @@ Timing      : Combinatorial Logic
 Description : Rounds a floating point number to a different precision.
               Output format: {sign, exp_out, mant_out}.
               Round Mantissa based on Guard, Round, Sticky bits.
+Status      : Passed Simple Tests
 */
 
 module fp_round #(

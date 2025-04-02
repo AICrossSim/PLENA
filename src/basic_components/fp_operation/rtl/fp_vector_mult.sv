@@ -7,6 +7,7 @@ Description : Multiply two FP numbers with different exponents and signs.
               Output format: {sign, exp_out, mant_out}.
               No rounding.
               It needs normalisation.
+Status      : Passed Simple Tests
 */
 module fp_vector_mult #(
     parameter   MANT_WIDTH = 4,

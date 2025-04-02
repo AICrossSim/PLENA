@@ -4,9 +4,9 @@
 Module      : Convertion Units Floating Point with Configurable Precision to MX-FP
 Timing      : Sequential, Takes 2 cycle to compute the dot product
 Description : 
-
             Pipeline Stage 1 : Extracting the maximum exponent from the input data
             Pipeline Stage 2 : Normalizing the input data and converting it to MX-FP format
+Status      : Under Development
 */
 
 

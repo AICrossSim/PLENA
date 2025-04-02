@@ -4,10 +4,10 @@
 Module      : Assuming all Fixed-Point Data, Find the Maximum Value in an Array
 Timing      : Combinatorial Logic
 Description : 
+Status      : Under Testing
 */
 
-
-module mant_2_fp #(
+module fix_with_shift_2_fp #(
     parameter FIXED_DATA_WIDTH      = 8,
     parameter FP_EXP_WIDTH          = 3,
     parameter FP_MANT_WIDTH         = 2,
@@ -41,7 +41,7 @@ module mant_2_fp #(
     // Handle non-denormal case. Round mantissa.
     logic R_nrm;
     logic S_nrm;
-    logic p0_nrm_rnd;
+    logic p0_nrm_rnd;           //Round the last bit.
 
     generate;
         if (RND_BITS > 1) begin : gen_R
@@ -50,17 +50,21 @@ module mant_2_fp #(
         else begin
             assign R_nrm = 1'b0;
         end
-
+        if (RND_BITS > 2) begin : gen_S
+            assign S_nrm = |aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-3:0];
+        end
+        else begin
+            assign S_nrm = 1'b0
+        end
+    
 
     endgenerate
 
-
-    assign S_nrm = |aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-3:0];
     assign p0_nrm_rnd = R_nrm && (aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-1] || S_nrm);
 
-    logic [FP_MANT_WIDTH:0] p0_man_nrm_ofl;  // Extra bit to check for overflow after rounding.
-    logic [FP_MANT_WIDTH-1:0] p0_man_nrm;      // Output mantissa if output is not denormal.
-    logic                   p0_exp_nrm_ofl;  // 1 if mantissa overflowed, 0 otherwise.
+    logic [FP_MANT_WIDTH:0]     p0_man_nrm_ofl;     // Extra bit to check for overflow after rounding.
+    logic [FP_MANT_WIDTH-1:0]   p0_man_nrm;         // Output mantissa if output is not denormal.
+    logic                   p0_exp_nrm_ofl;         // 1 if mantissa overflowed, 0 otherwise.
 
     assign p0_man_nrm_ofl = aligned_data[FIXED_DATA_WIDTH-2:FIXED_DATA_WIDTH-FP_MANT_WIDTH-1] + {{(FP_MANT_WIDTH-1){1'b0}}, p0_nrm_rnd};
 

@@ -7,6 +7,7 @@ Description : Adds two FP numbers with different exponents and signs.
               Output format: {sign, exp_out, mant_out}.
               No rounding.
               It needs normalisation.
+Status      : Passed Simple Tests
 */
 
 module fp_cp_adder #(

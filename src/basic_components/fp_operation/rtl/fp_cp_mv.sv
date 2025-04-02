@@ -5,6 +5,7 @@ Module      : Floating Point Configurable Precision Matrix Vector Multiplication
 Timing      : Sequential, Takes x cycles to compute the dot product
 Description : Matrix Vector Multiplication with the same Tile
             : The Rounding at FP level is performed at this module, keeping highest configurable precision.
+Status      : Passed Simple Tests
 */
 
 module fp_cp_mv #(

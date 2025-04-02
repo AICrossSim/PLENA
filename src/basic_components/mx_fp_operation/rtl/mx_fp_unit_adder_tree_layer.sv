@@ -8,7 +8,7 @@ Description : Every two elements are added together in a tree-like structure,
 Status      : Passed Simple Tests
 */
 
-module fp_adder_tree_layer #(
+module mx_fp_unit_adder_tree_layer #(
     // Declared Input Width
     parameter OVERALL_INPUT_WIDTH = 16,
 

@@ -4,6 +4,7 @@
 Module      : Floating Point Configurable Precision Dot Product Unit (With Sign)
 Timing      : Sequential, Takes 2 cycles to compute the dot product
 Description : Dot Product of two FP vectors.
+Status      : Passed Simple Tests
 */
 
 module fp_dot_product #(
