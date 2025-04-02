@@ -38,7 +38,8 @@ module unsigned_max #(
         // Connections to previous layers.
         for(genvar j=0; j<(length>>(1+i)); j++) begin
 
-            if(i != 0) begin
+`ifdef PIPELINE_ENABLE
+            if(i != 0) begin         
                 if(i%pl_freq == 0) begin
                     always_ff @(posedge clk) begin
                         p0_op0[j] <= tree_max[i-1].p0_max[2*j];
@@ -48,11 +49,19 @@ module unsigned_max #(
                     assign p0_op0[j] = tree_max[i-1].p0_max[2*j];
                     assign p0_op1[j] = tree_max[i-1].p0_max[2*j+1];
                 end
-
             end else begin
                 assign p0_op0[j] = input_data[2*j];
                 assign p0_op1[j] = input_data[2*j+1];
             end
+`else
+            if(i != 0) begin
+                assign p0_op0[j] = tree_max[i-1].p0_max[2*j];
+                assign p0_op1[j] = tree_max[i-1].p0_max[2*j+1];
+            end else begin
+                assign p0_op0[j] = input_data[2*j];
+                assign p0_op1[j] = input_data[2*j+1];
+            end
+`endif
         end
     end
 

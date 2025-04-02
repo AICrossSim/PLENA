@@ -8,8 +8,8 @@ Description : Computes the count of leading zeros (CLZ) in an input binary numbe
 
 
 module clz_int #(
-    parameter width_i = 8,
-    parameter width_o = $clog2(width_i+1)
+    parameter   width_i = 8,
+    localparam  width_o = $clog2(width_i+1)
 )(
     input  logic [width_i-1:0] i_num,
     output logic [width_o-1:0] o_lz

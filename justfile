@@ -4,7 +4,7 @@ set shell := ["bash", "-cu"]
 ROOT := "{{justfile() | dirname}}"
 
 set-pythonpath:
-    export PYTHONPATH="/home/george/Coprocessor_for_Llama/tools"
+    export PYTHONPATH="/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/tools"
     echo "PYTHONPATH set to: $PYTHONPATH"
     
 python:
