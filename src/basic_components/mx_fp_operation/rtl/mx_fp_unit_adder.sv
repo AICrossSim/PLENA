@@ -1,26 +1,26 @@
 `timescale 1ns / 1ps
 /*
-Module      : MX-FP Configurable Precision Adder (With Sign)
+Module      : MX-FP Configurable Precision Unit Adder (With Sign)
 Timing      : Combinatorial Logic
 Description : Assuming the two MX-FP input data has different scaling, but with same scale and element data format.
 Status      : Passed Simple Tests
-TODO        : Do we need to asssume we need to shift towards max scale factor?
+TODO        : Do we need to asssume we shift towards max scale factor?
 */
 
-module fp_cp_adder #(
-    parameter int MXFP_EXP_WIDTH = 4,
-    parameter int MXFP_MANT_WIDTH = 3,
-    parameter int MXFP_SCALE_WIDTH = 8,
+module mx_fp_unit_adder #(
+    parameter MXFP_EXP_WIDTH = 4,
+    parameter MXFP_MANT_WIDTH = 3,
+    parameter MXFP_SCALE_WIDTH = 8,
     // Amount of bits needed to shift mantissas for alignment
-    parameter int EXT_MANT_WIDTH = 0,
+    parameter EXT_MANT_WIDTH = 0,
     // Need to increase exp width by 1 to handle overflow
-    parameter int EXT_EXP_WIDTH = 0
+    parameter EXT_EXP_WIDTH = 0
 )(
     input  logic [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] element_data_a,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0]             scale_data_a,
     input  logic [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] element_data_b,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0]             scale_data_b,
-    output logic [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH : 0] element_data_out,
+    output logic [MXFP_EXP_WIDTH + EXT_EXP_WIDTH + MXFP_MANT_WIDTH + EXT_MANT_WIDTH : 0] element_data_out,
     output logic [MXFP_SCALE_WIDTH - 1 : 0]             scale_data_out
 );
 
@@ -53,8 +53,8 @@ module fp_cp_adder #(
     end
 
     fp_cp_adder #(
-        .EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MANT_WIDTH(MXFP_MANT_WIDTH),
+        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
         .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
         .EXT_EXP_WIDTH(EXT_EXP_WIDTH)
     )   element_addition (

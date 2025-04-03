@@ -8,15 +8,15 @@ Status      : Passed Simple Tests
 */
 
 module fp_dot_product #(
-    parameter   MANT_WIDTH = 4,
-    parameter   EXP_WIDTH = 3,
-    parameter   VEC_DIM     = 8,
+    parameter   MANT_WIDTH      = 4,
+    parameter   EXP_WIDTH       = 3,
+    parameter   VEC_DIM         = 8,
 
     // Precision Control
-    parameter   PRODUCT_EXT_EXP_WIDTH = 1,
-    parameter   PRODUCT_EXT_MANT_WIDTH = 4,
-    parameter   ADD_EXT_EXP_WIDTH = 1,
-    parameter   ADD_EXT_MANT_WIDTH = 4,
+    parameter   PRODUCT_EXT_EXP_WIDTH   = 1,
+    parameter   PRODUCT_EXT_MANT_WIDTH  = 4,
+    parameter   ADD_EXT_EXP_WIDTH       = 1,
+    parameter   ADD_EXT_MANT_WIDTH      = 4,
 
     // Product width
     localparam  PRODUCT_MAN_WIDTH = MANT_WIDTH + PRODUCT_EXT_MANT_WIDTH, 
@@ -26,7 +26,6 @@ module fp_dot_product #(
     localparam  ADD_MAN_WIDTH = PRODUCT_MAN_WIDTH + ADD_EXT_MANT_WIDTH * $clog2(VEC_DIM),
     localparam  ADD_EXP_WIDTH = PRODUCT_EXP_WIDTH + ADD_EXT_EXP_WIDTH * $clog2(VEC_DIM)
 
-    // parameter OUT_WIDTH = IN_WIDTH + WEIGHT_WIDTH + $clog2(IN_SIZE) * 
 ) (
     input clk,
     input rst,

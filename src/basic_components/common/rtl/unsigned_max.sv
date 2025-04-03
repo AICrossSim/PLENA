@@ -15,7 +15,7 @@ module unsigned_max #(
 )(
     input  logic clk,
 
-    input  logic unsigned [width-1:0] input_data [length],
+    input  logic unsigned [length - 1 : 0] [width-1:0] input_data ,
     output logic unsigned [width-1:0] max_val
 );
 
