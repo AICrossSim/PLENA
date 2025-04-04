@@ -34,8 +34,8 @@ module mx_fp_unit_adder #(
             shift_scale            = scale_data_a - scale_data_b;
             shifted_element_data_a = element_data_a;
             shifted_element_data_b = {  
-                                        element_data_b[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH], \
-                                        element_data_b[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH - 1 : MXFP_MANT_WIDTH] + , \
+                                        element_data_b[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH], 
+                                        element_data_b[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH - 1 : MXFP_MANT_WIDTH] + shift_scale[MXFP_EXP_WIDTH - 1: 0], 
                                         element_data_b[MXFP_MANT_WIDTH - 1 : 0] 
                                       };
             result_scale = scale_data_a;
@@ -43,8 +43,8 @@ module mx_fp_unit_adder #(
         else begin
             shift_scale            = scale_data_b - scale_data_a;
             shifted_element_data_a = {  
-                                        element_data_a[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH], \
-                                        element_data_a[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH - 1 : MXFP_MANT_WIDTH] + shift_scale[MXFP_EXP_WIDTH - 1: 0], \
+                                        element_data_a[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH],
+                                        element_data_a[MXFP_EXP_WIDTH + MXFP_MANT_WIDTH - 1 : MXFP_MANT_WIDTH] + shift_scale[MXFP_EXP_WIDTH - 1: 0],
                                         element_data_a[MXFP_MANT_WIDTH - 1 : 0] 
                                       };
             shifted_element_data_b = element_data_b;

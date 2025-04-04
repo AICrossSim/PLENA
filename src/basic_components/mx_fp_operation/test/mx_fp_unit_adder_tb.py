@@ -9,41 +9,45 @@ import os
 from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
-from cfl_cocotb import veri_runner, FpGenerator
+from cfl_cocotb import veri_runner, MXBlockFPConverter
 
-exp_width = 5
-mant_width = 3
+element_exp_width = 4
+element_mant_width = 3
+scale_width = 8
+block_size = 4
 ext_mant_width = 0
 ext_exp_width = 1
 
-output_man_width = mant_width + ext_mant_width
-output_exp_width = exp_width + ext_exp_width
-
-generator = FpGenerator(exp_width, mant_width)
+generator = MXBlockFPConverter(element_exp_width, element_mant_width, scale_width, block_size)
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)
 
 @cocotb.test()
-async def random_fp_test(dut):
+async def simple_random_mxfp_test(dut):
     # Start clock generation
     TESTCASE_SIZE = 10
-    # cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
     await Timer(5, units="ns")
     cocotb.log.info("Starting fp addition test")
 
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
         # fp_values, results = generator.generate_fp_input(2)
-        fp_values, results = generator.generate_specified_value_fp_input([240.0, 320.0])
-        dut.data_a.value = results[0]
-        dut.data_b.value = results[1]
+        test_data_1 = 2.023
+        test_data_2 = 3.012
+        mx_scale, mx_elems = generator.generate_certain_values([test_data_1, test_data_2])
+
+        dut.element_data_a.value = mx_elems[0]
+        dut.scale_data_a.value = mx_scale
+        dut.element_data_b.value = mx_elems[1]
+        dut.scale_data_b.value = mx_scale
         # await RisingEdge(dut.clk)
+
         await Timer(1, units="ns")
-        cocotb.log.info(f"Value a : {fp_values[0]}, Result a : {generator.custom_fp_to_float(results[0])} Binary: {dut.data_a.value}")
-        cocotb.log.info(f"Value b : {fp_values[1]}, Result b : {generator.custom_fp_to_float(results[1])} Binary: {dut.data_b.value}")
+        cocotb.log.info(f" Result a : {generator.convert_to_float([mx_elems[0]])} ELE Binary: {dut.element_data_a.value}, SCALE Binary: {dut.scale_data_a.value}")
+        cocotb.log.info(f" Result b : {generator.convert_to_float([mx_elems[1]])} ELE Binary: {dut.element_data_b.value}, SCALE Binary: {dut.scale_data_b.value}")
         await Timer(1, units="ns")
-        cocotb.log.info(f"Expected result : {fp_values[0] + fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
+        cocotb.log.info(f"Expected result : {test_data_1 + test_data_2}, ELE Binary: {dut.element_data_out.value}, SCALE Binary: {dut.scale_data_out.value}, Converted Float : {generator.convert_to_float([dut.element_data_out.value], dut.scale_data_out.value)}")
         quit()
 
 
@@ -52,10 +56,13 @@ async def random_fp_test(dut):
 def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
-        group = "fp_operation",
-        module = "fp_cp_adder",
+        group = "mx_fp_operation",
+        module = "mx_fp_unit_adder",
+        additional_include_paths = [
+            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",                                      
+        ],
         module_param_list=[
-            {"EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width, "EXT_MANT_WIDTH" : ext_mant_width, "EXT_EXP_WIDTH" : ext_exp_width},
+            {"MXFP_EXP_WIDTH" : element_exp_width, "MXFP_MANT_WIDTH" : element_mant_width, "MXFP_SCALE_WIDTH" : scale_width, "EXT_MANT_WIDTH" : ext_mant_width, "EXT_EXP_WIDTH" : ext_exp_width},
         ],
         trace = False,
     )
