@@ -44,11 +44,13 @@ class MXBlockFPConverter:
         mxfp_scale, mxfp_elems = self.convert_block(values)
         return mxfp_scale, mxfp_elems
     
-    def convert_to_float(self, elements, scale):
+    def convert_to_float(self, elements, scale, element_exp_width=4, element_mant_width=3):
         scale = 2 ** (scale - self.scale_bias)
         result_fp = []
         for element in elements:
-            result_fp.append(scale * self.element_gen.custom_fp_to_float(element))
+            print(f"Element: {element}, Scale: {scale}")
+            # print(self.element_gen.full_precision_fp_float_convertion(element_ext_exp_width, element_ext_mant_width, element))
+            result_fp.append(scale * self.element_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
         return result_fp
 
 if __name__ == "__main__":

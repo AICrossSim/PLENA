@@ -18,6 +18,9 @@ block_size = 4
 ext_mant_width = 0
 ext_exp_width = 1
 
+result_exp_width = element_exp_width + ext_exp_width
+result_mant_width = element_mant_width + ext_mant_width
+
 generator = MXBlockFPConverter(element_exp_width, element_mant_width, scale_width, block_size)
 
 logger = logging.getLogger("testbench")
@@ -26,7 +29,7 @@ logger.setLevel(logging.INFO)
 @cocotb.test()
 async def simple_random_mxfp_test(dut):
     # Start clock generation
-    TESTCASE_SIZE = 10
+    TESTCASE_SIZE = 1
     await Timer(5, units="ns")
     cocotb.log.info("Starting fp addition test")
 
@@ -44,11 +47,12 @@ async def simple_random_mxfp_test(dut):
         # await RisingEdge(dut.clk)
 
         await Timer(1, units="ns")
-        cocotb.log.info(f" Result a : {generator.convert_to_float([mx_elems[0]])} ELE Binary: {dut.element_data_a.value}, SCALE Binary: {dut.scale_data_a.value}")
-        cocotb.log.info(f" Result b : {generator.convert_to_float([mx_elems[1]])} ELE Binary: {dut.element_data_b.value}, SCALE Binary: {dut.scale_data_b.value}")
+        cocotb.log.info(f" Result a : {generator.convert_to_float([mx_elems[0]], mx_scale, element_exp_width, element_mant_width)} ELE Binary: {dut.element_data_a.value}, SCALE Binary: {dut.scale_data_a.value}")
+        cocotb.log.info(f" Result b : {generator.convert_to_float([mx_elems[1]], mx_scale, element_exp_width, element_mant_width)} ELE Binary: {dut.element_data_b.value}, SCALE Binary: {dut.scale_data_b.value}")
         await Timer(1, units="ns")
-        cocotb.log.info(f"Expected result : {test_data_1 + test_data_2}, ELE Binary: {dut.element_data_out.value}, SCALE Binary: {dut.scale_data_out.value}, Converted Float : {generator.convert_to_float([dut.element_data_out.value], dut.scale_data_out.value)}")
-        quit()
+        cocotb.log.info(f"Internel Signal : shifted_element_data_a {dut.shifted_element_data_a.value}")
+        cocotb.log.info(f"Internel Signal : shifted_element_data_b {dut.shifted_element_data_b.value}")
+        cocotb.log.info(f"Expected result : {test_data_1 + test_data_2}, ELE Binary: {dut.element_data_out.value}, SCALE Binary: {dut.scale_data_out.value}, Converted Float : {generator.convert_to_float([dut.element_data_out.value], dut.scale_data_out.value, result_exp_width, result_mant_width)}")
 
 
 

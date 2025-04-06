@@ -4,7 +4,6 @@ Module      : MX-FP Configurable Precision Unit Adder (With Sign)
 Timing      : Combinatorial Logic
 Description : Assuming the two MX-FP input data has different scaling, but with same scale and element data format.
 Status      : Passed Simple Tests
-TODO        : Do we need to asssume we shift towards max scale factor?
 */
 
 module mx_fp_unit_adder #(
@@ -53,8 +52,8 @@ module mx_fp_unit_adder #(
     end
 
     fp_cp_adder #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+        .EXP_WIDTH(MXFP_EXP_WIDTH),
+        .MANT_WIDTH(MXFP_MANT_WIDTH),
         .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
         .EXT_EXP_WIDTH(EXT_EXP_WIDTH)
     )   element_addition (
@@ -63,7 +62,5 @@ module mx_fp_unit_adder #(
         .data_out(element_data_out)
     );
     assign scale_data_out = result_scale;
-
-
 
 endmodule
