@@ -25,21 +25,22 @@ module mx_fp_adder_tree_fp_out #(
     
     // Precision Control
     parameter BLOCK_EXT_MANT_WIDTH_PER_LAYER = 1,
-    parameter BLOCK_EXT_EXP_BITS_PER_LAYER = 1,
+    parameter BLOCK_EXT_EXP_WIDTH_PER_LAYER = 1,
 
     parameter FP_EXT_MANT_WIDTH_PER_LAYER = 1,
-    parameter FP_EXT_EXP_BITS_PER_LAYER = 1,
+    parameter FP_EXT_EXP_WIDTH_PER_LAYER = 1,
 
     // Dimension
     parameter   COMP_DIM  = 8,
     parameter   BLOCK_DIM = 4,
+
     localparam  BLOCK_NUM        = COMP_DIM / BLOCK_DIM,
     localparam  BLOCK_ADD_LEVELS    = $clog2(BLOCK_DIM),
     localparam  FP_ADD_LEVELS    = $clog2(BLOCK_NUM),
 
     // Output Width
     localparam OUTPUT_FP_MANT_WIDTH = BLOCK_ADD_LEVELS * BLOCK_EXT_MANT_WIDTH_PER_LAYER + FP_ADD_LEVELS * FP_EXT_MANT_WIDTH_PER_LAYER + MXFP_MANT_WIDTH,
-    localparam OUTPUT_FP_EXP_WIDTH  = BLOCK_ADD_LEVELS * BLOCK_EXT_EXP_BITS_PER_LAYER  + FP_ADD_LEVELS * FP_EXT_EXP_BITS_PER_LAYER + MXFP_EXP_WIDTH,
+    localparam OUTPUT_FP_EXP_WIDTH  = BLOCK_ADD_LEVELS * BLOCK_EXT_EXP_WIDTH_PER_LAYER  + FP_ADD_LEVELS * FP_EXT_EXP_WIDTH_PER_LAYER + MXFP_EXP_WIDTH,
     localparam OUT_FP_WIDTH = OUTPUT_FP_MANT_WIDTH + OUTPUT_FP_EXP_WIDTH + 1
     
 ) (
@@ -58,14 +59,14 @@ module mx_fp_adder_tree_fp_out #(
         assert (COMP_DIM % BLOCK_DIM == 0) else $error("COMP_DIM must be divisible by BLOCK_DIM");
     end
 
-    localparam BOUT_ELEMENT_WIDTH = BLOCK_ADD_LEVELS * (BLOCK_EXT_MANT_WIDTH_PER_LAYER + BLOCK_EXT_EXP_BITS_PER_LAYER) + MXFP_MANT_WIDTH + MXFP_EXP_WIDTH;
+    localparam BOUT_ELEMENT_WIDTH = BLOCK_ADD_LEVELS * (BLOCK_EXT_MANT_WIDTH_PER_LAYER + BLOCK_EXT_EXP_WIDTH_PER_LAYER) + MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1;
     // TODO: not decided yet, perhaps make it configurable?
-    localparam FP_EXP_WIDTH = BLOCK_ADD_LEVELS * (BLOCK_EXT_EXP_BITS_PER_LAYER) + MXFP_EXP_WIDTH;
+    localparam FP_EXP_WIDTH = BLOCK_ADD_LEVELS * (BLOCK_EXT_EXP_WIDTH_PER_LAYER) + MXFP_EXP_WIDTH;
     localparam FP_MANT_WIDTH = BLOCK_ADD_LEVELS * (BLOCK_EXT_MANT_WIDTH_PER_LAYER) + MXFP_MANT_WIDTH;
 
     // Blockwise Adder Tree
     logic [BLOCK_NUM-1:0][BOUT_ELEMENT_WIDTH - 1 : 0]       block_element_data_out;
-    logic [BLOCK_ADD_LEVELS-1:0][BLOCK_NUM-1:0][MXFP_SCALE_WIDTH - 1 : 0]         stored_block_scale_data;
+    logic [BLOCK_NUM-1:0][MXFP_SCALE_WIDTH - 1 : 0]         stored_block_scale_data;
 
     logic [BLOCK_NUM-1:0]                       block_data_in_valid, block_data_out_valid;
     logic [BLOCK_NUM-1:0]                       block_data_in_ready, block_data_out_ready;
@@ -80,8 +81,8 @@ module mx_fp_adder_tree_fp_out #(
                 .VEC_DIM (BLOCK_DIM),
                 .IN_EXP_WIDTH(MXFP_EXP_WIDTH),
                 .IN_MAN_WIDTH(MXFP_MANT_WIDTH),
-                .EXT_EXP_BITS_PER_LAYER(EXT_EXP_BITS_PER_LAYER),
-                .EXT_MANT_WIDTH_PER_LAYER(EXT_MANT_WIDTH_PER_LAYER)
+                .EXT_EXP_BITS_PER_LAYER(BLOCK_EXT_EXP_WIDTH_PER_LAYER),
+                .EXT_MANT_WIDTH_PER_LAYER(BLOCK_EXT_MANT_WIDTH_PER_LAYER)
             ) fp_full_precision_add_tree (
                 .clk(clk),
                 .rst(rst),
@@ -121,31 +122,27 @@ module mx_fp_adder_tree_fp_out #(
     endgenerate
 
     join_n #(
-        .num (BLOCK_NUM + 1)
+        .NUM_HANDSHAKES (BLOCK_NUM + 1)
     ) join_block_adder_tree (
-        .clk(clk),
-        .rst(rst),
         .data_in_valid({block_data_out_valid, scale_storage_valid}),
         .data_in_ready({block_data_out_ready, scale_storage_ready}),
         .data_out_valid(blockwise_addition_valid),
         .data_out_ready(blockwise_addition_ready)
     );
 
-
-
     // Convert to FP
     logic [BLOCK_NUM-1:0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] converted_fp_out;
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i++) begin : mxfp_2_fp
             mx_fp_2_fp_unary #(
-                .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH + BLOCK_ADD_LEVELS * BLOCK_EXT_EXP_BITS_PER_LAYER),
+                .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH + BLOCK_ADD_LEVELS * BLOCK_EXT_EXP_WIDTH_PER_LAYER),
                 .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH + BLOCK_ADD_LEVELS * BLOCK_EXT_MANT_WIDTH_PER_LAYER),
                 .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
                 .FP_EXP_WIDTH(FP_EXP_WIDTH),
                 .FP_MANT_WIDTH(FP_MANT_WIDTH)
             ) mx_fp_2_fp_unary (
                 .element_data_in(block_element_data_out[i]),
-                .scale_data_in(scale_dstored_block_scale_dataata_in[i]),
+                .scale_data_in(stored_block_scale_data[i]),
                 .fp_out(converted_fp_out)
             );
         end
@@ -157,7 +154,7 @@ module mx_fp_adder_tree_fp_out #(
         .VEC_DIM (BLOCK_NUM),
         .IN_EXP_WIDTH(FP_EXP_WIDTH),
         .IN_MAN_WIDTH(FP_MANT_WIDTH),
-        .EXT_EXP_BITS_PER_LAYER(FP_EXT_EXP_BITS_PER_LAYER),
+        .EXT_EXP_BITS_PER_LAYER(FP_EXT_EXP_WIDTH_PER_LAYER),
         .EXT_MANT_WIDTH_PER_LAYER(FP_EXT_MANT_WIDTH_PER_LAYER)
     ) fp_inter_block_adder_tree (
         .clk(clk),
