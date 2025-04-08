@@ -90,7 +90,7 @@ class MXBlockFPConverter:
         extracted_elements = split_bitstream_equal(elements, (element_exp_width + element_mant_width + 1) )
         result_fp = []
         for element in extracted_elements:
-            result_fp.append(true_scale * self.element_gen.full_precision_fp_float_convertion(self.elem_exp_width, self.elem_mant_width, element))
+            result_fp.append(true_scale * self.element_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
         return result_fp
 
 if __name__ == "__main__":

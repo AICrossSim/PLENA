@@ -115,7 +115,7 @@ module mx_fp_adder_tree_fp_out #(
             .data_in_valid (scale_storage_in_valid),
             .data_in_ready (scale_storage_in_ready),
             .data_out      (stored_block_scale_data),
-            .data_out_valid(scale_storage_out_ready),
+            .data_out_valid(scale_storage_out_valid),
             .data_out_ready(scale_storage_out_ready)
         );
 
@@ -124,8 +124,8 @@ module mx_fp_adder_tree_fp_out #(
     join_n #(
         .NUM_HANDSHAKES (BLOCK_NUM + 1)
     ) join_block_adder_tree (
-        .data_in_valid({block_data_out_valid, scale_storage_valid}),
-        .data_in_ready({block_data_out_ready, scale_storage_ready}),
+        .data_in_valid({block_data_out_valid, scale_storage_out_valid}),
+        .data_in_ready({block_data_out_ready, scale_storage_out_ready}),
         .data_out_valid(blockwise_addition_valid),
         .data_out_ready(blockwise_addition_ready)
     );
@@ -140,10 +140,10 @@ module mx_fp_adder_tree_fp_out #(
                 .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
                 .FP_EXP_WIDTH(FP_EXP_WIDTH),
                 .FP_MANT_WIDTH(FP_MANT_WIDTH)
-            ) mx_fp_2_fp_unary (
+            ) mxfp_2_fp (
                 .element_data_in(block_element_data_out[i]),
                 .scale_data_in(stored_block_scale_data[i]),
-                .fp_out(converted_fp_out)
+                .fp_out(converted_fp_out[i])
             );
         end
     endgenerate
