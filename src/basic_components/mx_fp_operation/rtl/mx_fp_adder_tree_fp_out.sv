@@ -38,7 +38,12 @@ module mx_fp_adder_tree_fp_out #(
     localparam  BLOCK_ADD_LEVELS    = $clog2(BLOCK_DIM),
     localparam  FP_ADD_LEVELS    = $clog2(BLOCK_NUM),
 
-    // Output Width
+    // Output Width TODO
+    parameter   OUTPUT_FP_ROUND_EN      = 0,
+    parameter   ROUND_FP_EXP_WIDTH     = 4,
+    parameter   ROUND_FP_MANT_WIDTH    = 3,
+
+
     localparam OUTPUT_FP_MANT_WIDTH = BLOCK_ADD_LEVELS * BLOCK_EXT_MANT_WIDTH_PER_LAYER + FP_ADD_LEVELS * FP_EXT_MANT_WIDTH_PER_LAYER + MXFP_MANT_WIDTH,
     localparam OUTPUT_FP_EXP_WIDTH  = BLOCK_ADD_LEVELS * BLOCK_EXT_EXP_WIDTH_PER_LAYER  + FP_ADD_LEVELS * FP_EXT_EXP_WIDTH_PER_LAYER + MXFP_EXP_WIDTH,
     localparam OUT_FP_WIDTH = OUTPUT_FP_MANT_WIDTH + OUTPUT_FP_EXP_WIDTH + 1

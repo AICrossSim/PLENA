@@ -12,11 +12,11 @@ import numpy as np
 import cocotb
 from cocotb.triggers import *
 
-from ac_cocotb.testbench import Testbench
-from ac_cocotb.interfaces.streaming import StreamDriver, StreamMonitor
-from ac_cocotb.z_qlayers import quantize_to_int
-from ac_cocotb.runner import veri_runner
-from ac_cocotb.utils import bit_driver, sign_extend_t
+from cfl_cocotb.testbench import Testbench
+from cfl_cocotb.interfaces.streaming import StreamDriver, StreamMonitor
+from cfl_cocotb.z_qlayers import quantize_to_int
+from cfl_cocotb.runner import veri_runner
+from cfl_cocotb.utils import bit_driver, sign_extend_t
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)

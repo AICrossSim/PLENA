@@ -17,7 +17,7 @@ Input
 Status      : Passed Simple Tests
 */
 
-module mx_fp_adder_tree_wo_conversion #(
+module mx_fp_adder_tree_mx_out #(
     // MX-FP Data Format
     parameter MXFP_EXP_WIDTH = 4,
     parameter MXFP_MANT_WIDTH = 3,

@@ -7,7 +7,7 @@ Description : Dot Product of two FP vectors.
 Status      : Under Testing
 */
 
-module mx_fp_dot_product #(
+module mx_fp_dot_product_mx_out #(
     // MX-FP Data Format
     parameter MXFP_EXP_WIDTH    = 4,
     parameter MXFP_MANT_WIDTH   = 3,

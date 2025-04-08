@@ -10,10 +10,11 @@ Status      : Under Development
 */
 
 
-module fp_2_mx_fp #(
+module fp_2_mx_fp_vector #(
     parameter CONVERT_DIM = 8, 
     parameter IN_MAN_WIDTH = 3,
     parameter IN_EXP_WIDTH = 4,
+
     parameter MX_FP_MANT_WIDTH = 3,
     parameter MX_FP_EXP_WIDTH = 4,
     parameter MX_FP_SCALE_WIDTH = 8
@@ -26,8 +27,8 @@ module fp_2_mx_fp #(
 
     output  logic [CONVERT_DIM-1:0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH : 0] element_data_out,
     output  logic [MX_FP_SCALE_WIDTH-1:0] scale_data_out,
-    output  logic element_data_out_valid,
-    input   logic element_data_out_ready
+    output  logic mx_fp_data_out_valid,
+    input   logic mx_fp_data_out_ready
 );
 
     localparam MIN_FP_SCALE = 1 << (MX_FP_SCALE_WIDTH-1);
@@ -114,8 +115,8 @@ module fp_2_mx_fp #(
         .data_in_valid (p2_data_valid),
         .data_in_ready (data_in_ready),
         .data_out      (element_data_out),
-        .data_out_valid(element_data_out_valid),
-        .data_out_ready(element_data_out_ready)
+        .data_out_valid(mx_fp_data_out_valid),
+        .data_out_ready(mx_fp_data_out_ready)
     );
 
     always_ff @(posedge clk) begin
