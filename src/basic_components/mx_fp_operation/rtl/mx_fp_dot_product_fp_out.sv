@@ -43,7 +43,6 @@ module mx_fp_dot_product_fp_out #(
     localparam  OUTPUT_MANT_WIDTH   = (OUTPUT_FP_ROUND_EN == 1) ? ROUND_FP_MANT_WIDTH : ADD_MAN_WIDTH,
 
 
-
 ) (
     input clk,
     input rst,

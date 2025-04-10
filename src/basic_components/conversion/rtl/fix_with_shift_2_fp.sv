@@ -31,7 +31,7 @@ module fix_with_shift_2_fp #(
     clz_int #(
         .width_i(FIXED_DATA_WIDTH)
     ) u_clz (
-        .data_in(data_in),
+        .i_num(data_in),
         .o_lz(lz_num)
     );
 
@@ -54,7 +54,7 @@ module fix_with_shift_2_fp #(
             assign S_nrm = |aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-3:0];
         end
         else begin
-            assign S_nrm = 1'b0
+            assign S_nrm = 1'b0;
         end
     
 

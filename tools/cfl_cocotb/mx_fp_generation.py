@@ -28,7 +28,7 @@ class MXBlockFPConverter:
         self.scale_width = scale_width
         self.scale_bias = (1 << (scale_width - 1)) - 1
         self.block_size = block_size
-        self.element_gen = FpGenerator(elem_exp_width, elem_mant_width)
+        self.fp_gen = FpGenerator(elem_exp_width, elem_mant_width)
 
     def _get_shared_exponent(self, values: List[float]) -> int:
         max_val = max(abs(v) for v in values if v != 0)
@@ -48,7 +48,7 @@ class MXBlockFPConverter:
         encoded_vals = []
         for val in values:
             divided_val = val / (2 ** raw_exp) if val != 0 else 0
-            encoded_vals.append(self.element_gen.float_to_custom_fp(divided_val))
+            encoded_vals.append(self.fp_gen.float_to_custom_fp(divided_val))
         return shared_exp, encoded_vals
     
     def generate_block(self, amount, lower_bound=-1.0, upper_bound=1.0) -> List[float]:
@@ -73,8 +73,8 @@ class MXBlockFPConverter:
         result_fp = []
         for element in elements:
             print(f"Element: {element}, Scale: {scale}")
-            # print(self.element_gen.full_precision_fp_float_convertion(element_ext_exp_width, element_ext_mant_width, element))
-            result_fp.append(scale * self.element_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
+            # print(self.fp_gen.full_precision_fp_float_convertion(element_ext_exp_width, element_ext_mant_width, element))
+            result_fp.append(scale * self.fp_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
         return result_fp
     
     def blockwise_convert_to_float(self, elements, scales, block_num, element_exp_width=4, element_mant_width=3):
@@ -90,7 +90,7 @@ class MXBlockFPConverter:
         extracted_elements = split_bitstream_equal(elements, (element_exp_width + element_mant_width + 1) )
         result_fp = []
         for element in extracted_elements:
-            result_fp.append(true_scale * self.element_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
+            result_fp.append(true_scale * self.fp_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
         return result_fp
 
 if __name__ == "__main__":

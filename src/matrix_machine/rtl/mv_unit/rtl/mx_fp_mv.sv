@@ -128,10 +128,6 @@ module mx_fp_mv #(
             );
         end
     endgenerate
-
-    // assign out_data_valid = dot_product_valid[0];
-    // assign dot_product_ready = out_data_ready;
-
         
     generate;
         for (genvar j = 0; j < BLOCK_NUM; j++) begin

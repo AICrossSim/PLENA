@@ -10,8 +10,8 @@ Status      : Under Development
 */
 
 
-module fp_2_mx_fp_vector #(
-    parameter CONVERT_DIM = 8, 
+module fp_2_mx_fp_block #(
+    parameter BLOCK_DIM = 8, 
     parameter IN_MAN_WIDTH = 3,
     parameter IN_EXP_WIDTH = 4,
 
@@ -21,11 +21,11 @@ module fp_2_mx_fp_vector #(
 )(
     input   logic clk,
     input   logic rst,
-    input   logic [CONVERT_DIM-1:0][IN_MAN_WIDTH + IN_EXP_WIDTH : 0] data_in,
+    input   logic [BLOCK_DIM-1:0][IN_MAN_WIDTH + IN_EXP_WIDTH : 0] data_in,
     input   logic data_in_valid,
     output  logic data_in_ready,
 
-    output  logic [CONVERT_DIM-1:0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH : 0] element_data_out,
+    output  logic [BLOCK_DIM-1:0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH : 0] element_data_out,
     output  logic [MX_FP_SCALE_WIDTH-1:0] scale_data_out,
     output  logic mx_fp_data_out_valid,
     input   logic mx_fp_data_out_ready
@@ -35,14 +35,14 @@ module fp_2_mx_fp_vector #(
 
 
     // Split input into sgn, exp, man fields.
-    logic                               fp_sgns [CONVERT_DIM];
-    logic unsigned [IN_EXP_WIDTH - 1:0] fp_exps [CONVERT_DIM];
-    logic unsigned [IN_EXP_WIDTH - 1:0] exp_max [CONVERT_DIM];
-    logic unsigned [IN_MAN_WIDTH - 1:0] fp_mans [CONVERT_DIM];
+    logic                               fp_sgns [BLOCK_DIM];
+    logic unsigned [BLOCK_DIM -1:0][IN_EXP_WIDTH - 1:0] fp_exps;
+    logic unsigned [BLOCK_DIM -1:0][IN_EXP_WIDTH - 1:0] exp_max;
+    logic unsigned [BLOCK_DIM -1:0][IN_MAN_WIDTH - 1:0] fp_mans;
 
 
     always_comb begin
-        for (int i=0; i<CONVERT_DIM; i++) begin
+        for (int i=0; i<BLOCK_DIM; i++) begin
             fp_sgns[i] = data_in[i][IN_EXP_WIDTH + IN_MAN_WIDTH];
             fp_exps[i] = data_in[i][IN_EXP_WIDTH + IN_MAN_WIDTH - 1 : IN_MAN_WIDTH];
             fp_mans[i] = data_in[i][IN_MAN_WIDTH-1:0];
@@ -51,7 +51,7 @@ module fp_2_mx_fp_vector #(
 
     unsigned_max #(
         .width(IN_MAN_WIDTH),
-        .length(CONVERT_DIM),
+        .length(BLOCK_DIM),
         .flop_output(0)
     ) u0_exp_max (
         .clk(clk),
@@ -60,9 +60,9 @@ module fp_2_mx_fp_vector #(
     );
     
     logic unsigned [MX_FP_SCALE_WIDTH - 1:0] p1_e_max;
-    logic                               p1_fp_sgns [CONVERT_DIM];
-    logic unsigned [IN_EXP_WIDTH - 1:0] p1_fp_exps [CONVERT_DIM];
-    logic unsigned [IN_MAN_WIDTH - 1:0] p1_fp_mans [CONVERT_DIM];
+    logic                               p1_fp_sgns [BLOCK_DIM];
+    logic unsigned [IN_EXP_WIDTH - 1:0] p1_fp_exps [BLOCK_DIM];
+    logic unsigned [IN_MAN_WIDTH - 1:0] p1_fp_mans [BLOCK_DIM];
 
     assign p1_e_max = (exp_max >= MIN_FP_SCALE) ? exp_max : MIN_FP_SCALE;
 
@@ -73,41 +73,41 @@ module fp_2_mx_fp_vector #(
     end
 
 
-    logic                               p2_fp_sgns [CONVERT_DIM];
+    logic                               p2_fp_sgns [BLOCK_DIM];
     logic [MX_FP_SCALE_WIDTH - 1:0]     p2_e_max, p2_sh_exp;
     // logic [8:0] p2_sh_exp; TODO
-    logic unsigned [IN_EXP_WIDTH - 1:0] p2_m_shifts [CONVERT_DIM];
-    logic unsigned [IN_MAN_WIDTH - 1:0] p2_man_exts [CONVERT_DIM];
+    logic unsigned [IN_EXP_WIDTH - 1:0] p2_m_shifts [BLOCK_DIM];
+    logic unsigned [IN_MAN_WIDTH - 1:0] p2_man_exts [BLOCK_DIM];
 
     logic                               p2_data_valid;
 
     assign p2_e_max  = p1_e_max;
     assign p2_sh_exp = p1_e_max - MIN_FP_SCALE;
 
-    for (genvar i=0; i<CONVERT_DIM; i++) begin
+    for (genvar i=0; i<BLOCK_DIM; i++) begin
         assign p2_m_shifts[i] = p1_e_max - p1_fp_exps[i];
         assign p2_fp_sgns[i] = p1_fp_sgns[i];
         assign p2_man_exts[i] = |p1_fp_exps[i] ? {1'b1, p1_fp_mans[i]} : {p1_fp_mans[i], 1'b0};  // Handling the denormalized fp numbers
     end
 
-    logic [CONVERT_DIM -1 : 0][MX_FP_MANT_WIDTH + MX_FP_MANT_WIDTH - 1:0] p2_elems;
+    logic [BLOCK_DIM -1 : 0][MX_FP_MANT_WIDTH + MX_FP_MANT_WIDTH - 1:0] p2_elems;
 
-    for(genvar i=0; i<CONVERT_DIM; i++) begin
-        mant_2_fp # (
+    for(genvar i=0; i<BLOCK_DIM; i++) begin
+        fix_with_shift_2_fp # (
             .FIXED_DATA_WIDTH(IN_MAN_WIDTH),
             .FP_EXP_WIDTH(MX_FP_EXP_WIDTH),
             .FP_MANT_WIDTH(MX_FP_MANT_WIDTH),
             .SHIFT_WIDTH(8)
         ) u0_fp_rnd (
-            .i_num(p2_man_exts[i]),
-            .i_shift(p2_m_shifts[i]),
-            .o_exp(p2_elems[i][man_width+exp_width-1:man_width]),
-            .o_man(p2_elems[i][man_width-1:0])
+            .data_in(p2_man_exts[i]),
+            .shift_in(p2_m_shifts[i]),
+            .exp_out(p2_elems[i][MX_FP_MANT_WIDTH+MX_FP_MANT_WIDTH-1:MX_FP_MANT_WIDTH]),
+            .mant_out(p2_elems[i][MX_FP_MANT_WIDTH-1:0])
         );
     end
 
     skid_buffer #(
-        .DATA_WIDTH(CONVERT_DIM * (MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH + 1))
+        .DATA_WIDTH(BLOCK_DIM * (MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH + 1))
     ) element_data (
         .clk           (clk),
         .rst           (!rst),                        // Inverted reset

@@ -77,12 +77,12 @@ async def random_fp_test(dut):
         cocotb.log.info("<-------  Intermediate DATA  --------->")
         # cocotb.log.info(f"Internal Signal : block_a {dut.block_adder_tree[1].fp_full_precision_add_tree.data_in.value}")
         # cocotb.log.info(f"Internal Signal : block_a {dut.block_adder_tree[1].fp_full_precision_add_tree.data_out.value}")
-        # cocotb.log.info(f"Internal Signal : block_b {generator.element_gen.full_precision_fp_float_convertion(mxfp_exp_width + 1, mxfp_mant_width, dut.block_adder_tree[1].fp_full_precision_add_tree.data_out.value)}")
+        # cocotb.log.info(f"Internal Signal : block_b {generator.fp_gen.full_precision_fp_float_convertion(mxfp_exp_width + 1, mxfp_mant_width, dut.block_adder_tree[1].fp_full_precision_add_tree.data_out.value)}")
         cocotb.log.info(f"Internel Signal : block_element_data_out {dut.block_element_data_out.value}, Converted Float : {generator.blockwise_convert_to_float(dut.block_element_data_out.value , dut.stored_block_scale_data.value, 1, mxfp_exp_width + 1, mxfp_mant_width)}")
         cocotb.log.info(f"Internel Signal : stored_block_scale_data {dut.stored_block_scale_data.value}")
         cocotb.log.info(f"Internel Signal : converted_fp_out {dut.converted_fp_out.value}")
         cocotb.log.info(f"Internal Signal : unary_element_in {dut.mxfp_2_fp[1].mxfp_2_fp.element_data_in.value}, {dut.mxfp_2_fp[1].mxfp_2_fp.scale_data_in.value}")
-        cocotb.log.info(f"Internal Signal : unary_element_out {dut.mxfp_2_fp[1].mxfp_2_fp.fp_out.value}, {generator.element_gen.full_precision_fp_float_convertion(mxfp_exp_width + 1, mxfp_mant_width, dut.mxfp_2_fp[1].mxfp_2_fp.fp_out.value)}")
+        cocotb.log.info(f"Internal Signal : unary_element_out {dut.mxfp_2_fp[1].mxfp_2_fp.fp_out.value}, {generator.fp_gen.full_precision_fp_float_convertion(mxfp_exp_width + 1, mxfp_mant_width, dut.mxfp_2_fp[1].mxfp_2_fp.fp_out.value)}")
 
         cocotb.log.info(f"Internal Signal : fp_inter_block_adder_tree {dut.fp_inter_block_adder_tree.data_in.value}")
         cocotb.log.info(f"Internal Signal : block_data_out_valid {dut.block_data_out_valid.value}")
@@ -93,7 +93,7 @@ async def random_fp_test(dut):
         cocotb.log.info(f"Internal Signal : fp_inter_block_adder_tree {dut.fp_inter_block_adder_tree.data_in_valid.value}")
 
         cocotb.log.info("<-------  OUTPUT DATA --------->")
-        cocotb.log.info(f"Output Binary: {dut.fp_out.value}, Converted Float : {generator.element_gen.full_precision_fp_float_convertion(output_fp_exp_width, output_fp_mant_width, dut.fp_out.value)}")
+        cocotb.log.info(f"Output Binary: {dut.fp_out.value}, Converted Float : {generator.fp_gen.full_precision_fp_float_convertion(output_fp_exp_width, output_fp_mant_width, dut.fp_out.value)}")
 
 @pytest.mark.dev
 def test_simple_fp_addition():

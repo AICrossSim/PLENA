@@ -44,7 +44,7 @@ async def simple_random_mxfp_test(dut):
         await Timer(1, units="ns")
         cocotb.log.info(f" Data a : {generator.convert_to_float([mx_elems[0]], mx_scale, element_exp_width, element_mant_width)} ELE Binary: {dut.element_data_in.value}, SCALE Binary: {dut.scale_data_in.value}")
         await Timer(1, units="ns")
-        cocotb.log.info(f"Expected result : {test_data_1}, FP Binary: {dut.fp_out.value} Converted Float : {generator.element_gen.full_precision_fp_float_convertion(fp_exp_width, fp_mant_width, dut.fp_out.value)}")
+        cocotb.log.info(f"Expected result : {test_data_1}, FP Binary: {dut.fp_out.value} Converted Float : {generator.fp_gen.full_precision_fp_float_convertion(fp_exp_width, fp_mant_width, dut.fp_out.value)}")
 
 
 
