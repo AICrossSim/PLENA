@@ -16,7 +16,6 @@ import math
 mxfp_exp_width = 4
 mxfp_mant_width = 3
 mxfp_scale_width = 8
-
 block_dim = 4
 
 fp_exp_width = 4
@@ -46,34 +45,41 @@ async def random_fp_test(dut):
         # Generate random floating point values
         
         # mx_fp_scales, mx_fp_elems = generator.generate_certain_values([1.24, 2.01, 1.0231, 0.9820])
-        fp_values, results = generator.generate_specified_value_fp_input([1.24, 2.01, 1.0231, 0.9820])
+        fp_values, results = generator.fp_gen.generate_specified_value_fp_input([1.24, 2.01, 1.0231, 0.9820])
         input_data = sum((results[n] << (fp_exp_width + fp_mant_width + 1) * n ) for n in range(block_dim))
         dut.data_in.value = input_data
         dut.data_in_valid.value = 1
-        dut.data_out_ready.value = 1
+        dut.mx_fp_data_out_ready.value = 1
         await Timer(2, units="ns")
 
         cocotb.log.info("<-------  INPUT DATA  --------->")
-        cocotb.log.info(f" Input Data : Binary: {bin(dut.data_in.value)}, ")
+        cocotb.log.info(f" Testing Data : Values: {fp_values}, ")
+        cocotb.log.info(f" Input Data : Binary: {dut.data_in.value}, ")
         
+        await Timer(4, units="ns")
+
+        cocotb.log.info("<-------  INTERNAL DATA --------->")
+        cocotb.log.info(f"exp_max Data : Binary: {dut.exp_max.value} FP_OFFSET {bin(dut.FP_OFFSET.value)} ")
+        cocotb.log.info(f"p2_sh_exp Data : Binary: {dut.p2_sh_exp.value} ")
+        cocotb.log.info(f"p2_m_shifts Data : Binary: {dut.p2_m_shifts.value} ")
 
         cocotb.log.info("<-------  OUTPUT DATA --------->")
-        # cocotb.log.info(f"Output Binary {dut.data_out.value}")
-        cocotb.log.info(f"Converted Result {generator.blockwise_convert_to_float(dut.element_data_out.value, dut.scale_data_out.value, block_dim, mxfp_exp_width, mxfp_mant_width)}")
+        cocotb.log.info(f"Output Scale {dut.scale_data_out.value}, Element Data {dut.element_data_out.value}")
+        cocotb.log.info(f"Converted Result {generator.convert_block_to_fp(dut.element_data_out.value, dut.scale_data_out.value, mxfp_exp_width, mxfp_mant_width)}")
 
 @pytest.mark.dev
 def test_simple_fp_2_mxfp_conversion():
     # Run tests with different params
     veri_runner(
         group = "conversion",
-        module = "fp_2_mx_fp_vector",
+        module = "fp_2_mx_fp_block",
         additional_include_paths = [
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"
         ],       
         module_param_list=[
-            {"CONVERT_DIM" : block_dim, "IN_MAN_WIDTH" : fp_mant_width, "IN_EXP_WIDTH" : fp_exp_width, "MX_FP_EXP_WIDTH" : mxfp_exp_width, "MX_FP_MANT_WIDTH" : mxfp_mant_width, "MX_FP_SCALE_WIDTH" : mxfp_scale_width},
+            {"BLOCK_DIM" : block_dim, "FP_MAN_WIDTH" : fp_mant_width, "FP_EXP_WIDTH" : fp_exp_width, "MX_FP_EXP_WIDTH" : mxfp_exp_width, "MX_FP_MANT_WIDTH" : mxfp_mant_width, "MX_FP_SCALE_WIDTH" : mxfp_scale_width},
         ],
         trace = True,
     )
