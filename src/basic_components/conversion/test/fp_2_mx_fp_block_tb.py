@@ -63,6 +63,12 @@ async def random_fp_test(dut):
         cocotb.log.info(f"p2_sh_exp Data : Binary: {dut.p2_sh_exp.value} ")
         cocotb.log.info(f"p2_m_shifts Data : Binary: {dut.p2_m_shifts.value} ")
 
+        cocotb.log.info("<-------  Single Conv Unit --------->")
+        cocotb.log.info(f"mx_fp_data_out data_in : {dut.gen_mxfp_element[0].mxfp_element_gen.data_in.value} ")
+        cocotb.log.info(f"mx_fp_data_out shift_in : {dut.gen_mxfp_element[0].mxfp_element_gen.shift_in.value} ")
+        cocotb.log.info(f"mx_fp_data_out exp_out : {dut.gen_mxfp_element[0].mxfp_element_gen.exp_out.value} ")
+        cocotb.log.info(f"mx_fp_data_out mant_out : {dut.gen_mxfp_element[0].mxfp_element_gen.mant_out.value} ")
+
         cocotb.log.info("<-------  OUTPUT DATA --------->")
         cocotb.log.info(f"Output Scale {dut.scale_data_out.value}, Element Data {dut.element_data_out.value}")
         cocotb.log.info(f"Converted Result {generator.convert_block_to_fp(dut.element_data_out.value, dut.scale_data_out.value, mxfp_exp_width, mxfp_mant_width)}")

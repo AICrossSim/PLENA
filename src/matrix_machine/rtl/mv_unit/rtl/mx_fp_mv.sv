@@ -6,6 +6,7 @@ Timing      : Sequential, Takes x cycles to compute the dot product
 Description : Matrix Vector Multiplication with the same Tile
             : Assuming square matrix, this is the dimension of the matrix and the vector.
 Status      : Under Testing
+            : Output_Fp_Round_EN not supported yet.
 */
 
 module mx_fp_mv #(
@@ -30,7 +31,7 @@ module mx_fp_mv #(
     // Output Rounding Control
     parameter   OUTPUT_FP_ROUND_EN      = 0,
     parameter   ROUND_FP_EXP_WIDTH     = 4,
-    parameter   ROUND_FP_MANT_WIDTH    = 3, 
+    parameter   ROUND_FP_MANT_WIDTH    = 3
 
 ) (
     input logic clk,

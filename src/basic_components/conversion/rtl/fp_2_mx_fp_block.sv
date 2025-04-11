@@ -6,7 +6,7 @@ Timing      : Sequential, Takes 2 cycle to compute the dot product
 Description : 
             Pipeline Stage 1 : Extracting the maximum exponent from the input data
             Pipeline Stage 2 : Normalizing the input data and converting it to MX-FP format
-Status      : Under Development
+Status      : Passed Simple Tests
 */
 
 
@@ -51,7 +51,7 @@ module fp_2_mx_fp_block #(
     end
 
     unsigned_max #(
-        .width(FP_MAN_WIDTH),
+        .width(FP_EXP_WIDTH),
         .length(BLOCK_DIM),
         .flop_output(0)
     ) u0_exp_max (
@@ -94,7 +94,7 @@ module fp_2_mx_fp_block #(
 
     logic [BLOCK_DIM - 1 : 0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH - 1:0] p2_elems;
     generate;
-        for(genvar i=0; i<BLOCK_DIM; i++) begin
+        for(genvar i=0; i<BLOCK_DIM; i++) begin : gen_mxfp_element
             fix_with_shift_2_fp # (
                 .FIXED_DATA_WIDTH(FP_MAN_WIDTH + 1),
                 .FP_EXP_WIDTH(MX_FP_EXP_WIDTH),
@@ -103,8 +103,8 @@ module fp_2_mx_fp_block #(
             ) mxfp_element_gen (
                 .data_in    (p2_man_exts[i]),
                 .shift_in   (p2_m_shifts[i]),
-                .exp_out    (p2_elems[i][MX_FP_MANT_WIDTH+MX_FP_MANT_WIDTH-1:MX_FP_MANT_WIDTH]),
-                .mant_out   (p2_elems[i][MX_FP_MANT_WIDTH-1:0])
+                .exp_out    (p2_elems[i][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH - 1 : MX_FP_MANT_WIDTH]),
+                .mant_out   (p2_elems[i][MX_FP_MANT_WIDTH - 1 : 0])
             );
 
             skid_buffer #(

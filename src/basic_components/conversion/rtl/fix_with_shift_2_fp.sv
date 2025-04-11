@@ -20,7 +20,7 @@ module fix_with_shift_2_fp #(
 );
 
     // Max exponent/mantissa values of element type.
-    localparam MAX_EXP_ELEM = (1 << FP_EXP_WIDTH) - 1;
+    localparam MAX_EXP_ELEM = (1 << (FP_EXP_WIDTH-1)) - 1;
     localparam MAX_MAN_ELEM = (1 << FP_MANT_WIDTH) - 1;
     localparam RND_BITS = FIXED_DATA_WIDTH-FP_MANT_WIDTH;
 

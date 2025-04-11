@@ -17,14 +17,20 @@ mxfp_exp_width = 4
 mxfp_mant_width = 3
 mxfp_scale_width = 8
 
+comp_dim = 4
+block_dim = 2
+
+
+product_ext_exp_width = 0
+product_ext_mant_width = 0
+
 block_ext_mant_width = 0
 block_ext_exp_width = 1
 
 fp_ext_mant_width = 0
 fp_ext_exp_width = 1
 
-comp_dim = 4
-block_dim = 2
+
 
 block_level = math.ceil(math.log2(block_dim))
 fp_level = math.ceil(math.log2(comp_dim // block_dim))
@@ -100,7 +106,7 @@ def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
         group = "mx_fp_operation",
-        module = "mx_fp_adder_tree_fp_out",
+        module = "mx_fp_mv",
         additional_include_paths = [
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",
