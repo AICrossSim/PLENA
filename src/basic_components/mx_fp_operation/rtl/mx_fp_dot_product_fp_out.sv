@@ -16,7 +16,7 @@ module mx_fp_dot_product_fp_out #(
     // Dimension
     parameter COMP_DIM  = 8,
     parameter BLOCK_DIM = 4,
-    localparam BLOCK_NUM        = COMP_DIM / BLOCK_DIM
+    localparam BLOCK_NUM        = COMP_DIM / BLOCK_DIM,
 
     // Precision Control
     parameter   PRODUCT_EXT_EXP_WIDTH   = 1,
@@ -40,8 +40,7 @@ module mx_fp_dot_product_fp_out #(
     localparam  ADD_EXP_WIDTH = PRODUCT_EXP_WIDTH + BLOCK_ADD_EXT_EXP_WIDTH * $clog2(BLOCK_DIM) + FP_ADD_EXT_EXP_WIDTH * $clog2(BLOCK_NUM),
 
     localparam  OUTPUT_EXP_WIDTH    = (OUTPUT_FP_ROUND_EN == 1) ? ROUND_FP_EXP_WIDTH : ADD_EXP_WIDTH,
-    localparam  OUTPUT_MANT_WIDTH   = (OUTPUT_FP_ROUND_EN == 1) ? ROUND_FP_MANT_WIDTH : ADD_MAN_WIDTH,
-
+    localparam  OUTPUT_MANT_WIDTH   = (OUTPUT_FP_ROUND_EN == 1) ? ROUND_FP_MANT_WIDTH : ADD_MAN_WIDTH
 
 ) (
     input clk,
@@ -85,7 +84,7 @@ module mx_fp_dot_product_fp_out #(
         .data_b_in(element_b_in),
         .data_b_in_valid(data_b_in_valid),
         .data_b_in_ready(data_b_in_ready),
-        .element_out(element_product_vec),
+        .data_out(element_product_vec),
         .data_out_valid(pv_valid),
         .data_out_ready(pv_ready)
     );
@@ -114,8 +113,8 @@ module mx_fp_dot_product_fp_out #(
         .BLOCK_DIM(BLOCK_DIM),
 
         .OUTPUT_FP_ROUND_EN(OUTPUT_FP_ROUND_EN),
-        .OUTPUT_EXP_WIDTH(OUTPUT_EXP_WIDTH),
-        .OUTPUT_MANT_WIDTH(OUTPUT_MANT_WIDTH)
+        .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
+        .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
     ) adder_tree (
         .clk(clk),
         .rst(rst),

@@ -19,6 +19,10 @@ module fix_with_shift_2_fp #(
     output logic                [FP_MANT_WIDTH-1:0]     mant_out
 );
 
+    initial begin
+
+    end
+
     // Max exponent/mantissa values of element type.
     localparam MAX_EXP_ELEM = (1 << (FP_EXP_WIDTH-1)) - 1;
     localparam MAX_MAN_ELEM = (1 << FP_MANT_WIDTH) - 1;
