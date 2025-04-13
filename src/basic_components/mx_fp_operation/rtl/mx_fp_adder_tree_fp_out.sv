@@ -81,6 +81,7 @@ module mx_fp_adder_tree_fp_out #(
     
 
     generate;
+    // Summation within each block
         for (genvar i = 0; i < BLOCK_NUM; i++) begin : block_adder_tree
             fp_adder_tree #(
                 .VEC_DIM (BLOCK_DIM),
@@ -137,6 +138,7 @@ module mx_fp_adder_tree_fp_out #(
 
     // Convert to FP
     logic [BLOCK_NUM-1:0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] converted_fp_out;
+    
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i++) begin : mxfp_2_fp
             mx_fp_2_fp_unary #(
@@ -151,25 +153,34 @@ module mx_fp_adder_tree_fp_out #(
                 .fp_out(converted_fp_out[i])
             );
         end
+
+        // FP Adder Tree
+        if (BLOCK_NUM == 1) begin : single_block_adder_tree
+            assign fp_out = converted_fp_out;
+            assign data_out_valid = blockwise_addition_valid;
+            assign blockwise_addition_ready = data_out_ready;
+        end else begin : multi_block_adder_tree
+            fp_adder_tree #(
+                .VEC_DIM (BLOCK_NUM),
+                .IN_EXP_WIDTH(FP_EXP_WIDTH),
+                .IN_MAN_WIDTH(FP_MANT_WIDTH),
+                .EXT_EXP_BITS_PER_LAYER(FP_EXT_EXP_WIDTH_PER_LAYER),
+                .EXT_MANT_WIDTH_PER_LAYER(FP_EXT_MANT_WIDTH_PER_LAYER)
+            ) fp_inter_block_adder_tree (
+                .clk(clk),
+                .rst(rst),
+                .data_in(converted_fp_out),
+                .data_in_valid(blockwise_addition_valid),
+                .data_in_ready(blockwise_addition_ready),
+                .data_out(fp_out),
+                .data_out_valid(data_out_valid),
+                .data_out_ready(data_out_ready)
+            );
+        end
+
     endgenerate
 
 
-    // FP Adder Tree
-    fp_adder_tree #(
-        .VEC_DIM (BLOCK_NUM),
-        .IN_EXP_WIDTH(FP_EXP_WIDTH),
-        .IN_MAN_WIDTH(FP_MANT_WIDTH),
-        .EXT_EXP_BITS_PER_LAYER(FP_EXT_EXP_WIDTH_PER_LAYER),
-        .EXT_MANT_WIDTH_PER_LAYER(FP_EXT_MANT_WIDTH_PER_LAYER)
-    ) fp_inter_block_adder_tree (
-        .clk(clk),
-        .rst(rst),
-        .data_in(converted_fp_out),
-        .data_in_valid(blockwise_addition_valid),
-        .data_in_ready(blockwise_addition_ready),
-        .data_out(fp_out),
-        .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready)
-    );
+
 
 endmodule

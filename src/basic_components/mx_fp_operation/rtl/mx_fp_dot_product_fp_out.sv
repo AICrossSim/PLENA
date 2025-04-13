@@ -47,13 +47,13 @@ module mx_fp_dot_product_fp_out #(
     input rst,
 
     // input port A
-    input  logic [COMP_DIM-1:0]     [(MXFP_MANT_WIDTH + PRODUCT_EXT_MANT_WIDTH):0]  element_a_in,
+    input  logic [COMP_DIM-1:0]     [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]  element_a_in,
     input  logic [BLOCK_NUM-1:0]    [MXFP_SCALE_WIDTH - 1 : 0]                      scale_a_in,
     input                       data_a_in_valid,
     output                      data_a_in_ready,
 
     // input port B
-    input  logic [COMP_DIM-1:0]     [(MXFP_MANT_WIDTH + PRODUCT_EXT_MANT_WIDTH):0]  element_b_in,
+    input  logic [COMP_DIM-1:0]     [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]  element_b_in,
     input  logic [BLOCK_NUM-1:0]    [MXFP_SCALE_WIDTH - 1 : 0]                      scale_b_in,
     input                       data_b_in_valid,
     output                      data_b_in_ready,
@@ -90,11 +90,12 @@ module mx_fp_dot_product_fp_out #(
     );
 
     // scale addition, assuming the element-wise multiplication is done in the same cycle
-    logic [BLOCK_NUM-1:0]    [MXFP_SCALE_WIDTH - 1 : 0] scale_product_vec;
+    logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH - 1 : 0] scale_product_vec;
+    localparam SCALE_BIAS = (1 << (MXFP_SCALE_WIDTH - 1)) - 1;
 
     always @(posedge clk) begin
         for (int i = 0; i < BLOCK_NUM; i++) begin
-            scale_product_vec[i] <= scale_a_in[i] + scale_b_in[i];
+            scale_product_vec[i] <= scale_a_in[i] + scale_b_in[i] - SCALE_BIAS;
         end
     end
 

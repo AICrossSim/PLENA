@@ -79,6 +79,7 @@ module fp_2_mx_fp_block #(
     logic [MX_FP_SCALE_WIDTH - 1:0]     p2_e_max, p2_sh_exp;
     logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1 :0] p2_m_shifts;
     logic unsigned [BLOCK_DIM-1:0][FP_MAN_WIDTH     :0] p2_man_exts;
+    logic [BLOCK_DIM-1:0] element_in_ready;
 
     logic                               p2_data_valid;
     logic  [BLOCK_DIM-1:0]              element_conv_valid, element_conv_ready;
@@ -114,13 +115,13 @@ module fp_2_mx_fp_block #(
                 .rst           (!rst),                        // Inverted reset
                 .data_in       ({p2_fp_sgns[i], p2_elems[i]}),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
                 .data_in_valid (p2_data_valid),
-                .data_in_ready (),                            // No sequential operation beforehand, hence ignored.
+                .data_in_ready (element_in_ready[i]),                            // No sequential operation beforehand, hence ignored.
                 .data_out      (element_data_out[i]),
                 .data_out_valid(element_conv_valid[i]),
                 .data_out_ready(element_conv_ready[i])
             );
         end
-
+        assign data_in_ready = &element_in_ready;
         join_n #(
             .NUM_HANDSHAKES(BLOCK_DIM)
         ) join_data (

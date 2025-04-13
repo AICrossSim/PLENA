@@ -1,6 +1,25 @@
 import random
 import math
 
+
+def split_bitstream_equal(bitstream_val, chunk_width):
+
+    if hasattr(bitstream_val, 'integer'):
+        val = bitstream_val.integer
+    else:
+        val = int(bitstream_val)
+
+    total_bits = bitstream_val.n_bits if hasattr(bitstream_val, 'n_bits') else val.bit_length()
+    # Pad to multiple of chunk_width if needed
+    total_bits = ((total_bits + chunk_width - 1) // chunk_width) * chunk_width
+
+    chunks = []
+    for i in reversed(range(0, total_bits, chunk_width)):
+        chunk = (val >> i) & ((1 << chunk_width) - 1)
+        chunks.append(chunk)
+    return chunks
+
+
 def get_fp_range(exp_width, mant_width):
     bias = (1 << (exp_width - 1)) - 1
     max_exponent = (1 << exp_width) - 2  # reserve top exp for inf/Nan if applicable
@@ -115,6 +134,15 @@ class FpGenerator:
         converted_fp = []
         for i in range(vec_dim):
             converted_fp.append(self.full_precision_fp_float_convertion(output_exp_width, output_man_width, extracted_vect_ele[i]))
+        return converted_fp
+
+    def multi_fp_conversion(self, exp_width, mant_width, input_data):
+        # Split the input data into chunks
+        fp_to_convert = split_bitstream_equal(input_data, exp_width + mant_width + 1)
+        fp_amount = len(fp_to_convert)
+        converted_fp = []
+        for i in range(fp_amount):
+            converted_fp.append(self.full_precision_fp_float_convertion(exp_width, mant_width, fp_to_convert[i]))
         return converted_fp
 
 

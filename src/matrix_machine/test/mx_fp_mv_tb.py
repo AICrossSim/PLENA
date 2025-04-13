@@ -33,9 +33,10 @@ fp_ext_exp_width = 1
 block_level = math.ceil(math.log2(block_dim))
 fp_level = math.ceil(math.log2(comp_dim // block_dim))
 
+inter_fp_exp_width = mxfp_exp_width + block_ext_exp_width * block_level + fp_ext_exp_width * fp_level + product_ext_exp_width
+inter_fp_mant_width = mxfp_mant_width + block_ext_mant_width * block_level + fp_ext_mant_width * fp_level + product_ext_mant_width
 
-output_fp_exp_width = mxfp_exp_width + block_ext_exp_width * block_level + fp_ext_exp_width * fp_level
-output_fp_mant_width = mxfp_mant_width + block_ext_mant_width * block_level + fp_ext_mant_width * fp_level
+print(f"inter_fp_exp_width: {inter_fp_exp_width}, inter_fp_mant_width: {inter_fp_mant_width}")
 
 generator = MXBlockFPConverter(mxfp_exp_width, mxfp_mant_width, mxfp_scale_width, block_dim)
 
@@ -83,11 +84,34 @@ async def random_mxfp_mv_test(dut):
         dut.v_data_valid.value = 1
         dut.out_data_ready.value = 1
         
-        await Timer(2, units="ns")
+        await Timer(6, units="ns")
         cocotb.log.info("<-------  INPUT DATA  --------->")
         cocotb.log.info(f" Input Data : {generator.blockwise_convert_to_float(dut.element_m_data.value , dut.scale_m_data.value, (comp_dim * comp_dim) // block_dim, mxfp_exp_width, mxfp_mant_width)} ELE Binary: {dut.element_m_data.value}, SCALE Binary: {dut.scale_m_data.value}")
         cocotb.log.info(f" Input Data : {generator.blockwise_convert_to_float(dut.element_v_data.value , dut.scale_v_data.value, comp_dim // block_dim, mxfp_exp_width, mxfp_mant_width)} ELE Binary: {dut.element_v_data.value}, SCALE Binary: {dut.scale_v_data.value}")
 
+        cocotb.log.info("<-------  INTERNAL DATA --------->")
+        cocotb.log.info(f"dot product port A: {dut.row_matrix_by_vec[0].dot_product_inst.element_a_in.value} ")
+        cocotb.log.info(f"dot product port A scale {dut.row_matrix_by_vec[0].dot_product_inst.scale_a_in.value} ")
+        cocotb.log.info(f"dot product port B: {dut.row_matrix_by_vec[0].dot_product_inst.element_b_in.value} ")
+        cocotb.log.info(f"dot product port B scale {dut.row_matrix_by_vec[0].dot_product_inst.scale_b_in.value} ")
+        cocotb.log.info(f"SCALE_BIAS : {bin(dut.row_matrix_by_vec[0].dot_product_inst.SCALE_BIAS.value)} ")
+        
+        cocotb.log.info("<-------  INTERNAL Within Dot Prod Layer --------->")
+        cocotb.log.info(f"element_product_vec       {dut.row_matrix_by_vec[0].dot_product_inst.element_product_vec.value}" )
+        cocotb.log.info(f"scale_product_vec         {dut.row_matrix_by_vec[0].dot_product_inst.scale_product_vec.value}" )
+        cocotb.log.info(f"dot product result in fp  {dut.row_matrix_by_vec[0].dot_product_inst.data_out.value}" )
+
+        cocotb.log.info("<-------  INTERNAL Within Dot Prod Adder Tree --------->")    
+        cocotb.log.info(f"block_element_data_in     {dut.row_matrix_by_vec[0].dot_product_inst.adder_tree.element_data_in.value}" )   
+        cocotb.log.info(f"block_scale_data_in       {dut.row_matrix_by_vec[0].dot_product_inst.adder_tree.scale_data_in.value}" )
+        cocotb.log.info(f"block_element_data_out    {dut.row_matrix_by_vec[0].dot_product_inst.adder_tree.block_element_data_out.value}" )    
+
+        cocotb.log.info(f"converted_fp_out {dut.row_matrix_by_vec[0].dot_product_inst.adder_tree.converted_fp_out.value}" )          
+
+
+        cocotb.log.info("<-------  INTERNAL Dot Product Layer DATA --------->")
+        cocotb.log.info(f"fp_dot_out : Binary: {dut.fp_dot_out.value} ")
+        cocotb.log.info(f"Converted FP : {generator.fp_gen.multi_fp_conversion(inter_fp_exp_width, inter_fp_mant_width, dut.fp_dot_out.value)} ")
 
         await Timer(8, units="ns")
         cocotb.log.info("<-------  OUTPUT DATA  --------->")

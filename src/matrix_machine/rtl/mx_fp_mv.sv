@@ -73,7 +73,8 @@ module mx_fp_mv #(
     // Wires
     // -----
 
-    logic dot_product_ready;
+    logic [BLOCK_NUM -1 : 0] convert_in_ready;
+    logic dot_prod_out_ready;
     logic inputs_valid, inputs_ready;
 
     logic [COMPUTE_DIM-1:0] dot_product_valid;
@@ -125,12 +126,14 @@ module mx_fp_mv #(
                 .data_b_in_ready      (), // same as data_a_in_ready
                 .data_out             (fp_dot_out[i]),
                 .data_out_valid       (dot_product_valid[i]),
-                .data_out_ready       (dot_product_ready)
+                .data_out_ready       (dot_prod_out_ready)
             );
         end
+        assign dot_prod_out_ready = &convert_in_ready;
     endgenerate
         
     generate;
+
         for (genvar j = 0; j < BLOCK_NUM; j++) begin
             fp_2_mx_fp_block #(
                 .BLOCK_DIM(BLOCK_DIM),
@@ -144,7 +147,7 @@ module mx_fp_mv #(
                 .rst(rst),
                 .data_in(fp_dot_out[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
                 .data_in_valid(dot_product_valid[0]),
-                .data_in_ready(dot_product_ready),
+                .data_in_ready(convert_in_ready[i]),
                 .element_data_out(element_out_data[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
                 .scale_data_out(scale_out_data[j]),
                 .mx_fp_data_out_valid(out_data_valid),
