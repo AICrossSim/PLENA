@@ -1,22 +1,24 @@
 /*
-Module      : Matrix Machine SRAM Unit
+Module      : SRAM Unit that support parallel row/column read/write
 Timing      : Sequential Logic : Require x cycles for the read process.
-Description : This module is the top module of the Matrix SRAM. It supports parallel row / column read and write.
+Description : This module supports parallel row / column read and write.
             : The addressing mode is Little Endian.
+
+Limitation  : The write dimension is constrained to be the same as the parallel read dimension. 
+The reason is that, parrallel rd involves the data stored as the (Parallel_Rd_Dim, Parallel_Rd_Dim) data type. Hence, for simplicity, 
+we assume the Parallel_Wr_Dim is the same as the Parallel_Rd_Dim.
 Status      : Passed Simple Row/Col Read/Write Tests
 */
 
 
-
 `timescale 1ns/1ps
 
-module mv_sram #(
-    parameter int DataWidth = 4, 
-    parameter int SRAM_Depth = 128,
-    parameter int MLEN = 8,                                             // The TileSize of the matrix.
-    parameter int Parallel_Rd_Dim = 2,                                  // The number of row/col read in parallel
-    localparam int AddrLen                   = $clog2(SRAM_Depth)     // Address Space for the SRAM
-    
+module biaccess_sram #(
+    parameter   int DataWidth = 4, 
+    parameter   int SRAM_Depth = 128,
+    parameter   int MLEN = 8,                                       // The TileSize of the matrix.
+    parameter   int Parallel_Rd_Dim = 2,                            // The number of row/col read in parallel
+    localparam  int AddrLen = $clog2(SRAM_Depth)                    // Address Space for the SRAM 
 ) (
     input  logic clk,
 
@@ -27,11 +29,10 @@ module mv_sram #(
     // input  logic last_write,
     output logic write_response,
 
-    input  logic [AddrLen-1:0] sram_addr,
-    input  logic stall,                                                     // Indicates whether the read is stalled
+    input  logic [AddrLen-1:0] sram_addr,                                   // Indicates whether the read is stalled
     input  logic read_en,
     input  logic [Parallel_Rd_Dim * MLEN * DataWidth - 1:0] write_data,     // Packed input vector
-    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data       // Unpacked output array
+    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data      // Unpacked output array
 );
 
 
@@ -40,10 +41,6 @@ module mv_sram #(
 // -----
 localparam int SubTileWidth                 = DataWidth * (Parallel_Rd_Dim ** 2);       // The width of each element in the sub SRAM
 localparam int SubSRAM_Amount               = MLEN / Parallel_Rd_Dim;                   // The dimension of the sub SRAM, or the TileSize of the matrix.
-
-
-initial begin
-end
 
 
 // -----
@@ -56,7 +53,6 @@ logic [SubSRAM_Amount-1:0] individual_subs_sram_read_valid ;
 logic read_data_valid;
 
 // Control Signals
-// assign write_response = & individual_subs_sram_write_response;
 always_comb begin
     write_response = 1'b1;
     read_data_valid = 1'b1;
@@ -87,7 +83,6 @@ generate
         );
     end
 endgenerate
-
 
 // Write Data Transformation
 wdata_transform #(

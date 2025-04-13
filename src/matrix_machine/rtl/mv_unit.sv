@@ -1,10 +1,10 @@
 /*
 Module      : mxint matrix vector mult units
-Description : This module does a matrix @ vector + offset vector.
-
+Description : This module does a matrix @ vector.
               The dimensions for the matrix multiplcation are:
-              (MLEN, MLEN) * (MLEN, 1) + (MLEN, 1) = (MLEN, 1)
-
+              (MLEN, MLEN) MX-FP * (MLEN, 1) MX-FP = (MLEN, 1) MX-FP
+              The adder tree is assumed to be conducted with FP data format.
+Status      : Pass Simple Test
 */
 
 

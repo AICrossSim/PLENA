@@ -10,50 +10,52 @@ Status      : Under Development
 
 module mx_fp_rescale #(
     // MX-FP Data Format
-    parameter INPUT_EXP_WIDTH    = 4,
-    parameter INPUT_MANT_WIDTH   = 3,
+    parameter IN_MXFP_EXP_WIDTH    = 4,
+    parameter IN_MXFP_MANT_WIDTH   = 3,
     parameter MXFP_SCALE_WIDTH  = 8,
 
     // Dimension
     parameter   BLOCK_DIM            = 4,
 
     // MX-FP Data Format
-    parameter MXFP_EXP_WIDTH    = 4,
-    parameter MXFP_MANT_WIDTH   = 3
+    parameter OUT_MXFP_EXP_WIDTH    = 4,
+    parameter OUT_MXFP_MANT_WIDTH   = 3
 
 ) (
     input logic clk,
     input logic rst,
 
     // Input matrix
-    input  logic [BLOCK_DIM - 1 : 0] [INPUT_MANT_WIDTH + INPUT_EXP_WIDTH : 0] element_in,
+    input  logic [BLOCK_DIM - 1 : 0] [IN_MXFP_MANT_WIDTH + IN_MXFP_EXP_WIDTH : 0] element_in,
     input  logic [BLOCK_DIM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]             scale_in,
 
-    output logic [BLOCK_DIM - 1 : 0] [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] element_data_out,
+    output logic [BLOCK_DIM - 1 : 0] [OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH : 0] element_data_out,
     output logic [MXFP_SCALE_WIDTH - 1 : 0] scale_data_out,
 );
 
-    logic [BLOCK_DIM - 1 : 0] [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] p0_rounded_element_out, p1_rounded_element_out;
+    logic [BLOCK_DIM - 1 : 0] [OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH : 0] p0_rounded_element_out, p1_rounded_element_out;
     logic [BLOCK_DIM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0] rounded_element_scale_out;
     
 
     generate;
-
-        for (genvar i = 0; i < BLOCK_DIM; i++) begin : round_element
+        if (IN_MXFP_EXP_WIDTH != OUT_MXFP_EXP_WIDTH || IN_MXFP_MANT_WIDTH != OUT_MXFP_MANT_WIDTH) begin : round_element
             mx_fp_element_round #(
-                .IN_EXP_WIDTH   (INPUT_EXP_WIDTH),
-                .IN_MANT_WIDTH  (INPUT_MANT_WIDTH),
+                .IN_EXP_WIDTH   (IN_MXFP_EXP_WIDTH),
+                .IN_MANT_WIDTH  (IN_MXFP_MANT_WIDTH),
                 .SCALE_WIDTH    (MXFP_SCALE_WIDTH),
-                .OUT_EXP_WIDTH  (MXFP_EXP_WIDTH),
-                .OUT_MANT_WIDTH (MXFP_MANT_WIDTH)
+                .OUT_EXP_WIDTH  (OUT_MXFP_EXP_WIDTH),
+                .OUT_MANT_WIDTH (OUT_MXFP_MANT_WIDTH)
             ) mxfp_round (
                 .clk(clk),
                 .rst(rst),
-                .element_data_in    (element_in[i]),
-                .scale_data_in      (scale_in[i]),
-                .element_data_out   (p0_rounded_element_out[i]),
-                .scale_data_out     (rounded_element_scale_out[i])
+                .element_data_in    (element_in),
+                .scale_data_in      (scale_in),
+                .element_data_out   (p0_rounded_element_out),
+                .scale_data_out     (rounded_element_scale_out)
             );
+        end else begin : no_round
+            assign p0_rounded_element_out = element_in;
+            assign rounded_element_scale_out = scale_in;
         end
 
     endgenerate
@@ -71,11 +73,11 @@ module mx_fp_rescale #(
 
     generate;
         for (genvar i = 0; i < BLOCK_DIM; i++) begin : gen_rescale
-            logic [MXFP_EXP_WIDTH - 1 : 0] exp_reduce_amount, new_element_exp;
+            logic [OUT_MXFP_EXP_WIDTH - 1 : 0] exp_reduce_amount, new_element_exp;
             assign exp_reduce_amount = exp_max - rounded_element_scale_out[i];
-            assign new_element_exp = p1_rounded_element_out[i][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH - 1 : MXFP_MANT_WIDTH] - exp_reduce_amount;
+            assign new_element_exp = p1_rounded_element_out[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH - 1 : OUT_MXFP_MANT_WIDTH] - exp_reduce_amount;
             // TODO: How to handle the case when the exponent is negative?
-            assign element_data_out[i] = {p1_rounded_element_out[i][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH], new_element_exp, p1_rounded_element_out[i][MXFP_MANT_WIDTH - 1 : 0]};
+            assign element_data_out[i] = {p1_rounded_element_out[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH], new_element_exp, p1_rounded_element_out[i][OUT_MXFP_MANT_WIDTH - 1 : 0]};
         end    
     endgenerate
 

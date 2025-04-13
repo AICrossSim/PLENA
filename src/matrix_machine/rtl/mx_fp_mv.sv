@@ -5,8 +5,7 @@ Module      : MX-FP Configurable Precision Matrix Vector Multiplication Unit (Wi
 Timing      : Sequential, Takes x cycles to compute the dot product
 Description : Matrix Vector Multiplication with the same Tile
             : Assuming square matrix, this is the dimension of the matrix and the vector.
-Status      : Under Testing
-            : Output_Fp_Round_EN not supported yet.
+Status      : Pass Simple Test
 */
 
 module mx_fp_mv #(
