@@ -4,7 +4,7 @@ Timing      : Sequential Logic, x cycle for read/write process.
 Description :
             : This module supports parallel row / column read and write.
             : The addressing mode is Little Endian.
-Status      : Passed Simple Row/Col Read/Write Tests
+Status      : TODO
 */
 
 
