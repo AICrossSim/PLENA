@@ -36,10 +36,10 @@ module matrix_sram_with_rounding #(
     input   logic read_en,
 
     input   logic [AddrLen-1:0] sram_addr,   
-    input   logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] element_in,
-    input   logic [Parallel_Rd_Amount - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] scale_in, 
-    output  logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] element_out,
-    output  logic [Parallel_Rd_Amount - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] scale_out
+    input   logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
+    input   logic [Parallel_Rd_Amount - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in, 
+    output  logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
+    output  logic [Parallel_Rd_Amount - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out
 
 );
 

@@ -37,22 +37,22 @@ module mx_fp_mv #(
     input logic rst,
 
     // Input matrix
-    input  logic [COMPUTE_DIM * COMPUTE_DIM - 1 : 0]    [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] element_m_data,
-    input  logic [BLOCK_NUM   * COMPUTE_DIM - 1 : 0]        [MXFP_SCALE_WIDTH - 1 : 0] scale_m_data,
-    input  logic               m_data_valid,
-    output logic               m_data_ready,
+    input  logic [COMPUTE_DIM * COMPUTE_DIM - 1 : 0]    [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] m_element,
+    input  logic [BLOCK_NUM   * COMPUTE_DIM - 1 : 0]        [MXFP_SCALE_WIDTH - 1 : 0] m_scale,
+    input  logic               m_valid,
+    output logic               m_ready,
 
     // Input vector
-    input  logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] element_v_data,
-    input  logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] scale_v_data,
-    input  logic               v_data_valid,
-    output logic               v_data_ready,
+    input  logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] v_element,
+    input  logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] v_scale,
+    input  logic               v_valid,
+    output logic               v_ready,
 
     // Output Vector: Same Dimension as the Input Vector
-    output logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] element_out_data,
-    output logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] scale_out_data,
-    output logic                 out_data_valid,
-    input  logic                 out_data_ready
+    output logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] out_element,
+    output logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] out_scale,
+    output logic                 out_valid,
+    input  logic                 out_ready
 );
 
     localparam ACC_EXP_WIDTH  = (OUTPUT_FP_ROUND_EN == 1) ? ROUND_FP_EXP_WIDTH  : MXFP_EXP_WIDTH + PRODUCT_EXT_EXP_WIDTH  + BLOCK_ADD_EXT_EXP_WIDTH  * $clog2(BLOCK_DIM) + FP_ADD_EXT_EXP_WIDTH  * $clog2(BLOCK_NUM);
@@ -88,8 +88,8 @@ module mx_fp_mv #(
     // Need to synchronise x & y inputs
     assign inputs_ready = sync_ready[0];
     join2 sync_handshake (
-        .data_in_valid ({m_data_valid, v_data_valid}),
-        .data_in_ready ({m_data_ready, v_data_ready}),
+        .data_in_valid ({m_valid, v_valid}),
+        .data_in_ready ({m_ready, v_ready}),
         .data_out_valid(inputs_valid),
         .data_out_ready(inputs_ready)
     );
@@ -115,12 +115,12 @@ module mx_fp_mv #(
             ) dot_product_inst (
                 .clk                  (clk),
                 .rst                  (rst),
-                .element_a_in         (element_m_data[((i+1)*COMPUTE_DIM)-1 : i*COMPUTE_DIM]),
-                .scale_a_in           (scale_m_data[((i+1)*BLOCK_NUM)-1 : i*BLOCK_NUM]),
+                .element_a_in         (m_element[((i+1)*COMPUTE_DIM)-1 : i*COMPUTE_DIM]),
+                .scale_a_in           (m_scale[((i+1)*BLOCK_NUM)-1 : i*BLOCK_NUM]),
                 .data_a_in_valid      (inputs_valid),
                 .data_a_in_ready      (sync_ready[i]),
-                .element_b_in         (element_v_data),
-                .scale_b_in           (scale_v_data),
+                .element_b_in         (v_element),
+                .scale_b_in           (v_scale),
                 .data_b_in_valid      (inputs_valid),
                 .data_b_in_ready      (), // same as data_a_in_ready
                 .data_out             (fp_dot_out[i]),
@@ -147,10 +147,10 @@ module mx_fp_mv #(
                 .data_in(fp_dot_out[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
                 .data_in_valid(dot_product_valid[0]),
                 .data_in_ready(convert_in_ready[i]),
-                .element_data_out(element_out_data[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
-                .scale_data_out(scale_out_data[j]),
-                .mx_fp_data_out_valid(out_data_valid),
-                .mx_fp_data_out_ready(out_data_ready)
+                .element_data_out(out_element[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
+                .scale_data_out(out_scale[j]),
+                .mx_fp_data_out_valid(out_valid),
+                .mx_fp_data_out_ready(out_ready)
             );
 
         end

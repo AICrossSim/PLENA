@@ -22,10 +22,7 @@ module mx_fp_blockwise_adder #(
     parameter EXT_EXP_WIDTH = 1,
 
     // Dimension
-    parameter COMP_DIM  = 8,
-    parameter BLOCK_DIM = 4,
-    localparam BLOCK_NUM        = COMP_DIM / BLOCK_DIM,
-    
+    parameter BLOCK_DIM = 4
 ) (
     input  logic                 clk,
     input  logic                 rst,
@@ -77,9 +74,23 @@ module mx_fp_blockwise_adder #(
                 .data_out(elements_af_shift[i])
             );
         end
+
+        skid_buffer #(
+            .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
+        ) store_shifted_element (
+            .clk(clk),
+            .rst(rst),
+            .data_in(elements_af_shift),
+            .data_in_valid(a_data_in_valid & b_data_in_valid),
+            .data_in_ready(a_data_in_ready & b_data_in_ready),
+            .data_out(elements_af_shift),
+            .data_out_valid(data_out_valid),
+            .data_out_ready(data_out_ready)
+        );
+
     endgenerate
 
-    // FP Addition, TODO: how to consider the overflow problem.
+    // FP Addition, TODO: how to consider the overflow problem, whether to add to the mx-fp scale?
     generate;
         for(genvar i = 0; i < BLOCK_DIM; i++) begin : gen_block_adder
             fp_cp_adder #(
