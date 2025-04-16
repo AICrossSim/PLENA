@@ -1,3 +1,16 @@
+`timescale 1ns / 1ps
+
+/*
+Module      : Matrix Input Collect Module
+Timing      : Sequential, Takes MLEN//Collect_Dim cycles to prepared the output matrix in unpacked array format.
+Description : This module accumulate the matrix by accepting [MLEN, Collect_Dim] 
+             : data in each cycle and output the matrix in unpacked array format.
+             : The output matrix is ready when the input is valid and the output is ready.
+             : The input data is collected until the number of cycles reaches MLEN // Collect_Dim.
+Status      : Pass Simple Test
+*/
+
+
 module matrix_collector #(
     parameter int DATA_WIDTH = 32,
     parameter int MLEN       = 64,

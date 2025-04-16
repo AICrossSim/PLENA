@@ -1,12 +1,20 @@
 `timescale 1ns / 1ps
 
+/*
+Module      : Matrix Machine Module
+Timing      : Sequential, Takes x cycles to compute the dot product
+Description : This module conducts the operation m(MLEN, MLEN) @ v(MLEN, 1) + o (MLEN, 1)
+Status      : Under Testing
+*/
+
+
 module matrix_machine #(
     // MX-FP Data Format
     parameter   MXFP_MANT_WIDTH   = 8,
     parameter   MXFP_EXP_WIDTH    = 4,
     parameter   MX_FP_SCALE_WIDTH = 8,
 
-    // Total dimensions
+    // Dimensions
     parameter   MLEN              = 8,
     parameter   BLOCK_DIM         = 4,
     localparam  BLOCK_NUM         = MLEN / BLOCK_DIM,
