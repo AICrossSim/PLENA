@@ -1,9 +1,11 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : Matrix Machine Module
+Module      : Elementwise Computation Module
 Timing      : Sequential, Takes x cycles to compute the dot product
-Description : This module conducts the operation m(MLEN, MLEN) @ v(MLEN, 1) + o (MLEN, 1)
+Description : This module includes elementwise vector computations
+            : 1. Elementwise Add, 2. Elementwise Subtract, 3. Elementwise Multiply, 4. Elementwise Exponential
+Status      : Under Development
 */
 
 
@@ -87,7 +89,7 @@ always_comb begin
     endcase
 end
 
-// Elementwise Add, do not include the extended mantissa and exponent
+// Elementwise Add, do not include the extended mantissa and exponent 
 fp_vector_add #(
     .VEC_DIM(VLEN),
     .MANT_WIDTH(MANT_WIDTH),
@@ -142,5 +144,7 @@ fp_vector_mult #(
 );
 
 
+
+// TODO: Elementwise EXP
 
 endmodule
