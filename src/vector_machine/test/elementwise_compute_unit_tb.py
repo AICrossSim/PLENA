@@ -52,12 +52,12 @@ async def random_fp_add_test(dut):
 
         # await RisingEdge(dut.clk)
         await Timer(2, units="ns")
-        cocotb.log.info("<-------  INPUT DATA  --------->")
-        for m in range(2*vect_dim):
-            cocotb.log.info(f"Value at index {m} : {fp_values[m]}, Result : {generator.custom_fp_to_float(results[m])}, Binary: {bin(results[m])}")
+        # cocotb.log.info("<-------  INPUT DATA  --------->")
+        # for m in range(2*vect_dim):
+        #     cocotb.log.info(f"Value at index {m} : {fp_values[m]}, Result : {generator.custom_fp_to_float(results[m])}, Binary: {bin(results[m])}")
         
-        cocotb.log.info(f"Input Binary data_a {dut.v_in_a.value}")
-        cocotb.log.info(f"Input Binary data_b {dut.v_in_b.value}")
+        # cocotb.log.info(f"Input Binary data_a {dut.v_in_a.value}")
+        # cocotb.log.info(f"Input Binary data_b {dut.v_in_b.value}")
         # generator.translate_packed_array_fp(vect_dim, exp_width, mant_width, dut.data_a_in.value)
 
         dut.v_in_a_valid.value = 1
@@ -70,7 +70,100 @@ async def random_fp_add_test(dut):
         for i in range(0, vect_dim):
             # Get the expected result
             addition_result.append(fp_values[i] + fp_values[i + vect_dim])
-        cocotb.log.info("<-------  Product Vector DATA  --------->")
+        cocotb.log.info("<-------  Addition Result DATA  --------->")
+        cocotb.log.info(f"Internal Product Binary Results : {dut.v_out.value}")
+        cocotb.log.info(f"Internal Converted Results : {generator.translate_packed_array_fp(vect_dim, exp_width, mant_width, dut.v_out.value)}")
+        cocotb.log.info(f"Internal Product Ref : {addition_result}")
+
+
+@cocotb.test()
+async def random_fp_subtract_test(dut):
+    # Start clock generation
+    TESTCASE_SIZE = 1
+    
+    cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
+    
+    await Timer(5, units="ns")
+    cocotb.log.info("Starting fp addition test")
+    # Apply Reset
+    dut.rst.value = 0
+    await Timer(5, units="ns")  # Hold reset for 5ns
+    dut.rst.value = 1
+    await Timer(5, units="ns")  # Allow some settling time
+
+    for i in range (TESTCASE_SIZE):
+        # Generate random floating point values
+
+        # fp_values, results = generator.generate_fp_input(vect_dim)
+        fp_values, results = generator.generate_specified_value_fp_input([40.517, 218.18, 129.98, 210.00, 30.231, 41.77, 75.2, 19.29])
+        input_data_a = sum((results[n] << (exp_width + mant_width + 1) * n ) for n in range(vect_dim))
+        input_data_b = sum((results[n + vect_dim] << (exp_width + mant_width + 1) * n ) for n in range(vect_dim))
+        dut.v_in_a.value = input_data_a
+        dut.v_in_b.value = input_data_b
+
+        # await RisingEdge(dut.clk)
+        await Timer(2, units="ns")
+        # cocotb.log.info("<-------  INPUT DATA  --------->")
+        # for m in range(2*vect_dim):
+        #     cocotb.log.info(f"Value at index {m} : {fp_values[m]}, Result : {generator.custom_fp_to_float(results[m])}, Binary: {bin(results[m])}")
+        
+        # cocotb.log.info(f"Input Binary data_a {dut.v_in_a.value}")
+        # cocotb.log.info(f"Input Binary data_b {dut.v_in_b.value}")
+        # generator.translate_packed_array_fp(vect_dim, exp_width, mant_width, dut.data_a_in.value)
+
+        dut.v_in_a_valid.value = 1
+        dut.v_in_b_valid.value = 1
+        dut.v_out_ready.value = 1
+        dut.operation = 1
+
+        await Timer(4, units="ns")
+        addition_result = []
+        for i in range(0, vect_dim):
+            # Get the expected result
+            addition_result.append(fp_values[i] - fp_values[i + vect_dim])
+        cocotb.log.info("<-------  Subtraction Vector DATA  --------->")
+        cocotb.log.info(f"Internal Product Binary Results : {dut.v_out.value}")
+        cocotb.log.info(f"Internal Converted Results : {generator.translate_packed_array_fp(vect_dim, exp_width, mant_width, dut.v_out.value)}")
+        cocotb.log.info(f"Internal Product Ref : {addition_result}")
+
+@cocotb.test()
+async def random_fp_multiply_test(dut):
+    # Start clock generation
+    TESTCASE_SIZE = 1
+    
+    cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
+    
+    await Timer(5, units="ns")
+    cocotb.log.info("Starting fp multiply test")
+    # Apply Reset
+    dut.rst.value = 0
+    await Timer(5, units="ns")  # Hold reset for 5ns
+    dut.rst.value = 1
+    await Timer(5, units="ns")  # Allow some settling time
+
+    for i in range (TESTCASE_SIZE):
+        # Generate random floating point values
+
+        # fp_values, results = generator.generate_fp_input(vect_dim)
+        fp_values, results = generator.generate_specified_value_fp_input([4.517, 2.18, 9.98, 2.00, 3.231, 4.77, 7.2, 19.29])
+        input_data_a = sum((results[n] << (exp_width + mant_width + 1) * n ) for n in range(vect_dim))
+        input_data_b = sum((results[n + vect_dim] << (exp_width + mant_width + 1) * n ) for n in range(vect_dim))
+        dut.v_in_a.value = input_data_a
+        dut.v_in_b.value = input_data_b
+
+        # await RisingEdge(dut.clk)
+        await Timer(2, units="ns")
+        dut.v_in_a_valid.value = 1
+        dut.v_in_b_valid.value = 1
+        dut.v_out_ready.value = 1
+        dut.operation = 2
+
+        await Timer(4, units="ns")
+        addition_result = []
+        for i in range(0, vect_dim):
+            # Get the expected result
+            addition_result.append(fp_values[i] * fp_values[i + vect_dim])
+        cocotb.log.info("<-------  Subtraction Vector DATA  --------->")
         cocotb.log.info(f"Internal Product Binary Results : {dut.v_out.value}")
         cocotb.log.info(f"Internal Converted Results : {generator.translate_packed_array_fp(vect_dim, exp_width, mant_width, dut.v_out.value)}")
         cocotb.log.info(f"Internal Product Ref : {addition_result}")

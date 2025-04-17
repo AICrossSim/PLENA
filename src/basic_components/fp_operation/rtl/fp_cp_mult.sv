@@ -26,12 +26,20 @@ module fp_cp_mult #(
         // To ensure the unnecessary bits in mantissa.
         assert (EXT_MANT_WIDTH <= MANT_WIDTH + 1);
     end
-    localparam int BIAS = (1 << (EXP_WIDTH - 1)) - 1;
-    localparam int NEW_BIAS = (1 << ((EXP_WIDTH + EXT_EXP_WIDTH) - 1)) - 1;
-    localparam int UPDATED_BIAS = NEW_BIAS - 2*BIAS;
+    localparam BIAS = (1 << (EXP_WIDTH - 1)) - 1;
+    localparam NEW_BIAS = (1 << ((EXP_WIDTH + EXT_EXP_WIDTH) - 1)) - 1;
+    localparam UPDATED_BIAS = NEW_BIAS - 2*BIAS;
+    localparam [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH - 1 : 0] BOUND_VAL = 
+        { 
+            { {(EXP_WIDTH + EXT_EXP_WIDTH - 1){1'b1}} }, 
+            1'b0, 
+            { {(MANT_WIDTH + EXT_MANT_WIDTH){1'b1}} }
+        };
+
 
     // Internal signals
     logic sign_a, sign_b, sign_product;
+    logic overflow;
     logic [EXP_WIDTH-1:0] exp_a, exp_b;
     logic [MANT_WIDTH-1:0] man_a, man_b;
     logic [MANT_WIDTH : 0] man_a_ext, man_b_ext;
@@ -39,8 +47,8 @@ module fp_cp_mult #(
     logic [2*(MANT_WIDTH + 1) - 1:0] mant_product_full;
 
     logic [MANT_WIDTH + EXT_MANT_WIDTH - 1:0] mant_product_norm;
-    logic [EXP_WIDTH : 0] exp_product_raw;
-    logic [EXP_WIDTH + EXT_EXP_WIDTH-1:0] exp_product;
+    logic [EXP_WIDTH + EXT_EXP_WIDTH : 0] exp_add_raw;
+    logic [EXP_WIDTH + EXT_EXP_WIDTH : 0] exp_temp_out;
 
     // Extract fields
     assign sign_a = data_a[MANT_WIDTH + EXP_WIDTH];
@@ -62,22 +70,25 @@ module fp_cp_mult #(
     assign mant_product_full = man_a_ext * man_b_ext; // 2*(MANT_WIDTH+1) bits
 
     // Raw exponent sum (before normalisation correction)
-    assign exp_product_raw = {{EXT_EXP_WIDTH{1'b0}}, exp_a} + {{EXT_EXP_WIDTH{1'b0}}, exp_b} + UPDATED_BIAS;
+    assign exp_add_raw = {{EXT_EXP_WIDTH + 1 {1'b0}}, exp_a} + {{EXT_EXP_WIDTH + 1 {1'b0}}, exp_b} + UPDATED_BIAS;
 
     // Normalisation logic
     always_comb begin
-        if (mant_product_full[2*EXT_MANT_WIDTH-1] == 1'b0) begin
-            // If no normalization needed, 1_xxxx * 1_xxxx = 01_xxxx_xxxx
-            mant_product_norm = {mant_product_full[2*EXT_MANT_WIDTH - 3 -: (MANT_WIDTH + EXT_MANT_WIDTH)]};
-            exp_product = exp_product_raw;
+        if (mant_product_full[2*MANT_WIDTH+2] == 1'b0) begin
+            // If no normalization needed, 1_xxxx * 1_xxxx = 01_mmmm_eeee
+            mant_product_norm = {mant_product_full[2*MANT_WIDTH - 1: (MANT_WIDTH + EXT_MANT_WIDTH)]};
+            exp_temp_out = exp_add_raw;
         end else begin
-            // If normalization needed, 1_xxxx * 1_xxxx = 1x_xxxx_xxxx
-            mant_product_norm = mant_product_full[2*EXT_MANT_WIDTH-2 -: (MANT_WIDTH + EXT_MANT_WIDTH)];
-            exp_product = exp_product_raw + 1;
+            // If normalization needed, 1_xxxx * 1_xxxx = 1m_mmme_eeee
+            mant_product_norm = mant_product_full[2*MANT_WIDTH -: (MANT_WIDTH + EXT_MANT_WIDTH)];
+            exp_temp_out = exp_add_raw + 1;
         end
     end
 
+    // Overflow detection
+    assign overflow = (exp_temp_out[EXP_WIDTH + EXT_EXP_WIDTH] == 1'b1);
+
     // Output
-    assign data_out = {sign_product, exp_product, mant_product_norm};
+    assign data_out = overflow ? {sign_product, BOUND_VAL} : {sign_product, exp_temp_out[EXP_WIDTH + EXT_EXP_WIDTH - 1:0], mant_product_norm};
 
 endmodule

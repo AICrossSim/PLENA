@@ -14,7 +14,7 @@ from cfl_cocotb import veri_runner, FpGenerator
 exp_width = 4
 mant_width = 3
 ext_mant_width = 0
-ext_exp_width = 1
+ext_exp_width = 0
 
 output_man_width = mant_width + ext_mant_width
 output_exp_width = exp_width + ext_exp_width
@@ -27,14 +27,14 @@ logger.setLevel(logging.INFO)
 @cocotb.test()
 async def random_fp_test(dut):
     # Start clock generation
-    TESTCASE_SIZE = 10
+    TESTCASE_SIZE = 1
     # cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
     await Timer(5, units="ns")
     cocotb.log.info("Starting fp addition test")
 
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
-        fp_values, results = generator.generate_fp_input(2)
+        fp_values, results = generator.generate_specified_value_fp_input([4.517, 30.231])
         dut.data_a.value = results[0]
         dut.data_b.value = results[1]
         # await RisingEdge(dut.clk)
@@ -45,7 +45,7 @@ async def random_fp_test(dut):
         cocotb.log.info(f"Internal man_a_ext: {dut.man_a_ext.value}, Internal man_b_ext: {dut.man_b_ext.value}")
         cocotb.log.info(f"Internal mant_product_full: {dut.mant_product_full.value}")
         cocotb.log.info(f"Internal mant_product_norm : {dut.mant_product_norm.value}")
-        cocotb.log.info(f"Internal exp_product : {dut.exp_product.value}, raw_exp_product : {dut.exp_product_raw.value}")
+        cocotb.log.info(f"Internal exp_temp_out : {dut.exp_temp_out.value}, exp_add_raw : {dut.exp_add_raw.value}")
         cocotb.log.info(f"Expected result : {fp_values[0] * fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
 
 

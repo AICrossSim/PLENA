@@ -34,11 +34,14 @@ module fp_cp_adder #(
 
     logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] full_mant_a, full_mant_b;
     logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] mant_a_shifted, mant_b_shifted;
-    logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] mant_sum;
+    logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] mant_sum, mant_out;
 
     logic [EXP_WIDTH - 1:0] exp_diff;
     logic [EXP_WIDTH - 1:0] exp_max;
     logic [EXP_WIDTH + EXT_EXP_WIDTH - 1:0] exp_out;
+
+    localparam EXP_SHIFT_SUB_WIDTH = $clog2(MANT_WIDTH + 3);
+    logic [EXP_SHIFT_SUB_WIDTH -1:0] exp_shift_sub;
 
     always_comb begin
         // Extract sign, exponent, mantissa
@@ -67,11 +70,32 @@ module fp_cp_adder #(
             exp_max        = exp_b;
         end
 
-        // Add/Subtract based on signs
+        // Addition
         if (sign_a == sign_b) begin
             mant_sum = mant_a_shifted + mant_b_shifted;
             sign_res = sign_a;
-        end else begin
+            // Mantissa overflow handling (e.g., normalisation)
+            if (mant_sum[MANT_WIDTH + EXT_MANT_WIDTH + 1] == 1'b1) begin
+                if (EXT_EXP_WIDTH == 0) begin
+                    mant_out    = mant_sum >> 1;
+                    if (exp_max == {EXP_WIDTH{1'b1}}) begin
+                        // Handle overflow case
+                        exp_out = {EXP_WIDTH{1'b1}}; // Set to max exponent
+                    end else begin
+                        exp_out = exp_max + 'b1;
+                    end
+                end else begin
+                    mant_out = mant_sum >> 1;
+                    exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + 'b1 + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
+                end
+
+            end else begin
+                mant_out = mant_sum;
+                exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
+            end
+        end 
+        // Subtraction
+        else begin
             if (mant_a_shifted >= mant_b_shifted) begin
                 mant_sum = mant_a_shifted - mant_b_shifted;
                 sign_res = sign_a;
@@ -79,29 +103,21 @@ module fp_cp_adder #(
                 mant_sum = mant_b_shifted - mant_a_shifted;
                 sign_res = sign_b;
             end
-        end
-
-        // Mantissa overflow handling (e.g., normalisation)
-        if (mant_sum[MANT_WIDTH + EXT_MANT_WIDTH + 1] == 1'b1) begin
-            if (EXT_EXP_WIDTH == 0) begin
-                mant_sum    = mant_sum >> 1;
-                if (exp_max == {EXP_WIDTH{1'b1}}) begin
-                    // Handle overflow case
-                    exp_out = {EXP_WIDTH{1'b1}}; // Set to max exponent
-                end else begin
-                    exp_out = exp_max + 'b1;
-                end
-            end else begin
-                mant_sum = mant_sum >> 1;
-                exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + 'b1 + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
-            end
-
-        end else begin
-            exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
+            mant_out = mant_sum << exp_shift_sub;
+            exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} - exp_shift_sub + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
         end
 
         // Output final packed value: {sign, exponent, extended mantissa}
-        data_out = {sign_res, exp_out, mant_sum[MANT_WIDTH + EXT_MANT_WIDTH - 1:0]};
+        data_out = {sign_res, exp_out, mant_out[MANT_WIDTH + EXT_MANT_WIDTH - 1:0]};
     end
+
+
+    // Counting Num of zeros for subtraction
+    clz_int #(
+        .width_i(MANT_WIDTH + EXT_MANT_WIDTH + 1)
+    ) clz_inst (
+        .i_num(mant_sum[MANT_WIDTH + EXT_MANT_WIDTH:0]),
+        .o_lz(exp_shift_sub)
+    );
 
 endmodule
