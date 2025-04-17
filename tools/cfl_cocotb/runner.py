@@ -46,6 +46,7 @@ def _single_test(
     i: int,  # id
     include_files: Path,
     extra_include_files: str,
+    definitions_path: str,
     module: str,
     module_params: dict,
     module_path: Path,
@@ -77,6 +78,8 @@ def _single_test(
             if extra_include_files:
                 for exclude in extra_include_files:
                     includes.append(exclude+ "/rtl/")
+            if definitions_path:
+                includes.append(definitions_path)
                     
         elif sim == "icarus":
             tool_args = []
@@ -123,6 +126,7 @@ def veri_runner(
     module=None,
     group=None,
     additional_include_paths=None,
+    definitions_path=None,
     module_param_list: list[dict[str, Any]] = [dict()],
     sim: str = "verilator",
     extra_build_args: list[str] = [],
@@ -177,6 +181,7 @@ def veri_runner(
                 i=i,
                 include_files=group_path,
                 extra_include_files=additional_include_paths,
+                definitions_path=definitions_path,
                 module=module,
                 module_params=module_params,
                 module_path=module_path,

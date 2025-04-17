@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
-
+`include "operation.svh"
 /*
 Module      : Elementwise Computation Module
-Timing      : Sequential, Takes x cycles to compute the dot product
+Timing      : Sequential, Takes 1 cycles to compute the dot product
 Description : This module includes elementwise vector computations
             : 1. Elementwise Add, 2. Elementwise Subtract, 3. Elementwise Multiply, 4. Elementwise Exponential
 Status      : Under Development
@@ -15,10 +15,7 @@ module elementwise_compute_unit #(
     parameter MANT_WIDTH   = 3,
 
     // Dimensions
-    parameter VLEN      = 8,
-
-    // Operation Control
-    parameter OPERAND_WIDTH = 4
+    parameter VLEN      = 8
 
 ) (
     input logic clk,
@@ -33,7 +30,7 @@ module elementwise_compute_unit #(
     output logic v_in_b_ready,
 
     // Control
-    input logic [OPERAND_WIDTH - 1:0] operation, // 0: add, 1: sub, 2: mul
+    input ELEMENT_V_OPERAND operation, // 0: add, 1: sub, 2: mul
 
     // Output Vector
     output logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out,
@@ -41,110 +38,46 @@ module elementwise_compute_unit #(
     input logic v_out_ready
 );
 
-typedef enum logic [OPERAND_WIDTH -1:0] { 
-    ADD = 0,
-    SUB = 1,
-    MUL = 2,
-    EXP = 3
- } ELEMENT_V_OPERAND;
+logic v_in_ready, v_in_valid;
+logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_alu_out;
 
-logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out_add;
-logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out_sub;
-logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out_mul;
-logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out_exp;
+generate;
+    for (genvar i = 0; i < VLEN; i = i + 1) begin : parallel_vec_alu
+        
+        vector_element_alu #(
+            .EXP_WIDTH(EXP_WIDTH),
+            .MANT_WIDTH(MANT_WIDTH)
+        ) vec_alu_inst (
+            .data_a(v_in_a[i]),
+            .data_b(v_in_b[i]),
+            .operation(operation),
+            .data_out(v_alu_out[i])
+        );
+
+    end
+endgenerate
 
 
-logic v_in_add_valid, v_in_sub_valid, v_in_mul_valid, v_in_exp_valid;
-logic v_in_add_ready, v_in_sub_ready, v_in_mul_ready, v_in_exp_ready;
-logic v_out_add_valid, v_out_sub_valid, v_out_mul_valid, v_out_exp_valid;
-logic v_out_add_ready, v_out_sub_ready, v_out_mul_ready, v_out_exp_ready;
-
-
-always_comb begin
-    v_out_valid = 0;
-    v_out_ready = 0;
-    v_out = '0;
-
-    case (operation)
-        ADD: begin
-            v_out = v_out_add;
-            v_out_valid = v_out_add_valid;
-            v_out_ready = v_out_add_ready;
-        end
-        SUB: begin
-            v_out = v_out_sub;
-            v_out_valid = v_out_sub_valid;
-            v_out_ready = v_out_sub_ready;
-        end
-        MUL: begin
-            v_out = v_out_mul;
-            v_out_valid = v_out_mul_valid;
-            v_out_ready = v_out_mul_ready;
-        end
-        EXP: begin
-            v_out = v_out_exp;
-            v_out_valid = v_out_exp_valid;
-            v_out_ready = v_out_exp_ready;
-        end
-    endcase
-end
-
-// Elementwise Add, do not include the extended mantissa and exponent 
-fp_vector_add #(
-    .VEC_DIM(VLEN),
-    .MANT_WIDTH(MANT_WIDTH),
-    .EXP_WIDTH(EXP_WIDTH),
-    .EXT_MANT_WIDTH(0),
-    .EXT_EXP_WIDTH(0)
-) elementwise_add (
-    .clk(clk),
-    .rst(rst),
-
-    // input port A
-    .data_a_in(v_in_a),
-    .data_a_in_valid(v_in_a_valid),
-    .data_a_in_ready(v_in_add_ready),
-
-    // input port B
-    .data_b_in(v_in_b),
-    .data_b_in_valid(v_in_b_valid),
-    .data_b_in_ready(v_in_sub_ready),
-
-    // output port
-    .data_out(v_out_add),
-    .data_out_valid(v_out_add_valid),
-    .data_out_ready(v_out_add_ready)
-);
-
-// Elementwise Mul
-fp_vector_mult #(
-    .VEC_DIM(VLEN),
-    .MANT_WIDTH(MANT_WIDTH),
-    .EXP_WIDTH(EXP_WIDTH),
-    .EXT_MANT_WIDTH(0),
-    .EXT_EXP_WIDTH(0)
-) elementwise_mult (
-    .clk(clk),
-    .rst(rst),
-
-    // input port A
-    .data_a_in(v_in_a),
-    .data_a_in_valid(v_in_a_valid),
-    .data_a_in_ready(v_in_mul_ready),
-
-    // input port B
-    .data_b_in(v_in_b),
-    .data_b_in_valid(v_in_b_valid),
-    .data_b_in_ready(v_in_mul_ready),
-
-    // output port
-    .data_out(v_out_mul),
-    .data_out_valid(v_out_mul_valid),
-    .data_out_ready(v_out_mul_ready)
+join2 #() join_inst (
+    .data_in_ready ({v_in_a_ready, v_in_b_ready}),
+    .data_in_valid ({v_in_a_valid, v_in_b_valid}),
+    .data_out_valid(v_in_valid),
+    .data_out_ready(v_in_ready)
 );
 
 
+skid_buffer #(
+    .DATA_WIDTH(VLEN * (MANT_WIDTH + EXP_WIDTH + 1))
+) skid_buf_inst (
+    .clk(clk),
+    .rst(!rst),
+    .data_in(v_alu_out),
+    .data_in_valid(v_in_valid),
+    .data_in_ready(v_in_ready),
+    .data_out(v_out),
+    .data_out_valid(v_out_valid),
+    .data_out_ready(v_out_ready)
+);
 
-// TODO: Elementwise EXP
 
 endmodule

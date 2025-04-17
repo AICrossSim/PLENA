@@ -81,11 +81,16 @@ module fp_cp_adder #(
             end
         end
 
-        // Overflow handling (e.g., normalisation)
+        // Mantissa overflow handling (e.g., normalisation)
         if (mant_sum[MANT_WIDTH + EXT_MANT_WIDTH + 1] == 1'b1) begin
             if (EXT_EXP_WIDTH == 0) begin
-                // Overflow, but there is no extra bits to shift in exp, keep the max val.
-                exp_out = exp_max;
+                mant_sum    = mant_sum >> 1;
+                if (exp_max == {EXP_WIDTH{1'b1}}) begin
+                    // Handle overflow case
+                    exp_out = {EXP_WIDTH{1'b1}}; // Set to max exponent
+                end else begin
+                    exp_out = exp_max + 'b1;
+                end
             end else begin
                 mant_sum = mant_sum >> 1;
                 exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + 'b1 + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
