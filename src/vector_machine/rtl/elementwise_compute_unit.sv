@@ -5,7 +5,7 @@ Module      : Elementwise Computation Module
 Timing      : Sequential, Takes 1 cycles to compute the dot product
 Description : This module includes elementwise vector computations
             : 1. Elementwise Add, 2. Elementwise Subtract, 3. Elementwise Multiply, 4. Elementwise Exponential
-Status      : Under Development
+Status      : Pass Simple Test, EXP not implemented yet.
 */
 
 

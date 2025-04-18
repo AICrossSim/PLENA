@@ -100,9 +100,9 @@ module fp_adder_tree #(
         );
       end
 
-      for (genvar i = 0; i < VEC_DIM; i++) begin : gen_input_assign
-        assign data_storage[0][(i+1)*IN_WIDTH-1 : i*IN_WIDTH] = data_in[i];
-      end
+
+      assign data_storage[0]= data_in;
+
 
       assign valid[0] = data_in_valid;
       assign data_in_ready = ready[0];

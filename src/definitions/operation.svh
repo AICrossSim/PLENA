@@ -4,12 +4,17 @@
 `define OPERATION_SVH
 
 
-parameter OPERAND_WIDTH = 3; // Number of bits to represent the operation
-typedef enum logic [OPERAND_WIDTH-1:0] {
+typedef enum logic [2:0] {
     ADD = 0,
     SUB = 1,
     MUL = 2,
     EXP = 3
 } ELEMENT_V_OPERAND;
+
+typedef enum logic [2:0] {
+    Red_SUM = 0,
+    Red_MAX = 1
+} RED_V_OPERAND;
+
 
 `endif
