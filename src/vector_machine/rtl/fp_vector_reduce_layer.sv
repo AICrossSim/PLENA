@@ -10,7 +10,7 @@ Description : Binary Tree Reduction of Floating Point Numbers, supporting:
 Status      : Under Development
 */
 
-module vector_reduce_layer #(
+module fp_vector_reduce_layer #(
     // Declared Input Width
     parameter OVERALL_INPUT_WIDTH = 16,
 

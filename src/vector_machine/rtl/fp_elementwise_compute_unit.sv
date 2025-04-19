@@ -9,7 +9,7 @@ Status      : Pass Simple Test, EXP not implemented yet.
 */
 
 
-module elementwise_compute_unit #(
+module fp_elementwise_compute_unit #(
     // FP Data Format
     parameter EXP_WIDTH    = 4,
     parameter MANT_WIDTH   = 3,

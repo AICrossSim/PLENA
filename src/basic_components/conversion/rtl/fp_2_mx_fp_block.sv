@@ -12,7 +12,7 @@ Status      : Passed Simple Tests
 
 module fp_2_mx_fp_block #(
     parameter BLOCK_DIM = 8, 
-    parameter FP_MAN_WIDTH = 3,
+    parameter FP_MANT_WIDTH = 3,
     parameter FP_EXP_WIDTH = 4,
 
     parameter MX_FP_MANT_WIDTH = 3,
@@ -21,7 +21,7 @@ module fp_2_mx_fp_block #(
 )(
     input   logic clk,
     input   logic rst,
-    input   logic [BLOCK_DIM-1:0][FP_MAN_WIDTH + FP_EXP_WIDTH : 0] data_in,
+    input   logic [BLOCK_DIM-1:0][FP_MANT_WIDTH + FP_EXP_WIDTH : 0] data_in,
     input   logic data_in_valid,
     output  logic data_in_ready,
 
@@ -39,16 +39,15 @@ module fp_2_mx_fp_block #(
     logic                               fp_sgns [BLOCK_DIM];
     logic unsigned [BLOCK_DIM -1:0][FP_EXP_WIDTH - 1:0] fp_exps;
     logic unsigned [FP_EXP_WIDTH - 1:0] exp_max;
-    logic unsigned [BLOCK_DIM -1:0][FP_MAN_WIDTH - 1:0] fp_mans;
+    logic unsigned [BLOCK_DIM -1:0][FP_MANT_WIDTH - 1:0] fp_mans;
 
-
-    always_comb begin
-        for (int i=0; i<BLOCK_DIM; i++) begin
-            fp_sgns[i] = data_in[i][FP_EXP_WIDTH + FP_MAN_WIDTH];
-            fp_exps[i] = data_in[i][FP_EXP_WIDTH + FP_MAN_WIDTH - 1 : FP_MAN_WIDTH];
-            fp_mans[i] = data_in[i][FP_MAN_WIDTH-1:0];
+    generate;
+        for (genvar i =0; i < BLOCK_DIM; i=i+1) begin
+            assign fp_sgns[i] = data_in[i][FP_EXP_WIDTH + FP_MANT_WIDTH];
+            assign fp_exps[i] = data_in[i][FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : FP_MANT_WIDTH];
+            assign fp_mans[i] = data_in[i][FP_MANT_WIDTH-1:0];
         end
-    end
+    endgenerate
 
     unsigned_max #(
         .width(FP_EXP_WIDTH),
@@ -63,7 +62,7 @@ module fp_2_mx_fp_block #(
     logic unsigned [MX_FP_SCALE_WIDTH - 1:0] p1_e_max;
     logic                               p1_fp_sgns [BLOCK_DIM];
     logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1:0] p1_fp_exps;
-    logic unsigned [BLOCK_DIM-1:0][FP_MAN_WIDTH - 1:0] p1_fp_mans;
+    logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH - 1:0] p1_fp_mans;
 
     // Setting the lower bound
     assign p1_e_max = (exp_max >= FP_OFFSET) ? exp_max : FP_OFFSET;
@@ -78,7 +77,7 @@ module fp_2_mx_fp_block #(
     logic                               p2_fp_sgns [BLOCK_DIM];
     logic [MX_FP_SCALE_WIDTH - 1:0]     p2_e_max, p2_sh_exp;
     logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1 :0] p2_m_shifts;
-    logic unsigned [BLOCK_DIM-1:0][FP_MAN_WIDTH     :0] p2_man_exts;
+    logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH     :0] p2_man_exts;
     logic [BLOCK_DIM-1:0] element_in_ready;
 
     logic                               p2_data_valid;
@@ -97,7 +96,7 @@ module fp_2_mx_fp_block #(
     generate;
         for(genvar i=0; i<BLOCK_DIM; i++) begin : gen_mxfp_element
             fix_with_shift_2_fp # (
-                .FIXED_DATA_WIDTH(FP_MAN_WIDTH + 1),
+                .FIXED_DATA_WIDTH(FP_MANT_WIDTH + 1),
                 .FP_EXP_WIDTH(MX_FP_EXP_WIDTH),
                 .FP_MANT_WIDTH(MX_FP_MANT_WIDTH),
                 .SHIFT_WIDTH(FP_EXP_WIDTH)

@@ -12,7 +12,7 @@ Status      : Under Development
 */
 
 
-module reduction_compute_unit #(
+module fp_reduction_compute_unit #(
     // FP Data Format
     parameter EXP_WIDTH    = 4,
     parameter MANT_WIDTH   = 3,

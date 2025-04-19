@@ -92,7 +92,7 @@ split_n #(
 );
 
 matrix_collector #(
-    .DATAWIDTH((MXFP_MANT_WIDTH + MXFP_EXP_WIDTH) * MLEN),
+    .DATAWIDTH((MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1) * MLEN),
     .COLLECTOR_DEPTH(MLEN),
     .Collect_Dim(Matrix_Parallel_Rd_Dim)
 ) element_collect (
@@ -159,10 +159,10 @@ split_n #(
 );
 
 skid_buffer #(
-    .DATAWIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH))
+    .DATAWIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
 ) multiplicand_vec_element_buffer (
     .clk(clk),
-    .rst(rst),
+    .rst(!rst),
 
     // Input
     .in_data(v_element),
@@ -179,7 +179,7 @@ skid_buffer #(
     .DATAWIDTH(BLOCK_NUM * MX_FP_SCALE_WIDTH)
 ) multiplicand_vec_scale_buffer (
     .clk(clk),
-    .rst(rst),
+    .rst(!rst),
 
     // Input
     .in_data(v_scale),
@@ -221,10 +221,10 @@ split_n #(
 );
 
 skid_buffer #(
-    .DATAWIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH))
+    .DATAWIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
 ) offset_vec_element_buffer (
     .clk(clk),
-    .rst(rst),
+    .rst(!rst),
 
     // Input
     .in_data(o_element),
@@ -241,7 +241,7 @@ skid_buffer #(
     .DATAWIDTH(BLOCK_NUM * MX_FP_SCALE_WIDTH)
 ) offset_vec_scale_buffer (
     .clk(clk),
-    .rst(rst),
+    .rst(!rst),
 
     // Input
     .in_data(o_scale),

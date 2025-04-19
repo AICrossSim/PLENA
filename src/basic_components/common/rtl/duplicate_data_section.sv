@@ -1,10 +1,10 @@
+`timescale 1ns / 1ps
+
 /*
 Module      : duplicate data section
 Description : This module receives data and repeats it N times.
                 ABCD -> AABBCCDD
 */
-
-`timescale 1ns / 1ps
 
 module duplicate_data_section #(
     parameter DATA_SEC_WIDTH = 4,

@@ -174,7 +174,7 @@ def simple_test():
     # Run tests with different params
     veri_runner(
         group = "vector_machine",
-        module = "elementwise_compute_unit",
+        module = "fp_elementwise_compute_unit",
         additional_include_paths = [
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common",

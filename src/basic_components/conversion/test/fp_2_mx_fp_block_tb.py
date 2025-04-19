@@ -85,7 +85,7 @@ def test_simple_fp_2_mxfp_conversion():
             "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"
         ],       
         module_param_list=[
-            {"BLOCK_DIM" : block_dim, "FP_MAN_WIDTH" : fp_mant_width, "FP_EXP_WIDTH" : fp_exp_width, "MX_FP_EXP_WIDTH" : mxfp_exp_width, "MX_FP_MANT_WIDTH" : mxfp_mant_width, "MX_FP_SCALE_WIDTH" : mxfp_scale_width},
+            {"BLOCK_DIM" : block_dim, "FP_MANT_WIDTH" : fp_mant_width, "FP_EXP_WIDTH" : fp_exp_width, "MX_FP_EXP_WIDTH" : mxfp_exp_width, "MX_FP_MANT_WIDTH" : mxfp_mant_width, "MX_FP_SCALE_WIDTH" : mxfp_scale_width},
         ],
         trace = True,
     )

@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
+
 /*
 Module      : Vector ALU
 Timing      : Combinatorial Logic
@@ -8,7 +9,7 @@ Description : This module includes elementwise vector computations
 Status      : Under Development
 */
 
-module vector_element_alu #(
+module fp_vector_element_alu #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10
 )(
