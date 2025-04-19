@@ -1,10 +1,13 @@
 `timescale 1ns / 1ps
+`include "operation.svh"
 
 /*
 Module      : Vector Reduction Computation Module
 Timing      : Sequential, Takes x cycles to compute the dot product
 Description : This module includes vector reduction computations
             : 1. SUM, 2. MAX
+            : As we are targeting for high dim vector reduction, which need to be decomposed into a series of instructions, we maximally utilize the instruction and read port width of the sram by considering sources together.
+
 Status      : Under Development
 */
 
@@ -16,19 +19,20 @@ module reduction_compute_unit #(
 
     // Dimensions
     parameter VLEN      = 8,
-    localparam LEVELS = $clog2(VLEN),
+    localparam VEC_DIM   = VLEN * 2,
+    localparam LEVELS = $clog2(VEC_DIM),
 
     // Precision Control, for the vector core, currently focus solely on fixed data type width, left for future work.
     parameter ACC_EXT_EXP_WIDTH   = 0,
-    parameter ACC_EXT_MANT_WIDTH  = 0
+    parameter ACC_EXT_MANT_WIDTH  = 0,
 
     localparam OVERALL_MANT_EXT_BITS = LEVELS * ACC_EXT_MANT_WIDTH, 
-    localparam OUT_MAN_WIDTH = OVERALL_MANT_EXT_BITS + IN_MAN_WIDTH,    
+    localparam OUT_MAN_WIDTH = OVERALL_MANT_EXT_BITS + MANT_WIDTH,    
 
     localparam OVERALL_EXP_EXT_BITS = LEVELS * ACC_EXT_EXP_WIDTH,
-    localparam OUT_EXP_WIDTH  = OVERALL_EXP_EXT_BITS + IN_EXP_WIDTH,
+    localparam OUT_EXP_WIDTH  = OVERALL_EXP_EXT_BITS + EXP_WIDTH,
 
-    localparam IN_WIDTH       = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
+    localparam IN_WIDTH       = MANT_WIDTH + EXP_WIDTH + 1,
     localparam OUT_WIDTH      = OUT_MAN_WIDTH + OUT_EXP_WIDTH + 1
 
 ) (
@@ -37,7 +41,7 @@ module reduction_compute_unit #(
 
     // Input vector
 
-    input logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_in,
+    input logic [VEC_DIM - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_in,
     input logic v_in_valid,
     output logic v_in_ready,
 
@@ -65,15 +69,16 @@ module reduction_compute_unit #(
       for (genvar i = 0; i < LEVELS; i++) begin : level
 
         localparam LEVEL_IN_DIM = (VEC_DIM + ((1 << i) - 1)) >> i;     // Ceiling(VEC_DIM / 2^i)
-        localparam LEVEL_IN_MAN_WIDTH   = IN_MAN_WIDTH + i * EXT_MANT_WIDTH_PER_LAYER;
-        localparam LEVEL_IN_EXP_WIDTH   = IN_EXP_WIDTH + i * EXT_EXP_BITS_PER_LAYER;
+        localparam LEVEL_IN_MAN_WIDTH   = MANT_WIDTH + i * ACC_EXT_MANT_WIDTH;
+        localparam LEVEL_IN_EXP_WIDTH   = EXP_WIDTH + i * ACC_EXT_EXP_WIDTH;
         
         localparam LEVEL_OUT_DIM = (LEVEL_IN_DIM + 1) / 2;
-        localparam LEVEL_OUT_MAN_WIDTH  = IN_MAN_WIDTH + (i + 1) * EXT_MANT_WIDTH_PER_LAYER;
-        localparam LEVEL_OUT_EXP_WIDTH  = IN_EXP_WIDTH + (i + 1) * EXT_EXP_BITS_PER_LAYER;
+        localparam LEVEL_OUT_MAN_WIDTH  = MANT_WIDTH + (i + 1) * ACC_EXT_MANT_WIDTH;
+        localparam LEVEL_OUT_EXP_WIDTH  = EXP_WIDTH + (i + 1) * ACC_EXT_EXP_WIDTH;
         localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + LEVEL_OUT_EXP_WIDTH + 1;
 
         vector_reduce_layer #(
+            .OVERALL_INPUT_WIDTH  (OUT_WIDTH*VEC_DIM),
             .LAYER_DIM(LEVEL_IN_DIM),
             .IN_MAN_WIDTH(LEVEL_IN_MAN_WIDTH),
             .IN_EXP_WIDTH(LEVEL_IN_EXP_WIDTH),
@@ -83,7 +88,7 @@ module reduction_compute_unit #(
             .operation(operation),
             .data_in(data_storage[i]),
             .data_out(sum[i])
-        )
+        );
 
         skid_buffer #(
             .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)

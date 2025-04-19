@@ -12,8 +12,8 @@ typedef enum logic [2:0] {
 } ELEMENT_V_OPERAND;
 
 typedef enum logic [2:0] {
-    Red_SUM = 0,
-    Red_MAX = 1
+    SUM = 0,
+    MAX = 1
 } RED_V_OPERAND;
 
 

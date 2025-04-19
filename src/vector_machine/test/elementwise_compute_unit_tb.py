@@ -170,7 +170,7 @@ async def random_fp_multiply_test(dut):
 
 
 @pytest.mark.dev
-def test_simple_fp_addition():
+def simple_test():
     # Run tests with different params
     veri_runner(
         group = "vector_machine",
@@ -188,4 +188,4 @@ def test_simple_fp_addition():
     )
 
 if __name__ == "__main__":
-    test_simple_fp_addition()
+    simple_test()

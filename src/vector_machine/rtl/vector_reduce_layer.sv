@@ -11,6 +11,9 @@ Status      : Under Development
 */
 
 module vector_reduce_layer #(
+    // Declared Input Width
+    parameter OVERALL_INPUT_WIDTH = 16,
+
     parameter LAYER_DIM  = 2,
     parameter IN_MAN_WIDTH = 4,
     parameter IN_EXP_WIDTH  = 3, 
@@ -24,8 +27,8 @@ module vector_reduce_layer #(
     localparam OUTPUT_DATA_WIDTH = IN_MAN_WIDTH + EXT_MANT_WIDTH + IN_EXP_WIDTH + EXT_EXP_WIDTH + 1
 ) (
     input   RED_V_OPERAND operation, // 0: SUM, 1: MAX
-    input   logic [LAYER_DIM * INPUT_DATA_WIDTH  -1 : 0] data_in,
-    output  logic [OUT_DIM * OUTPUT_DATA_WIDTH -1 : 0] data_out
+    input   logic [OVERALL_INPUT_WIDTH -1 : 0] data_in,
+    output  logic [OVERALL_INPUT_WIDTH -1 : 0] data_out
 );
     
     logic [OUT_DIM * OUTPUT_DATA_WIDTH -1 : 0] layer_add_out, layer_max_out;
@@ -33,15 +36,15 @@ module vector_reduce_layer #(
     always_comb begin
         case (operation)
             SUM: begin
-                data_out = layer_add_out;
+                data_out = {{OVERALL_INPUT_WIDTH - OUT_DIM * OUTPUT_DATA_WIDTH{1'b0}} ,layer_add_out};
             end
 
             MAX: begin
-                data_out = layer_max_out;
+                data_out = {{OVERALL_INPUT_WIDTH - OUT_DIM * OUTPUT_DATA_WIDTH{1'b0}} ,layer_max_out};
             end
 
             default: begin
-                data_out = '0; // Default case to avoid latches
+                data_out = {OVERALL_INPUT_WIDTH{1'b0}}; // Default case to avoid latches
             end
         endcase
     end
@@ -54,7 +57,7 @@ module vector_reduce_layer #(
                 .MANT_WIDTH(IN_MAN_WIDTH),
                 .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
                 .EXT_EXP_WIDTH(EXT_EXP_WIDTH)
-            )   fp_add (
+            )   layer_fp_add (
                 .data_a(data_in[2*i*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
                 .data_b(data_in[(2*i + 1)*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
                 .data_out(layer_add_out[i * OUTPUT_DATA_WIDTH +: OUTPUT_DATA_WIDTH])
@@ -63,7 +66,7 @@ module vector_reduce_layer #(
             fp_max #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
                 .MANT_WIDTH(IN_MAN_WIDTH)
-            )   fp_add (
+            )   layer_fp_max (
                 .data_a(data_in[2*i*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
                 .data_b(data_in[(2*i + 1)*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
                 .data_out(layer_max_out[i * OUTPUT_DATA_WIDTH +: OUTPUT_DATA_WIDTH])

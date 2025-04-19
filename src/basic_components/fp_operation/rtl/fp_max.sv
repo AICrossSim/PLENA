@@ -11,7 +11,7 @@ Status      : Passed Simple Tests
 
 module fp_max #(
     parameter int EXP_WIDTH = 5,
-    parameter int MANT_WIDTH = 10,
+    parameter int MANT_WIDTH = 10
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
