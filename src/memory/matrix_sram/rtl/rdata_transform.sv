@@ -3,11 +3,11 @@
 
 module rdata_transform #(
     parameter int DataWidth = 4, 
-    parameter int SRAM_Depth = 128,
+    parameter int SRAM_DEPTH = 128,
     parameter int MLEN = 8,                                             // The TileSize of the matrix.
     parameter int Parallel_Rd_Dim = 2,                                  // The number of row/col read in parallel
     localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Dim), 
-    localparam int AdrWidth                   = $clog2(SRAM_Depth),     // Address Space for the SRAM
+    localparam int AdrWidth                   = $clog2(SRAM_DEPTH),     // Address Space for the SRAM
     localparam int SubSRAM_Amount             = MLEN / Parallel_Rd_Dim,                        // The dimension of the sub SRAM, or the TileSize of the matrix.
     localparam int ElementWidth                 = DataWidth * (Parallel_Rd_Dim ** 2)
 ) (

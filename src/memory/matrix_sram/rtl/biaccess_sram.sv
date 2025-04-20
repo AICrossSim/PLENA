@@ -15,10 +15,10 @@ Status      : Passed Simple Row/Col Read/Write Tests
 
 module biaccess_sram #(
     parameter   int DataWidth = 4, 
-    parameter   int SRAM_Depth = 128,
+    parameter   int SRAM_DEPTH = 128,
     parameter   int MLEN = 8,                                       // The TileSize of the matrix.
     parameter   int Parallel_Rd_Dim = 2,                            // The number of row/col read in parallel
-    localparam  int AddrLen = $clog2(SRAM_Depth)                    // Address Space for the SRAM 
+    localparam  int AddrLen = $clog2(SRAM_DEPTH)                    // Address Space for the SRAM 
 ) (
     input  logic clk,
 
@@ -66,10 +66,10 @@ generate
     for (sub_sram_index = 0; sub_sram_index < SubSRAM_Amount; sub_sram_index++) begin : sub_sram
         subsram #(
             .DataWidth(DataWidth),
-            .SRAM_Depth(SRAM_Depth),
+            .SRAM_DEPTH(SRAM_DEPTH),
             .SubSRAMIndex(sub_sram_index),
             .MLEN(MLEN),
-            .Parallel_Rd_Amount(Parallel_Rd_Dim)
+            .PARALLEL_DIM(Parallel_Rd_Dim)
         ) sub_sram_1 (
             .clk(clk),
             .req(req),
@@ -87,10 +87,10 @@ endgenerate
 // Write Data Transformation
 wdata_transform #(
     .DataWidth(DataWidth),
-    .SRAM_Depth(SRAM_Depth),
+    .SRAM_DEPTH(SRAM_DEPTH),
     .MLEN(MLEN),
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
-) wdata_transform_1 (
+) wdata_transform_init (
     .clk(clk),
     .in_data(write_data),
     .addr(sram_addr),
@@ -100,10 +100,10 @@ wdata_transform #(
 // Read Data Transformation
 rdata_transform #(
     .DataWidth(DataWidth),
-    .SRAM_Depth(SRAM_Depth),
+    .SRAM_DEPTH(SRAM_DEPTH),
     .MLEN(MLEN),
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
-) rdata_transform_1 (
+) rdata_transform_1_init (
     .in_data(sub_sram_rdata),
     .sram_addr(sram_addr),
     .read_data_valid(read_data_valid),

@@ -9,24 +9,32 @@ import os
 from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
-from cfl_cocotb import veri_runner, packed_array_analyser
+from cfl_cocotb import veri_runner, packed_array_analyser, MXBlockFPConverter
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.INFO)
 
 # Parameters Definition
 # ---------------------
-DataWidth = 8
-SRAM_Depth = 128
-MLEN = 8
+
+mxfp_exp_width = 4
+mxfp_mant_width = 3
+mxfp_scale_width = 8
+block_dim = 2
+
+SRAM_DEPTH = 128
+MLEN = 4
 Parallel_Wr_Dim = 2
 Parallel_Rd_Dim = 2
 
+generator = MXBlockFPConverter(mxfp_exp_width, mxfp_mant_width, mxfp_scale_width, block_dim)
+
 @cocotb.test()
-async def mv_sram_functional_test(dut):
+async def sram_function_test(dut):
     """Basic Cocotb test for my design."""
     
-    array_analyser = packed_array_analyser(DataWidth, MLEN, Parallel_Wr_Dim, Parallel_Rd_Dim)
+    element_array_analyser = packed_array_analyser  (mxfp_exp_width + mxfp_mant_width + 1, MLEN, Parallel_Wr_Dim, Parallel_Rd_Dim)
+    scale_array_analyser = packed_array_analyser    (mxfp_scale_width, MLEN, Parallel_Wr_Dim, Parallel_Rd_Dim)
 
     # Start clock generation
     cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
@@ -39,14 +47,29 @@ async def mv_sram_functional_test(dut):
         dut.req.value = 1
         dut.write_en.value = 1
         dut.sram_addr.value = (Parallel_Wr_Dim // Parallel_Rd_Dim) * i
-        dut.write_data.value = sum(((i * MLEN * Parallel_Wr_Dim + j) << (j * DataWidth)) for j in range(MLEN * Parallel_Wr_Dim))  # Concatenate 8-bit values
+
+        m_mx_fp_scales, m_mx_fp_elems = generator.generate_certain_values([1.24, 2.01, 1.0231, 0.9820, 3.14, 0.91, 2.4131, 0.4820])
+        m_ele_data = 0
+        m_scale_data = 0
+
+        for i in range(MLEN * Parallel_Wr_Dim // block_dim):
+            m_ele_data    += sum((m_mx_fp_elems[i][n] << (mxfp_exp_width + mxfp_mant_width + 1) * (n + i * block_dim) ) for n in range(block_dim))
+            m_scale_data  += (m_mx_fp_scales[i] << (mxfp_scale_width) * i)        
+        dut.element_in.value = m_ele_data
+        dut.scale_in.value = m_scale_data
         
         # raise Exception("Stop")
         await RisingEdge(dut.clk)
         await RisingEdge(dut.clk)
-        array_analyser.print_wdata_from_hbm(f"{dut.write_data.value}")
+        cocotb.log.info(f"ELEMENT HBM")
+        element_array_analyser.print_wdata_from_hbm(f"{dut.element_in.value}")
+        cocotb.log.info(f"SCALE HBM")
+        scale_array_analyser.print_wdata_from_hbm(f"{dut.scale_in.value}")
         cocotb.log.info(f"Write Addr: {dut.sram_addr.value}")
-        array_analyser.print_write_data_to_sram(f"{dut.sub_sram_wdata.value}", [0])
+        cocotb.log.info(f"ELEMENT SRAM")
+        element_array_analyser.print_write_data_to_sram(f"{dut.element_storage.sub_sram_wdata.value}", [0])
+        cocotb.log.info(f"SCALE SRAM")
+        scale_array_analyser.print_write_data_to_sram(f"{dut.scale_storage.sub_sram_wdata.value}", [0])
     
     # Read from sram
     dut.req.value = 1
@@ -56,11 +79,12 @@ async def mv_sram_functional_test(dut):
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
     # cocotb.log.info(f"Read Addr: {dut.sub_sram[0].sub_sram_1.raw_rdata.value}")
-    array_analyser.print_read_data_from_sram(f"{dut.sub_sram_rdata.value}", [3])
-    print(dut.rdata_transform_1.in_data.value)
-    await RisingEdge(dut.clk)
-    print(dut.out_data.value)
-    array_analyser.print_rdata_from_overall_sram(f"{dut.out_data.value}")
+
+    await Timer(20, units="ns")
+    cocotb.log.info(f"ELEMENT OUT HBM")
+    element_array_analyser.print_rdata_from_overall_sram(f"{dut.loaded_element_out.value}")
+    cocotb.log.info(f"SCALE OUT HBM")
+    scale_array_analyser.print_rdata_from_overall_sram(f"{dut.loaded_scale_out.value}")
     
 
     # # Transposed Read from sram
@@ -81,10 +105,14 @@ def test_simple_mvsram():
     veri_runner(
         group = "matrix_sram",
         module = "matrix_sram_with_rounding",
+        additional_include_paths = [
+            "../../../../src/basic_components/mx_fp_operation",
+            "../../../../src/basic_components/common"
+        ],  
         module_param_list=[
-            {"DataWidth": DataWidth, "SRAM_Depth": SRAM_Depth, "MLEN": MLEN, "Parallel_Rd_Dim": Parallel_Rd_Dim},
+            {"MXFP_EXP_WIDTH": mxfp_exp_width, "MXFP_MANT_WIDTH": mxfp_mant_width, "MXFP_SCALE_WIDTH": mxfp_scale_width, "BLOCK_DIM": block_dim, "SRAM_DEPTH": SRAM_DEPTH, "MLEN": MLEN, "PARALLEL_DIM" : Parallel_Wr_Dim},
         ],
-        trace = False,
+        trace = True,
     )
 
 

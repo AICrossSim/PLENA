@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)
 
 
 DataWidth = 8
-SRAM_Depth = 128
+SRAM_DEPTH = 128
 SubSRAMIndex = 0
 MLEN = 8
 Parallel_Wr_Dim = 4
@@ -81,7 +81,7 @@ def test_simple_subsram():
         group = "mv_sram",
         module = "subsram",
         module_param_list=[
-            {"DataWidth": DataWidth, "SRAM_Depth": SRAM_Depth, "MLEN": MLEN, "SubSRAMIndex": SubSRAMIndex, "Parallel_Wr_Amount": Parallel_Wr_Dim, "Parallel_Rd_Amount": Parallel_Rd_Dim},
+            {"DataWidth": DataWidth, "SRAM_DEPTH": SRAM_DEPTH, "MLEN": MLEN, "SubSRAMIndex": SubSRAMIndex, "Parallel_Wr_Amount": Parallel_Wr_Dim, "PARALLEL_DIM": Parallel_Rd_Dim},
         ],
         trace = False,
     )

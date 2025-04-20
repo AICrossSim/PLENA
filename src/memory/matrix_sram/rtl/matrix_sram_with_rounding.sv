@@ -17,13 +17,14 @@ module matrix_sram_with_rounding #(
     parameter MXFP_SCALE_WIDTH  = 8,
 
     // Dimension
-    parameter   MLEN              = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
+    parameter   MLEN              = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.
     parameter   BLOCK_DIM         = 4,                                
     localparam  BLOCK_NUM         = MLEN / BLOCK_DIM,
 
     // SRAM
-    parameter   SRAM_Depth        = 128,
-    parameter   Parallel_Rd_Amount = 2                              // The depth of the SRAM
+    parameter   SRAM_DEPTH        = 128,
+    localparam  AddrLen           = $clog2(SRAM_DEPTH),                 // Address Space for the SRAM
+    parameter   PARALLEL_DIM = 2                                        // The depth of the SRAM
 
 ) (
     input   logic clk,
@@ -36,22 +37,22 @@ module matrix_sram_with_rounding #(
     input   logic read_en,
 
     input   logic [AddrLen-1:0] sram_addr,   
-    input   logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
-    input   logic [Parallel_Rd_Amount - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in, 
-    output  logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
-    output  logic [Parallel_Rd_Amount - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out
+    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
+    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in, 
+    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
+    output  logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out
 
 );
 
 // scale duplication
-logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
-logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
-logic [Parallel_Rd_Amount - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] loaded_element_out;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] loaded_element_out;
 
 duplicate_data_section #(
     .DATA_SEC_WIDTH(MXFP_SCALE_WIDTH),
     .REPEAT(BLOCK_DIM),
-    .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH * BLOCK_NUM * Parallel_Rd_Amount),
+    .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH * BLOCK_NUM * PARALLEL_DIM)
 ) dumplicate_scale(
     .in_data(scale_in),
     .out_data(dumplicated_scale_in)
@@ -60,9 +61,9 @@ duplicate_data_section #(
 // scale storage
 biaccess_sram #(
     .DataWidth(MXFP_SCALE_WIDTH),
-    .SRAM_Depth(SRAM_Depth),
+    .SRAM_DEPTH(SRAM_DEPTH),
     .MLEN(MLEN),
-    .Parallel_Rd_Dim(Parallel_Rd_Amount)
+    .Parallel_Rd_Dim(PARALLEL_DIM)
 ) scale_storage (
     .clk(clk),
     .req(req),
@@ -78,10 +79,10 @@ biaccess_sram #(
 // element storage
 biaccess_sram #(
     .DataWidth(MXFP_SCALE_WIDTH),
-    .SRAM_Depth(SRAM_Depth),
+    .SRAM_DEPTH(SRAM_DEPTH),
     .MLEN(MLEN),
-    .Parallel_Rd_Dim(Parallel_Rd_Amount)
-) scale_storage (
+    .Parallel_Rd_Dim(PARALLEL_DIM)
+) element_storage (
     .clk(clk),
     .req(req),
     .transposed_read(transposed_read),
@@ -95,7 +96,7 @@ biaccess_sram #(
 
 // Output Rescale
 generate
-    for (genvar i = 0; i < Parallel_Rd_Amount * BLOCK_NUM; i++) begin : output_rescale
+    for (genvar i = 0; i < PARALLEL_DIM * BLOCK_NUM; i++) begin : output_rescale
         mx_fp_rescale #(
             .IN_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .IN_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
@@ -110,7 +111,7 @@ generate
             .scale_in(loaded_scale_out[i]),
             .element_data_out(element_out[i]),
             .scale_data_out(scale_out[i])
-        )
+        );
     end
 
 endgenerate

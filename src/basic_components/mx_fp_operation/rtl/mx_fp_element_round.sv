@@ -1,11 +1,10 @@
 `timescale 1ns / 1ps
 /*
-Module      : Floating Point Rounding Unit
+Module      : MXFP Rounding Unit
 Timing      : Combinatorial Logic
-Description : Rounds a floating point number to a different precision.
-              Output format: {sign, exp_out, mant_out}.
+Description : Rounds a MXFP data to a different precision.
               Round Mantissa based on Guard, Round, Sticky bits.
-Status      : Passed Simple Tests
+Status      : Under Development
 */
 
 module mx_fp_element_round #(
@@ -103,11 +102,11 @@ module mx_fp_element_round #(
     exp_overflow     = |exp_intermediate[IN_EXP_WIDTH:OUT_EXP_WIDTH];
 
     if (exp_overflow) begin
-        exp_out = {(OUT_EXP_WIDTH-1){1'b1}, 1'b0}; // max exponent
-        overflow_exp_amount = exp_intermediate[IN_EXP_WIDTH-1:OUT_EXP_WIDTH] - exp_out;
+        exp_out = {{(OUT_EXP_WIDTH-1){1'b1}}, 1'b0}; // max exponent
+        // overflow_exp_amount = exp_intermediate[IN_EXP_WIDTH-1:OUT_EXP_WIDTH] - exp_out;
     end else begin
         exp_out = exp_intermediate[OUT_EXP_WIDTH-1:0];
-        overflow_exp_amount = 0;
+        // overflow_exp_amount = 0;
     end
 
     // Final mantissa
