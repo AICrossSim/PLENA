@@ -96,22 +96,25 @@ biaccess_sram #(
 
 // Output Rescale
 generate
-    for (genvar i = 0; i < PARALLEL_DIM * BLOCK_NUM; i++) begin : output_rescale
-        mx_fp_rescale #(
-            .IN_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .IN_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-            .BLOCK_DIM(BLOCK_DIM),
-            .OUT_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .OUT_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH)
-        ) rescale_output(
-            .clk(clk),
-            .rst(rst),
-            .element_in(loaded_element_out[i]),
-            .scale_in(loaded_scale_out[i]),
-            .element_data_out(element_out[i]),
-            .scale_data_out(scale_out[i])
-        );
+    for (genvar i = 0; i < PARALLEL_DIM; i++) begin : output_rescale
+        for (genvar j = 0; j < BLOCK_NUM; j++) begin : output_rescale_block
+            mx_fp_rescale #(
+                .IN_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+                .IN_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+                .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+                .BLOCK_DIM(BLOCK_DIM),
+                .OUT_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+                .OUT_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH)
+            ) rescale_output(
+                .clk(clk),
+                .rst(rst),
+                .element_in(loaded_element_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
+                .scale_in(loaded_scale_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
+                .element_data_out(element_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
+                .scale_data_out(scale_out[i][j])
+            );
+        end
+
     end
 
 endgenerate
