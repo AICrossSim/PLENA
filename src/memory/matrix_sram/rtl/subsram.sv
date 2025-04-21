@@ -13,7 +13,7 @@ module subsram #(
   parameter  int SRAM_DEPTH                 = 128,
   parameter  int SubSRAMIndex               = 0,                                // Index of the sub SRAM    
   parameter  int MLEN                       = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
-  parameter  int PARALLEL_DIM         = 2,                                // The number of row/col read in parallel
+  parameter  int PARALLEL_DIM               = 2,                                // The number of row/col read in parallel
   localparam int AdrWidth                   = $clog2(SRAM_DEPTH),               // derived parameter
   localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/PARALLEL_DIM),  // The width of the parallel read index
   localparam int ElementWidth               = DataWidth * (PARALLEL_DIM ** 2),   // The width of each element in the sub SRAM

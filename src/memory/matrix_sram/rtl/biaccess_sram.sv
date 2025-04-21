@@ -63,7 +63,7 @@ end
 // Instantiate the sub SRAMs
 genvar sub_sram_index;
 generate
-    for (sub_sram_index = 0; sub_sram_index < SubSRAM_Amount; sub_sram_index++) begin : sub_sram
+    for (sub_sram_index = 0; sub_sram_index < SubSRAM_Amount; sub_sram_index++) begin : sub_sram_gen
         subsram #(
             .DataWidth(DataWidth),
             .SRAM_DEPTH(SRAM_DEPTH),
