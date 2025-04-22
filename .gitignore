@@ -14,3 +14,5 @@ coprocessor/*
 .DS_Store
 **/.DS_Store
 
+*.egg-info
+
