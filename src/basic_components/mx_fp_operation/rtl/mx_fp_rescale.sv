@@ -59,6 +59,7 @@ module mx_fp_rescale #(
     endgenerate
 
     logic [MXFP_SCALE_WIDTH - 1 : 0] exp_max;
+
     unsigned_max #(
         .width(MXFP_SCALE_WIDTH),
         .length(BLOCK_DIM),
@@ -68,6 +69,14 @@ module mx_fp_rescale #(
         .input_data(rounded_scale),
         .max_val(exp_max)
     );
+
+    always_ff @(posedge clk or negedge rst) begin
+        if (!rst) begin
+            p1_rounded_element_out <= '0;
+        end else begin
+            p1_rounded_element_out <= p0_rounded_element_out;
+        end
+    end
 
     generate;
         for (genvar i = 0; i < BLOCK_DIM; i++) begin : gen_rescale

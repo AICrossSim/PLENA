@@ -43,7 +43,7 @@ async def sram_function_test(dut):
     cocotb.log.info("Starting SRAM test")
 
     # Write to sram
-    for i in range(1):
+    for i in range(MLEN // Parallel_Wr_Dim):
         dut.req.value = 1
         dut.write_en.value = 1
         dut.sram_addr.value = (Parallel_Wr_Dim // Parallel_Rd_Dim) * i
@@ -61,6 +61,9 @@ async def sram_function_test(dut):
         # raise Exception("Stop")
         await RisingEdge(dut.clk)
         await RisingEdge(dut.clk)
+        cocotb.log.info("Write Content SRAM test at Addr: %d", dut.sram_addr.value)
+        element_array_analyser.print_wdata_from_hbm(f"{dut.element_in.value}")
+        scale_array_analyser.print_wdata_from_hbm(f"{dut.scale_in.value}")
         # cocotb.log.info(f"ELEMENT HBM")
         # element_array_analyser.print_wdata_from_hbm(f"{dut.element_in.value}")
         # cocotb.log.info(f"SCALE HBM")
@@ -74,36 +77,33 @@ async def sram_function_test(dut):
         # scale_array_analyser.print_write_data_to_sram(f"{dut.scale_storage.sub_sram_wdata.value}", [0])
     
     # Read from sram
+
+    dut.req.value = 1
+    dut.write_en.value = 0
+    dut.sram_addr.value = 0
+    dut.transposed_read.value = 0
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+
+    cocotb.log.info("<----------------Row Read at Addr: %d --------------->", dut.sram_addr.value)
+    cocotb.log.info(f"Loaded OUT HBM")
+    element_array_analyser.print_rdata_from_overall_sram(f"{dut.element_out.value}")
+    cocotb.log.info(f"SCALE OUT HBM")
+    scale_array_analyser.print_rdata_from_overall_sram(f"{dut.scale_out.value}")
+    
+
+    # Transposed Read from sram
     dut.req.value = 1
     dut.write_en.value = 0
     dut.sram_addr.value = 0
     dut.transposed_read.value = 1
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
-    # cocotb.log.info(f"Read Addr: {dut.sub_sram[0].sub_sram_1.raw_rdata.value}")
-
-    await Timer(20, units="ns")
-    cocotb.log.info(f"ELEMENT OUT HBM")
-    cocotb.log.info(f"{dut.element_storage.sub_sram_wdata.value}")
-    cocotb.log.info(f"{dut.element_storage.sub_sram_rdata.value}")
-
-    cocotb.log.info(f"subsram 0 wdata: {dut.element_storage.sub_sram_gen[0].sub_sram_1.wdata.value}")
-
-    element_array_analyser.print_rdata_from_overall_sram(f"{dut.element_storage.sub_sram_wdata.value}")
-    element_array_analyser.print_rdata_from_overall_sram(f"{dut.element_storage.sub_sram_rdata.value}")
+    cocotb.log.info("<----------------Col Read at Addr: %d --------------->", dut.sram_addr.value)
     cocotb.log.info(f"Loaded OUT HBM")
     element_array_analyser.print_rdata_from_overall_sram(f"{dut.loaded_element_out.value}")
     cocotb.log.info(f"SCALE OUT HBM")
     scale_array_analyser.print_rdata_from_overall_sram(f"{dut.loaded_scale_out.value}")
-    
-
-    # # Transposed Read from sram
-    # dut.req.value = 1
-    # dut.write_en.value = 0
-    # dut.sram_addr.value = 0
-    # dut.transposed_read = 1
-    # await RisingEdge(dut.clk)
-    # await RisingEdge(dut.clk)
 
 
     # Keep simulation running to observe clock
