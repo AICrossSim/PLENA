@@ -39,8 +39,15 @@ async def sram_function_test(dut):
     # Start clock generation
     cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
     await Timer(5, units="ns")
-
+    
     cocotb.log.info("Starting SRAM test")
+    dut.rst.value = 0
+    await Timer(5, units="ns")  # Hold reset for 5ns
+    dut.rst.value = 1
+    await Timer(5, units="ns")  # Allow some settling time
+
+
+
 
     # Write to sram
     for i in range(MLEN // Parallel_Wr_Dim):
@@ -96,13 +103,13 @@ async def sram_function_test(dut):
     dut.req.value = 1
     dut.write_en.value = 0
     dut.sram_addr.value = 0
-    dut.transposed_read.value = 1
+    dut.transposed_read.value = 0
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
     cocotb.log.info("<----------------Col Read at Addr: %d --------------->", dut.sram_addr.value)
     cocotb.log.info(f"Loaded OUT HBM")
     element_array_analyser.print_rdata_from_overall_sram(f"{dut.loaded_element_out.value}")
-    cocotb.log.info(f"SCALE OUT HBM")
+    cocotb.log.info(f"LOADED SCALE OUTPUT")
     scale_array_analyser.print_rdata_from_overall_sram(f"{dut.loaded_scale_out.value}")
 
 
