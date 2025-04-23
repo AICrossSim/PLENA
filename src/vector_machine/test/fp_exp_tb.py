@@ -7,53 +7,47 @@ import cocotb
 from cocotb.log import SimLog
 from cocotb.triggers import *
 
-from mase_cocotb.testbench import Testbench
-from mase_cocotb.interfaces.streaming import (
-    MultiSignalStreamDriver,
-    MultiSignalStreamMonitor,
+from cfl_cocotb.testbench import Testbench
+from cfl_cocotb.streaming import (
+    StreamDriver,
+    StreamMonitor,
 )
 
-from mase_cocotb.runner import mase_runner
-from chop.nn.quantizers.integer import _integer_floor_quantize
+from cfl_cocotb.runner import veri_runner
+
 from typing import Literal, Optional, Tuple, Union, Dict, List
 import torch
 import math
 from functools import partial
 import random
-from a_cx_mxint_quant.softmax import MXIntHardwareExp
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 
 torch.manual_seed(10)
-class MXIntExpTB(Testbench):
+class FPExpTB(Testbench):
     def __init__(self, dut, num) -> None:
         super().__init__(dut, dut.clk, dut.rst)
         self.num = num
         if not hasattr(self, "log"):
             self.log = SimLog("%s" % (type(self).__qualname__))
 
-        self.data_in_0_driver = MultiSignalStreamDriver(
+        self.data_in_0_driver = StreamDriver(
             dut.clk,
-            (dut.mdata_in_0, dut.edata_in_0),
-            dut.data_in_0_valid,
-            dut.data_in_0_ready,
+            dut.data_in,
+            dut.data_in_valid,
+            dut.data_in_ready,
         )
 
-        self.data_out_0_monitor = MultiSignalStreamMonitor(
+        self.data_out_0_monitor = StreamMonitor(
             dut.clk,
-            (dut.mdata_out_0, dut.edata_out_0),
-            dut.data_out_0_valid,
-            dut.data_out_0_ready,
-            check=True,
+            dut.data_out,
+            dut.data_out_valid,
+            dut.data_out_ready,
+            check=False,
         )
-        self.input_drivers = {
-            "a": self.data_in_0_driver,
-        }
-        self.output_monitors = {
-            "out": self.data_out_0_monitor,
-        }
         self.data_out_0_monitor.log.setLevel(logging.DEBUG)
+
     def generate_inputs(self):
         inputs = []
         expected_outputs = []
@@ -67,7 +61,6 @@ class MXIntExpTB(Testbench):
             "data_out_width": int(self.dut.DATA_OUT_MAN_WIDTH),
             "data_out_exponent_width": int(self.dut.DATA_OUT_EXP_WIDTH),
         }
-
         for _ in range(self.num):
             data = 49 * torch.rand(q_config["block_size"]) - 24.5
             from a_cx_mxint_quant.quantizers import mxint_quant_block

@@ -7,8 +7,8 @@ from cocotb.binary import BinaryValue
 from cocotb.result import TestFailure
 from cocotb.triggers import *
 
-from ac_cocotb.driver import Driver
-from ac_cocotb.monitor import Monitor
+from .driver import Driver
+from .monitor import Monitor
 
 
 def _sign_extend(value: int, bits: int):
