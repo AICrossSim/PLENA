@@ -34,7 +34,6 @@ module matrix_sram_with_rounding #(
     input   logic transposed_read,
     input   logic write_en,
     output  logic write_response,
-    input   logic read_en,
 
     input   logic [AddrLen-1:0] sram_addr,   
     input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
@@ -71,7 +70,6 @@ biaccess_sram #(
     .write_en(write_en),
     .write_response(write_response),
     .sram_addr(sram_addr),
-    .read_en(read_en),
     .write_data(dumplicated_scale_in),
     .out_data(loaded_scale_out)
 );
@@ -89,7 +87,6 @@ biaccess_sram #(
     .write_en(write_en),
     .write_response(write_response),
     .sram_addr(sram_addr),
-    .read_en(read_en),
     .write_data(element_in),
     .out_data(loaded_element_out)
 );

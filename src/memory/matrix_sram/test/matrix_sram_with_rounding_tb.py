@@ -103,7 +103,7 @@ async def sram_function_test(dut):
     dut.req.value = 1
     dut.write_en.value = 0
     dut.sram_addr.value = 0
-    dut.transposed_read.value = 0
+    dut.transposed_read.value = 1
     await RisingEdge(dut.clk)
     await RisingEdge(dut.clk)
     cocotb.log.info("<----------------Col Read at Addr: %d --------------->", dut.sram_addr.value)

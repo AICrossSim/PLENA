@@ -30,7 +30,6 @@ module biaccess_sram #(
     output logic write_response,
 
     input  logic [AddrLen-1:0] sram_addr,                                   // Indicates whether the read is stalled
-    input  logic read_en,
     input  logic [Parallel_Rd_Dim * MLEN * DataWidth - 1:0] write_data,     // Packed input vector
     output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data      // Unpacked output array
 );
