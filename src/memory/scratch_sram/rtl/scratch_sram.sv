@@ -23,13 +23,10 @@ module scratch_sram #(
 
     // SRAM
     parameter   SRAM_DEPTH        = 128,
-    localparam  AddrLen           = $clog2(SRAM_DEPTH),                 // Address Space for the SRAM
+    localparam  AddrLen           = $clog2(SRAM_DEPTH)                // Address Space for the SRAM
 
-)
-
-(
+)(
     input   logic clk,
-
     input   logic rst,
 
     input   logic req_a,
@@ -40,7 +37,6 @@ module scratch_sram #(
     input   logic [BLOCK_NUM - 1 : 0]   mask_in_a,
     output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      element_out_a,
     output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_out_a,
-
 
     input   logic req_b,
     input   logic write_en_b,

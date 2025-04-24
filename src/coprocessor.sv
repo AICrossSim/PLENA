@@ -32,7 +32,7 @@ module coprocessor #(
     parameter   ROUND_FP_MANT_WIDTH    = 3, 
 
     // Memory Dimensions
-    parameter   Matrix_Parallel_Rd_Dim = 2
+    parameter   Matrix_Parallel_Rd_Dim = 2,
     parameter   SRAM_DEPTH        = 128
 
 ) (
@@ -84,7 +84,7 @@ matrix_machine #(
 
 
 
-// Mempory 
+// Memory 
 
 matrix_sram_with_rounding #(
     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
@@ -139,7 +139,7 @@ scratch_sram #(
     .mask_in_b(),
     .element_out_b(),
     .scale_out_b()
-)
+);
 
 
 
