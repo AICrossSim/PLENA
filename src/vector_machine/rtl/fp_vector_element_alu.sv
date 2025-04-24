@@ -15,7 +15,7 @@ module fp_vector_element_alu #(
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
-    input  ELEMENT_V_OPERAND operation,       // 0: add, 1: sub, 2: mul, 3: exp
+    input  V_ELEMENT_OP operation,       // 0: add, 1: sub, 2: mul, 3: exp
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 

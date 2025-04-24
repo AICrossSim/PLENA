@@ -41,7 +41,8 @@ module vector_machine #(
 
     // Control
     input   logic select_b_from_scalar,
-    input   CUSTOM_ISA opcode,
+    input   V_ELEMENT_OP element_v_control,
+    input   V_REDUCT_OP  reduct_v_control,
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
@@ -165,7 +166,6 @@ logic element_v_in_a_valid, element_v_in_a_ready;
 logic element_v_in_b_valid, element_v_in_b_ready;
 logic element_v_out_valid, element_v_out_ready;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] element_v_out;
-ELEMENT_V_OPERAND element_opcode;
 
 
 fp_elementwise_compute_unit #(
@@ -183,7 +183,7 @@ fp_elementwise_compute_unit #(
     .v_in_b_valid(element_v_in_b_valid),
     .v_in_b_ready(element_v_in_b_ready),
 
-    .operation(element_opcode),
+    .operation(element_v_control),
     .v_out(element_v_out),
     .v_out_valid(element_v_out_valid),
     .v_out_ready(element_v_out_ready)
@@ -193,7 +193,7 @@ fp_elementwise_compute_unit #(
 logic red_v_in_valid, red_v_in_ready;
 logic red_v_out_valid, red_v_out_ready;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
-RED_V_OPERAND   red_opcode;
+
 
 
 fp_reduction_compute_unit #(
@@ -206,7 +206,7 @@ fp_reduction_compute_unit #(
     .v_in({prepared_v_a, prepared_v_b}),
     .v_in_valid(red_v_in_valid),
     .v_in_ready(red_v_in_ready),
-    .operation(red_opcode),
+    .operation(reduct_v_control),
     .v_out(red_v_out),
     .v_out_valid(red_v_out_valid),
     .v_out_ready(red_v_out_ready)

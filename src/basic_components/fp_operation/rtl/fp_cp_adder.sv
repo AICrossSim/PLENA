@@ -14,9 +14,9 @@ module fp_cp_adder #(
     parameter int EXP_WIDTH = 5,
     parameter int MANT_WIDTH = 10,
     // Amount of bits needed to shift mantissas for alignment
-    parameter int EXT_MANT_WIDTH = 4,
+    parameter int EXT_MANT_WIDTH = 0,
     // Need to increase exp width by 1 to handle overflow
-    parameter int EXT_EXP_WIDTH = 1
+    parameter int EXT_EXP_WIDTH = 0
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,

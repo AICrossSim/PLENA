@@ -8,9 +8,9 @@ Status      : Under Testing
 */
 
 module vector_operation_control #(
-    input  CUSTOM_ISA           opcode,
-    output ELEMENT_V_OPERAND    element_opcode,
-    output RED_V_OPERAND        red_opcode
+    input  CUSTOM_ISA_OPCODE        opcode,
+    output V_ELEMENT_OP      element_opcode,
+    output V_REDUCT_OP       red_opcode
 );
     
 endmodule

@@ -30,7 +30,7 @@ module fp_elementwise_compute_unit #(
     output logic v_in_b_ready,
 
     // Control
-    input ELEMENT_V_OPERAND operation, // 0: add, 1: sub, 2: mul
+    input V_ELEMENT_OP operation, // 0: add, 1: sub, 2: mul
 
     // Output Vector
     output logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out,

@@ -8,23 +8,42 @@ typedef enum logic [2:0] {
     MUL = 2,
     EXP = 3,
     STALL = 4
-} ELEMENT_V_OPERAND;
+} V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
     SUM = 0,
     MAX = 1,
     STALL = 2
-} RED_V_OPERAND;
+} V_REDUCT_OP;
+
+
+typedef enum logic [2:0] {
+    ADD     = 0,
+    SUB     = 1,
+    MUL     = 2,
+    ISQRT   = 3,
+    LOG     = 4,
+    EXP     = 5
+} S_ALU_OP;
 
 
 // TODO
 typedef enum logic [4:0] {
-    V_ADD   = 0,
-    V_SUB   = 1,
-    V_MULT  = 2,
-    V_EXP   = 3,
-    V_SUM   = 4,
-    V_MAX   = 5
-} CUSTOM_ISA;
+    // Matrix Operation
+    M_MV   = 0,
+    M_TMV  = 1,
+
+    // Vector Operation
+    V_ADD_VV    = 2,
+    V_ADD_VF    = 3,
+    V_SUB_VV    = 4,
+    V_SUB_VF    = 5,
+    V_MUL_VV    = 6,
+    V_MUL_VF    = 7,
+    V_EXP_VV    = 8,
+    V_RED_SUM   = 9,
+    V_RED_MAX   = 10
+
+} CUSTOM_ISA_OPCODE;
 
 `endif

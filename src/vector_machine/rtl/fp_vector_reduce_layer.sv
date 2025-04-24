@@ -26,7 +26,7 @@ module fp_vector_reduce_layer #(
     localparam INPUT_DATA_WIDTH = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
     localparam OUTPUT_DATA_WIDTH = IN_MAN_WIDTH + EXT_MANT_WIDTH + IN_EXP_WIDTH + EXT_EXP_WIDTH + 1
 ) (
-    input   RED_V_OPERAND operation, // 0: SUM, 1: MAX
+    input   V_REDUCT_OP operation, // 0: SUM, 1: MAX
     input   logic [OVERALL_INPUT_WIDTH -1 : 0] data_in,
     output  logic [OVERALL_INPUT_WIDTH -1 : 0] data_out
 );

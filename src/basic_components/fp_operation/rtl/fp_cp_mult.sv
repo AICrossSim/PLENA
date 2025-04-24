@@ -14,9 +14,9 @@ module fp_cp_mult #(
     parameter   MANT_WIDTH = 4,
     parameter   EXP_WIDTH = 3,
     // Amount of bits needed to shift mantissas for alignment
-    parameter   EXT_MANT_WIDTH = 4,
+    parameter   EXT_MANT_WIDTH = 0,
     // Need to increase exp width by 1 to handle overflow
-    parameter   EXT_EXP_WIDTH = 1
+    parameter   EXT_EXP_WIDTH = 0
 ) (
     input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_a,
     input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_b,
