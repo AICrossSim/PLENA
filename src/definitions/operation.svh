@@ -46,4 +46,9 @@ typedef enum logic [4:0] {
 
 } CUSTOM_ISA_OPCODE;
 
+
+parameter OPERAND_WIDTH = 5;
+
+
+
 `endif
