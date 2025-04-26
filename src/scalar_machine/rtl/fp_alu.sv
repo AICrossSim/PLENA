@@ -2,9 +2,9 @@
 `include "operation.svh"
 
 /*
-Module      : Scalar ALU
+Module      : Scalar FP ALU
 Timing      : Combinatorial Logic
-Description : This module includes elementwise vector computations
+Description : This module is used for all the FP operations
             : 1. FP Add, 2. FP Subtract, 3. FP Multiply, 4. FP Isqrt 5. FP Log 6. FP Exp
 Status      : Under Development
 */
@@ -15,7 +15,7 @@ module fp_alu #(
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
-    input  S_ALU_OP operation,       // 0: add, 1: sub, 2: mul, 3: isqrt
+    input  S_FP_OP operation,       // 0: add, 1: sub, 2: mul, 3: isqrt
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 )
 
@@ -83,6 +83,8 @@ fp_cp_adder #(
     .data_b(data_b),
     .data_out(data_out)
 );
+
+// TODO
 
 
 endmodule

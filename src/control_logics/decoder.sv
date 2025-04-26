@@ -2,7 +2,7 @@
 `include "operation.svh"
 
 /*
-Module      : Vector Operation Control Unit
+Module      : Decoder
 Timing      : Conbinatorial
 Statuscc
 */

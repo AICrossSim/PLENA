@@ -2,9 +2,11 @@
 `include "operation.svh"
 
 /*
-Module      : Vector Machine Module
-Timing      : Sequential, Takes x cycles to compute the dot product
-Description : This module is the first version of the vector machine based on FP data type.
+Module      : Scalar Machine Module
+Timing      : Sequential, all the operations completed in 1 cycle
+Description : This module contains two modules:
+            : FP ALU for all the fp computation related operations
+            : Fixed ALU, only have addition and subtraction operations for address manipulation
 Status      : Under Testing
 */
 
@@ -18,53 +20,124 @@ module scalar_machine #(
     parameter   FP_EXP_WIDTH = 5,
     parameter   FP_MANT_WIDTH = 10
 
+    // Fixed Data Format
+    parameter   FIXED_DATA_WIDTH = 32,
+
     // Dimensions
 ) (
     input   logic clk,
     input   logic rst,
 
     // Control
-    input   logic select_b_from_scalar,
-    input   S_ALU_OP element_s_control,
+    input   S_FP_OP fp_control,
+    input   S_FIXED_OP fixed_control,
 
-    // Scalar Value
-    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] s_in,
-    input   logic s_in_valid,
-    output  logic s_in_ready,
+    // Register Control
+    input   logic [OPERAND_WIDTH - 1 : 0] rs1,
+    input   logic [OPERAND_WIDTH - 1 : 0] rs2,
+    input   logic [OPERAND_WIDTH - 1 : 0] rd,
 
-    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH] s_out,
-    output  logic s_out_valid,
-    input   logic s_out_ready
+
+    // Fixed Value input
+    input   logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in,
+    input   logic [FIXED_DATA_WIDTH - 1 : 0] imm_in,
+    // input   logic fixed_in_valid,
+    // output  logic fixed_in_ready,
+    output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1,
+    output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2,
+    // output  logic fixed_out_valid,
+    // input   logic fixed_out_ready,
+
+    // FP Value input
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_in,
+
+    // input   logic fp_in_valid,
+    // output  logic fp_in_ready,
+
+    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_out_1,
+    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_out_2,
+    // output  logic fp_out_valid,
+    // input   logic fp_out_ready
 )
 
 
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_rs1;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_rs2;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_rd;
+logic fp_we;
+
+assign fp_we = (fp_control != STALL && fp_control !=LOAD_FP ) ? 1'b1 : 1'b0;
+assign fp_out_1 = fp_rs1;
+assign fp_out_2 = fp_rd;
 
 fp_alu #(
     .EXP_WIDTH(FP_EXP_WIDTH),
     .MANT_WIDTH(FP_MANT_WIDTH)
 ) fp_alu (
-    .data_a(s_in),
-    .data_b(s_in),
-    .operation(element_s_control),
-    .data_out(s_out)
+    .data_a(fp_rs1),
+    .data_b(s_fp_rs2in),
+    .operation(fp_control),
+    .data_out(fp_rd)
 );
 
 
-
-skid_buffer #(
-    .Width(FP_EXP_WIDTH + FP_MANT_WIDTH + 1)
-) s_in_buffer (
+2p_1w_reg_file #(
+    .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
+    .DEPTH(2 << FP_OPERAND_WIDTH)
+) fp_reg_file (
     .clk(clk),
-    .rst(rst),
-    .in(s_in),
-    .valid(s_in_valid),
-    .ready(s_in_ready),
-    .out(s_out),
-    .out_valid(s_out_valid),
-    .out_ready(s_out_ready)
+    .we(fp_we),
+    .waddr(rd[FP_OPERAND_WIDTH - 1 : 0]),
+    .wdata(fp_rd),
+    .raddr1(rs1[FP_OPERAND_WIDTH - 1 : 0]),
+    .raddr2(rs2[FP_OPERAND_WIDTH - 1 : 0]),
+    .rdata1(fp_rs1),
+    .rdata2(fp_rs2)
+);
+
+always_ff @(posedge clk or posedge rst) begin
+    if (rst) begin
+        fp_out_1 <= '0;
+        fp_out_2 <= '0;
+    end else begin
+        fp_out_1 <= fp_rs1;
+        fp_out_2 <= fp_rd;
+    end
+end
+
+
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rs1;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rs2;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rd;
+logic fix_we;
+
+assign fix_we = (fixed_control != STALL && fixed_control != LOAD_FIX) ? 1'b1 : 1'b0;
+assign fixed_out_1 = fixed_rs1;
+assign fixed_out_2 = fixed_rd;
+
+fixed_alu #(
+    .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1)
+) fixed_alu (
+    .operand_a(fixed_rs1),
+    .operand_b(fixed_rs2),
+    .imm_value(imm_in),
+    .operation(fixed_control),
+    .result(fixed_rd)
 );
 
 
-
+2p_1w_reg_file #(
+    .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
+    .DEPTH(2 << FIXED_OPERAND_WIDTH)
+) fp_reg_file (
+    .clk(clk),
+    .we(fix_we),
+    .waddr(rd[FIXED_DATA_WIDTH - 1 : 0]),
+    .wdata(fixed_rd),
+    .raddr1(rs1[FIXED_DATA_WIDTH - 1 : 0]),
+    .raddr2(rs2[FIXED_DATA_WIDTH - 1 : 0]),
+    .rdata1(fixed_rs1),
+    .rdata2(fixed_rs2)
+);
 
 endmodule
