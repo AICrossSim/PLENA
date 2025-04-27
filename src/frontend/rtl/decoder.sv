@@ -85,7 +85,7 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_MATRIX, H_PREFETCH_VECTOR, H_LOAD_MATRIX, H_LOAD_VECTOR, H_LOAD_SCALAR, H_STORE_VECTOR, H_STORE_SCALAR, H_STORE_HBM, H_SET_HBM_OFFSET: begin
+        H_PREFETCH_M, H_PREFETCH_V, H_LOAD_MATRIX, H_LOAD_VECTOR, H_LOAD_SCALAR, H_STORE_VECTOR, H_STORE_SCALAR, H_STORE_HBM, H_SET_HBM_OFFSET: begin
             next_instruction_type = H;
         end
 
