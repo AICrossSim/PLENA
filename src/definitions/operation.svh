@@ -1,6 +1,11 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
+typedef enum logic [1:0] {
+    MV = 0,
+    TMV = 1,
+    MV_TMV_STALL = 2
+} M_OP;
 
 typedef enum logic [2:0] {
     ADD = 0,
@@ -15,7 +20,6 @@ typedef enum logic [2:0] {
     MAX = 1,
     STALL = 2
 } V_REDUCT_OP;
-
 
 typedef enum logic [2:0] {
     ADD_FP    = 0,
@@ -36,12 +40,12 @@ typedef enum logic [2:0] {
 } S_FIXED_OP;
 
 
-// TODO
 parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = MAX(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
-
 parameter OPCODE_WIDTH = 5;
+parameter IMM_WIDTH = 32;
+
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Matrix Operation
     M_MV   = 0,
@@ -66,13 +70,39 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_ISQRT_FP  = 15,
     S_LOG_FP    = 16,
     S_ADD_FIX   = 17,
-    S_SUB_FIX   = 18
+    S_SUB_FIX   = 18,
 
+    // Memory Operation
+    H_PREFETCH_MATRIX = 19,
+    H_PREFETCH_VECTOR  = 20,
+    H_LOAD_MATRIX = 21,
+    H_LOAD_VECTOR = 22,
+    H_LOAD_SCALAR = 23,
+    H_STORE_VECTOR = 24,
+    H_STORE_SCALAR = 25,
+    H_STORE_HBM = 26,
+    H_SET_HBM_OFFSET = 27,
+
+    INVALID
 } CUSTOM_ISA_OPCODE;
+
+typedef enum logic [2:0] { 
+    M = 0,
+    V = 1,
+    S = 2,
+    H = 3
+ } CUSTOM_ISA_TYPE;
 
 parameter INSTRUCTION_LENGTH = 16;
 
-
+typedef struct {
+    logic [OPCODE_WIDTH - 1:0] opcode;
+    logic [OPERAND_WIDTH:0] rs1;
+    logic [OPERAND_WIDTH:0] rs2;
+    logic [OPERAND_WIDTH:0] rd;
+    logic [IMM_WIDTH - 1:0] imm;
+    CUSTOM_ISA_TYPE instruction_type;
+} INSTR_INFO;
 
 
 
