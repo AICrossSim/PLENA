@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
+`include "precision.svh"
+`include "configuration.svh"
 `include "tl_util.svh"
 
 
@@ -8,35 +10,7 @@ Module      : Coprocessor Top Module
 Status      : Under Development
 */
 
-module coprocessor #(
-    // MX-FP Data Format
-    parameter   MXFP_MANT_WIDTH   = 8,
-    parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MX_FP_SCALE_WIDTH = 8,
-
-    // Dimensions
-    parameter   MLEN              = 8,
-    parameter   BLOCK_DIM         = 4,
-    localparam  BLOCK_NUM         = MLEN / BLOCK_DIM,
-
-    // Precision Control
-    parameter   PRODUCT_EXT_EXP_WIDTH   = 1,
-    parameter   PRODUCT_EXT_MANT_WIDTH  = 0,
-    parameter   BLOCK_ADD_EXT_EXP_WIDTH       = 1,  // Note: this param control precision for both blockwise addition within adder tree and the blockwise adder
-    parameter   BLOCK_ADD_EXT_MANT_WIDTH      = 0,
-    parameter   FP_ADD_EXT_EXP_WIDTH       = 1,
-    parameter   FP_ADD_EXT_MANT_WIDTH      = 0,
-
-    // Intermediate FP Control
-    parameter   ROUND_FP_EN            = 0,
-    parameter   ROUND_FP_EXP_WIDTH     = 4,
-    parameter   ROUND_FP_MANT_WIDTH    = 3, 
-
-    // Memory Dimensions
-    parameter   Matrix_Parallel_Rd_Dim = 2,
-    parameter   SRAM_DEPTH        = 128
-
-) (
+module coprocessor # (
     input   logic clk,
     input   logic rst,
     // For testing, incoporate PCIe interface later
@@ -47,16 +21,14 @@ module coprocessor #(
     // `TL_DECLARE_DEVICE_PORT(DataWidth, AddrWidth, SourceWidth, 1, host),
 
     // For testing, 
+    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_m_element,
+    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_m_scale,
 
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_m_element;
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_m_scale;
+    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1,
+    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1,
 
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1;
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1;
-
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2;
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2;
-
+    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2,
+    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2
 )
 
     // Control Signals
@@ -328,5 +300,7 @@ module coprocessor #(
         .fp_in(fp_s_in),
         .fp_out_1(fp_s_out)
     );
+
+    // SRAM for Scalar
 
 endmodule
