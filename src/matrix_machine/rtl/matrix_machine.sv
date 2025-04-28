@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "operation.svh"
 
 /*
 Module      : Matrix Machine Module
@@ -33,11 +34,26 @@ module matrix_machine #(
     parameter   ROUND_FP_MANT_WIDTH    = 3, 
 
     // Memory Dimensions
-    parameter   Matrix_Parallel_Rd_Dim = 2
-    
+    parameter   Matrix_Parallel_Rd_Dim = 2,
+
+    // Offset Management
+    parameter   FIXED_OPERAND_WIDTH = 32,
+
+    // Pipeline Stages
+    localparam  PIPELINE_STAGES = 5,
+    localparam  CYC_TO_COMPLETE_LOADING = 2
 ) (
-    input logic clk,
-    input logic rst,
+    input   logic   clk,
+    input   logic   rst,
+
+    // Execution Control
+    input   M_OP    matrix_opcode,
+    output  logic   ready_for_next_op,
+
+    // Addressing
+    input  logic                                       set_offset_addr,
+    input  logic [FIXED_OPERAND_WIDTH-1:0]             offset_addr,
+    output logic [FIXED_OPERAND_WIDTH-1:0]             offset_addr_out,
 
     // Matix - row-major order
     input  logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_element,
@@ -54,8 +70,8 @@ module matrix_machine #(
     // Offset - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      o_element,
     input  logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     o_scale,
-    input  logic                   o_valid,
-    output logic                   o_ready,
+    input  logic                    o_valid,
+    output logic                    o_ready,
 
     // Output
     output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      out_element,
@@ -69,24 +85,61 @@ initial begin
 
 end
 
-// Input Buffering
+// Fetch Control
+logic clear_m;
+logic buffer_ready_m, buffer_ready_v, buffer_ready_o;
+assign buffer_ready_m = (matrix_opcode != STALL) ? m_ready : 1'b0;
+assign buffer_ready_v = (matrix_opcode != STALL) ? v_ready : 1'b0;
+assign buffer_ready_o = (matrix_opcode == MV_O || matrix_opcode == TMV_O) ? o_ready : 1'b0;
+
+logic [PIPELINE_STAGES-1:0] [M_OP] pipeline_track;
+
+always_ff @(posedge clk or negedge rst) begin
+    if (!rst) begin
+        for (int i = 0; i < PIPELINE_STAGES; i++) begin
+            pipeline_track[i] <= STALL;
+        end
+    end else begin
+        pipeline_track[0] <= matrix_opcode;
+        for (int i = 1; i < PIPELINE_STAGES; i++) begin
+            pipeline_track[i] <= pipeline_track[i-1];
+        end
+    end
+end
+
+always_comb begin
+    if (pipeline_track[CYC_TO_COMPLETE_LOADING] == MV) begin
+        if (collect_m_valid && stored_v_valid) begin
+            ready_for_next_op = 1'b1;
+        end else begin
+            ready_for_next_op = 1'b0;
+        end
+    end else if (pipeline_track[CYC_TO_COMPLETE_LOADING] == MV_O) begin
+        if (collect_m_valid && stored_v_valid && stored_o_valid) begin
+            ready_for_next_op = 1'b1;
+        end else begin
+            ready_for_next_op = 1'b0;
+        end
+    end
+end
+
 
 // Matrix Buffering
 // Element Collector
 logic [MLEN*MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      collect_m_element;
 logic [MLEN*BLOCK_NUM-1:0]          [MX_FP_SCALE_WIDTH-1:0]       collect_m_scale;
 
-logic collect_in_m_ele_ready, collect_in_m_scale_ready;
-logic collect_in_m_ele_valid, collect_in_m_scale_valid;
-logic collect_m_ele_ready, collect_m_scale_ready;
-logic collect_m_ele_valid, collect_m_scale_valid;
-logic collect_m_valid, collect_m_ready;
+logic collect_in_m_ele_ready,   collect_in_m_scale_ready;
+logic collect_in_m_ele_valid,   collect_in_m_scale_valid;
+logic collect_m_ele_ready,      collect_m_scale_ready;
+logic collect_m_ele_valid,      collect_m_scale_valid;
+logic collect_m_valid,          collect_m_ready;
 
 split_n #(
     .N(2)
 ) eb_split_i (
     .data_in_valid (m_valid),
-    .data_in_ready (m_ready),
+    .data_in_ready (buffer_ready_m),
     .data_out_valid({collect_in_m_ele_valid, collect_in_m_scale_valid}),
     .data_out_ready({collect_in_m_ele_ready, collect_in_m_scale_ready})
 );
@@ -98,6 +151,7 @@ matrix_collector #(
 ) element_collect (
     .clk(clk),
     .rst(rst),
+    .clear(clear_m),
 
     // Input
     .in_data(m_element),
@@ -153,7 +207,7 @@ split_n #(
     .N(2)
 ) v_split_i (
     .data_in_valid (v_valid),
-    .data_in_ready (v_ready),
+    .data_in_ready (buffer_ready_v),
     .data_out_valid({stored_v_in_ele_valid, stored_v_in_scale_valid}),
     .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
 );
@@ -215,7 +269,7 @@ split_n #(
     .N(2)
 ) o_split_i (
     .data_in_valid (o_valid),
-    .data_in_ready (o_ready),
+    .data_in_ready (buffer_ready_o),
     .data_out_valid({stored_o_in_ele_valid, stored_o_in_scale_valid}),
     .data_out_ready({stored_o_in_ele_ready, stored_o_in_scale_ready})
 );
@@ -311,6 +365,29 @@ mx_fp_mv #(
 );
 
 // offset addition
+logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      acc_element;
+logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     acc_scale;
+logic acc_valid, acc_ready;
+
+always_comb begin
+    if (pipeline_track[PIPELINE_STAGES] == MV_O) begin
+        out_element = acc_element;
+        out_scale = acc_scale;
+        out_valid = acc_valid;
+        out_ready = acc_ready;
+    end else if( pipeline_track[PIPELINE_STAGES] == MV) begin
+        out_element = prod_element;
+        out_scale = prod_scale;
+        out_valid = prod_valid;
+        out_ready = prod_ready;
+    end else begin
+        out_element = {MLEN{1'b0}};
+        out_scale = {BLOCK_NUM{1'b0}};
+        out_valid = 1'b0;
+        out_ready = 1'b0;
+    end
+end
+
 generate;
     for(genvar i=0; i < BLOCK_NUM; i++)begin
         mx_fp_blockwise_adder #(
@@ -339,10 +416,10 @@ generate;
             .b_data_in_ready(stored_o_ready),
 
             // Output
-            .element_data_out(out_element[i]),
-            .scale_data_out(out_scale[i]),
-            .data_out_valid(out_valid),
-            .data_out_ready(out_ready)
+            .element_data_out(acc_element[i]),
+            .scale_data_out(acc_scale[i]),
+            .data_out_valid(acc_valid),
+            .data_out_ready(acc_ready)
         );
     end
 endgenerate

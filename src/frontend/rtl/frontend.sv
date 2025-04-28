@@ -17,8 +17,8 @@ module frontend #(
     parameter FP_OPERAND_WIDTH      = 3,
     parameter OPCODE_WIDTH          = 4,
     parameter IMM_WIDTH             = 32,
-    parameter INST_BUFF_DEPTH       = 8,
-    parameter LOOKAHEAD_EN          = 1
+    parameter INST_BUFF_DEPTH       = 8
+    // parameter LOOKAHEAD_EN          = 1
 )(
     input   logic clk,
     input   logic rst,
@@ -43,13 +43,13 @@ module frontend #(
 
     // Control Matrix Computation
     output  M_OP          matrix_opcode,
-    input   logic last_matrix_complete,
+    // input   logic last_matrix_complete,
 
     // Control Vector Computation
     output  V_ELEMENT_OP      element_opcode,
     output  V_REDUCT_OP       reduce_opcode,
     input   logic broadcast_fp2
-    input   logic last_vector_complete,
+    // input   logic last_vector_complete,
 
     // Control Scalar Computation
 

@@ -2,9 +2,9 @@
 `define OPERATION_SVH
 
 typedef enum logic [1:0] {
-    MV = 0,
-    TMV = 1,
-    STALL = 2
+    MV      = 0,
+    MV_O    = 1,
+    STALL   = 2
 } M_OP;
 
 typedef enum logic [2:0] {
@@ -46,6 +46,7 @@ typedef enum logic [2:0] {
 } S_FIXED_OP;
 
 
+
 parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = MAX(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
@@ -54,8 +55,10 @@ parameter IMM_WIDTH = 32;
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Matrix Operation
-    M_MV   = 0,
-    M_TMV  = 1,
+    M_MV        = 0,
+    M_MV_O      = 1,
+    M_TMV       = 2,
+    M_TMV_O     = 3,
 
     // Vector Operation
     V_ADD_VV    = 2,
@@ -64,7 +67,7 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_SUB_VF    = 5,
     V_MUL_VV    = 6,
     V_MUL_VF    = 7,
-    V_EXP_VV     = 8,
+    V_EXP_VV    = 8,
     V_RED_SUM   = 9,
     V_RED_MAX   = 10,
 

@@ -40,7 +40,7 @@ module vector_machine #(
     input   logic rst,
 
     // Control
-    input   logic select_b_from_scalar,
+    input   logic broadcast_fp2,
     input   V_ELEMENT_OP element_v_control,
     input   V_REDUCT_OP  reduct_v_control,
 
@@ -177,7 +177,7 @@ skid_buffer #(
     .rst(!rst),
 
     // Input
-    .in_data(select_b_from_scalar ? unpacked_v_s : converted_v_b ),
+    .in_data(broadcast_fp2 ? unpacked_v_s : converted_v_b ),
     .in_valid(v_b_valid),
     .in_ready(v_b_ready),
 
