@@ -80,13 +80,18 @@ always_comb begin
         end
 
         // Scalar Operations
-        S_ADD_FP, S_SUB_FP, S_MUL_FP, S_EXP_FP, S_ISQRT_FP, S_LOG_FP, S_ADD_FIX, S_SUB_FIX: begin
+        S_ADD_FP, S_SUB_FP, S_MAX_FP, S_MUL_FP, S_EXP_FP, S_ISQRT_FP, S_LOG_FP, S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX: begin
             next_instruction_type = S;
         end
 
         // Memory Operations
-        H_PREFETCH_M, H_PREFETCH_V, H_LOAD_MATRIX, H_LOAD_VECTOR, H_LOAD_SCALAR, H_STORE_VECTOR, H_STORE_SCALAR, H_STORE_HBM, H_SET_HBM_OFFSET: begin
+        H_PREFETCH_M, H_PREFETCH_V, H_LOAD_SCALAR, H_STORE_VECTOR, H_STORE_SCALAR, H_STORE_HBM: begin
             next_instruction_type = H;
+        end
+
+        // CSR Setting
+        C_SET_HBM_OFFSET, C_SET_MV_OFFSET: begin
+            next_instruction_type = C;
         end
 
         default: begin

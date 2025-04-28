@@ -2,7 +2,7 @@
 `include "operation.svh"
 /*
 Module      : Vector Machine Module
-Timing      : Sequential, Takes x cycles to compute the dot product
+Timing      : Sequential, Takes 4 cycles to compute every vector operation
 Description : This module is the first version of the vector machine based on FP data type.
 Status      : Under Testing
 */
@@ -74,6 +74,34 @@ module vector_machine #(
     
 );
 
+
+// Vector Machine Control
+
+
+V_ELEMENT_OP p1_element_v_control;
+V_REDUCT_OP p1_reduct_v_control;
+logic select_result; // 0 for reduction, 1 for elementwise compute
+
+always_ff @(posedge clk or negedge rst) begin
+    if (!rst) begin
+        p1_element_v_control    <= STALL;
+        p1_reduct_v_control     <= STALL;
+    end else begin
+        p1_element_v_control    <= element_v_control;
+        p1_reduct_v_control     <= reduct_v_control;
+    end
+
+    if (p1_element_v_control != STALL) begin
+        select_result <= 1'b1;
+    end else if (p1_reduct_v_control != STALL) begin
+        select_result <= 1'b0;
+    end else begin
+        select_result <= 1'b0;
+    end
+
+end
+
+
 // MXFP to FP Conversion
 logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] converted_v_a;
 logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] converted_v_b;
@@ -84,9 +112,7 @@ logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] unpacked_v_s;
 logic prepared_v_a_ready, prepared_v_a_valid;
 logic prepared_v_b_ready, prepared_v_b_valid;
 
-
 generate;
-
     for (genvar i = 0; j < BLOCK_NUM; i = i + 1)begin
         mx_fp_2_fp_block #(
             .BLOCK_DIM(BLOCK_DIM),
@@ -125,7 +151,6 @@ generate;
         .out_data(unpacked_v_s)
     );
 
-
 endgenerate
 
 skid_buffer #(
@@ -162,6 +187,9 @@ skid_buffer #(
     .out_ready(prepared_v_b_ready)
 );
 
+
+
+// Elementwise Compute Unit
 logic element_v_in_a_valid, element_v_in_a_ready;
 logic element_v_in_b_valid, element_v_in_b_ready;
 logic element_v_out_valid, element_v_out_ready;
@@ -190,11 +218,11 @@ fp_elementwise_compute_unit #(
 
 );
 
+
+// Reduction Compute Unit
 logic red_v_in_valid, red_v_in_ready;
 logic red_v_out_valid, red_v_out_ready;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
-
-
 
 fp_reduction_compute_unit #(
     .EXP_WIDTH(FP_EXP_WIDTH),
@@ -211,6 +239,34 @@ fp_reduction_compute_unit #(
     .v_out_valid(red_v_out_valid),
     .v_out_ready(red_v_out_ready)
 );
+
+
+// Convert FP to MX-FP 2 cycles
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] result_v_out;
+assign result_v_out = select_result ? element_v_out : red_v_out;
+generate;
+    for (genvar i = 0; j < BLOCK_NUM; i = i + 1)begin
+        fp_2_mx_fp_block #(
+            .BLOCK_DIM(BLOCK_DIM),
+            .FP_MANT_WIDTH(FP_MANT_WIDTH),
+            .FP_EXP_WIDTH(FP_EXP_WIDTH),
+            .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
+            .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
+            .MX_FP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
+        ) fp_mxfp_conversion_unit (
+            .clk(clk),
+            .rst(rst),
+            .data_in(result_v_out[i]),
+            .data_in_valid(element_v_out_valid),
+            .data_in_ready(element_v_out_ready),
+
+            .element_data_out(v_out_element[i]),
+            .scale_data_out(v_out_scale[i]),
+            .mx_fp_data_out_valid(v_out_valid),
+            .mx_fp_data_out_ready(v_out_ready)
+        );
+    end
+endgenerate
 
 
 endmodule

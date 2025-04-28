@@ -4,7 +4,7 @@
 typedef enum logic [1:0] {
     MV = 0,
     TMV = 1,
-    MV_TMV_STALL = 2
+    STALL = 2
 } M_OP;
 
 typedef enum logic [2:0] {
@@ -34,9 +34,15 @@ typedef enum logic [2:0] {
 
 typedef enum logic [2:0] {
     ADD_FIX   = 0,
-    ADDI_FIX   = 0,
-    SUB_FIX   = 1,
-    STALL     = 2
+    ADDI_FIX  = 1,
+    SUB_FIX   = 2,
+    MUL_FIX   = 3,
+    DIV_FIX   = 4,
+    LUI_FIX   = 5,
+    MV_FIX    = 6,
+    LOAD_FOR_ADDR = 7,
+    CONCAT = 8,
+    STALL     = 9
 } S_FIXED_OP;
 
 
@@ -58,7 +64,7 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_SUB_VF    = 5,
     V_MUL_VV    = 6,
     V_MUL_VF    = 7,
-    V_EXP_V    = 8,
+    V_EXP_VV     = 8,
     V_RED_SUM   = 9,
     V_RED_MAX   = 10,
 
@@ -66,48 +72,50 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_ADD_FP    = 11,
     S_SUB_FP    = 12,
     S_MAX_FP    = 13,
-    S_MUL_FP    = 13,
-    S_EXP_FP    = 14,
-    S_ISQRT_FP  = 15,
-    S_LOG_FP    = 16,
-    S_ADD_FIX   = 17,
-    S_ADDI_FIX  = 18,
-    S_SUB_FIX   = 19,
-    S_MUL_FIX   = 20,
-    S_DIV_FIX   = 21,
-    S_LUI_FIX   = 20,
-    S_MV_FIX   = 21,
-
+    S_MUL_FP    = 14,
+    S_EXP_FP    = 15,
+    S_ISQRT_FP  = 16,
+    S_LOG_FP    = 17,
+    S_ADD_FIX   = 18,
+    S_ADDI_FIX  = 19,
+    S_SUB_FIX   = 20,
+    S_MUL_FIX   = 21,
+    S_DIV_FIX   = 22,
+    S_LUI_FIX   = 23,
+    S_MV_FIX    = 24,
 
     // Memory Operation
-    H_PREFETCH_M = 19,
-    H_PREFETCH_V  = 20,
-    H_LOAD_MATRIX = 21,
-    H_LOAD_VECTOR = 22,
-    H_LOAD_SCALAR = 23,
-    H_STORE_VECTOR = 24,
-    H_STORE_SCALAR = 25,
-    H_STORE_HBM = 26,
-    H_SET_HBM_OFFSET = 27,
+    H_PREFETCH_M    = 25,
+    H_PREFETCH_V    = 26,
+    H_LOAD_SCALAR   = 27,
+    H_STORE_VECTOR  = 28,
+    H_STORE_SCALAR  = 29,
+    H_STORE_HBM     = 30,
 
-    INVALID
+    // CSR Setting
+    C_SET_HBM_OFFSET = 31,
+    C_SET_MV_OFFSET  = 32,
+
+    INVALID         = 33
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] { 
     M = 0,
     V = 1,
     S = 2,
-    H = 3
+    H = 3,
+    C = 4,
+    INVALID = 5
  } CUSTOM_ISA_TYPE;
 
 parameter INSTRUCTION_LENGTH = 16;
 
 typedef struct {
-    logic [OPCODE_WIDTH - 1:0] opcode;
-    logic [OPERAND_WIDTH:0] rs1;
-    logic [OPERAND_WIDTH:0] rs2;
-    logic [OPERAND_WIDTH:0] rd;
-    logic [IMM_WIDTH - 1:0] imm;
+    logic [OPCODE_WIDTH - 1:0]  opcode;
+    logic [OPERAND_WIDTH:0]     rs1;
+    logic [OPERAND_WIDTH:0]     rs2;
+    logic [OPERAND_WIDTH:0]     rd;
+    logic [IMM_WIDTH - 1:0]     imm;
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 

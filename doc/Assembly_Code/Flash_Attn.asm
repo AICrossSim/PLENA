@@ -41,7 +41,8 @@ LOOP_ATTENTION_Q_HEADS:
 
             H_PREFETCH_M    x13,  x10, csr_adr[0];    
             H_PREFETCH_V    x13,  x11, csr_adr[1]; 
-
+            C_SET_MV_OFFSET x13;
+            
             // s_j = q @ k_j.transpose(1, 2)
             M_TMV           x12, x13, x13;              // Matrix-Vector Multiplication
 

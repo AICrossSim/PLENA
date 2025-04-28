@@ -75,7 +75,7 @@ fp_alu #(
     .MANT_WIDTH(FP_MANT_WIDTH)
 ) fp_alu (
     .data_a(fp_rs1),
-    .data_b(s_fp_rs2in),
+    .data_b(fp_rs2),
     .operation(fp_control),
     .data_out(fp_rd)
 );
@@ -100,8 +100,8 @@ always_ff @(posedge clk or posedge rst) begin
         fp_out_1 <= '0;
         fp_out_2 <= '0;
     end else begin
-        fp_out_1 <= fp_rs1;
-        fp_out_2 <= fp_rd;
+        fp_out_1 <= (fp_control == LOAD_FP) ? fp_rs1 : fp_rd;
+        fp_out_2 <= (fp_control == LOAD_FP) ? fp_rs2 : {FP_EXP_WIDTH + FP_MANT_WIDTH{1'b0}};
     end
 end
 
@@ -111,7 +111,7 @@ logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rs2;
 logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rd;
 logic fix_we;
 
-assign fix_we = (fixed_control != STALL && fixed_control != LOAD_FIX) ? 1'b1 : 1'b0;
+assign fix_we = (fixed_control != STALL && fixed_control != LOAD_FOR_ADDR) ? 1'b1 : 1'b0;
 assign fixed_out_1 = fixed_rs1;
 assign fixed_out_2 = fixed_rd;
 
