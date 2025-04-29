@@ -102,10 +102,10 @@ def test_simple_fp_addition():
         group = "mx_fp_operation",
         module = "mx_fp_adder_tree_fp_out",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/conversion",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/fp_operation",
+            "../../../../src/basic_components/conversion",
+            "../../../../src/basic_components/common"
         ],       
         module_param_list=[
             {"MXFP_EXP_WIDTH" : mxfp_exp_width, "MXFP_MANT_WIDTH" : mxfp_mant_width, "MXFP_SCALE_WIDTH" : mxfp_scale_width, "BLOCK_EXT_MANT_WIDTH_PER_LAYER" : block_ext_mant_width, "BLOCK_EXT_EXP_WIDTH_PER_LAYER" : block_ext_exp_width, "FP_EXT_MANT_WIDTH_PER_LAYER" : fp_ext_mant_width, "FP_EXT_EXP_WIDTH_PER_LAYER" : fp_ext_exp_width, "COMP_DIM" : comp_dim, "BLOCK_DIM" : block_dim},

@@ -14,11 +14,11 @@ Status      : Passed Simple Row/Col Read/Write Tests
 `timescale 1ns/1ps
 
 module biaccess_sram #(
-    parameter   int DataWidth = 4, 
-    parameter   int SRAM_DEPTH = 128,
-    parameter   int MLEN = 8,                                       // The TileSize of the matrix.
-    parameter   int Parallel_Rd_Dim = 2,                            // The number of row/col read in parallel
-    localparam  int AddrLen = $clog2(SRAM_DEPTH)                    // Address Space for the SRAM 
+    parameter   DataWidth = 4, 
+    parameter   SRAM_DEPTH = 128,
+    parameter   MLEN = 8,                                       // The TileSize of the matrix.
+    parameter   Parallel_Rd_Dim = 2,                            // The number of row/col read in parallel
+    localparam  AddrLen = $clog2(SRAM_DEPTH)                    // Address Space for the SRAM 
 ) (
     input  logic clk,
 

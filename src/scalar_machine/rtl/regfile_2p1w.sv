@@ -9,7 +9,7 @@ Statuscc
 */
 
 
-module 2p_1w_reg_file #(
+module regfile_2p1w #(
     parameter int BITWIDTH = 32,
     parameter int DEPTH = 32,
     localparam int ADDR_WIDTH = $clog2(DEPTH)

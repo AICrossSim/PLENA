@@ -63,7 +63,7 @@ def test_simple_fp_addition():
         group = "mx_fp_operation",
         module = "mx_fp_unit_adder",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",                                      
+            "../../../../src/basic_components/fp_operation",                                      
         ],
         module_param_list=[
             {"MXFP_EXP_WIDTH" : element_exp_width, "MXFP_MANT_WIDTH" : element_mant_width, "MXFP_SCALE_WIDTH" : scale_width, "EXT_MANT_WIDTH" : ext_mant_width, "EXT_EXP_WIDTH" : ext_exp_width},

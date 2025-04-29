@@ -130,11 +130,11 @@ def mxfp_mv_test():
         group = "mv_unit",
         module = "mx_fp_mv",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/mx_fp_operation",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/conversion",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"
+            "../../../../src/basic_components/mx_fp_operation",
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/fp_operation",
+            "../../../../src/basic_components/conversion",
+            "../../../../src/basic_components/common"
         ],       
         module_param_list=[
             {"MXFP_MANT_WIDTH" : mxfp_mant_width, "MXFP_EXP_WIDTH" : mxfp_exp_width, "MXFP_SCALE_WIDTH" : mxfp_scale_width, "COMPUTE_DIM" : comp_dim, "BLOCK_DIM" : block_dim, 

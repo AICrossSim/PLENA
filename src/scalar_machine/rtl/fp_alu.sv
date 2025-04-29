@@ -17,7 +17,7 @@ module fp_alu #(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
     input  S_FP_OP operation,       // 0: add, 1: sub, 2: mul, 3: isqrt
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
-)
+);
 
 logic [EXP_WIDTH + MANT_WIDTH : 0] fp_add_out, fp_sub_out, fp_mul_out, fp_isqrt_out, fp_log_out, fp_exp_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
@@ -26,32 +26,32 @@ logic negated_en;
 always_comb begin
     negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
     case (operation)
-        ADD: begin
+        ADD_FP: begin
             negated_en = 1'b0;
             data_out = fp_add_out;
         end
 
-        SUB: begin
+        SUB_FP: begin
             negated_en = 1'b1;
             data_out = fp_sub_out;
         end
 
-        MUL: begin
+        MUL_FP: begin
             negated_en = 1'b0;
             data_out = fp_mul_out;
         end
 
-        ISQRT: begin
+        ISQRT_FP: begin
             negated_en = 1'b0;
             data_out = fp_isqrt_out;
         end
 
-        LOG: begin
+        LOG_FP: begin
             negated_en = 1'b0;
             data_out = fp_log_out;
         end
 
-        EXP: begin
+        EXP_FP: begin
             negated_en = 1'b0;
             data_out = fp_exp_out;
         end

@@ -4,21 +4,21 @@
 typedef enum logic [1:0] {
     MV      = 0,
     MV_O    = 1,
-    STALL   = 2
+    STALL_M   = 2
 } M_OP;
 
 typedef enum logic [2:0] {
-    ADD = 0,
-    SUB = 1,
-    MUL = 2,
-    EXP = 3,
-    STALL = 4
+    ADD_V_ELEMENT = 0,
+    SUB_V_ELEMENT = 1,
+    MUL_V_ELEMENT = 2,
+    EXP_V_ELEMENT = 3,
+    STALL_V_ELEMENT = 4
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
-    SUM = 0,
-    MAX = 1,
-    STALL = 2
+    SUM_V_REDUCT = 0,
+    MAX_V_REDUCT = 1,
+    STALL_V_REDUCT = 2
 } V_REDUCT_OP;
 
 typedef enum logic [2:0] {
@@ -29,10 +29,10 @@ typedef enum logic [2:0] {
     ISQRT_FP  = 4,
     LOG_FP    = 5,
     LOAD_FP   = 6,
-    STALL     = 7
+    STALL_S_FP = 7
 } S_FP_OP;
 
-typedef enum logic [2:0] {
+typedef enum logic [3:0] {
     ADD_FIX   = 0,
     ADDI_FIX  = 1,
     SUB_FIX   = 2,
@@ -42,16 +42,22 @@ typedef enum logic [2:0] {
     MV_FIX    = 6,
     LOAD_FOR_ADDR = 7,
     CONCAT = 8,
-    STALL     = 9
+    STALL_S_FIXED = 9
 } S_FIXED_OP;
 
+function automatic int max(input int a, input int b);
+    return (a > b) ? a : b;
+endfunction
 
+package instruction_pkg;
+    parameter FIXED_OPERAND_WIDTH = 3;
+    parameter FP_OPERAND_WIDTH = 3;
+    parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
+    parameter OPCODE_WIDTH = 6;
+    parameter IMM_WIDTH = 32;
+    parameter INSTRUCTION_LENGTH = 16;
+endpackage
 
-parameter FIXED_OPERAND_WIDTH = 3;
-parameter FP_OPERAND_WIDTH = 3;
-parameter OPERAND_WIDTH = MAX(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
-parameter OPCODE_WIDTH = 5;
-parameter IMM_WIDTH = 32;
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Matrix Operation
@@ -61,45 +67,45 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     M_TMV_O     = 3,
 
     // Vector Operation
-    V_ADD_VV    = 2,
-    V_ADD_VF    = 3,
-    V_SUB_VV    = 4,
-    V_SUB_VF    = 5,
-    V_MUL_VV    = 6,
-    V_MUL_VF    = 7,
-    V_EXP_VV    = 8,
-    V_RED_SUM   = 9,
-    V_RED_MAX   = 10,
+    V_ADD_VV    = 4,
+    V_ADD_VF    = 5,
+    V_SUB_VV    = 6,
+    V_SUB_VF    = 7,
+    V_MUL_VV    = 8,
+    V_MUL_VF    = 9,
+    V_EXP_VV    = 10,
+    V_RED_SUM   = 11,
+    V_RED_MAX   = 12,
 
     // Scalar Operation
-    S_ADD_FP    = 11,
-    S_SUB_FP    = 12,
-    S_MAX_FP    = 13,
-    S_MUL_FP    = 14,
-    S_EXP_FP    = 15,
-    S_ISQRT_FP  = 16,
-    S_LOG_FP    = 17,
-    S_ADD_FIX   = 18,
-    S_ADDI_FIX  = 19,
-    S_SUB_FIX   = 20,
-    S_MUL_FIX   = 21,
-    S_DIV_FIX   = 22,
-    S_LUI_FIX   = 23,
-    S_MV_FIX    = 24,
+    S_ADD_FP    = 13,
+    S_SUB_FP    = 14,
+    S_MAX_FP    = 15,
+    S_MUL_FP    = 16,
+    S_EXP_FP    = 17,
+    S_ISQRT_FP  = 18,
+    S_LOG_FP    = 19,
+    S_ADD_FIX   = 20,
+    S_ADDI_FIX  = 21,
+    S_SUB_FIX   = 22,
+    S_MUL_FIX   = 23,
+    S_DIV_FIX   = 24,
+    S_LUI_FIX   = 25,
+    S_MV_FIX    = 26,
 
     // Memory Operation
-    H_PREFETCH_M    = 25,
-    H_PREFETCH_V    = 26,
-    H_LOAD_SCALAR   = 27,
-    H_STORE_VECTOR  = 28,
-    H_STORE_SCALAR  = 29,
-    H_STORE_HBM     = 30,
+    H_PREFETCH_M    = 27,
+    H_PREFETCH_V    = 28,
+    H_LOAD_SCALAR   = 29,
+    H_STORE_VECTOR  = 30,
+    H_STORE_SCALAR  = 31,
+    H_STORE_HBM     = 32,
 
     // CSR Setting
-    C_SET_HBM_OFFSET = 31,
-    C_SET_MV_OFFSET  = 32,
+    C_SET_HBM_OFFSET = 33,
+    C_SET_MV_OFFSET  = 34,
 
-    INVALID         = 33
+    INVALID_OPCODE   = 35
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] { 
@@ -108,10 +114,10 @@ typedef enum logic [2:0] {
     S = 2,
     H = 3,
     C = 4,
-    INVALID = 5
+    INVALID_TYPE = 5
  } CUSTOM_ISA_TYPE;
 
-parameter INSTRUCTION_LENGTH = 16;
+
 
 typedef struct {
     logic [OPCODE_WIDTH - 1:0]  opcode;

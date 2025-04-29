@@ -2,15 +2,19 @@
 `include "operation.svh"
 `include "precision.svh"
 `include "configuration.svh"
-`include "tl_util.svh"
 
+import precision_pkg::*;
+import configuration_pkg::*;
+import instruction_pkg::*;
+
+// `include "tl_util.svh"
 
 /*
 Module      : Coprocessor Top Module
 Status      : Under Development
 */
 
-module coprocessor # (
+module coprocessor (
     input   logic clk,
     input   logic rst,
     // For testing, incoporate PCIe interface later
@@ -21,15 +25,15 @@ module coprocessor # (
     // `TL_DECLARE_DEVICE_PORT(DataWidth, AddrWidth, SourceWidth, 1, host),
 
     // For testing, 
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_m_element,
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_m_scale,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_m_element,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_m_scale,
 
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1,
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1,
 
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2,
-    input logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2
-)
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2
+);
 
     // Control Signals
     // HBM Control
@@ -38,13 +42,13 @@ module coprocessor # (
     logic hbm_v_write_en;
 
     // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_m_element;
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_m_scale;
+    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_m_scale;
 
     // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1;
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1;
+    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1;
 
     // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2;
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2;
+    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2;
     
     // SRAM Control
     logic read_from_m_sram_en, transposed_read_from_m_sram_en;
@@ -61,13 +65,13 @@ module coprocessor # (
 
     // Frontend Control
     frontend #(
-        .INSTRUCTION_LENGTH(INSTRUCTION_LENGTH),
-        .OPERAND_WIDTH(OPERAND_WIDTH),
-        .FIXED_OPERAND_WIDTH(FIXED_OPERAND_WIDTH),
-        .FP_OPERAND_WIDTH(FP_OPERAND_WIDTH),
-        .OPCODE_WIDTH(OPCODE_WIDTH),
-        .IMM_WIDTH(IMM_WIDTH),
-        .INST_BUFF_DEPTH(INST_BUFF_DEPTH)
+        .INSTRUCTION_LENGTH     (INSTRUCTION_LENGTH),
+        .OPERAND_WIDTH          (OPERAND_WIDTH),
+        .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
+        .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
+        .OPCODE_WIDTH           (OPCODE_WIDTH),
+        .IMM_WIDTH              (IMM_WIDTH),
+        .INST_BUFF_DEPTH        (INST_BUFF_DEPTH)
     ) frontend_init (
         .clk(clk),
         .rst(rst),
@@ -100,30 +104,31 @@ module coprocessor # (
     );
 
     // Matrix
+    parameter BLOCK_NUM = MLEN / BLOCK_DIM;
+
     logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_m_element;
-    logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MX_FP_SCALE_WIDTH-1:0]                     fetched_m_scale;
+    logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     fetched_m_scale;
     logic fetched_m_valid, fetched_m_ready;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_v_element_port1;
-    logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     fetched_v_scale_port1;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     fetched_v_scale_port1;
     logic fetched_v_valid_port1, fetched_v_ready_port1;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_v_element_port2;
-    logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     fetched_v_scale_port2;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     fetched_v_scale_port2;
     logic fetched_v_valid_port2, fetched_v_ready_port2;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_out_element;
-    logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     m_out_scale;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     m_out_scale;
     logic m_out_valid, m_out_ready;
 
     generate;
         matrix_machine #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MX_FP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
             .MLEN(MLEN),
             .BLOCK_DIM(BLOCK_DIM),
-            .BLOCK_NUM(BLOCK_NUM),
             .PRODUCT_EXT_EXP_WIDTH(PRODUCT_EXT_EXP_WIDTH),
             .PRODUCT_EXT_MANT_WIDTH(PRODUCT_EXT_MANT_WIDTH),
             .BLOCK_ADD_EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
@@ -134,32 +139,32 @@ module coprocessor # (
             .clk(clk),
             .rst(rst),
 
-            m_element(fetched_m_element),
-            m_scale(fetched_m_scale),
-            m_valid(fetched_m_valid),
-            m_ready(fetched_m_ready),
+            .m_element(fetched_m_element),
+            .m_scale(fetched_m_scale),
+            .m_valid(fetched_m_valid),
+            .m_ready(fetched_m_ready),
 
-            v_element(fetched_v_element_port1),
-            v_scale(fetched_v_scale_port1),
-            v_valid(fetched_v_valid_port1),
-            v_ready(fetched_v_ready_port1),
+            .v_element(fetched_v_element_port1),
+            .v_scale(fetched_v_scale_port1),
+            .v_valid(fetched_v_valid_port1),
+            .v_ready(fetched_v_ready_port1),
 
-            o_element(fetched_v_element_port2),
-            o_scale(fetched_v_scale_port2),
-            o_valid(fetched_v_valid_port2),
-            o_ready(fetched_v_ready_port2),
+            .o_element(fetched_v_element_port2),
+            .o_scale(fetched_v_scale_port2),
+            .o_valid(fetched_v_valid_port2),
+            .o_ready(fetched_v_ready_port2),
 
-            out_element(m_out_element),
-            out_scale(m_out_scale),
-            out_valid(m_out_valid),
-            out_ready(m_out_ready)
+            .out_element(m_out_element),
+            .out_scale(m_out_scale),
+            .out_valid(m_out_valid),
+            .out_ready(m_out_ready)
         );
 
         // Matrix Memory 
         matrix_sram_with_rounding #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
             .MLEN(MLEN),
             .BLOCK_DIM(BLOCK_DIM),
             .SRAM_DEPTH(SRAM_DEPTH),
@@ -187,10 +192,9 @@ module coprocessor # (
     scratch_sram #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
         .VLEN(MLEN),
         .BLOCK_DIM(BLOCK_DIM),
-        .BLOCK_NUM(BLOCK_NUM),
         .SRAM_DEPTH(SRAM_DEPTH)
     ) vector_sram (
         .clk(clk),
@@ -215,19 +219,18 @@ module coprocessor # (
     );
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_out_element;
-    logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     v_out_scale;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale;
     logic v_out_valid, v_out_ready;
 
     // Vector Compute Unit
     vector_machine #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MX_FP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
         .FP_EXP_WIDTH(FP_EXP_WIDTH),
         .FP_MANT_WIDTH(FP_MANT_WIDTH),
         .VLEN(MLEN),
         .BLOCK_DIM(BLOCK_DIM),
-        .BLOCK_NUM(BLOCK_NUM),
         .VE_EXT_EXP_WIDTH(0),
         .VE_EXT_MANT_WIDTH(0),
         .VR_EXT_EXP_WIDTH(0),
@@ -238,7 +241,7 @@ module coprocessor # (
     ) vector_machine (
         .clk(clk),
         .rst(rst),
-        .select_b_from_scalar   (broadcast_fp2),
+        .broadcast_fp2          (broadcast_fp2),
         .element_v_control      (element_opcode),
         .reduct_v_control       (reduce_opcode),
         .v_a_element            (fetched_v_element_port1),
@@ -264,8 +267,8 @@ module coprocessor # (
         .v_out_ready            (v_out_ready)
     );
 
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_s_in;
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_s_out;
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_in;
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_out;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
@@ -274,7 +277,7 @@ module coprocessor # (
     scalar_machine #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MX_FP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
         .FP_EXP_WIDTH(FP_EXP_WIDTH),
         .FP_MANT_WIDTH(FP_MANT_WIDTH),
         .FIXED_DATA_WIDTH(FIXED_DATA_WIDTH)

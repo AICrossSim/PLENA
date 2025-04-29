@@ -22,7 +22,7 @@ module mx_fp_2_fp_unary #(
 
     initial begin
         assert (MXFP_SCALE_WIDTH > FP_EXP_WIDTH)
-            else $error("FP_EXP_WIDTH must be less than MX_FP_SCALE_WIDTH");
+            else $error("FP_EXP_WIDTH must be less than MXFP_SCALE_WIDTH");
     end
 
     localparam int FP_BIAS      = (1 << (FP_EXP_WIDTH - 1)) - 1;

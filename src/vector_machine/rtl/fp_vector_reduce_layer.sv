@@ -35,11 +35,11 @@ module fp_vector_reduce_layer #(
 
     always_comb begin
         case (operation)
-            SUM: begin
+            SUM_V_REDUCT: begin
                 data_out = {{OVERALL_INPUT_WIDTH - OUT_DIM * OUTPUT_DATA_WIDTH{1'b0}} ,layer_add_out};
             end
 
-            MAX: begin
+            MAX_V_REDUCT: begin
                 data_out = {{OVERALL_INPUT_WIDTH - OUT_DIM * OUTPUT_DATA_WIDTH{1'b0}} ,layer_max_out};
             end
 

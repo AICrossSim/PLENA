@@ -102,8 +102,8 @@ def test_simple_fp_addition():
         group = "fp_operation",
         module = "fp_dot_product",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"                                        
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/common"                                        
         ],
         module_param_list=[
             {"VEC_DIM" : vect_dim, "EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width, "PRODUCT_EXT_EXP_WIDTH" : product_ext_exp_width, "PRODUCT_EXT_MANT_WIDTH" : product_ext_mant_width, "ADD_EXT_EXP_WIDTH" : add_ext_exp_width, "ADD_EXT_MANT_WIDTH" : add_ext_mant_width},

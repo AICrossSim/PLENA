@@ -12,7 +12,7 @@ module broadcast #(
 ) (
     input logic [DATA_WIDTH-1:0] in_data,
     output logic [BROADCAST_DIM-1:0] [DATA_WIDTH - 1:0] out_data
-)
+);
 
     generate;
         if (BROADCAST_DIM == 1) begin

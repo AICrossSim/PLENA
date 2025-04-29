@@ -129,11 +129,11 @@ def test_simple_fp_addition():
         group = "vector_machine",
         module = "fp_reduction_compute_unit",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation"                                    
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/common",
+            "../../../../src/basic_components/fp_operation"                                    
         ],
-        definitions_path = "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/definitions",
+        definitions_path = "../../../../src/definitions",
         module_param_list=[
             {"EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width, "VLEN" : vect_dim // 2  },
         ],

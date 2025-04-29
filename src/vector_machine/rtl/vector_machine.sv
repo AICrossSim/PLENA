@@ -12,11 +12,11 @@ module vector_machine #(
     // MX-FP Data Format
     parameter   MXFP_MANT_WIDTH   = 8,
     parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MX_FP_SCALE_WIDTH = 8,
+    parameter   MXFP_SCALE_WIDTH = 8,
 
     // FP Data Format
     parameter   FP_EXP_WIDTH = 5,
-    parameter   FP_MANT_WIDTH = 10
+    parameter   FP_MANT_WIDTH = 10,
 
     // Dimensions
     parameter   VLEN              = 8,
@@ -33,7 +33,7 @@ module vector_machine #(
     // Intermediate FP Control
     parameter   ROUND_FP_EN            = 0,
     parameter   ROUND_FP_EXP_WIDTH     = 4,
-    parameter   ROUND_FP_MANT_WIDTH    = 3, 
+    parameter   ROUND_FP_MANT_WIDTH    = 3
     
 ) (
     input   logic clk,
@@ -46,29 +46,29 @@ module vector_machine #(
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
-    input   logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                            v_a_scale,
+    input   logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                            v_a_scale,
     input   logic                   v_a_valid,
     output  logic                   v_a_ready,
 
     // Vector b
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_b_element,
-    input   logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                            v_b_scale,
+    input   logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                            v_b_scale,
     input   logic                   v_b_valid,
     output  logic                   v_b_ready,
 
     // Scalar Value
-    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] s_in,
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] s_in,
     input   logic                   s_in_valid,
     output  logic                   s_in_ready,
 
-    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH] s_out,
+    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] s_out,
     output  logic                     s_out_valid,
-    input   logic                     s_out_ready
+    input   logic                     s_out_ready,
 
 
     // Output
     output  logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_out_element,
-    output  logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     v_out_scale,
+    output  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale,
     output  logic                     v_out_valid,
     input   logic                     v_out_ready
     
@@ -84,16 +84,16 @@ logic select_result; // 0 for reduction, 1 for elementwise compute
 
 always_ff @(posedge clk or negedge rst) begin
     if (!rst) begin
-        p1_element_v_control    <= STALL;
-        p1_reduct_v_control     <= STALL;
+        p1_element_v_control    <= STALL_V_ELEMENT;
+        p1_reduct_v_control     <= STALL_V_REDUCT;
     end else begin
         p1_element_v_control    <= element_v_control;
         p1_reduct_v_control     <= reduct_v_control;
     end
 
-    if (p1_element_v_control != STALL) begin
+    if (p1_element_v_control != STALL_V_ELEMENT) begin
         select_result <= 1'b1;
-    end else if (p1_reduct_v_control != STALL) begin
+    end else if (p1_reduct_v_control != STALL_V_REDUCT) begin
         select_result <= 1'b0;
     end else begin
         select_result <= 1'b0;
@@ -144,7 +144,7 @@ generate;
     end
 
     broadcast #(
-        .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1)
+        .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
         .BROADCAST_DIM(VLEN)
     ) broadcaset_scalar (
         .in_data(s_in),
@@ -154,37 +154,37 @@ generate;
 endgenerate
 
 skid_buffer #(
-    .DATAWIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
+    .DATA_WIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
 ) v_a_buffer (
     .clk(clk),
     .rst(!rst),
 
     // Input
-    .in_data(converted_v_a),
-    .in_valid(v_a_valid),
-    .in_ready(v_a_ready),
+    .data_in(converted_v_a),
+    .data_in_valid(v_a_valid),
+    .data_in_ready(v_a_ready),
 
     // Output
-    .out_data(prepared_v_a),
-    .out_valid(prepared_v_a_valid),
-    .out_ready(prepared_v_a_ready)
+    .data_out(prepared_v_a),
+    .data_out_valid(prepared_v_a_valid),
+    .data_out_ready(prepared_v_a_ready)
 );
 
 skid_buffer #(
-    .DATAWIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
+    .DATA_WIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
 ) v_b_buffer (
     .clk(clk),
     .rst(!rst),
 
     // Input
-    .in_data(broadcast_fp2 ? unpacked_v_s : converted_v_b ),
-    .in_valid(v_b_valid),
-    .in_ready(v_b_ready),
+    .data_in(broadcast_fp2 ? unpacked_v_s : converted_v_b ),
+    .data_in_valid(v_b_valid),
+    .data_in_ready(v_b_ready),
 
     // Output
-    .out_data(prepared_v_b),
-    .out_valid(prepared_v_b_valid),
-    .out_ready(prepared_v_b_ready)
+    .data_out(prepared_v_b),
+    .data_out_valid(prepared_v_b_valid),
+    .data_out_ready(prepared_v_b_ready)
 );
 
 
@@ -252,7 +252,7 @@ generate;
             .FP_EXP_WIDTH(FP_EXP_WIDTH),
             .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
             .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .MX_FP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
+            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
         ) fp_mxfp_conversion_unit (
             .clk(clk),
             .rst(rst),

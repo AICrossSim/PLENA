@@ -55,7 +55,7 @@ def test_simple_fp_addition():
         group = "conversion",
         module = "mx_fp_2_fp_unary",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",                                      
+            "../../../../src/basic_components/fp_operation",                                      
         ],
         module_param_list=[
             {"MXFP_EXP_WIDTH" : element_exp_width, "MXFP_MANT_WIDTH" : element_mant_width, "MXFP_SCALE_WIDTH" : scale_width, "FP_MANT_WIDTH" : fp_mant_width, "FP_EXP_WIDTH" : fp_exp_width},

@@ -88,18 +88,26 @@ async def simple_function_test(dut):
 
 
 @pytest.mark.dev
-def mxfp_mv_test():
+def coprocessor_test():
     # Run tests with different params
     veri_runner(
         group = "core",
         module = "coprocessor",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/mx_fp_operation",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/conversion",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"
+            "../../../src/basic_components/common",
+            "../../../src/basic_components/mx_fp_operationr",
+            "../../../src/basic_components/fp_operation",
+            "../../../src/basic_components/conversion",
+            "../../../src/basic_components/buffer",
+            "../../../src/frontend",
+            "../../../src/matrix_machine",
+            "../../../src/vector_machine",
+            "../../../src/scalar_machine",
+            "../../../src/memory/matrix_sram",
+            "../../../src/memory/scratch_sram",
+            "../../../src/memory/scalar_sram"
         ],       
+        definitions_path = "../../../src/definitions",
         # module_param_list=[
         #     {"MXFP_MANT_WIDTH" : mxfp_mant_width, "MXFP_EXP_WIDTH" : mxfp_exp_width, "MXFP_SCALE_WIDTH" : mxfp_scale_width, "COMPUTE_DIM" : comp_dim, "BLOCK_DIM" : block_dim, 
         #      "PRODUCT_EXT_MANT_WIDTH" : product_ext_mant_width, "PRODUCT_EXT_EXP_WIDTH" : product_ext_exp_width,
@@ -111,4 +119,4 @@ def mxfp_mv_test():
     )
 
 if __name__ == "__main__":
-    mxfp_mv_test()
+    coprocessor_test()

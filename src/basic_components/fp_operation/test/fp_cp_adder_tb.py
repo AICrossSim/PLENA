@@ -80,9 +80,9 @@ def test_simple_fp_addition():
         group = "fp_operation",
         module = "fp_cp_adder",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation"                                    
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/common",
+            "../../../../src/basic_components/fp_operation"                                    
         ],
         module_param_list=[
             {"EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width, "EXT_MANT_WIDTH" : ext_mant_width, "EXT_EXP_WIDTH" : ext_exp_width},

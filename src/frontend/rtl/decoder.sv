@@ -37,15 +37,16 @@ module decoder #(
 );
 
 logic loaded_instr_valid;
+logic [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
-    .DEPTH(INST_BUFF_DEPTH),
+    .DEPTH(INST_BUFF_DEPTH)
 ) fifo_inst (
     .clk(clk),
     .rst(rst),
     .data_in(instruction),
-    data_in_valid(instruction_valid),
+    .data_in_valid(instruction_valid),
     .data_in_ready(instruction_ready),
     .data_out(loaded_instr),
     .data_out_valid(loaded_instr_valid),
@@ -60,12 +61,16 @@ logic [OPCODE_WIDTH - 1 : 0] loaded_opcode;
 logic [OPERAND_WIDTH:0]      loaded_rs1;
 logic [OPERAND_WIDTH:0]      loaded_rs2;
 logic [OPERAND_WIDTH:0]      loaded_rd;
+logic [IMM_WIDTH - 1 : 0]   loaded_imm;
 
-assign loaded_opcode    = (load_next == 1'b1) ? loaded_instr[INSTRUCTION_LENGTH - 1 : INSTRUCTION_LENGTH - OPCODE_WIDTH]  : 1'b0;
-assign loaded_rs2       = (load_next == 1'b1) ? loaded_instr[INSTRUCTION_LENGTH - 1 : INSTRUCTION_LENGTH - OPERAND_WIDTH] : 1'b0;
-assign loaded_rs1       = (load_next == 1'b1) ? loaded_instr[INSTRUCTION_LENGTH - OPERAND_WIDTH - 1 -: OPERAND_WIDTH]     : 1'b0;
-assign loaded_rd        = (load_next == 1'b1) ? loaded_instr[INSTRUCTION_LENGTH - 2 * OPERAND_WIDTH - 1 -: OPERAND_WIDTH] : 1'b0;
 
+assign loaded_opcode    = loaded_instr[OPERAND_WIDTH - 1 : 0];
+assign loaded_rs2       = loaded_instr[INSTRUCTION_LENGTH - 1 -: OPERAND_WIDTH];
+assign loaded_rs1       = loaded_instr[(INSTRUCTION_LENGTH - OPERAND_WIDTH - 1) -: OPERAND_WIDTH];
+assign loaded_rd        = loaded_instr[(INSTRUCTION_LENGTH - 2 * OPERAND_WIDTH - 1) -: OPERAND_WIDTH];
+assign loaded_imm       = loaded_instr[INSTRUCTION_LENGTH - 1 -: OPERAND_WIDTH];
+
+CUSTOM_ISA_TYPE next_instruction_type;
 
 always_comb begin
     case (loaded_opcode)
@@ -95,7 +100,7 @@ always_comb begin
         end
 
         default: begin
-            next_instruction_type = INVALID;
+            next_instruction_type = INVALID_TYPE;
         end
 
     endcase

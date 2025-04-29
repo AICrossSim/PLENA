@@ -14,14 +14,14 @@ module scalar_machine #(
     // MX-FP Data Format
     parameter   MXFP_MANT_WIDTH   = 8,
     parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MX_FP_SCALE_WIDTH = 8,
+    parameter   MXFP_SCALE_WIDTH = 8,
 
     // FP Data Format
     parameter   FP_EXP_WIDTH = 5,
-    parameter   FP_MANT_WIDTH = 10
+    parameter   FP_MANT_WIDTH = 10,
 
     // Fixed Data Format
-    parameter   FIXED_DATA_WIDTH = 32,
+    parameter   FIXED_DATA_WIDTH = 32
 
     // Dimensions
 ) (
@@ -49,24 +49,24 @@ module scalar_machine #(
     // input   logic fixed_out_ready,
 
     // FP Value input
-    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_in,
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_in,
 
     // input   logic fp_in_valid,
     // output  logic fp_in_ready,
 
-    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_out_1,
-    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_out_2,
+    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_out_1,
+    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_out_2
     // output  logic fp_out_valid,
     // input   logic fp_out_ready
-)
+);
 
 
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_rs1;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_rs2;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fp_rd;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rs1;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rs2;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rd;
 logic fp_we;
 
-assign fp_we = (fp_control != STALL && fp_control !=LOAD_FP ) ? 1'b1 : 1'b0;
+assign fp_we = (fp_control != STALL_S_FP && fp_control !=LOAD_FP ) ? 1'b1 : 1'b0;
 assign fp_out_1 = fp_rs1;
 assign fp_out_2 = fp_rd;
 
@@ -81,7 +81,7 @@ fp_alu #(
 );
 
 
-2p_1w_reg_file #(
+regfile_2p1w #(
     .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
     .DEPTH(2 << FP_OPERAND_WIDTH)
 ) fp_reg_file (
@@ -106,17 +106,17 @@ always_ff @(posedge clk or posedge rst) begin
 end
 
 
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rs1;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rs2;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH] fixed_rd;
+logic [FIXED_DATA_WIDTH - 1 : 0] fixed_rs1;
+logic [FIXED_DATA_WIDTH - 1 : 0] fixed_rs2;
+logic [FIXED_DATA_WIDTH - 1 : 0] fixed_rd;
 logic fix_we;
 
-assign fix_we = (fixed_control != STALL && fixed_control != LOAD_FOR_ADDR) ? 1'b1 : 1'b0;
+assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != LOAD_FOR_ADDR) ? 1'b1 : 1'b0;
 assign fixed_out_1 = fixed_rs1;
 assign fixed_out_2 = fixed_rd;
 
 fixed_alu #(
-    .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1)
+    .BITWIDTH(FIXED_DATA_WIDTH)
 ) fixed_alu (
     .operand_a(fixed_rs1),
     .operand_b(fixed_rs2),
@@ -126,10 +126,10 @@ fixed_alu #(
 );
 
 
-2p_1w_reg_file #(
-    .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
+regfile_2p1w #(
+    .BITWIDTH(FIXED_DATA_WIDTH),
     .DEPTH(2 << FIXED_OPERAND_WIDTH)
-) fp_reg_file (
+) fixed_reg_file (
     .clk(clk),
     .we(fix_we),
     .waddr(rd[FIXED_DATA_WIDTH - 1 : 0]),

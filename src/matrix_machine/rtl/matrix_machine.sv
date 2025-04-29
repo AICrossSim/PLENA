@@ -13,7 +13,7 @@ module matrix_machine #(
     // MX-FP Data Format
     parameter   MXFP_MANT_WIDTH   = 8,
     parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MX_FP_SCALE_WIDTH = 8,
+    parameter   MXFP_SCALE_WIDTH = 8,
 
     // Dimensions
     parameter   MLEN              = 8,
@@ -57,25 +57,25 @@ module matrix_machine #(
 
     // Matix - row-major order
     input  logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_element,
-    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MX_FP_SCALE_WIDTH-1:0]       m_scale,
+    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MXFP_SCALE_WIDTH-1:0]       m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
     // Vector - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element,
-    input  logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     v_scale,
+    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_scale,
     input  logic                   v_valid,
     output logic                   v_ready,
 
     // Offset - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      o_element,
-    input  logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     o_scale,
+    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     o_scale,
     input  logic                    o_valid,
     output logic                    o_ready,
 
     // Output
     output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      out_element,
-    output logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     out_scale,
+    output logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale,
     output logic                     out_valid,
     input  logic                     out_ready
     
@@ -88,16 +88,16 @@ end
 // Fetch Control
 logic clear_m;
 logic buffer_ready_m, buffer_ready_v, buffer_ready_o;
-assign buffer_ready_m = (matrix_opcode != STALL) ? m_ready : 1'b0;
-assign buffer_ready_v = (matrix_opcode != STALL) ? v_ready : 1'b0;
-assign buffer_ready_o = (matrix_opcode == MV_O || matrix_opcode == TMV_O) ? o_ready : 1'b0;
+assign buffer_ready_m = (matrix_opcode != STALL_M) ? m_ready : 1'b0;
+assign buffer_ready_v = (matrix_opcode != STALL_M) ? v_ready : 1'b0;
+assign buffer_ready_o = (matrix_opcode == MV_O)    ? o_ready : 1'b0;
 
-logic [PIPELINE_STAGES-1:0] [M_OP] pipeline_track;
+M_OP pipeline_track [PIPELINE_STAGES-1:0];
 
 always_ff @(posedge clk or negedge rst) begin
     if (!rst) begin
         for (int i = 0; i < PIPELINE_STAGES; i++) begin
-            pipeline_track[i] <= STALL;
+            pipeline_track[i] <= STALL_M;
         end
     end else begin
         pipeline_track[0] <= matrix_opcode;
@@ -127,7 +127,7 @@ end
 // Matrix Buffering
 // Element Collector
 logic [MLEN*MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      collect_m_element;
-logic [MLEN*BLOCK_NUM-1:0]          [MX_FP_SCALE_WIDTH-1:0]       collect_m_scale;
+logic [MLEN*BLOCK_NUM-1:0]          [MXFP_SCALE_WIDTH-1:0]       collect_m_scale;
 
 logic collect_in_m_ele_ready,   collect_in_m_scale_ready;
 logic collect_in_m_ele_valid,   collect_in_m_scale_valid;
@@ -145,12 +145,12 @@ split_n #(
 );
 
 matrix_collector #(
-    .DATAWIDTH((MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1) * MLEN),
-    .COLLECTOR_DEPTH(MLEN),
+    .DATA_WIDTH((MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1) * MLEN),
+    .MLEN(MLEN),
     .Collect_Dim(Matrix_Parallel_Rd_Dim)
 ) element_collect (
     .clk(clk),
-    .rst(rst),
+    .rst_n(rst),
     .clear(clear_m),
 
     // Input
@@ -162,16 +162,16 @@ matrix_collector #(
     .out_matrix(collect_m_element),
     .out_valid(collect_m_ele_valid),
     .out_ready(collect_m_ele_ready)
-)
+);
 
 // Scale Collector
 matrix_collector #(
-    .DATAWIDTH(MX_FP_SCALE_WIDTH * BLOCK_NUM),
-    .COLLECTOR_DEPTH(MLEN),
+    .DATA_WIDTH(MXFP_SCALE_WIDTH * BLOCK_NUM),
+    .MLEN(MLEN),
     .Collect_Dim(Matrix_Parallel_Rd_Dim)
 ) scale_collect (
     .clk(clk),
-    .rst(rst),
+    .rst_n(rst),
 
     // Input
     .in_data(m_scale),
@@ -182,7 +182,7 @@ matrix_collector #(
     .out_matrix(collect_m_scale),
     .out_valid(collect_m_scale_valid),
     .out_ready(collect_m_scale_ready)
-)
+);
 
 join_n #(
     .NUM_HANDSHAKES (2)
@@ -196,7 +196,7 @@ join_n #(
 
 // Multiplicand Vector Buffering
 logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      stored_v_element;
-logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]       stored_v_scale;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]       stored_v_scale;
 logic stored_v_in_ele_ready, stored_v_in_scale_ready;
 logic stored_v_in_ele_valid, stored_v_in_scale_valid;
 logic stored_v_ele_ready, stored_v_scale_ready;
@@ -213,38 +213,38 @@ split_n #(
 );
 
 skid_buffer #(
-    .DATAWIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
+    .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
 ) multiplicand_vec_element_buffer (
     .clk(clk),
     .rst(!rst),
 
     // Input
-    .in_data(v_element),
-    .in_valid(stored_v_in_ele_valid),
-    .in_ready(stored_v_in_ele_ready),
+    .data_in(v_element),
+    .data_in_valid(stored_v_in_ele_valid),
+    .data_in_ready(stored_v_in_ele_ready),
 
     // Output
-    .out_data(stored_v_element),
-    .out_valid(stored_v_ele_valid),
-    .out_ready(stored_v_ele_ready)
-)
+    .data_out(stored_v_element),
+    .data_out_valid(stored_v_ele_valid),
+    .data_out_ready(stored_v_ele_ready)
+);
 
 skid_buffer #(
-    .DATAWIDTH(BLOCK_NUM * MX_FP_SCALE_WIDTH)
+    .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
 ) multiplicand_vec_scale_buffer (
     .clk(clk),
     .rst(!rst),
 
     // Input
-    .in_data(v_scale),
-    .in_valid(stored_v_in_scale_valid),
-    .in_ready(stored_v_in_scale_ready),
+    .data_in(v_scale),
+    .data_in_valid(stored_v_in_scale_valid),
+    .data_in_ready(stored_v_in_scale_ready),
 
     // Output
-    .out_data(stored_v_scale),
-    .out_valid(stored_v_scale_valid),
-    .out_ready(stored_v_scale_ready)
-)
+    .data_out(stored_v_scale),
+    .data_out_valid(stored_v_scale_valid),
+    .data_out_ready(stored_v_scale_ready)
+);
 
 join_n #(
     .NUM_HANDSHAKES (2)
@@ -258,7 +258,7 @@ join_n #(
 
 // Offset Vector Buffering
 logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      stored_o_element;
-logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]       stored_o_scale;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]       stored_o_scale;
 logic stored_o_in_ele_ready, stored_o_in_scale_ready;
 logic stored_o_in_ele_valid, stored_o_in_scale_valid;
 logic stored_o_ele_ready, stored_o_scale_ready;
@@ -275,38 +275,38 @@ split_n #(
 );
 
 skid_buffer #(
-    .DATAWIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
+    .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
 ) offset_vec_element_buffer (
     .clk(clk),
     .rst(!rst),
 
     // Input
-    .in_data(o_element),
-    .in_valid(stored_o_in_ele_valid),
-    .in_ready(stored_o_in_ele_ready),
+    .data_in(o_element),
+    .data_in_valid(stored_o_in_ele_valid),
+    .data_in_ready(stored_o_in_ele_ready),
 
     // Output
-    .out_data(stored_o_element),
-    .out_valid(stored_o_ele_valid),
-    .out_ready(stored_o_ele_ready)
-)
+    .data_out(stored_o_element),
+    .data_out_valid(stored_o_ele_valid),
+    .data_out_ready(stored_o_ele_ready)
+);
 
 skid_buffer #(
-    .DATAWIDTH(BLOCK_NUM * MX_FP_SCALE_WIDTH)
+    .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
 ) offset_vec_scale_buffer (
     .clk(clk),
     .rst(!rst),
 
     // Input
-    .in_data(o_scale),
-    .in_valid(stored_o_in_scale_valid),
-    .in_ready(stored_o_in_scale_ready),
+    .data_in(o_scale),
+    .data_in_valid(stored_o_in_scale_valid),
+    .data_in_ready(stored_o_in_scale_ready),
 
     // Output
-    .out_data(stored_o_scale),
-    .out_valid(stored_o_scale_valid),
-    .out_ready(stored_o_scale_ready)
-)
+    .data_out(stored_o_scale),
+    .data_out_valid(stored_o_scale_valid),
+    .data_out_ready(stored_o_scale_ready)
+);
 
 join_n #(
     .NUM_HANDSHAKES (2)
@@ -319,14 +319,14 @@ join_n #(
 
 // Control Logic
 logic   prod_valid, prod_ready;
-logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prod_element,
-logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     prod_scale,
+logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prod_element;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     prod_scale;
 
 // Matrix - Vector multiplication Unit
 mx_fp_mv #(
     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-    .MXFP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+    .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
 
     .COMPUTE_DIM(MLEN),
     .BLOCK_DIM(BLOCK_DIM),
@@ -366,7 +366,7 @@ mx_fp_mv #(
 
 // offset addition
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      acc_element;
-logic [BLOCK_NUM-1:0]        [MX_FP_SCALE_WIDTH-1:0]                     acc_scale;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
 logic acc_valid, acc_ready;
 
 always_comb begin
@@ -393,7 +393,7 @@ generate;
         mx_fp_blockwise_adder #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MX_FP_SCALE_WIDTH),
+            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
 
             .BLOCK_DIM(BLOCK_DIM),
 
