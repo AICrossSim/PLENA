@@ -25,7 +25,8 @@ module data_flow_control #() (
 
     input       logic [OPERAND_WIDTH - 1 : 0] loaded_rs1,
     input       logic [OPERAND_WIDTH - 1 : 0] loaded_rs2,
-    input       logic [OPERAND_WIDTH - 1 : 0] loaded_rd,
+
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] vector_waddr,
 
     output      logic load_process_failed,
 

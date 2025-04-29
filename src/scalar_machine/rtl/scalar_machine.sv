@@ -140,4 +140,24 @@ regfile_2p1w #(
     .rdata2(fixed_rs2)
 );
 
+
+// TODO, implement an scalar sram only accessed by the scalar machine
+    // prim_generic_ram_1p #(
+    //     .Width(FIXED_DATA_WIDTH),
+    //     .Depth(SRAM_DEPTH),
+    //     .DataBitsPerMask(FIXED_DATA_WIDTH)
+    // ) scalar_sram (
+    //     .clk_i(clk),
+    //     .rst_ni(rst),
+
+    //     .req_i(),
+    //     .write_i(),
+    //     .addr_i()
+    //     .wdata_i(),
+    //     .wmask_i(),
+    //     .data_in_a(),
+    //     .rdata_o(),
+
+    // );
+
 endmodule

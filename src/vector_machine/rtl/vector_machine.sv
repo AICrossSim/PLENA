@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
+
 /*
 Module      : Vector Machine Module
 Timing      : Sequential, Takes 4 cycles to compute every vector operation
@@ -24,11 +25,16 @@ module vector_machine #(
     localparam  BLOCK_NUM         = VLEN / BLOCK_DIM,
 
     // Precision Control
-    parameter   VE_EXT_EXP_WIDTH   = 0, // Extensions for vector elementwise compute unit. 
+    parameter   VE_EXT_EXP_WIDTH   = 0,     // Extensions for vector elementwise compute unit. 
     parameter   VE_EXT_MANT_WIDTH  = 0,
-    parameter   VR_EXT_EXP_WIDTH   = 0, // Extensions for vector reduction compute unit.
+    parameter   VR_EXT_EXP_WIDTH   = 0,     // Extensions for vector reduction compute unit.
     parameter   VR_EXT_MANT_WIDTH  = 0,
 
+    // Addr
+    parameter   VECTOR_ADDR_WIDTH  = 32,    // Vector write address
+
+    // Pipeline Control
+    parameter   VECTOR_PIPLINE_DEPTH = 2,   // Pipeline depth for the vector machine
 
     // Intermediate FP Control
     parameter   ROUND_FP_EN            = 0,
@@ -43,6 +49,7 @@ module vector_machine #(
     input   logic broadcast_fp2,
     input   V_ELEMENT_OP element_v_control,
     input   V_REDUCT_OP  reduct_v_control,
+    input   logic [VECTOR_ADDR_WIDTH - 1 : 0] target_vector_waddr,
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
@@ -67,13 +74,17 @@ module vector_machine #(
 
 
     // Output
-    output  logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_out_element,
+    output  logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     v_out_element,
     output  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale,
-    output  logic                     v_out_valid,
-    input   logic                     v_out_ready
+    output  logic                                                                   v_out_valid,
+    output  logic [VECTOR_ADDR_WIDTH - 1: 0]                                        v_waddr,
+    input   logic                                                                   v_out_ready
     
 );
 
+
+logic [VECTOR_ADDR_WIDTH - 1:0] pipeline_waddr_track [VECTOR_PIPLINE_DEPTH];
+assign v_waddr = pipeline_waddr_track[VECTOR_PIPLINE_DEPTH - 1];
 
 // Vector Machine Control
 V_ELEMENT_OP p1_element_v_control;
@@ -84,9 +95,16 @@ always_ff @(posedge clk or negedge rst) begin
     if (!rst) begin
         p1_element_v_control    <= STALL_V_ELEMENT;
         p1_reduct_v_control     <= STALL_V_REDUCT;
+        for (int i = 0; i < VECTOR_PIPLINE_DEPTH; i = i + 1) begin
+            pipeline_waddr_track[i] <= {VECTOR_ADDR_WIDTH{1'b0}};
+        end
     end else begin
         p1_element_v_control    <= element_v_control;
         p1_reduct_v_control     <= reduct_v_control;
+        pipeline_waddr_track[0] <= target_vector_waddr;
+        for (int i = 1; i < VECTOR_PIPLINE_DEPTH; i = i + 1) begin
+            pipeline_waddr_track[i] <= pipeline_waddr_track[i - 1];
+        end
     end
 
     if (p1_element_v_control != STALL_V_ELEMENT) begin
