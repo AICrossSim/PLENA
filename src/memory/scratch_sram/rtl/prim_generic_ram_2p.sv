@@ -15,6 +15,7 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   parameter      MemInitFile     = "", // VMEM file to initialize the memory with
 
   localparam int Aw              = $clog2(Depth)  // derived parameter
+  localparam int MaskWidth = Width / DataBitsPerMask
 ) (
   input clk_a_i,
   input clk_b_i,
@@ -23,7 +24,7 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   input                    a_write_i,
   input        [Aw-1:0]    a_addr_i,
   input        [Width-1:0] a_wdata_i,
-  input  logic [Width-1:0] a_wmask_i,
+  input  logic [MaskWidth-1:0] a_wmask_i,
   output logic [Width-1:0] a_rdata_o,
 
 
@@ -31,7 +32,7 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   input                    b_write_i,
   input        [Aw-1:0]    b_addr_i,
   input        [Width-1:0] b_wdata_i,
-  input  logic [Width-1:0] b_wmask_i,
+  input  logic [MaskWidth-1:0] b_wmask_i,
   output logic [Width-1:0] b_rdata_o,
 
   input  ram_2p_cfg_t      cfg_i,
@@ -54,24 +55,26 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
 
   // Width of internal write mask. Note *_wmask_i input into the module is always assumed
   // to be the full bit mask.
-  localparam int MaskWidth = Width / DataBitsPerMask;
+
 
   logic [Width-1:0]     mem [Depth];
   logic [MaskWidth-1:0] a_wmask;
   logic [MaskWidth-1:0] b_wmask;
 
-  for (genvar k = 0; k < MaskWidth; k++) begin : gen_wmask
-    assign a_wmask[k] = &a_wmask_i[k*DataBitsPerMask +: DataBitsPerMask];
-    assign b_wmask[k] = &b_wmask_i[k*DataBitsPerMask +: DataBitsPerMask];
+  // for (genvar k = 0; k < MaskWidth; k++) begin : gen_wmask
+  //   assign a_wmask[k] = &a_wmask_i[k*DataBitsPerMask +: DataBitsPerMask];
+  //   assign b_wmask[k] = &b_wmask_i[k*DataBitsPerMask +: DataBitsPerMask];
 
-    // Ensure that all mask bits within a group have the same value for a write
-    `ASSERT(MaskCheckPortA_A, a_req_i && a_write_i |->
-        a_wmask_i[k*DataBitsPerMask +: DataBitsPerMask] inside {{DataBitsPerMask{1'b1}}, '0},
-        clk_a_i, '0)
-    `ASSERT(MaskCheckPortB_A, b_req_i && b_write_i |->
-        b_wmask_i[k*DataBitsPerMask +: DataBitsPerMask] inside {{DataBitsPerMask{1'b1}}, '0},
-        clk_b_i, '0)
-  end
+  //   // Ensure that all mask bits within a group have the same value for a write
+  //   `ASSERT(MaskCheckPortA_A, a_req_i && a_write_i |->
+  //       a_wmask_i[k*DataBitsPerMask +: DataBitsPerMask] inside {{DataBitsPerMask{1'b1}}, '0},
+  //       clk_a_i, '0)
+  //   `ASSERT(MaskCheckPortB_A, b_req_i && b_write_i |->
+  //       b_wmask_i[k*DataBitsPerMask +: DataBitsPerMask] inside {{DataBitsPerMask{1'b1}}, '0},
+  //       clk_b_i, '0)
+  // end
+  assign a_wmask = a_wmask_i;
+  assign b_wmask = b_wmask_i;
 
   // Xilinx FPGA specific Dual-port RAM coding style
   // using always instead of always_ff to avoid 'ICPD  - illegal combination of drivers' error

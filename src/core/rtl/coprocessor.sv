@@ -24,7 +24,7 @@ module coprocessor (
     // HBM Interface TileLink
     // `TL_DECLARE_DEVICE_PORT(DataWidth, AddrWidth, SourceWidth, 1, host),
 
-    // For testing, 
+    // For testing
     input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_m_element,
     input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_m_scale,
 
@@ -51,16 +51,22 @@ module coprocessor (
     // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2;
     
     // SRAM Control
-    logic read_from_m_sram_en, transposed_read_from_m_sram_en;
+    logic read_from_m_sram_en, m_transposed_rd_en;
     logic read_from_s_sram_en;
 
 
     // Operation Control
-    M_OP            matrix_opcode;
-    V_ELEMENT_OP    element_opcode;
-    V_REDUCT_OP     reduce_opcode;
-    S_FIXED_OP      fixed_opcode;
-    S_FP_OP         fp_opcode;
+    M_OP            m_opcode;
+
+    V_ELEMENT_OP    v_element_opcode;
+    V_REDUCT_OP     v_reduce_opcode;
+    logic           v_broadcast_fp2;
+
+    S_FIXED_OP      s_fixed_opcode;
+    S_FP_OP         s_fp_opcode;
+    logic [IMM_WIDTH - 1 : 0] s_imm;
+    logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1, s_rs2, s_rd;
+    logic [FP_OPERAND_WIDTH - 1 : 0]    s_fps1, s_fps2, s_fpd;
 
 
     // Frontend Control
@@ -75,32 +81,26 @@ module coprocessor (
     ) frontend_init (
         .clk(clk),
         .rst(rst),
-        .instruction(instruction),
-        .instruction_valid(instruction_valid),
-        .instruction_ready(instruction_ready),
-        .hbm_m_prefetch_complete(hbm_m_prefetch_complete),
-        .hbm_m_prefetch_en(hbm_m_prefetch_en),
-        .hbm_v_prefetch_complete(hbm_v_prefetch_complete),
-        .hbm_v_prefetch_en(hbm_v_prefetch_en),
-        .hbm_v_write_en(hbm_v_write_en),
-        .read_from_m_sram_en(read_from_m_sram_en),
-        .transposed_read_from_m_sram_en(transposed_read_from_m_sram_en),
-        .read_from_s_sram_en(read_from_s_sram_en),
-        .matrix_opcode(matrix_opcode),
-        // .last_matrix_complete(last_matrix_complete),
-        .element_opcode(element_opcode),
-        .reduce_opcode(reduce_opcode),
-        .broadcast_fp2(broadcast_fp2),
-        // .last_vector_complete(last_vector_complete),
-        .fixed_opcode(fixed_opcode),
-        .imm(imm),
-        .rs1(rs1),
-        .rs2(rs2),
-        .rd(rd),
-        .fp_opcode(fp_opcode),
-        .fps1(fps1),
-        .fps2(fps2),
-        .fpd(fpd)
+        .instruction        (instruction),
+        .instruction_valid  (instruction_valid),
+        .instruction_ready  (instruction_ready),
+
+        .matrix_opcode      (m_opcode),
+        .transposed_read    (m_transposed_rd_en),
+        
+        .element_opcode     (v_element_opcode),
+        .reduce_opcode      (v_reduce_opcode),
+        .broadcast_fp2      (v_broadcast_fp2),
+        
+        .fixed_opcode       (s_fixed_opcode),
+        .imm                (s_imm),
+        .rs1                (s_rs1),
+        .rs2                (s_rs2),
+        .rd                 (s_rd),
+        .fp_opcode          (s_fp_opcode),
+        .fps1               (s_fps1),
+        .fps2               (s_fps2),
+        .fpd                (s_fpd)
     );
 
     // Matrix
@@ -139,10 +139,10 @@ module coprocessor (
             .clk(clk),
             .rst(rst),
 
-            .m_element(fetched_m_element),
-            .m_scale(fetched_m_scale),
-            .m_valid(fetched_m_valid),
-            .m_ready(fetched_m_ready),
+            .m_element  (fetched_m_element),
+            .m_scale    (fetched_m_scale),
+            .m_valid    (fetched_m_valid),
+            .m_ready    (fetched_m_ready),
 
             .v_element(fetched_v_element_port1),
             .v_scale(fetched_v_scale_port1),
@@ -173,7 +173,7 @@ module coprocessor (
             .clk(clk),
             .rst(rst),
             .req(hbm_m_prefetch_en || read_from_m_sram_en),
-            .transposed_read(transposed_read_from_m_sram_en),
+            .transposed_read(m_transposed_rd_en),
             .write_en(hbm_m_prefetch_en),
             .write_response(fetched_m_valid),
             .sram_addr(fixed_out_1),
@@ -218,8 +218,8 @@ module coprocessor (
         .scale_out_b(fetched_v_scale_port2)
     );
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_out_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale;
+    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]         v_out_element;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                         v_out_scale;
     logic v_out_valid, v_out_ready;
 
     // Vector Compute Unit
@@ -241,9 +241,9 @@ module coprocessor (
     ) vector_machine (
         .clk(clk),
         .rst(rst),
-        .broadcast_fp2          (broadcast_fp2),
-        .element_v_control      (element_opcode),
-        .reduct_v_control       (reduce_opcode),
+        .broadcast_fp2          (v_broadcast_fp2),
+        .element_v_control      (v_element_opcode),
+        .reduct_v_control       (v_reduce_opcode),
         .v_a_element            (fetched_v_element_port1),
         .v_a_scale              (fetched_v_scale_port1),
         .v_a_valid              (),
@@ -284,24 +284,38 @@ module coprocessor (
     ) scalar_machine (
         .clk(clk),
         .rst(rst),
-
-        // Control
         .fp_control(fp_opcode),
         .fixed_control(fixed_opcode),
-
-        // Register Control
-        .rs1(rs1),
-        .rs2(rs2),
-        .rd(rd),
-
+        .rs1(s_rs1),
+        .rs2(s_rs2),
+        .rd(s_rd),
+        .fp_rs1(s_fps1),
+        .fp_rs2(s_fps2),
+        .fp_rd(s_fpd),
         .fixed_in(fixed_in),
-        .imm_in(imm),
-
+        .imm_in(s_imm),
         .fixed_out_1(fixed_out_1),
         .fixed_out_2(fixed_out_2),
-
         .fp_in(fp_s_out),
         .fp_out_1(fp_s_in)
+    );
+
+    prim_generic_ram_1p #(
+        .Width(FIXED_DATA_WIDTH),
+        .Depth(SRAM_DEPTH),
+        .DataBitsPerMask(FIXED_DATA_WIDTH)
+    ) scalar_sram (
+        .clk_i(clk),
+        .rst_ni(rst),
+
+        .req_i(),
+        .write_i(),
+        .addr_i()
+        .wdata_i(),
+        .wmask_i(),
+        .data_in_a(),
+        .rdata_o(),
+
     );
 
     // SRAM for Scalar

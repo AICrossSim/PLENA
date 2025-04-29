@@ -76,8 +76,6 @@ module vector_machine #(
 
 
 // Vector Machine Control
-
-
 V_ELEMENT_OP p1_element_v_control;
 V_REDUCT_OP p1_reduct_v_control;
 logic select_result; // 0 for reduction, 1 for elementwise compute
@@ -111,6 +109,9 @@ logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] unpacked_v_s;
 
 logic prepared_v_a_ready, prepared_v_a_valid;
 logic prepared_v_b_ready, prepared_v_b_valid;
+
+// TODO : Not sure if this is correct
+assign s_in_ready = v_b_ready;
 
 generate;
     for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin

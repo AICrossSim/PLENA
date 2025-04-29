@@ -32,11 +32,15 @@ module scalar_machine #(
     input   S_FP_OP fp_control,
     input   S_FIXED_OP fixed_control,
 
-    // Register Control
+    // Fixed Register Control
     input   logic [OPERAND_WIDTH - 1 : 0] rs1,
     input   logic [OPERAND_WIDTH - 1 : 0] rs2,
     input   logic [OPERAND_WIDTH - 1 : 0] rd,
 
+    // FP Register Control
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rs1,
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rs2,
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rd,
 
     // Fixed Value input
     input   logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in,
@@ -61,9 +65,7 @@ module scalar_machine #(
 );
 
 
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rs1;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rs2;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rd;
+
 logic fp_we;
 
 assign fp_we = (fp_control != STALL_S_FP && fp_control !=LOAD_FP ) ? 1'b1 : 1'b0;

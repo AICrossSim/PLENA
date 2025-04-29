@@ -47,6 +47,9 @@ module matrix_sram_with_rounding #(
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] loaded_element_out;
+logic scale_write_response, element_write_response;
+
+assign write_response = scale_write_response & element_write_response;
 
 duplicate_data_section #(
     .DATA_SEC_WIDTH(MXFP_SCALE_WIDTH),
@@ -68,7 +71,7 @@ biaccess_sram #(
     .req(req),
     .transposed_read(transposed_read),
     .write_en(write_en),
-    .write_response(write_response),
+    .write_response(scale_write_response),
     .sram_addr(sram_addr),
     .write_data(dumplicated_scale_in),
     .out_data(loaded_scale_out)
@@ -85,7 +88,7 @@ biaccess_sram #(
     .req(req),
     .transposed_read(transposed_read),
     .write_en(write_en),
-    .write_response(write_response),
+    .write_response(element_write_response),
     .sram_addr(sram_addr),
     .write_data(element_in),
     .out_data(loaded_element_out)

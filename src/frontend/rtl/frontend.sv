@@ -18,8 +18,8 @@ module frontend #(
     parameter OPCODE_WIDTH          = 4,
     parameter IMM_WIDTH             = 32,
     parameter INST_BUFF_DEPTH       = 8
-    // parameter LOOKAHEAD_EN          = 1
-)(
+
+) (
     input   logic clk,
     input   logic rst,
 
@@ -28,28 +28,17 @@ module frontend #(
     input   logic instruction_valid,
     output  logic instruction_ready,
 
-    // Control HBM Data Prefetch
-    input   logic hbm_m_prefetch_complete,
-    output  logic hbm_m_prefetch_en,
-    input   logic hbm_v_prefetch_complete,
-    output  logic hbm_v_prefetch_en,
-
-    output  logic hbm_v_write_en,
-
-    // Control Memory Data Retrieval 
-    output  logic read_from_m_sram_en,
-    output  logic transposed_read_from_m_sram_en,
-    output  logic read_from_s_sram_en,
+    // Pipeline Control
+    input   logic stall,
 
     // Control Matrix Computation
-    output  M_OP          matrix_opcode,
-    // input   logic last_matrix_complete,
+    output  M_OP                matrix_opcode,
+    output  logic               transposed_read,
 
     // Control Vector Computation
-    output  V_ELEMENT_OP      element_opcode,
-    output  V_REDUCT_OP       reduce_opcode,
-    input   logic broadcast_fp2,
-    // input   logic last_vector_complete,
+    output  V_ELEMENT_OP        element_opcode,
+    output  V_REDUCT_OP         reduce_opcode,
+    input   logic               broadcast_fp2,
 
     // Control Scalar Computation
 
@@ -69,12 +58,18 @@ module frontend #(
 // Pipeline Control
 logic stall;
 
-// Machine Control
+// Read Instr Control
 INSTR_INFO current_instr_info, next_instr_info;
 logic read_next_instr, decode_instr_valid;
+logic instruction_pipe_full;
+assign read_next_instr = instruction_valid && instruction_ready && !stall && !instruction_pipe_full;
 
 always_comb begin
     if (decode_instr_valid) begin
+        
+        assign transposed_read = (current_instr_info.opcode == M_TMV || current_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
+        assign broadcast_fp2   = (current_instr_info.opcode == V_ADD_VF || current_instr_info.opcode == V_SUB_VF || current_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
+        
         case(current_instr_info.opcode)
             M: begin
                 matrix_opcode = (current_instr_info.opcode == M_MV || current_instr_info.opcode == M_TMV) ? MV : MV_O;
@@ -254,6 +249,7 @@ decoder #(
     .instruction(instruction),
     .instruction_valid(instruction_valid),
     .instruction_ready(instruction_ready),
+    .instr_buffer_full(instruction_pipe_full),
 
     // Decoded Instruction
     .current_instr_info(current_instr_info),
