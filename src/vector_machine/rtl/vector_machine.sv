@@ -113,7 +113,7 @@ logic prepared_v_a_ready, prepared_v_a_valid;
 logic prepared_v_b_ready, prepared_v_b_valid;
 
 generate;
-    for (genvar i = 0; j < BLOCK_NUM; i = i + 1)begin
+    for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
         mx_fp_2_fp_block #(
             .BLOCK_DIM(BLOCK_DIM),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
@@ -245,7 +245,7 @@ fp_reduction_compute_unit #(
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] result_v_out;
 assign result_v_out = select_result ? element_v_out : red_v_out;
 generate;
-    for (genvar i = 0; j < BLOCK_NUM; i = i + 1)begin
+    for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
         fp_2_mx_fp_block #(
             .BLOCK_DIM(BLOCK_DIM),
             .FP_MANT_WIDTH(FP_MANT_WIDTH),

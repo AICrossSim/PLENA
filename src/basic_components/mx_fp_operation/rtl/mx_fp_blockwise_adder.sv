@@ -1,14 +1,14 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : MX-FP Configurable Precision Adder Tree
-Description : This module contains hierarchical adder tree for MX-FP numbers.
-Timing      : $clog(LEVEL) cycles to produce the results, as each level consume a cycle.
+Module      : MX-FP Configurable Precision Blockwise Adder
+Description : 
+Timing      : 2 shifts
 Input   e1  |       e1  |
         e2  | s1 +  e2  | s2
         e3  |       e3  |
         e4  |       e4  |
-Status      : Passed Simple Tests
+Status      : Under Testing
 */
 
 module mx_fp_blockwise_adder #(
@@ -43,31 +43,63 @@ module mx_fp_blockwise_adder #(
     input  logic                                                        data_out_ready
 );
 
+    logic [MXFP_SCALE_WIDTH - 1 : 0]                             max_scale_data_in, p1_max_scale_data_in, p2_max_scale_data_in;
+
     logic [MXFP_SCALE_WIDTH - 1 : 0] shift_amount;
     logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] elements_to_shift;
+
     logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] elements_wo_shift;
+    logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] elements_stored_wo_shift;
+
     logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] elements_af_shift;
+    logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] elements_stored_shift;
+
+    logic wo_shift_in_valid, wo_shift_in_ready;
+    logic af_shift_in_valid, af_shift_in_ready;
+    logic wo_shift_out_ready, wo_shift_out_valid;
+    logic af_shift_out_ready, af_shift_out_valid;
 
     always_comb begin
         if (a_scale_data_in > b_scale_data_in) begin : gen_a_greater
             shift_amount = a_scale_data_in - b_scale_data_in;
             elements_to_shift = b_element_data_in;
             elements_wo_shift = a_element_data_in;
-            scale_out = a_scale_data_in;
+            max_scale_data_in = a_scale_data_in;
+            wo_shift_in_valid = a_data_in_valid;
+            af_shift_in_valid = b_data_in_valid;
+            a_data_in_ready = wo_shift_in_ready;
+            b_data_in_ready = af_shift_in_valid;
+
         end else begin : gen_b_greater
             shift_amount = b_scale_data_in - a_scale_data_in;
             elements_to_shift = a_element_data_in;
             elements_wo_shift = b_element_data_in;
-            scale_out = b_scale_data_in;
+            max_scale_data_in = b_scale_data_in;
+            wo_shift_in_valid = b_data_in_valid;
+            af_shift_in_valid = a_data_in_valid;
+            a_data_in_ready = af_shift_in_valid;
+            b_data_in_ready = wo_shift_in_ready;
         end
     end
+
+    always_ff @(posedge clk or negedge rst) begin
+        if (!rst) begin
+            p1_max_scale_data_in <= 0;
+            p2_max_scale_data_in <= 0;
+        end else begin
+            p1_max_scale_data_in <= max_scale_data_in;
+            p2_max_scale_data_in <= p1_max_scale_data_in;
+        end
+    end
+
+    assign scale_data_out = p2_max_scale_data_in;
 
     // Shift the elements
     generate
         for(genvar i = 0; i < BLOCK_DIM; i++) begin : gen_block_shift
             fp_shift #(
                 .EXP_WIDTH(MXFP_EXP_WIDTH),
-                .MANT_WIDTH(MXFP_MANT_WIDTH),
+                .MANT_WIDTH(MXFP_MANT_WIDTH)
             ) mx_fp_shift (
                 .data_in(elements_to_shift[i]),
                 .shift_amount(shift_amount),
@@ -81,15 +113,32 @@ module mx_fp_blockwise_adder #(
             .clk(clk),
             .rst(rst),
             .data_in(elements_af_shift),
-            .data_in_valid(a_data_in_valid & b_data_in_valid),
-            .data_in_ready(a_data_in_ready & b_data_in_ready),
-            .data_out(elements_af_shift),
-            .data_out_valid(data_out_valid),
-            .data_out_ready(data_out_ready)
+            .data_in_valid(af_shift_in_valid),
+            .data_in_ready(af_shift_in_ready),
+            .data_out(elements_stored_shift),
+            .data_out_valid(af_shift_out_valid),
+            .data_out_ready(af_shift_out_ready)
         );
+
+        skid_buffer #(
+            .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
+        ) store_wo_shifted_element (
+            .clk(clk),
+            .rst(rst),
+            .data_in(elements_af_shift),
+            .data_in_valid(wo_shift_in_valid),
+            .data_in_ready(wo_shift_in_ready),
+            .data_out(elements_stored_wo_shift),
+            .data_out_valid(wo_shift_out_valid),
+            .data_out_ready(wo_shift_out_ready)
+        );
+
 
     endgenerate
 
+
+    logic addition_in_valid, addition_in_ready;
+    logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] element_addition_result;
     // FP Addition, TODO: how to consider the overflow problem, whether to add to the mx-fp scale?
     generate;
         for(genvar i = 0; i < BLOCK_DIM; i++) begin : gen_block_adder
@@ -99,11 +148,31 @@ module mx_fp_blockwise_adder #(
                 .EXT_EXP_WIDTH(EXT_EXP_WIDTH),
                 .EXT_MANT_WIDTH(EXT_MANT_WIDTH)
             ) fp_adder (
-                .data_a(elements_wo_shift[i]),
-                .data_b(elements_af_shift[i]),
-                .data_out(element_data_out[i])
+                .data_a(elements_stored_wo_shift[i]),
+                .data_b(elements_stored_shift[i]),
+                .data_out(element_addition_result[i])
             );
         end
+
+        join2 #() join_inst (
+            .data_in_ready ({wo_shift_out_ready, af_shift_out_ready}),
+            .data_in_valid ({wo_shift_out_valid, af_shift_out_valid}),
+            .data_out_valid(addition_in_valid),
+            .data_out_ready(addition_in_ready)
+        );
+
+        skid_buffer #(
+            .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
+        ) store_addition_result (
+            .clk(clk),
+            .rst(rst),
+            .data_in(element_addition_result),
+            .data_in_valid(addition_in_valid),
+            .data_in_ready(addition_in_ready),
+            .data_out(element_data_out),
+            .data_out_valid(data_out_valid),
+            .data_out_ready(data_out_ready)
+        );
     endgenerate
 
 

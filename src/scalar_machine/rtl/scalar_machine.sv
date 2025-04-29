@@ -67,8 +67,6 @@ logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] fp_rd;
 logic fp_we;
 
 assign fp_we = (fp_control != STALL_S_FP && fp_control !=LOAD_FP ) ? 1'b1 : 1'b0;
-assign fp_out_1 = fp_rs1;
-assign fp_out_2 = fp_rd;
 
 fp_alu #(
     .EXP_WIDTH(FP_EXP_WIDTH),
@@ -97,8 +95,8 @@ regfile_2p1w #(
 
 always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
-        fp_out_1 <= '0;
-        fp_out_2 <= '0;
+        fp_out_1 <= 'b0;
+        fp_out_2 <= 'b0;
     end else begin
         fp_out_1 <= (fp_control == LOAD_FP) ? fp_rs1 : fp_rd;
         fp_out_2 <= (fp_control == LOAD_FP) ? fp_rs2 : {FP_EXP_WIDTH + FP_MANT_WIDTH{1'b0}};
@@ -132,10 +130,10 @@ regfile_2p1w #(
 ) fixed_reg_file (
     .clk(clk),
     .we(fix_we),
-    .waddr(rd[FIXED_DATA_WIDTH - 1 : 0]),
+    .waddr(rd[FIXED_OPERAND_WIDTH - 1 : 0]),
     .wdata(fixed_rd),
-    .raddr1(rs1[FIXED_DATA_WIDTH - 1 : 0]),
-    .raddr2(rs2[FIXED_DATA_WIDTH - 1 : 0]),
+    .raddr1(rs1[FIXED_OPERAND_WIDTH - 1 : 0]),
+    .raddr2(rs2[FIXED_OPERAND_WIDTH - 1 : 0]),
     .rdata1(fixed_rs1),
     .rdata2(fixed_rs2)
 );

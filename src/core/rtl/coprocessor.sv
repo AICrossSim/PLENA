@@ -107,19 +107,19 @@ module coprocessor (
     parameter BLOCK_NUM = MLEN / BLOCK_DIM;
 
     logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_m_element;
-    logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     fetched_m_scale;
+    logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      fetched_m_scale;
     logic fetched_m_valid, fetched_m_ready;
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_v_element_port1;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     fetched_v_scale_port1;
+    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 fetched_v_element_port1;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 fetched_v_scale_port1;
     logic fetched_v_valid_port1, fetched_v_ready_port1;
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_v_element_port2;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     fetched_v_scale_port2;
+    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 fetched_v_element_port2;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 fetched_v_scale_port2;
     logic fetched_v_valid_port2, fetched_v_ready_port2;
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_out_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     m_out_scale;
+    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 m_out_element;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 m_out_scale;
     logic m_out_valid, m_out_ready;
 
     generate;
@@ -147,12 +147,12 @@ module coprocessor (
             .v_element(fetched_v_element_port1),
             .v_scale(fetched_v_scale_port1),
             .v_valid(fetched_v_valid_port1),
-            .v_ready(fetched_v_ready_port1),
+            .v_ready(),
 
             .o_element(fetched_v_element_port2),
             .o_scale(fetched_v_scale_port2),
             .o_valid(fetched_v_valid_port2),
-            .o_ready(fetched_v_ready_port2),
+            .o_ready(),
 
             .out_element(m_out_element),
             .out_scale(m_out_scale),
@@ -167,7 +167,7 @@ module coprocessor (
             .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
             .MLEN(MLEN),
             .BLOCK_DIM(BLOCK_DIM),
-            .SRAM_DEPTH(SRAM_DEPTH),
+            .SRAM_DEPTH(MATRIX_SRAM_DEPTH),
             .PARALLEL_DIM(Matrix_Parallel_Rd_Dim)
         ) matrix_sram (
             .clk(clk),
@@ -195,7 +195,7 @@ module coprocessor (
         .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
         .VLEN(MLEN),
         .BLOCK_DIM(BLOCK_DIM),
-        .SRAM_DEPTH(SRAM_DEPTH)
+        .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
     ) vector_sram (
         .clk(clk),
         .rst(rst),
@@ -206,7 +206,7 @@ module coprocessor (
         .scale_in_a(prefetched_v_scale_port1),
         .mask_in_a(),
         .element_out_a(fetched_v_element_port1),
-        .scale_out_a(fetched_v_element_port1),
+        .scale_out_a(fetched_v_scale_port1),
         
         .req_b(read_from_s_sram_port_2_en || read_from_s_sram_port_2_en),
         .write_en_b(write_to_s_sram_port_1_en),
@@ -246,13 +246,13 @@ module coprocessor (
         .reduct_v_control       (reduce_opcode),
         .v_a_element            (fetched_v_element_port1),
         .v_a_scale              (fetched_v_scale_port1),
-        .v_a_valid              (fetched_v_valid_port1),
-        .v_a_ready              (fetched_v_ready_port1),
+        .v_a_valid              (),
+        .v_a_ready              (),
 
         .v_b_element            (fetched_v_element_port2),
         .v_b_scale              (fetched_v_scale_port2),
-        .v_b_valid              (fetched_v_valid_port2),
-        .v_b_ready              (fetched_v_ready_port2),
+        .v_b_valid              (),
+        .v_b_ready              (),
 
         .s_in(fp_s_in),
         .s_in_valid(),
@@ -300,8 +300,8 @@ module coprocessor (
         .fixed_out_1(fixed_out_1),
         .fixed_out_2(fixed_out_2),
 
-        .fp_in(fp_s_in),
-        .fp_out_1(fp_s_out)
+        .fp_in(fp_s_out),
+        .fp_out_1(fp_s_in)
     );
 
     // SRAM for Scalar

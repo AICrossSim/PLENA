@@ -88,9 +88,9 @@ end
 // Fetch Control
 logic clear_m;
 logic buffer_ready_m, buffer_ready_v, buffer_ready_o;
-assign buffer_ready_m = (matrix_opcode != STALL_M) ? m_ready : 1'b0;
-assign buffer_ready_v = (matrix_opcode != STALL_M) ? v_ready : 1'b0;
-assign buffer_ready_o = (matrix_opcode == MV_O)    ? o_ready : 1'b0;
+assign m_ready  = (matrix_opcode != STALL_M) ? buffer_ready_m : 1'b0;
+assign v_ready  = (matrix_opcode != STALL_M) ? buffer_ready_v : 1'b0;
+assign o_ready  = (matrix_opcode == MV_O)    ? buffer_ready_o : 1'b0;
 
 M_OP pipeline_track [PIPELINE_STAGES-1:0];
 
@@ -367,24 +367,29 @@ mx_fp_mv #(
 // offset addition
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      acc_element;
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
-logic acc_valid, acc_ready;
+logic acc_in_valid, acc_in_ready;
+logic acc_out_valid, acc_out_ready;
+
 
 always_comb begin
     if (pipeline_track[PIPELINE_STAGES] == MV_O) begin
         out_element = acc_element;
-        out_scale = acc_scale;
-        out_valid = acc_valid;
-        out_ready = acc_ready;
+        out_scale   = acc_scale;
+        out_valid   = acc_out_valid;
+        acc_in_valid    = prod_valid;
+        acc_out_ready   = out_ready;
+        prod_ready   = acc_in_ready;
     end else if( pipeline_track[PIPELINE_STAGES] == MV) begin
-        out_element = prod_element;
-        out_scale = prod_scale;
-        out_valid = prod_valid;
-        out_ready = prod_ready;
+        out_element     = prod_element;
+        out_scale       = prod_scale;
+        out_valid       = prod_valid;
+        acc_in_valid    = 1'b0;
+        acc_out_ready   = 1'b0;
+        prod_ready   = out_ready;
     end else begin
         out_element = {MLEN{1'b0}};
-        out_scale = {BLOCK_NUM{1'b0}};
-        out_valid = 1'b0;
-        out_ready = 1'b0;
+        out_scale   = {BLOCK_NUM{1'b0}};
+        out_valid   = 1'b0;
     end
 end
 
@@ -397,8 +402,8 @@ generate;
 
             .BLOCK_DIM(BLOCK_DIM),
 
-            .BLOCK_ADD_EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
-            .BLOCK_ADD_EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH)
+            .EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
+            .EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH)
         ) mx_fp_blockwise_adder (
             .clk(clk),
             .rst(rst),
@@ -406,8 +411,8 @@ generate;
             // Port A
             .a_element_data_in(prod_element[i]),
             .a_scale_data_in(prod_scale[i]),
-            .a_data_in_valid(prod_valid),
-            .a_data_in_ready(prod_ready),
+            .a_data_in_valid(acc_in_valid),
+            .a_data_in_ready(acc_in_ready),
 
             // Port B
             .b_element_data_in(stored_o_element[i]),
@@ -418,8 +423,8 @@ generate;
             // Output
             .element_data_out(acc_element[i]),
             .scale_data_out(acc_scale[i]),
-            .data_out_valid(acc_valid),
-            .data_out_ready(acc_ready)
+            .data_out_valid(acc_out_valid),
+            .data_out_ready(acc_out_ready)
         );
     end
 endgenerate

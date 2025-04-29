@@ -44,7 +44,7 @@ logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_alu_out;
 generate;
     for (genvar i = 0; i < VLEN; i = i + 1) begin : parallel_vec_alu
         
-        vector_element_alu #(
+        fp_vector_element_alu #(
             .EXP_WIDTH(EXP_WIDTH),
             .MANT_WIDTH(MANT_WIDTH)
         ) vec_alu_inst (

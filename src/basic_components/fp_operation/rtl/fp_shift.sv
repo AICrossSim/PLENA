@@ -1,3 +1,11 @@
+`timescale 1ns / 1ps
+/*
+Module      :Shift Floating Point Unit
+Timing      : Combinatorial Logic
+Status      : Under Development
+*/
+
+
 module fp_shift #(
     parameter int EXP_WIDTH = 5,
     parameter int MANT_WIDTH = 10

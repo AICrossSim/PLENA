@@ -77,7 +77,7 @@ module fp_reduction_compute_unit #(
         localparam LEVEL_OUT_EXP_WIDTH  = EXP_WIDTH + (i + 1) * ACC_EXT_EXP_WIDTH;
         localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + LEVEL_OUT_EXP_WIDTH + 1;
 
-        vector_reduce_layer #(
+        fp_vector_reduce_layer #(
             .OVERALL_INPUT_WIDTH  (OUT_WIDTH*VEC_DIM),
             .LAYER_DIM(LEVEL_IN_DIM),
             .IN_MAN_WIDTH(LEVEL_IN_MAN_WIDTH),

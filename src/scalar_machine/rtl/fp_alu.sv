@@ -58,7 +58,7 @@ always_comb begin
 
         default: begin
             negated_en = 1'b0;
-            data_out = '0; // Default case to avoid latches
+            data_out = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
         end
     endcase
 end
@@ -81,7 +81,7 @@ fp_cp_adder #(
 ) fp_adder (
     .data_a(data_a),
     .data_b(data_b),
-    .data_out(data_out)
+    .data_out(fp_add_out)
 );
 
 // TODO

@@ -43,7 +43,7 @@ logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr [HBM_ADDR_REG_NUM - 1 : 0];
 always_ff @(posedge clk) begin
     if (rst) begin
         for (int i = 0; i < HBM_ADDR_REG_NUM; i++) begin
-            hbm_addr[i] <= '0;
+            hbm_addr[i] <= 'b0;
         end
     end else begin
         if (set_addr_en) begin

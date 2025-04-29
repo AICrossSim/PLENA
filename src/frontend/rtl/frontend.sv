@@ -88,7 +88,7 @@ always_comb begin
                 rs1 = current_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                 rs2 = current_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd  = current_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                imm = '0;
+                imm = 'b0;
             end
 
             V: begin
@@ -218,7 +218,7 @@ always_comb begin
                 fps1 = {FP_OPERAND_WIDTH{1'b0}};
                 fps2 = {FP_OPERAND_WIDTH{1'b0}};
                 fpd  = {FP_OPERAND_WIDTH{1'b0}};
-                imm = '0;
+                imm = 'b0;
             end
       
         endcase
@@ -234,7 +234,7 @@ always_comb begin
         fps1 = {FP_OPERAND_WIDTH{1'b0}};
         fps2 = {FP_OPERAND_WIDTH{1'b0}};
         fpd  = {FP_OPERAND_WIDTH{1'b0}};
-        imm = '0;
+        imm = 'b0;
     end
     
 end

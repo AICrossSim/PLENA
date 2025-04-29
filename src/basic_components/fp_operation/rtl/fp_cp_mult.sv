@@ -74,7 +74,7 @@ module fp_cp_mult #(
 
     // Normalisation logic
     always_comb begin
-        if (mant_product_full[2*MANT_WIDTH+2] == 1'b0) begin
+        if (mant_product_full[2*MANT_WIDTH+1] == 1'b0) begin
             // If no normalization needed, 1_xxxx * 1_xxxx = 01_mmmm_eeee
             mant_product_norm = {mant_product_full[2*MANT_WIDTH - 1: (MANT_WIDTH + EXT_MANT_WIDTH)]};
             exp_temp_out = exp_add_raw;

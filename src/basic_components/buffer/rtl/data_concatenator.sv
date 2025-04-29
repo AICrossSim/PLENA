@@ -26,7 +26,7 @@ module data_concatenator #(
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            buffer <= '0;
+            buffer <= 'b0;
             count  <= 0;
             valid_out <= 0;
         end else if (valid_in && ready) begin

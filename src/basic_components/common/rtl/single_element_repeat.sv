@@ -96,7 +96,7 @@ module single_element_repeat #(
 
       always_ff @(posedge clk) begin
         if (rst) begin
-          self <= '{default: '0};
+          self <= '{default: 'b0};
         end else begin
           self <= next_self;
         end

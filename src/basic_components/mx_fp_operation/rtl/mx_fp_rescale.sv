@@ -72,8 +72,8 @@ module mx_fp_rescale #(
 
     always @(posedge clk) begin
         if (!rst) begin
-            p1_rounded_element <= '0;
-            p1_rounded_scale <= '0;
+            p1_rounded_element <= 'b0;
+            p1_rounded_scale <= 'b0;
         end else begin
             p1_rounded_element <= p0_rounded_element;
             p1_rounded_scale <= p0_rounded_scale;

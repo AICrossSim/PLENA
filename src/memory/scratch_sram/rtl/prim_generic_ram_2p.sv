@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
@@ -6,6 +7,7 @@
 //   This module is for simulation and small size SRAM.
 //   Implementing ECC should be done inside wrapper not this model.
 `include "prim_assert.sv"
+`include "prim_ram_2p_pkg.sv"
 module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   parameter  int Width           = 32, // bit
   parameter  int Depth           = 128,

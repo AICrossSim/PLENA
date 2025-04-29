@@ -95,7 +95,7 @@ def coprocessor_test():
         module = "coprocessor",
         additional_include_paths = [
             "../../../src/basic_components/common",
-            "../../../src/basic_components/mx_fp_operationr",
+            "../../../src/basic_components/mx_fp_operation",
             "../../../src/basic_components/fp_operation",
             "../../../src/basic_components/conversion",
             "../../../src/basic_components/buffer",
