@@ -6,8 +6,7 @@ Module      : Frontend
 Timing      : Sequential
 Description : This module serves as the frontend of this coprocessor, it includes decoder, pipeline scheduler, and address mapper.
               The decoder decodes the instruction and generates control signals for the rest of the system.
-              The pipeline scheduler schedules the instructions
-              The address mapper maps the addresses for the data and instructions for HBM
+Status      : Discarded
 */
 
 module frontend #(

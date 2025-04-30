@@ -56,52 +56,66 @@ module coprocessor (
 
 
 
-    M_OP            m_opcode;
-    V_ELEMENT_OP    v_element_opcode;
-    V_REDUCT_OP     v_reduce_opcode;
-    logic           v_broadcast_fp2;
-
-    S_FIXED_OP      s_fixed_opcode;
-    S_FP_OP         s_fp_opcode;
     logic [IMM_WIDTH - 1 : 0] s_imm;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1, s_rs2, s_rd;
     logic [FP_OPERAND_WIDTH - 1 : 0]    s_fps1, s_fps2, s_fpd;
 
-
+    INSTR_INFO decode_instr_info;
+    logic read_next_instr, decode_instr_valid;
+    OP_BUNDLE assigned_op_bundle;
+    logic m_update_waddr, v_update_waddr;
+    
     // Frontend
-    frontend #(
+    decoder #(
         .INSTRUCTION_LENGTH     (INSTRUCTION_LENGTH),
         .OPERAND_WIDTH          (OPERAND_WIDTH),
-        .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
-        .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
         .OPCODE_WIDTH           (OPCODE_WIDTH),
         .IMM_WIDTH              (IMM_WIDTH),
-        .INST_BUFF_DEPTH        (INST_BUFF_DEPTH)
-    ) frontend_init (
+        .INST_BUFF_DEPTH           (OPCODE_WIDTH)
+    ) decoder_init (
         .clk(clk),
         .rst(rst),
+
+        // Instruction
         .instruction        (instruction),
         .instruction_valid  (instruction_valid),
         .instruction_ready  (instruction_ready),
+        .instr_buffer_full   (instr_buffer_full),
 
-        .matrix_opcode      (m_opcode),
-        .transposed_read    (m_transposed_rd_en),
+        .decode_instr_info(decode_instr_info),
+        .read_next_instr    (read_next_instr),
+        .decode_instr_valid (decode_instr_valid)
+
+    );
+
+    pipeline_control #(
+        .OPERAND_WIDTH          (OPERAND_WIDTH),
+        .FIXED_DATA_WIDTH       (FIXED_DATA_WIDTH)
+    ) pipeline_control_init (
+        .clk(clk),
+        .rst(rst),
+
+        // Instruction
+        .decode_instr_info(decode_instr_info),
+        .decode_instr_valid (decode_instr_valid),
+        .fetch_next_instr(read_next_instr),
+        .memory_load_failed(memory_load_failed),
+        // .w_query()
+
+        .pipeline_stall(), // TODO
+        .exe_op_info(assigned_op_bundle),
+
+        .m_update_waddr(m_update_waddr),
+        .v_update_waddr(v_update_waddr),
         
-        .element_opcode     (v_element_opcode),
-        .reduce_opcode      (v_reduce_opcode),
-        .broadcast_fp2      (v_broadcast_fp2),
-        
-        .fixed_opcode       (s_fixed_opcode),
-        .imm                (s_imm),
         .rs1                (s_rs1),
         .rs2                (s_rs2),
         .rd                 (s_rd),
-        .fp_opcode          (s_fp_opcode),
         .fps1               (s_fps1),
         .fps2               (s_fps2),
-        .fpd                (s_fpd)
+        .fpd                (s_fpd),
+        .imm                (s_imm)
     );
-
 
     // -----------------------------
     // Control
@@ -115,7 +129,7 @@ module coprocessor (
     logic m_o_valid,    m_o_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
-    logic m_sram_busy; // TODO: For pipeline control
+    logic m_sram_busy;          // TODO: For pipeline control
 
     logic v_v_a_valid, v_v_a_ready;
     logic v_v_b_valid, v_v_b_ready;
@@ -141,13 +155,7 @@ module coprocessor (
         .rst(rst),
 
         // Current Execution
-        .cur_m_op               (m_opcode),
-        .cur_m_transposed_read  (m_transposed_rd_en),
-        .cur_v_ele_op           (v_element_opcode),
-        .cur_v_broadcast_en     (v_broadcast_fp2),
-        .cur_v_reduct_op        (v_reduce_opcode),
-        .cur_s_fp_op            (s_fp_opcode),
-        .cur_s_fixed_op         (s_fixed_opcode),
+        .assigned_op_bundle     (assigned_op_bundle),
 
         // Fetched Operand Values
         .loaded_rs1             (fixed_out_1),
@@ -236,10 +244,19 @@ module coprocessor (
             .BLOCK_ADD_EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
             .BLOCK_ADD_EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH),
             .FP_ADD_EXT_EXP_WIDTH(FP_ADD_EXT_EXP_WIDTH),
-            .FP_ADD_EXT_MANT_WIDTH(FP_ADD_EXT_MANT_WIDTH)
+            .FP_ADD_EXT_MANT_WIDTH(FP_ADD_EXT_MANT_WIDTH),
+            .Matrix_Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim),
+            .ADDR_WIDTH(FIXED_DATA_WIDTH)
         ) matrix_machine (
             .clk(clk),
             .rst(rst),
+
+            .matrix_opcode (assigned_op_bundle.m_op),
+            .ready_for_next_op(),
+
+            .set_offset_addr(),
+            .offset_addr(),
+            .offset_addr_out(),
 
             .m_element  (fetched_m_element),
             .m_scale    (fetched_m_scale),
@@ -256,6 +273,8 @@ module coprocessor (
             .o_valid(m_o_valid),
             .o_ready(m_o_ready),
 
+            .result_waddr(fixed_out_1),
+            .result_waddr_update(m_update_waddr),
             .out_element(m_out_element),
             .out_scale(m_out_scale),
             .out_valid(m_out_valid),
@@ -281,10 +300,10 @@ module coprocessor (
         ) vector_machine (
             .clk(clk),
             .rst(rst),
-            .broadcast_fp2          (v_broadcast_fp2),
-            .element_v_control      (v_element_opcode),
-            .reduct_v_control       (v_reduce_opcode),
-            .target_vector_waddr    (s_rd),
+
+            .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
+            .element_v_control      (assigned_op_bundle.v_ele_op),
+            .reduct_v_control       (assigned_op_bundle.v_reduct_op),
 
             .v_a_element            (fetched_v_element_port1),
             .v_a_scale              (fetched_v_scale_port1),
@@ -303,6 +322,8 @@ module coprocessor (
             .s_out_valid(v_s_out_valid),
             .s_out_ready(v_s_out_ready),
 
+            .result_waddr           (fixed_out_1),
+            .result_waddr_update    (v_update_waddr),
             .v_out_element          (v_out_element),
             .v_out_scale            (v_out_scale),
             .v_out_valid            (v_v_out_valid),
@@ -320,8 +341,8 @@ module coprocessor (
         ) scalar_machine (
             .clk(clk),
             .rst(rst),
-            .fp_control         (fp_opcode),
-            .fixed_control      (fixed_opcode),
+            .fp_control         (assigned_op_bundle.s_fp_op),
+            .fixed_control      (assigned_op_bundle.s_fixed_op),
             .rs1                (s_rs1),
             .rs2                (s_rs2),
             .rd                 (s_rd),

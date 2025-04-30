@@ -31,7 +31,7 @@ module vector_machine #(
     parameter   VR_EXT_MANT_WIDTH  = 0,
 
     // Addr
-    parameter   VECTOR_ADDR_WIDTH  = 32,    // Vector write address
+    parameter   ADDR_WIDTH  = 32,    // Vector write address
 
     // Pipeline Control
     parameter   VECTOR_PIPLINE_DEPTH = 2,   // Pipeline depth for the vector machine
@@ -49,7 +49,7 @@ module vector_machine #(
     input   logic broadcast_fp2,
     input   V_ELEMENT_OP element_v_control,
     input   V_REDUCT_OP  reduct_v_control,
-    input   logic [VECTOR_ADDR_WIDTH - 1 : 0] target_vector_waddr,
+    
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
@@ -74,16 +74,19 @@ module vector_machine #(
 
 
     // Output
+    input   logic [ADDR_WIDTH - 1 : 0] result_waddr,
+    input  logic result_waddr_update,
+
     output  logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     v_out_element,
     output  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale,
     output  logic                                                                   v_out_valid,
-    output  logic [VECTOR_ADDR_WIDTH - 1: 0]                                        v_waddr,
+    output  logic [ADDR_WIDTH - 1: 0]                                        v_waddr,
     input   logic                                                                   v_out_ready
     
 );
 
 
-logic [VECTOR_ADDR_WIDTH - 1:0] pipeline_waddr_track [VECTOR_PIPLINE_DEPTH];
+logic [ADDR_WIDTH - 1:0] pipeline_waddr_track [VECTOR_PIPLINE_DEPTH];
 assign v_waddr = pipeline_waddr_track[VECTOR_PIPLINE_DEPTH - 1];
 
 // Vector Machine Control
@@ -96,12 +99,12 @@ always_ff @(posedge clk or negedge rst) begin
         p1_element_v_control    <= STALL_V_ELEMENT;
         p1_reduct_v_control     <= STALL_V_REDUCT;
         for (int i = 0; i < VECTOR_PIPLINE_DEPTH; i = i + 1) begin
-            pipeline_waddr_track[i] <= {VECTOR_ADDR_WIDTH{1'b0}};
+            pipeline_waddr_track[i] <= {ADDR_WIDTH{1'b0}};
         end
     end else begin
         p1_element_v_control    <= element_v_control;
         p1_reduct_v_control     <= reduct_v_control;
-        pipeline_waddr_track[0] <= target_vector_waddr;
+        pipeline_waddr_track[0] <= (result_waddr_update) ? result_waddr : 'b0;
         for (int i = 1; i < VECTOR_PIPLINE_DEPTH; i = i + 1) begin
             pipeline_waddr_track[i] <= pipeline_waddr_track[i - 1];
         end

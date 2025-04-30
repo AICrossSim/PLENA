@@ -28,8 +28,7 @@ module decoder #(
     output  logic instr_buffer_full,
 
     // Decoded Instruction
-    output INSTR_INFO current_instr_info,
-    output INSTR_INFO next_instr_info,
+    output INSTR_INFO decode_instr_info,
 
     // Decoder Control
     input   logic read_next_instr,
@@ -38,6 +37,10 @@ module decoder #(
 
 logic loaded_instr_valid;
 logic [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
+logic read_instr_from_fifo;
+logic fifo_empty;
+
+assign read_instr_from_fifo = read_next_instr && !fifo_empty;
 
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
@@ -50,8 +53,8 @@ fifo #(
     .data_in_ready(instruction_ready),
     .data_out(loaded_instr),
     .data_out_valid(loaded_instr_valid),
-    .data_out_ready(read_next_instr),
-    .empty(),
+    .data_out_ready(read_instr_from_fifo),
+    .empty(fifo_empty),
     .full(instr_buffer_full)
 );
 
@@ -70,49 +73,43 @@ assign loaded_rs1       = loaded_instr[(INSTRUCTION_LENGTH - OPERAND_WIDTH - 1) 
 assign loaded_rd        = loaded_instr[(INSTRUCTION_LENGTH - 2 * OPERAND_WIDTH - 1) -: OPERAND_WIDTH];
 assign loaded_imm       = loaded_instr[INSTRUCTION_LENGTH - 1 -: OPERAND_WIDTH];
 
-CUSTOM_ISA_TYPE next_instruction_type;
+CUSTOM_ISA_TYPE decode_instruction_type;
 
 always_comb begin
     case (loaded_opcode)
         // Matrix Operations
         M_MV, M_TMV: begin
-            next_instruction_type = M;
+            decode_instruction_type = M;
         end
 
         // Vector Operations
         V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_VV, V_RED_SUM, V_RED_MAX : begin
-            next_instruction_type = V;
+            decode_instruction_type = V;
         end
 
         // Scalar Operations
         S_ADD_FP, S_SUB_FP, S_MAX_FP, S_MUL_FP, S_EXP_FP, S_ISQRT_FP, S_LOG_FP, S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX: begin
-            next_instruction_type = S;
+            decode_instruction_type = S;
         end
 
         // Memory Operations
         H_PREFETCH_M, H_PREFETCH_V, H_STORE_VECTOR, H_STORE_HBM: begin
-            next_instruction_type = H;
+            decode_instruction_type = H;
         end
 
         // CSR Setting
         C_SET_HBM_OFFSET, C_SET_MV_OFFSET: begin
-            next_instruction_type = C;
+            decode_instruction_type = C;
         end
 
         default: begin
-            next_instruction_type = INVALID_TYPE;
+            decode_instruction_type = INVALID_TYPE;
         end
 
     endcase
 end
 
-assign next_instr_info = '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: next_instruction_type};
+assign decode_instr_info = '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type};
 
-always_ff @(posedge clk) begin
-    decode_instr_valid <= loaded_instr_valid;
-    if (read_next_instr) begin
-        current_instr_info <= next_instr_info;
-    end
-end
-    
+
 endmodule

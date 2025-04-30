@@ -37,7 +37,7 @@ module matrix_machine #(
     parameter   Matrix_Parallel_Rd_Dim = 2,
 
     // Offset Management
-    parameter   FIXED_OPERAND_WIDTH = 32,
+    parameter   ADDR_WIDTH = 32,
 
     // Pipeline Stages
     localparam  PIPELINE_STAGES = 5,
@@ -50,34 +50,39 @@ module matrix_machine #(
     input   M_OP    matrix_opcode,
     output  logic   ready_for_next_op,
 
-    // Addressing
-    input  logic                                       set_offset_addr,
-    input  logic [FIXED_OPERAND_WIDTH-1:0]             offset_addr,
-    output logic [FIXED_OPERAND_WIDTH-1:0]             offset_addr_out,
+    // Offset Addressing
+    input  logic                              set_offset_addr,
+    input  logic [ADDR_WIDTH-1:0]             offset_addr,
+    output logic [ADDR_WIDTH-1:0]             offset_addr_out,
 
     // Matix - row-major order
     input  logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_element,
-    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MXFP_SCALE_WIDTH-1:0]       m_scale,
+    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MXFP_SCALE_WIDTH-1:0]         m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
     // Vector - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element,
-    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_scale,
+    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                      v_scale,
     input  logic                   v_valid,
     output logic                   v_ready,
 
     // Offset - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      o_element,
-    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     o_scale,
+    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                      o_scale,
     input  logic                    o_valid,
     output logic                    o_ready,
 
     // Output
+    input  logic [ADDR_WIDTH-1:0]             result_waddr,
+    input  logic result_waddr_update,
+    
     output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      out_element,
     output logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale,
     output logic                     out_valid,
-    input  logic                     out_ready
+    input  logic                     out_ready,
+    output logic [ADDR_WIDTH-1:0]             result_addr_out,
+    output logic result_write_request
     
 );
 
@@ -93,16 +98,29 @@ assign v_ready  = (matrix_opcode != STALL_M) ? buffer_ready_v : 1'b0;
 assign o_ready  = (matrix_opcode == MV_O)    ? buffer_ready_o : 1'b0;
 
 M_OP pipeline_track [PIPELINE_STAGES-1:0];
+logic [ADDR_WIDTH-1:0] pipeline_result_addr [PIPELINE_STAGES-1:0];
+
 
 always_ff @(posedge clk or negedge rst) begin
     if (!rst) begin
         for (int i = 0; i < PIPELINE_STAGES; i++) begin
             pipeline_track[i] <= STALL_M;
+            pipeline_result_addr[i] <= 'b0;
         end
+        offset_addr_out <= 'b0;
     end else begin
+        
         pipeline_track[0] <= matrix_opcode;
+        pipeline_result_addr[0] <= (result_waddr_update == 1'b1) ? result_waddr : 'b0;
+        
         for (int i = 1; i < PIPELINE_STAGES; i++) begin
             pipeline_track[i] <= pipeline_track[i-1];
+            pipeline_result_addr[i] <= pipeline_result_addr[i-1];
+        end
+
+        // Set offset address
+        if (set_offset_addr) begin
+            offset_addr_out <= offset_addr;
         end
     end
 end

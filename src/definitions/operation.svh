@@ -22,17 +22,17 @@ typedef enum logic [2:0] {
 } V_REDUCT_OP;
 
 typedef enum logic [3:0] {
-    ADD_FP    = 0,
-    SUB_FP    = 1,
-    MUL_FP    = 2,
-    EXP_FP    = 3,
-    ISQRT_FP  = 4,
-    LOG_FP    = 5,
+    ADD_FP      = 0,
+    SUB_FP      = 1,
+    MUL_FP      = 2,
+    EXP_FP      = 3,
+    ISQRT_FP    = 4,
+    LOG_FP      = 5,
     LD_REG_FP   = 6,
     LD_OUT_FP   = 7,
-    ST_REG_FP  = 8,
-    ST_IN_FP  = 9,
-    STALL_S_FP = 10
+    ST_REG_FP   = 8,
+    ST_IN_FP    = 9,
+    STALL_S_FP  = 10
 } S_FP_OP;
 
 typedef enum logic [3:0] {
@@ -125,8 +125,6 @@ typedef enum logic [2:0] {
     INVALID_TYPE = 5
  } CUSTOM_ISA_TYPE;
 
-
-
 typedef struct {
     logic [OPCODE_WIDTH - 1:0]  opcode;
     logic [OPERAND_WIDTH:0]     rs1;
@@ -136,7 +134,17 @@ typedef struct {
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
+parameter TAG_WIDTH = 4;
 
+typedef struct {
+    M_OP m_op;
+    V_ELEMENT_OP v_ele_op;
+    V_REDUCT_OP v_reduct_op;
+    S_FP_OP s_fp_op;
+    S_FIXED_OP s_fixed_op;
+    logic m_transposed_read;
+    logic v_broadcast_en;
+} OP_BUNDLE;
 
 
 `endif

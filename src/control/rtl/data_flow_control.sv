@@ -21,16 +21,11 @@ module data_flow_control #(
     input       logic rst,
 
     // Current Execution
-    input       M_OP                cur_m_op,
-    input       logic               cur_m_transposed_read,
-    input       V_ELEMENT_OP        cur_v_ele_op,
-    input       logic               cur_v_broadcast_en,
-    input       V_REDUCT_OP         cur_v_reduct_op,
-    input       S_FP_OP             cur_s_fp_op,
-    input       S_FIXED_OP          cur_s_fixed_op,
+    input       OP_BUNDLE                           assigned_op_bundle,
 
     input       logic [FIXED_DATA_WIDTH - 1 : 0] loaded_rs1,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] loaded_rs2,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr,
 
     input       logic [FIXED_DATA_WIDTH - 1 : 0] vector_waddr,
 
@@ -85,32 +80,30 @@ module data_flow_control #(
 
 
 // -----------------
-M_OP                exe_m_op;
-logic               exe_m_transposed_read;
-V_ELEMENT_OP        exe_v_ele_op;
-logic               exe_v_broadcast_en;
-V_REDUCT_OP         exe_v_reduct_op;
-S_FP_OP             exe_s_fp_op;
-S_FIXED_OP          exe_s_fixed_op;
+// M_OP                exe_m_op;
+// logic               exe_m_transposed_read;
+// V_ELEMENT_OP        exe_v_ele_op;
+// logic               exe_v_broadcast_en;
+// V_REDUCT_OP         exe_v_reduct_op;
+// S_FP_OP             exe_s_fp_op;
+// S_FIXED_OP          exe_s_fixed_op;
+
+OP_BUNDLE         exe_op_bundle;
 
 
 always_ff @(posedge clk or negedge rst ) begin
     if (rst) begin
-        exe_m_op               <= STALL_M;
-        exe_m_transposed_read  <= 1'b0;
-        exe_v_ele_op           <= STALL_V_ELEMENT;
-        exe_v_broadcast_en     <= 1'b0;
-        exe_v_reduct_op        <= STALL_V_REDUCT;
-        exe_s_fp_op            <= STALL_S_FP;
-        exe_s_fixed_op         <= STALL_S_FIXED;
+        exe_op_bundle          <= {
+            STALL_M,
+            STALL_V_ELEMENT,
+            STALL_V_REDUCT,
+            STALL_S_FP,
+            STALL_S_FIXED,
+            1'b0,
+            1'b0
+        };
     end else begin
-        exe_m_op               <= cur_m_op;
-        exe_m_transposed_read  <= cur_m_transposed_read;
-        exe_v_ele_op           <= cur_v_ele_op;
-        exe_v_broadcast_en     <= cur_v_broadcast_en;
-        exe_v_reduct_op        <= cur_v_reduct_op;
-        exe_s_fp_op            <= cur_s_fp_op;
-        exe_s_fixed_op         <= cur_s_fixed_op;
+        exe_op_bundle          <= assigned_op_bundle;
     end
 end
 
@@ -129,7 +122,7 @@ M_OP                track_m_op;
 // Update addr only when the exe operation is MV or MV_O
 always_comb begin
     next_m_sram_addr = m_sram_addr; // hold current value by default
-    if (exe_m_op == MV || exe_m_op == MV_O) begin
+    if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O) begin
         next_m_sram_addr = loaded_rs2;
     end
 end
@@ -141,11 +134,11 @@ always_ff @(posedge clk or negedge rst) begin
         m_sram_counter <= 'b0;
         track_m_op <= STALL_M;
     end else begin
-        if (cur_m_op == MV || cur_m_op == MV_O) begin
+        if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
             m_sram_busy <= 1'b1;
             m_sram_counter <= 'b0;
             m_sram_req  <= 1'b1;
-            m_sram_transposed_read <= cur_m_transposed_read;
+            m_sram_transposed_read <= assigned_op_bundle.m_transposed_read;
 
         end else if (m_sram_busy && m_m_ready) begin
             if (m_sram_counter == MATRIX_LOAD_ITERATION - 1) begin
@@ -162,7 +155,7 @@ always_ff @(posedge clk or negedge rst) begin
         end
 
         if (!m_sram_busy) begin
-            track_m_op <= cur_m_op;
+            track_m_op <= assigned_op_bundle.m_op;
         end
 
         if (m_sram_busy && !m_m_ready) begin
@@ -176,7 +169,7 @@ end
 // Vector SRAM Control
 // Assuming the read cycle is 1 cycle for both ports.
 assign s_sram_addr_a = loaded_rs1;
-assign s_sram_addr_b = loaded_rs2;
+assign s_sram_addr_b = (assigned_op_bundle.m_op == MV_O) ? m_offset_addr : loaded_rs2;
 
 logic s_sram_load_failed;
 always_ff @(posedge clk or negedge rst) begin
@@ -184,14 +177,14 @@ always_ff @(posedge clk or negedge rst) begin
         v_v_a_valid     <= 1'b0;
         v_v_b_valid     <= 1'b0;
     end else begin
-        if(cur_m_op == MV || ((cur_v_ele_op != STALL_V_ELEMENT || cur_v_ele_op != MV_O) && cur_v_broadcast_en)) begin
+        if(assigned_op_bundle.m_op == MV || assigned_op_bundle.v_broadcast_en || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) ) begin
             // Only Single Port a is required
             v_v_a_valid     <= 1'b1;
             v_v_b_valid     <= 1'b0;
             s_sram_req_a    <= 1'b1;
             s_sram_req_b    <= 1'b0;
 
-        end else if (cur_m_op == MV_O || ((cur_v_ele_op != STALL_V_ELEMENT || cur_v_ele_op != MV_O) && !cur_v_broadcast_en)) begin
+        end else if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
             // Two Ports are required
             v_v_a_valid     <= 1'b1;
             v_v_b_valid     <= 1'b1;
