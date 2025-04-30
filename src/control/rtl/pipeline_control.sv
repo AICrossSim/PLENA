@@ -195,7 +195,26 @@ always_ff @(posedge clk) begin
                 end
             end
 
-            H, C : begin
+            C : begin
+                exe_op_info.m_op            <= STALL_M;
+                exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
+                exe_op_info.v_reduct_op     <= STALL_V_REDUCT;
+                exe_op_info.s_fp_op         <= STALL_S_FP;
+                exe_op_info.s_fixed_op      <= COMP_ADDR;
+                if (decode_instr_info.opcode == C_SET_ADDR_REG) begin
+                    
+                end
+
+                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                imm             <= {IMM_WIDTH{1'b0}};
+            end
+
+            H : begin
                 exe_op_info.m_op            <= STALL_M;
                 exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
                 exe_op_info.v_reduct_op     <= STALL_V_REDUCT;

@@ -93,12 +93,12 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_M, H_PREFETCH_V, H_STORE_VECTOR, H_STORE_HBM: begin
+        H_PREFETCH_M, H_PREFETCH_V, H_STORE_V_HBM: begin
             decode_instruction_type = H;
         end
 
         // CSR Setting
-        C_SET_HBM_OFFSET, C_SET_MV_OFFSET: begin
+        C_SET_ADDR_REG, C_SET_M_OFFSET, C_SET_LUT: begin
             decode_instruction_type = C;
         end
 

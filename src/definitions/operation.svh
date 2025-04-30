@@ -50,6 +50,19 @@ typedef enum logic [3:0] {
     STALL_S_FIXED = 11
 } S_FIXED_OP;
 
+
+typedef enum logic [1:0] {
+    SET_ADDR_REG = 0,
+    SET_M_OFFSET = 1,
+    SET_LUT = 2
+} C_OP;
+
+typedef enum logic [1:0] {
+    PREFETCH_M = 0,
+    PREFETCH_V = 1,
+    STORE_V_HBM = 2
+} H_OP;
+
 function automatic int max(input int a, input int b);
     return (a > b) ? a : b;
 endfunction
@@ -105,23 +118,22 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Memory Operation
     H_PREFETCH_M    = 31,
     H_PREFETCH_V    = 32,
-    H_STORE_VECTOR  = 33,
-    H_STORE_HBM     = 34,
+    H_STORE_V_HBM   = 33,
 
     // CSR Setting
-    C_SET_HBM_OFFSET = 35,
-    C_SET_MV_OFFSET  = 36,
-    C_SET_LUT        = 37,
+    C_SET_ADDR_REG = 34,
+    C_SET_M_OFFSET  = 35,
+    C_SET_LUT        = 36,  // Left for Cano's work.
 
-    INVALID_OPCODE   = 38
+    INVALID_OPCODE   = 37
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] { 
     M = 0,
     V = 1,
     S = 2,
-    H = 3,
-    C = 4,
+    C = 3,
+    H = 4,
     INVALID_TYPE = 5
  } CUSTOM_ISA_TYPE;
 
@@ -137,13 +149,15 @@ typedef struct {
 parameter TAG_WIDTH = 4;
 
 typedef struct {
-    M_OP m_op;
-    V_ELEMENT_OP v_ele_op;
-    V_REDUCT_OP v_reduct_op;
-    S_FP_OP s_fp_op;
-    S_FIXED_OP s_fixed_op;
-    logic m_transposed_read;
-    logic v_broadcast_en;
+    M_OP            m_op;
+    V_ELEMENT_OP    v_ele_op;
+    V_REDUCT_OP     v_reduct_op;
+    S_FP_OP         s_fp_op;
+    S_FIXED_OP      s_fixed_op;
+    C_OP            c_op;
+    H_OP            h_op;
+    logic           m_transposed_read;
+    logic           v_broadcast_en;
 } OP_BUNDLE;
 
 

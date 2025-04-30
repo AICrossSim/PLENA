@@ -25,13 +25,13 @@ module coprocessor (
 
     // For testing
     input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      hbm_2_m_element,
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     hbm_2_m_scale,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      hbm_2_m_scale,
 
     input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1,
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1,
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetched_v_scale_port1,
 
     input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2,
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2
+    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetched_v_scale_port2
 );
 
     // Control Signals
@@ -67,24 +67,24 @@ module coprocessor (
     
     // Frontend
     decoder #(
-        .INSTRUCTION_LENGTH     (INSTRUCTION_LENGTH),
-        .OPERAND_WIDTH          (OPERAND_WIDTH),
-        .OPCODE_WIDTH           (OPCODE_WIDTH),
-        .IMM_WIDTH              (IMM_WIDTH),
-        .INST_BUFF_DEPTH           (OPCODE_WIDTH)
+        .INSTRUCTION_LENGTH         (INSTRUCTION_LENGTH),
+        .OPERAND_WIDTH              (OPERAND_WIDTH),
+        .OPCODE_WIDTH               (OPCODE_WIDTH),
+        .IMM_WIDTH                  (IMM_WIDTH),
+        .INST_BUFF_DEPTH            (OPCODE_WIDTH)
     ) decoder_init (
         .clk(clk),
         .rst(rst),
 
         // Instruction
-        .instruction        (instruction),
-        .instruction_valid  (instruction_valid),
-        .instruction_ready  (instruction_ready),
-        .instr_buffer_full   (instr_buffer_full),
+        .instruction            (instruction),
+        .instruction_valid      (instruction_valid),
+        .instruction_ready      (instruction_ready),
+        .instr_buffer_full      (instr_buffer_full),
 
-        .decode_instr_info(decode_instr_info),
-        .read_next_instr    (read_next_instr),
-        .decode_instr_valid (decode_instr_valid)
+        .decode_instr_info      (decode_instr_info),
+        .read_next_instr        (read_next_instr),
+        .decode_instr_valid     (decode_instr_valid)
 
     );
 
@@ -96,17 +96,17 @@ module coprocessor (
         .rst(rst),
 
         // Instruction
-        .decode_instr_info(decode_instr_info),
-        .decode_instr_valid (decode_instr_valid),
-        .fetch_next_instr(read_next_instr),
-        .memory_load_failed(memory_load_failed),
+        .decode_instr_info      (decode_instr_info),
+        .decode_instr_valid     (decode_instr_valid),
+        .fetch_next_instr       (read_next_instr),
+        .memory_load_failed     (memory_load_failed),
         // .w_query()
 
         .pipeline_stall(), // TODO
-        .exe_op_info(assigned_op_bundle),
+        .exe_op_info            (assigned_op_bundle),
 
-        .m_update_waddr(m_update_waddr),
-        .v_update_waddr(v_update_waddr),
+        .m_update_waddr         (m_update_waddr),
+        .v_update_waddr         (v_update_waddr),
         
         .rs1                (s_rs1),
         .rs2                (s_rs2),
@@ -121,7 +121,6 @@ module coprocessor (
     // Control
     // -----------------------------
 
-
     logic [FIXED_DATA_WIDTH - 1 : 0] vector_waddr, m_sram_addr;
     logic memory_load_failed;
     logic m_m_ready,    m_m_valid;
@@ -131,11 +130,11 @@ module coprocessor (
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
     logic m_sram_busy;          // TODO: For pipeline control
 
-    logic v_v_a_valid, v_v_a_ready;
-    logic v_v_b_valid, v_v_b_ready;
-    logic v_v_out_valid, v_v_out_ready;
-    logic v_s_in_valid, v_s_in_ready;
-    logic v_s_out_valid, v_s_out_ready;
+    logic v_v_a_valid,      v_v_a_ready;
+    logic v_v_b_valid,      v_v_b_ready;
+    logic v_v_out_valid,    v_v_out_ready;
+    logic v_s_in_valid,     v_s_in_ready;
+    logic v_s_out_valid,    v_s_out_ready;
 
     logic s_sram_req_a, s_sram_req_b;
     logic s_sram_wen_a, s_sram_wen_b;
@@ -160,6 +159,7 @@ module coprocessor (
         // Fetched Operand Values
         .loaded_rs1             (fixed_out_1),
         .loaded_rs2             (fixed_out_2),
+        .m_offset_addr          (m_offset_addr),
         .vector_waddr           (vector_waddr),
         .load_process_failed    (memory_load_failed),
 
@@ -229,9 +229,9 @@ module coprocessor (
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
+    logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr;
 
                 
-
     generate;
         matrix_machine #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
@@ -254,9 +254,9 @@ module coprocessor (
             .matrix_opcode (assigned_op_bundle.m_op),
             .ready_for_next_op(),
 
-            .set_offset_addr(),
-            .offset_addr(),
-            .offset_addr_out(),
+            .set_offset_addr((assigned_op_bundle.h_op == SET_ADDR_REG)),
+            .offset_addr(fixed_out_1),
+            .offset_addr_out(m_offset_addr),
 
             .m_element  (fetched_m_element),
             .m_scale    (fetched_m_scale),

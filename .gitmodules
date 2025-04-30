@@ -1,6 +1,3 @@
 [submodule "Llama_Experiments"]
 	path = Llama_Experiments
 	url = https://github.com/ChengZhang-98/aria-llama-ops.git
-[submodule "src/memory/TileLink"]
-	path = src/memory/TileLink
-	url = https://github.com/chipsalliance/tilelink.git
