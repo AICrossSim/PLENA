@@ -1,7 +1,7 @@
 
 import torch
 
-def binarize_torch_fp_conversion(val, config):
+def torch_fp2bin(val, config):
     """Convert Python float to custom binary FP format: {sign, exp, mant}"""
     sign = torch.sign(val)
 
@@ -24,7 +24,8 @@ def binarize_torch_fp_conversion(val, config):
     mantissa_bits = (mantissa_val * 2**man_width).floor()
 
     # Pack into integer: {sign, exp, mant}
-    result = ((sign * 2**(exp_width + man_width)) + 
-            exponent_bits * 2**(man_width) + 
+    result = ((sign * 2**(exp_width + man_width - 1)) + 
+            exponent_bits * 2**(man_width - 1) + 
             mantissa_bits).int()
+    result = result.reshape(-1)
     return result

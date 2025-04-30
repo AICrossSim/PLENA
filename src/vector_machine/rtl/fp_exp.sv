@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
+// `include "operation.svh"
 
 /*
-Module      : Vector ALU
+Module      : Vector Exp
 Timing      : Combinatorial Logic
-Description : This module includes elementwise vector computations
-            : 1. Elementwise Add, 2. Elementwise Subtract, 3. Elementwise Multiply, 4. Elementwise Exponential
+Description : This module includes elementwise vector computations 
+            : 4. Elementwise Exponential
 Status      : Under Development
 */
 
@@ -13,6 +13,7 @@ module  fp_exp #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10
 )(
+    input clk, rst,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
     input logic data_in_valid,
     output logic data_in_ready,
@@ -35,18 +36,24 @@ module  fp_exp #(
   logic data_in_fixed_log2_e_valid, data_in_fixed_log2_e_ready;
 
   logic [DATA_IN_FIXED_WIDTH - 1:0] data_in_fixed_log2_e_rounded;
-  logic data_in_fixed_log2_e_valid, data_in_fixed_log2_e_ready;
   // data_n is the integer part of the fixed point number
   // data_r is the fractional part of the fixed point number
   logic [DATA_N_WIDTH - 1:0] data_in_n;
   logic [DATA_R_WIDTH - 1:0] data_in_r;
+  logic [MANT_WIDTH - 1:0] data_in_mant;
+  logic [EXP_WIDTH - 1:0] data_in_exp;
+  logic sign_bit;
+  logic [DATA_R_WIDTH - 1:0] shift_value;
+
   fp_to_fixed_conversion #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH),
     .IN_WIDTH(EXP_WIDTH + MANT_WIDTH + 1),
     .OUT_WIDTH(DATA_IN_FIXED_WIDTH),
-    .OUT_FRAC_WIDTH(FRAC_WIDTH - 1)
+    .OUT_FRAC_WIDTH(DATA_R_WIDTH - 1)
   ) fp_to_fixed_conversion_inst (
+    .clk(clk), 
+    .rst(rst),
     .data_in(data_in),
     .data_in_valid(data_in_valid),
     .data_in_ready(data_in_ready),
@@ -69,37 +76,51 @@ module  fp_exp #(
   assign data_in_n = {data_in_fixed_log2_e_rounded[DATA_IN_FIXED_WIDTH - 1], data_in_fixed_log2_e_rounded[DATA_N_WIDTH + DATA_R_WIDTH - 3:DATA_R_WIDTH - 1]};
   assign data_in_r = {data_in_fixed_log2_e_rounded[DATA_IN_FIXED_WIDTH - 1], data_in_fixed_log2_e_rounded[DATA_R_WIDTH - 2:0]};
 
-  // So basically, The input frac_width is DATA_LOG2_E_MAN_FRAC_WIDTH
-  // We wish to make the output frac_width = CASTED_DATA_LOG2_E_FRAC_WIDTH
-  // real_data = man * 2** exp this is left shift here
-  assign shift_value = DATA_LOG2_E_MAN_FRAC_WIDTH - CASTED_DATA_LOG2_E_FRAC_WIDTH - $signed(edata_in_0_log2_e);
-    // or implement with fixed_2_n_inst
-    // the benefit is we can implement the fixed_2_n_inst with the same logic as the fixed_round_inst
-    fixed_2_n #(
-        .DATA_IN_WIDTH(DATA_R_WIDTH),
-        .DATA_IN_FRAC_WIDTH(DATA_R_WIDTH - 1),
-        .DATA_OUT_WIDTH(DATA_OUT_MAN_WIDTH),
-        .DATA_OUT_FRAC_WIDTH(DATA_OUT_MAN_WIDTH - 2)
-    ) fixed_2_n_inst (
-        .data_in(data_in_r),
-        .data_out(data_in_exp)
-    );
-    fix_with_shift_2_fp #(
-        .FIXED_DATA_WIDTH(DATA_R_WIDTH),
-        .SHIFT_WIDTH(DATA_R_WIDTH),
-        .FP_EXP_WIDTH(EXP_WIDTH),
-        .FP_MANT_WIDTH(MANT_WIDTH)
-    ) fix_with_shift_2_fp_inst (
-        .data_in(data_in_r),
-        .shift_in(data_in_n),
-        .exp_out(data_in_exp),
-        .mant_out(data_in_mant)
-    );
-    assign sign_bit = data_in_mant[MANT_WIDTH - 1];
-    assign data_out = {sign_bit, data_in_exp, data_in_mant};
-    assign data_out_valid = data_in_fixed_valid;
-    assign data_in_fixed_ready = data_out_ready;
+  // Calculate shift value based on fractional widths
+  assign shift_value = DATA_LOG2_E_FRAC_WIDTH - DATA_R_WIDTH - $signed(data_in_fixed_log2_e);
 
+  fixed_2_n #(
+    .DATA_IN_WIDTH(DATA_R_WIDTH),
+    .DATA_IN_FRAC_WIDTH(DATA_R_WIDTH - 1),
+    .DATA_OUT_WIDTH(MANT_WIDTH),
+    .DATA_OUT_FRAC_WIDTH(MANT_WIDTH - 2)
+  ) fixed_2_n_inst (
+    .data_in(data_in_r),
+    .data_out(data_in_mant)
+  );
+
+  fix_with_shift_2_fp_fake #(
+    .FIXED_DATA_WIDTH(DATA_R_WIDTH),
+    .SHIFT_WIDTH(DATA_R_WIDTH),
+    .FP_EXP_WIDTH(EXP_WIDTH),
+    .FP_MANT_WIDTH(MANT_WIDTH)
+  ) fix_with_shift_2_fp_inst (
+    .data_in(data_in_r),
+    .shift_in(data_in_n),
+    .exp_out(data_in_exp),
+    .mant_out(data_in_mant)
+  );
+
+  assign sign_bit = data_in_mant[MANT_WIDTH - 1];
+  assign data_out = {sign_bit, data_in_exp, data_in_mant};
+  assign data_out_valid = data_in_fixed_valid;
+  assign data_in_fixed_ready = data_out_ready;
+
+endmodule
+
+module fix_with_shift_2_fp_fake #(
+    parameter FIXED_DATA_WIDTH      = 8,
+    parameter FP_EXP_WIDTH          = 3,
+    parameter FP_MANT_WIDTH         = 2,
+    parameter SHIFT_WIDTH           = 8
+)(
+    input  logic signed         [FIXED_DATA_WIDTH-1:0]  data_in,
+    input  logic unsigned       [SHIFT_WIDTH-1:0]       shift_in,
+    output logic                [FP_EXP_WIDTH-1:0]      exp_out,
+    output logic                [FP_MANT_WIDTH-1:0]     mant_out
+);
+    assign exp_out = shift_in;
+    assign mant_out = data_in;
 endmodule
 
 module fixed_2_n #(
@@ -109,7 +130,7 @@ module fixed_2_n #(
     parameter   DATA_OUT_FRAC_WIDTH = 8
 )(
     input logic [DATA_IN_WIDTH - 1:0] data_in,
-    output logic [DATA_OUT_WIDTH - 1:0] data_out,
+    output logic [DATA_OUT_WIDTH - 1:0] data_out
 );
     // TODO: testing
     // TODO: 1st get the value  
@@ -118,16 +139,15 @@ module fixed_2_n #(
     // For fixed-point representation, we scale by 2^FRAC_WIDTH
     // 1 is represented as 2^FRAC_WIDTH in our fixed-point format
     // ln(2) ≈ 0.693147... is scaled to fixed-point
-    localparam logic [DATA_IN_FIXED_WIDTH-1:0] ONE_FIXED = (1 << FRAC_WIDTH);
-    localparam logic [DATA_IN_FIXED_WIDTH-1:0] LN2_FIXED = (FRAC_WIDTH > 8) ? 
-                                                 (177 << (FRAC_WIDTH - 8)) : // 0.693147 * 2^8 ≈ 177
-                                                 (177 >> (8 - FRAC_WIDTH));  // Scale down if needed
+    localparam logic [DATA_IN_WIDTH-1:0] ONE_FIXED = (1 << DATA_IN_FRAC_WIDTH);
+    localparam logic [DATA_IN_WIDTH-1:0] LN2_FIXED = (DATA_IN_FRAC_WIDTH > 8) ? 
+                                                 (177 << (DATA_IN_FRAC_WIDTH - 8)) : // 0.693147 * 2^8 ≈ 177
+                                                 (177 >> (8 - DATA_IN_FRAC_WIDTH));  // Scale down if needed
     
     // Linear approximation: 2^n ≈ 1 + n*ln(2)
-    assign data_out = ONE_FIXED + ((data_in * LN2_FIXED) >>> FRAC_WIDTH);
+    assign data_out = ONE_FIXED + ((data_in * LN2_FIXED) >>> DATA_IN_FRAC_WIDTH);
 
 endmodule
-
 
 module fp_to_fixed_conversion #(
     parameter   EXP_WIDTH = 5,
@@ -140,7 +160,6 @@ module fp_to_fixed_conversion #(
     input logic [IN_WIDTH - 1:0] data_in,  // {sign, exp, mant}
     input logic data_in_valid,
     output logic data_in_ready,
-
     output logic [OUT_WIDTH - 1:0] data_out,
     output logic data_out_valid,
     input logic data_out_ready
@@ -157,23 +176,24 @@ module fp_to_fixed_conversion #(
     // Intermediate signals
     logic [EXP_WIDTH-1:0] integer_part;
     logic [MANT_WIDTH-1:0] fractional_part;
-    logic [OUTPUT_WIDTH-1:0] result;
+    logic [OUT_WIDTH-1:0] result;
     
     // Pipeline registers
-    logic [OUTPUT_WIDTH-1:0] result_reg;
+    logic [OUT_WIDTH-1:0] result_reg;
     logic valid_reg;
 
     localparam REAL_MANT_WIDTH = MANT_WIDTH + 1;
     localparam REAL_MAN_FRAC_WIDTH = MANT_WIDTH - 1;
     logic [REAL_MANT_WIDTH-1:0] real_mantissa;
-    logic [OUTPUT_WIDTH-1:0] fixed_point_number;
+    logic [OUT_WIDTH-1:0] fixed_point_number;
     
     assign fixed_point_number = data_in[MANT_WIDTH - 1 : 0];
 
     skid_buffer #(
-        .IN_WIDTH(OUT_WIDTH),
-        .OUT_WIDTH(OUT_WIDTH)
+        .DATA_WIDTH(OUT_WIDTH)
     ) skid_buffer_inst (
+        .clk(clk),
+        .rst(rst),
         .data_in(fixed_point_number),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),

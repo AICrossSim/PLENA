@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
 # This script tests the fixed point linear
-import os, logging
+import logging, pdb, sys, traceback
+
+import torch, math
+
+from pathlib import Path
 
 import cocotb
 from cocotb.log import SimLog
@@ -12,23 +16,63 @@ from cfl_cocotb.streaming import (
     StreamDriver,
     StreamMonitor,
 )
-
 from cfl_cocotb.runner import veri_runner
-
-from typing import Literal, Optional, Tuple, Union, Dict, List
-import torch
-import math
-from functools import partial
-import random
+from cfl_cocotb.torch_fp_conversion import torch_fp2bin
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 
+src_path = Path(__file__).parent.parent.parent
+
 torch.manual_seed(10)
+
+def fp_quantize(x, q_config):
+    # TODO: 
+    man_width = q_config["man_width"]
+    exp_width = q_config["exp_width"]
+    return x
+
+def hardware_exp(x, q_config):
+    # TODO: currently, this software model cannot exactly match the hardware due to.
+    # 1. Hardware FP is not confirmed
+    # The constant e in torch can be accessed using torch.exp(torch.tensor(1.0))
+    # or using math.e and converting to tensor if needed
+    log2_e = torch.log2(torch.tensor(math.e))  # log base 2 of e
+    log2_e_x = x * log2_e
+    q_x = fp_quantize(x, q_config)
+    _int = q_x.floor()
+    _frac = q_x - _int
+    # Calculate 2^_frac using Taylor series expansion
+    # 2^x = 1 + x*ln(2) + (x*ln(2))^2/2! + (x*ln(2))^3/3! + ...
+    # For _frac (the fractional part), we can use this expansion
+    # First term: 1
+    result = torch.ones_like(_frac)
+    
+    # Second term: _frac * ln(2)
+    ln2 = torch.tensor(math.log(2))
+    term = _frac * ln2
+    result += term
+    
+    # Third term: (_frac * ln(2))^2 / 2!
+    term = term * _frac * ln2 / 2
+    result += term
+    
+    # Fourth term: (_frac * ln(2))^3 / 3!
+    term = term * _frac * ln2 / 3
+    result += term
+    
+    # Fifth term: (_frac * ln(2))^4 / 4!
+    term = term * _frac * ln2 / 4
+    result += term
+    
+    # Combine integer and fractional parts: 2^_int * 2^_frac
+    final_result = torch.pow(2, _int) * result
+    return fp_quantize(final_result, q_config)
+
+    
 class FPExpTB(Testbench):
-    def __init__(self, dut, num) -> None:
+    def __init__(self, dut) -> None:
         super().__init__(dut, dut.clk, dut.rst)
-        self.num = num
         if not hasattr(self, "log"):
             self.log = SimLog("%s" % (type(self).__qualname__))
 
@@ -46,108 +90,68 @@ class FPExpTB(Testbench):
             dut.data_out_ready,
             check=False,
         )
+        self.data_in_0_driver.log.setLevel(logging.DEBUG)
         self.data_out_0_monitor.log.setLevel(logging.DEBUG)
 
-    def generate_inputs(self):
-        inputs = []
-        expected_outputs = []
-
-        #cx: Test the code with software
+    def generate_inputs(self, num=10):
         q_config = {
-            "data_in_width": int(self.dut.DATA_IN_MAN_WIDTH),
-            "data_in_exponent_width": int(self.dut.DATA_IN_EXP_WIDTH),
-            "data_r_width": int(self.dut.DATA_R_WIDTH),
-            "block_size": int(self.dut.BLOCK_SIZE),
-            "data_out_width": int(self.dut.DATA_OUT_MAN_WIDTH),
-            "data_out_exponent_width": int(self.dut.DATA_OUT_EXP_WIDTH),
+                "man_width": self.get_parameter("MANT_WIDTH"),
+                "exp_width": self.get_parameter("EXP_WIDTH"),
         }
-        for _ in range(self.num):
-            data = 49 * torch.rand(q_config["block_size"]) - 24.5
-            from a_cx_mxint_quant.quantizers import mxint_quant_block
-            from a_cx_mxint_quant.softmax import MXIntHardwareExp
-            (qdata_in, mdata_in, edata_in) = mxint_quant_block(
-                data,
-                q_config["data_in_width"],
-                q_config["data_in_exponent_width"],
-            )
-            
-            module = MXIntHardwareExp(q_config)
-            # Calculate expected output using software model
-            qout, mout, eout = module(qdata_in)
-            
-            inputs.append((mdata_in.int().tolist(), int(edata_in.int())))
-            expected_outputs.append((mout.reshape(-1).int().tolist(), eout.reshape(-1).int().tolist()))
-            
+        # Generate random input
+        x = torch.rand(num) * 2 - 1  # Random number between -1 and 1
+        inputs = torch_fp2bin(x, q_config).tolist()
+        # Calculate expected output
+        y = hardware_exp(x, q_config)
+        expected_outputs = torch_fp2bin(y, q_config).tolist()
         return inputs, expected_outputs
 
-    async def run_test(self):
+    async def run_test(self, num, time_us):
         await self.reset()
-        logger.info(f"Reset finished")
+        self.log.info("Reset finished")
         self.data_out_0_monitor.ready.value = 1
 
-        inputs, expected_outputs = self.generate_inputs()
-        
+        inputs, expected_outputs = self.generate_inputs(num)
         self.data_in_0_driver.load_driver(inputs)
         self.data_out_0_monitor.load_monitor(expected_outputs)
-
-        await Timer(500, units="us")
+        await Timer(time_us, units="us")
         assert self.data_out_0_monitor.exp_queue.empty()
+
 
 @cocotb.test()
 async def test(dut):
-    # cocotb.start_soon(check_signal(dut))
-    tb = MXIntExpTB(dut, num=20)
-    await tb.run_test()
+    tb = FPExpTB(dut)
+    await tb.run_test(10, 1000)
+    # try:
+    #     tb = FPExpTB(dut)
+    #     await tb.run_test(10, 1000)
+    # except Exception as e:
+    #     print("\nEntering debugger...")
+    #     pdb.post_mortem(sys.exc_info()[2])
 
 async def check_signal(dut):
-    await Timer(40, units="ns")
     while True:
         await RisingEdge(dut.clk)
-        await ReadOnly()
-        print(dut.data_in_0_valid.value, dut.data_in_0_ready.value)
-        if dut.data_in_0_valid.value == 1 and dut.data_in_0_ready.value == 1:
-            print(
-                "data_in_0 = ", [x.signed_integer for x in dut.mdata_in_0.value]
-            )
-        print("end")
+        if dut.data_in_valid.value == 1 and dut.data_in_ready.value == 1:
+            print(f"data_in: {dut.data_in.value}")
+        if dut.data_out_valid.value == 1 and dut.data_out_ready.value == 1:
+            print(f"data_out: {dut.data_out.value}")
 
-from mase_components.helper import generate_memory
-from pathlib import Path
-
-default_config = {
-    "DATA_IN_MAN_WIDTH": 8,
-    "DATA_IN_EXP_WIDTH": 4,
-    "BLOCK_SIZE": 2,
-    "DATA_R_WIDTH": 2,
-    "DATA_OUT_MAN_WIDTH": 10,
-    "DATA_OUT_EXP_WIDTH": 4,
-}
 if __name__ == "__main__":
-    valid_width = default_config["DATA_R_WIDTH"]
-    valid_frac_width = default_config["DATA_R_WIDTH"] - 1
-
-    hash_out_width = default_config["DATA_OUT_MAN_WIDTH"]
-    hash_out_frac_width = default_config["DATA_OUT_MAN_WIDTH"] - 2
-
-    generate_memory.generate_sv_lut(
-        "power2",
-        valid_width,
-        valid_frac_width,
-        hash_out_width,
-        hash_out_frac_width,
-        path=Path(__file__).parents[1] / "rtl",
-        constant_mult=1,
-        floor=False,
-    )
-    mase_runner(
-        trace=True,
-        module_param_list=[{
-            "DATA_IN_MAN_WIDTH": default_config["DATA_IN_MAN_WIDTH"],
-            "DATA_IN_EXP_WIDTH": default_config["DATA_IN_EXP_WIDTH"],
-            "BLOCK_SIZE": default_config["BLOCK_SIZE"],
-            "DATA_R_WIDTH": default_config["DATA_R_WIDTH"],
-            "DATA_OUT_MAN_WIDTH": default_config["DATA_OUT_MAN_WIDTH"],
-            "DATA_OUT_EXP_WIDTH": default_config["DATA_OUT_EXP_WIDTH"],
-        }],
-        # sim="questa",
+    veri_runner(
+        trace=True, 
+        module="fp_exp",
+        group="vector_machine",
+        additional_include_paths=[
+            str(src_path / "basic_components/common"),
+            str(src_path / "basic_components/conversion"),
+            str(src_path / "basic_components/fixed_operation"),
+            str(src_path / "basic_components/buffer")
+        ],
+        module_param_list=[
+            {
+                "EXP_WIDTH": 4,
+                "MANT_WIDTH": 8
+            }
+        ]
     )

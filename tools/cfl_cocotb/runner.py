@@ -32,7 +32,7 @@ def _verilator_args(hierarchical, trace):
         # Hierarchical
         *(["--hierarchical"] if hierarchical else []),
         # Signal trace in dump.fst
-        *(["--trace-fst", "--trace-structs"] if trace else []),
+        *(["--trace", "--trace-structs"] if trace else []),
         "-O2",
         "-build-jobs",
         "8",
@@ -70,14 +70,13 @@ def _single_test(
     runner = get_runner(getenv("SIM", sim))
 
     if not skip_build:
-
         if sim == "verilator":
             tool_args = _verilator_args(hierarchical, trace)
             sources = [module_path]
             includes = [str(include_files) + "/rtl/"]
             if extra_include_files:
                 for exclude in extra_include_files:
-                    includes.append(exclude+ "/rtl/")
+                    includes.append(str(exclude) + "/rtl/")
             if definitions_path:
                 includes.append(definitions_path)
                     
@@ -99,6 +98,7 @@ def _single_test(
             # Do not use params in hierarchical verilation
             parameters=module_params if not hierarchical else {},
             build_dir=test_work_dir,
+            waves=True if trace else False,
         )
 
     try:
@@ -108,7 +108,8 @@ def _single_test(
             test_module=module + "_tb",
             seed=seed,
             results_xml="results.xml",
-            build_dir=test_work_dir
+            build_dir=test_work_dir,
+            plusargs=["--trace", "--trace-structs"] if trace else [],
         )
         num_tests, fail = get_results(test_work_dir.joinpath("results.xml"))
     except Exception as e:
@@ -122,10 +123,11 @@ def _single_test(
     }
 
 
+from pathlib import Path
 def veri_runner(
     module=None,
     group=None,
-    additional_include_paths=None,
+    additional_include_paths: list[str | Path] = None,
     definitions_path=None,
     module_param_list: list[dict[str, Any]] = [dict()],
     sim: str = "verilator",
