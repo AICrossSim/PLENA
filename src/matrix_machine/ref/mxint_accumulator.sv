@@ -103,12 +103,12 @@ module mxint_accumulator #(
 
   for (genvar i = 0; i < BLOCK_SIZE; i++) begin : mantissa_block
     always_ff @(posedge clk)
-      if (rst) mdata_out_0[i] <= '0;
+      if (rst) mdata_out_0[i] <= 'b0;
       else begin
         if (data_out_0_valid) begin
           if (data_out_0_ready) begin
             if (data_in_0_valid) mdata_out_0[i] <= $signed(shifted_mdata_in_0[i]);
-            else mdata_out_0[i] <= '0;
+            else mdata_out_0[i] <= 'b0;
           end
         end else if (data_in_0_valid && data_in_0_ready)
           mdata_out_0[i] <= $signed(shifted_mdata_out_0[i]) + $signed(shifted_mdata_in_0[i]);

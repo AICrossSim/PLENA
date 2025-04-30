@@ -111,8 +111,8 @@ def simple_test_mv_unit():
         group = "fp_operation",
         module = "fp_cp_mv",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"                                        
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/common"                                        
         ],
         module_param_list=[
             {"COMPUTE_DIM" : tile_size, "IN_EXP_WIDTH" : exp_width, "IN_MAN_WIDTH" : mant_width, "PRODUCT_EXT_EXP_WIDTH" : product_ext_exp_width, "PRODUCT_EXT_MANT_WIDTH" : product_ext_mant_width, "ADD_EXT_EXP_WIDTH" : add_ext_exp_width, "ADD_EXT_MANT_WIDTH" : add_ext_mant_width, "OUT_EXP_WIDTH" : output_exp_width, "OUT_MAN_WIDTH" : output_mant_width},

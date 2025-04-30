@@ -58,7 +58,7 @@ module fp_round #(
       assign  round_section = mant_in[IN_MANT_WIDTH - OUT_MANT_WIDTH - 1:0];
     end else begin : gen_no_truncate
       assign mant_trunc = mant_in;
-      assign round_section = '0;
+      assign round_section = 'b0;
     end
   endgenerate
 

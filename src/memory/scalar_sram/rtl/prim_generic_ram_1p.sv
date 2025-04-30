@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Synchronous single-port SRAM model
-
+`timescale 1ns / 1ps
 `include "prim_assert.sv"
+`include "prim_ram_1p_pkg.sv"
 
 module prim_generic_ram_1p import prim_ram_1p_pkg::*; #(
   parameter  int Width           = 32, // bit

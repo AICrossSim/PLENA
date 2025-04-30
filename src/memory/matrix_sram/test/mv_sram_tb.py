@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 # Parameters Definition
 # ---------------------
 DataWidth = 8
-SRAM_Depth = 128
+SRAM_DEPTH = 128
 MLEN = 8
 Parallel_Wr_Dim = 2
 Parallel_Rd_Dim = 2
@@ -82,7 +82,7 @@ def test_simple_mvsram():
         group = "mv_sram",
         module = "mv_sram",
         module_param_list=[
-            {"DataWidth": DataWidth, "SRAM_Depth": SRAM_Depth, "MLEN": MLEN, "Parallel_Rd_Dim": Parallel_Rd_Dim},
+            {"DataWidth": DataWidth, "SRAM_DEPTH": SRAM_DEPTH, "MLEN": MLEN, "Parallel_Rd_Dim": Parallel_Rd_Dim},
         ],
         trace = False,
     )

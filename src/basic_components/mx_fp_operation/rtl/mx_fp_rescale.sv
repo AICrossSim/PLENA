@@ -30,11 +30,11 @@ module mx_fp_rescale #(
     input  logic [BLOCK_DIM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]             scale_in,
 
     output logic [BLOCK_DIM - 1 : 0] [OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH : 0] element_data_out,
-    output logic [MXFP_SCALE_WIDTH - 1 : 0] scale_data_out,
+    output logic [MXFP_SCALE_WIDTH - 1 : 0] scale_data_out
 );
 
-    logic [BLOCK_DIM - 1 : 0] [OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH : 0] p0_rounded_element_out, p1_rounded_element_out;
-    logic [BLOCK_DIM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0] rounded_element_scale_out;
+    logic [BLOCK_DIM - 1 : 0] [OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH : 0] p0_rounded_element, p1_rounded_element;
+    logic [BLOCK_DIM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0] p0_rounded_scale, p1_rounded_scale;
     
 
     generate;
@@ -46,38 +46,48 @@ module mx_fp_rescale #(
                 .OUT_EXP_WIDTH  (OUT_MXFP_EXP_WIDTH),
                 .OUT_MANT_WIDTH (OUT_MXFP_MANT_WIDTH)
             ) mxfp_round (
-                .clk(clk),
-                .rst(rst),
-                .element_data_in    (element_in),
-                .scale_data_in      (scale_in),
-                .element_data_out   (p0_rounded_element_out),
-                .scale_data_out     (rounded_element_scale_out)
+                .data_in    (element_in),
+                .scale_in      (scale_in),
+                .data_out   (p0_rounded_element),
+                .scale_out     (p0_rounded_scale)
             );
         end else begin : no_round
-            assign p0_rounded_element_out = element_in;
-            assign rounded_element_scale_out = scale_in;
+            assign p0_rounded_element = element_in;
+            assign p0_rounded_scale = scale_in;
         end
 
     endgenerate
 
     logic [MXFP_SCALE_WIDTH - 1 : 0] exp_max;
+
     unsigned_max #(
-        .width(IN_MAN_WIDTH),
-        .length(CONVERT_DIM),
+        .width(MXFP_SCALE_WIDTH),
+        .length(BLOCK_DIM),
         .flop_output(0)
     ) u0_exp_max (
         .clk(clk),
-        .input_data(rounded_element_scale_out),
+        .input_data(p0_rounded_scale),
         .max_val(exp_max)
     );
+
+    always @(posedge clk) begin
+        if (!rst) begin
+            p1_rounded_element <= 'b0;
+            p1_rounded_scale <= 'b0;
+        end else begin
+            p1_rounded_element <= p0_rounded_element;
+            p1_rounded_scale <= p0_rounded_scale;
+        end
+    end
+
 
     generate;
         for (genvar i = 0; i < BLOCK_DIM; i++) begin : gen_rescale
             logic [OUT_MXFP_EXP_WIDTH - 1 : 0] exp_reduce_amount, new_element_exp;
-            assign exp_reduce_amount = exp_max - rounded_element_scale_out[i];
-            assign new_element_exp = p1_rounded_element_out[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH - 1 : OUT_MXFP_MANT_WIDTH] - exp_reduce_amount;
-            // TODO: How to handle the case when the exponent is negative?
-            assign element_data_out[i] = {p1_rounded_element_out[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH], new_element_exp, p1_rounded_element_out[i][OUT_MXFP_MANT_WIDTH - 1 : 0]};
+            assign exp_reduce_amount = exp_max - p1_rounded_scale[i];
+            assign new_element_exp = p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH - 1 : OUT_MXFP_MANT_WIDTH] - exp_reduce_amount;
+            assign element_data_out[i] = {p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH], new_element_exp, p1_rounded_element[i][OUT_MXFP_MANT_WIDTH - 1 : 0]};
+            assign scale_data_out = exp_max;
         end    
     endgenerate
 

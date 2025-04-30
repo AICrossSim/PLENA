@@ -15,7 +15,7 @@ module fp_vector_element_alu #(
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
-    input  ELEMENT_V_OPERAND operation,       // 0: add, 1: sub, 2: mul, 3: exp
+    input  V_ELEMENT_OP operation,       // 0: add, 1: sub, 2: mul, 3: exp
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 
@@ -29,22 +29,22 @@ module fp_vector_element_alu #(
         // Combinational module to flip the sign bit for FP subtraction
         negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
         case (operation)
-            ADD: begin
+            ADD_V_ELEMENT: begin
                 negated_en = 1'b0;
                 data_out = data_out_add;
             end
 
-            SUB: begin
+            SUB_V_ELEMENT: begin
                 negated_en = 1'b1;
                 data_out = data_out_add;
             end
 
-            MUL: begin
+            MUL_V_ELEMENT: begin
                 negated_en = 1'b0;
                 data_out = data_out_mul;
             end
 
-            EXP: begin
+            EXP_V_ELEMENT: begin
                 negated_en = 1'b0;
                 data_out = data_out_exp;
             end

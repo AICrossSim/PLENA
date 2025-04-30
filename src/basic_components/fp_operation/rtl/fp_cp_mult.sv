@@ -14,9 +14,9 @@ module fp_cp_mult #(
     parameter   MANT_WIDTH = 4,
     parameter   EXP_WIDTH = 3,
     // Amount of bits needed to shift mantissas for alignment
-    parameter   EXT_MANT_WIDTH = 4,
+    parameter   EXT_MANT_WIDTH = 0,
     // Need to increase exp width by 1 to handle overflow
-    parameter   EXT_EXP_WIDTH = 1
+    parameter   EXT_EXP_WIDTH = 0
 ) (
     input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_a,
     input   logic [MANT_WIDTH + EXP_WIDTH : 0] data_b,
@@ -74,7 +74,7 @@ module fp_cp_mult #(
 
     // Normalisation logic
     always_comb begin
-        if (mant_product_full[2*MANT_WIDTH+2] == 1'b0) begin
+        if (mant_product_full[2*MANT_WIDTH+1] == 1'b0) begin
             // If no normalization needed, 1_xxxx * 1_xxxx = 01_mmmm_eeee
             mant_product_norm = {mant_product_full[2*MANT_WIDTH - 1: (MANT_WIDTH + EXT_MANT_WIDTH)]};
             exp_temp_out = exp_add_raw;

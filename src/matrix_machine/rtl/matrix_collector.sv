@@ -18,14 +18,15 @@ module matrix_collector #(
 )(
     input  logic                                clk,
     input  logic                                rst_n,
+    input  logic                                clear,
 
     // Input port
-    input  logic [Collect_Dim*DATA_WIDTH-1:0]   in_data,
+    input  logic [Collect_Dim * MLEN * DATA_WIDTH - 1 : 0]   in_data,
     input  logic                                in_valid,
     output logic                                in_ready,
 
     // Output port
-    output logic [MLEN*DATA_WIDTH-1:0]          out_matrix,
+    output logic [MLEN * MLEN * DATA_WIDTH - 1 : 0]          out_matrix,
     output logic                                out_valid,
     input  logic                                out_ready
 );
@@ -43,7 +44,7 @@ module matrix_collector #(
 
     // Flatten and register output matrix
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+        if (!rst_n || clear) begin
             cycle_count <= 0;
             out_valid   <= 0;
         end else begin

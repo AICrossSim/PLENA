@@ -116,7 +116,7 @@ def test_simple_fp_addition():
         group = "fp_operation",
         module = "fp_adder_tree",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer"
+            "../../../../src/basic_components/buffer"
         ],       
         module_param_list=[
             {"VEC_DIM" : vect_dim, "IN_EXP_WIDTH" : exp_width, "IN_MAN_WIDTH" : mant_width, "EXT_MANT_WIDTH_PER_LAYER" : ext_mant_width, "EXT_EXP_BITS_PER_LAYER" : ext_exp_width},

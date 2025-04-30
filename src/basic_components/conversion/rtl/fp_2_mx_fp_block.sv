@@ -17,7 +17,7 @@ module fp_2_mx_fp_block #(
 
     parameter MX_FP_MANT_WIDTH = 3,
     parameter MX_FP_EXP_WIDTH = 4,
-    parameter MX_FP_SCALE_WIDTH = 8
+    parameter MXFP_SCALE_WIDTH = 8
 )(
     input   logic clk,
     input   logic rst,
@@ -26,13 +26,13 @@ module fp_2_mx_fp_block #(
     output  logic data_in_ready,
 
     output  logic [BLOCK_DIM-1:0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH : 0] element_data_out,
-    output  logic [MX_FP_SCALE_WIDTH-1:0] scale_data_out,
+    output  logic [MXFP_SCALE_WIDTH-1:0] scale_data_out,
     output  logic mx_fp_data_out_valid,
     input   logic mx_fp_data_out_ready
 );
 
     localparam FP_OFFSET =          (1 << (FP_EXP_WIDTH-1)) - 1;
-    localparam MXFP_SCALE_OFFSET =  (1 << (MX_FP_SCALE_WIDTH-1)) - 1;
+    localparam MXFP_SCALE_OFFSET =  (1 << (MXFP_SCALE_WIDTH-1)) - 1;
 
 
     // Split input into sgn, exp, man fields.
@@ -59,7 +59,7 @@ module fp_2_mx_fp_block #(
         .max_val(exp_max)
     );
     
-    logic unsigned [MX_FP_SCALE_WIDTH - 1:0] p1_e_max;
+    logic unsigned [MXFP_SCALE_WIDTH - 1:0] p1_e_max;
     logic                               p1_fp_sgns [BLOCK_DIM];
     logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1:0] p1_fp_exps;
     logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH - 1:0] p1_fp_mans;
@@ -75,7 +75,7 @@ module fp_2_mx_fp_block #(
 
 
     logic                               p2_fp_sgns [BLOCK_DIM];
-    logic [MX_FP_SCALE_WIDTH - 1:0]     p2_e_max, p2_sh_exp;
+    logic [MXFP_SCALE_WIDTH - 1:0]     p2_e_max, p2_sh_exp;
     logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1 :0] p2_m_shifts;
     logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH     :0] p2_man_exts;
     logic [BLOCK_DIM-1:0] element_in_ready;

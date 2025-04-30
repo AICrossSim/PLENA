@@ -10,7 +10,7 @@ module duplicate_data_section #(
     parameter DATA_SEC_WIDTH = 4,
     parameter REPEAT = 2,
     parameter BITSTREAM_WIDTH = 12,
-    localparam SEC_NUM = BITSTREAM_WIDTH / DATA_SEC_WIDTH,
+    localparam SEC_NUM = BITSTREAM_WIDTH / DATA_SEC_WIDTH
 ) (
     input   logic   [BITSTREAM_WIDTH-1:0] in_data,
     output  logic   [BITSTREAM_WIDTH * REPEAT - 1:0] out_data

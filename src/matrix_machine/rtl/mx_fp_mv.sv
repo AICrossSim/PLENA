@@ -140,7 +140,7 @@ module mx_fp_mv #(
                 .FP_EXP_WIDTH(ACC_EXP_WIDTH),
                 .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
                 .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
-                .MX_FP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
+                .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
             ) fp_2_mx_convert(
                 .clk(clk),
                 .rst(rst),

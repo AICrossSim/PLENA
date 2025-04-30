@@ -80,12 +80,12 @@ def test_simple_fp_2_mxfp_conversion():
         group = "conversion",
         module = "fp_2_mx_fp_block",
         additional_include_paths = [
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/buffer",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/fp_operation",
-            "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/basic_components/common"
+            "../../../../src/basic_components/buffer",
+            "../../../../src/basic_components/fp_operation",
+            "../../../../src/basic_components/common"
         ],       
         module_param_list=[
-            {"BLOCK_DIM" : block_dim, "FP_MANT_WIDTH" : fp_mant_width, "FP_EXP_WIDTH" : fp_exp_width, "MX_FP_EXP_WIDTH" : mxfp_exp_width, "MX_FP_MANT_WIDTH" : mxfp_mant_width, "MX_FP_SCALE_WIDTH" : mxfp_scale_width},
+            {"BLOCK_DIM" : block_dim, "FP_MANT_WIDTH" : fp_mant_width, "FP_EXP_WIDTH" : fp_exp_width, "MX_FP_EXP_WIDTH" : mxfp_exp_width, "MX_FP_MANT_WIDTH" : mxfp_mant_width, "MXFP_SCALE_WIDTH" : mxfp_scale_width},
         ],
         trace = True,
     )

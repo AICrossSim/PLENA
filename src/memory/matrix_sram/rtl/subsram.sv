@@ -10,14 +10,14 @@ Status      : Passed Simple Tests
 module subsram #(
 
   parameter  int DataWidth                  = 4, 
-  parameter  int SRAM_Depth                 = 128,
+  parameter  int SRAM_DEPTH                 = 128,
   parameter  int SubSRAMIndex               = 0,                                // Index of the sub SRAM    
   parameter  int MLEN                       = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
-  parameter  int Parallel_Rd_Amount         = 2,                                // The number of row/col read in parallel
-  localparam int AdrWidth                   = $clog2(SRAM_Depth),               // derived parameter
-  localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/Parallel_Rd_Amount),  // The width of the parallel read index
-  localparam int ElementWidth               = DataWidth * (Parallel_Rd_Amount ** 2),   // The width of each element in the sub SRAM
-  localparam int Element_Amount             = Parallel_Rd_Amount ** 2           // The number of data in a single element
+  parameter  int PARALLEL_DIM               = 2,                                // The number of row/col read in parallel
+  localparam int AdrWidth                   = $clog2(SRAM_DEPTH),               // derived parameter
+  localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/PARALLEL_DIM),  // The width of the parallel read index
+  localparam int ElementWidth               = DataWidth * (PARALLEL_DIM ** 2),   // The width of each element in the sub SRAM
+  localparam int Element_Amount             = PARALLEL_DIM ** 2           // The number of data in a single element
 ) (
   input  logic                                  clk,
 
@@ -26,16 +26,16 @@ module subsram #(
   input  logic                                  transposed_read,
   
   input  logic [AdrWidth-1:0]                   addr,
-  input  logic [ElementWidth -1:0]               wdata, // To be confirmed
+  input  logic [ElementWidth -1:0]              wdata,              // To be confirmed
   output logic                                  write_response,
   output logic                                  read_data_valid,
-  output logic [ElementWidth-1:0]               rdata  // Read data. Data is returned one cycle after req_i is high.
+  output logic [ElementWidth-1:0]               rdata               // Read data. Data is returned one cycle after req_i is high.
 );
 
 // -----
 // Wires
 // -----
-logic [ElementWidth-1:0]            mem [SRAM_Depth];
+logic [ElementWidth-1:0]            mem [SRAM_DEPTH];
 logic [AdrWidth-1:0]                addr_for_sub_sram;
 logic [ElementWidth-1:0]            raw_rdata;
 logic transpose_rawdata;
@@ -83,7 +83,7 @@ always @(posedge clk) begin
 end
 
 subtile_transpose #(
-    .Dim(Parallel_Rd_Amount),
+    .Dim(PARALLEL_DIM),
     .DataWidth(DataWidth)
 ) smst (
     .in_data(raw_rdata),

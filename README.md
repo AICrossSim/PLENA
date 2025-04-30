@@ -12,3 +12,7 @@ This project contains the implementation of a coprocessor for LlaMA model's infe
 [View Document on Notion](https://www.notion.so/Coprocessor-Project-Plan-1d628f1ee68e8052ab7dc51a36905c15?pvs=4)
 
 ![Figure 1: Diagram of the Coprocessor](doc/CoProcessor_Design.png)
+
+**SystemVerilog RTL Format:**  
+TODO: 
+[LowRISC Format](https://github.com/lowRISC/style-guides)
