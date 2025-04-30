@@ -21,15 +21,18 @@ typedef enum logic [2:0] {
     STALL_V_REDUCT = 2
 } V_REDUCT_OP;
 
-typedef enum logic [2:0] {
+typedef enum logic [3:0] {
     ADD_FP    = 0,
     SUB_FP    = 1,
     MUL_FP    = 2,
     EXP_FP    = 3,
     ISQRT_FP  = 4,
     LOG_FP    = 5,
-    LOAD_FP   = 6,
-    STALL_S_FP = 7
+    LD_REG_FP   = 6,
+    LD_OUT_FP   = 7,
+    ST_REG_FP  = 8,
+    ST_IN_FP  = 9,
+    STALL_S_FP = 10
 } S_FP_OP;
 
 typedef enum logic [3:0] {
@@ -40,9 +43,11 @@ typedef enum logic [3:0] {
     DIV_FIX   = 4,
     LUI_FIX   = 5,
     MV_FIX    = 6,
-    LOAD_FOR_ADDR = 7,
-    CONCAT = 8,
-    STALL_S_FIXED = 9
+    LD_FIX    = 7,
+    ST_FIX    = 8,
+    COMP_ADDR = 9,
+    CONCAT    = 10,
+    STALL_S_FIXED = 11
 } S_FIXED_OP;
 
 function automatic int max(input int a, input int b);
@@ -85,27 +90,30 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_EXP_FP    = 17,
     S_ISQRT_FP  = 18,
     S_LOG_FP    = 19,
-    S_ADD_FIX   = 20,
-    S_ADDI_FIX  = 21,
-    S_SUB_FIX   = 22,
-    S_MUL_FIX   = 23,
-    S_DIV_FIX   = 24,
-    S_LUI_FIX   = 25,
-    S_MV_FIX    = 26,
+    S_LOAD_FP   = 20,
+    S_STORE_FP  = 21,
+    S_ADD_FIX   = 22,
+    S_ADDI_FIX  = 23,
+    S_SUB_FIX   = 24,
+    S_MUL_FIX   = 25,
+    S_DIV_FIX   = 26,
+    S_LUI_FIX   = 27,
+    S_MV_FIX    = 28,
+    S_LD_FIX    = 29,
+    S_ST_FIX    = 30,
 
     // Memory Operation
-    H_PREFETCH_M    = 27,
-    H_PREFETCH_V    = 28,
-    H_LOAD_SCALAR   = 29,
-    H_STORE_VECTOR  = 30,
-    H_STORE_SCALAR  = 31,
-    H_STORE_HBM     = 32,
+    H_PREFETCH_M    = 31,
+    H_PREFETCH_V    = 32,
+    H_STORE_VECTOR  = 33,
+    H_STORE_HBM     = 34,
 
     // CSR Setting
-    C_SET_HBM_OFFSET = 33,
-    C_SET_MV_OFFSET  = 34,
+    C_SET_HBM_OFFSET = 35,
+    C_SET_MV_OFFSET  = 36,
+    C_SET_LUT        = 37,
 
-    INVALID_OPCODE   = 35
+    INVALID_OPCODE   = 38
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] { 

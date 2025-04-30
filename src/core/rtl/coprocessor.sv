@@ -130,61 +130,67 @@ module coprocessor (
 
     
     // Dataflow Control
-    data_flow_control #()(
+    data_flow_control #(
+        .OPERAND_WIDTH(FIXED_OPERAND_WIDTH),
+        .FIXED_DATA_WIDTH(FIXED_DATA_WIDTH),
+        .VLEN(MLEN),
+        .MLEN(MLEN),
+        .Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim)
+    ) data_flow_init(
         .clk(clk),
         .rst(rst),
 
         // Current Execution
-        .cur_m_op(m_opcode),
-        .cur_m_transposed_read(m_transposed_rd_en),
-        .cur_v_ele_op(v_element_opcode),
-        .cur_v_broadcast_en(v_broadcast_fp2),
-        .cur_v_reduct_op(v_reduce_opcode),
-        .cur_s_fp_op(s_fp_opcode),
-        .cur_s_fixed_op(s_fixed_opcode),
+        .cur_m_op               (m_opcode),
+        .cur_m_transposed_read  (m_transposed_rd_en),
+        .cur_v_ele_op           (v_element_opcode),
+        .cur_v_broadcast_en     (v_broadcast_fp2),
+        .cur_v_reduct_op        (v_reduce_opcode),
+        .cur_s_fp_op            (s_fp_opcode),
+        .cur_s_fixed_op         (s_fixed_opcode),
 
         // Fetched Operand Values
-        .loaded_rs1(s_rs1),
-        .loaded_rs2(s_rs2),
-        .vector_waddr(vector_waddr),
-        .load_process_failed(memory_load_failed),
+        .loaded_rs1             (fixed_out_1),
+        .loaded_rs2             (fixed_out_2),
+        .vector_waddr           (vector_waddr),
+        .load_process_failed    (memory_load_failed),
 
-        .m_m_ready(m_m_ready),
-        .m_m_valid(m_m_valid),
-        .m_v_valid(m_v_valid),
-        .m_v_ready(m_v_ready),
-        .m_o_valid(m_o_valid),
-        .m_o_ready(m_o_ready),
-        .m_out_valid(m_out_valid),
-        .m_out_ready(m_out_ready),
+        .m_m_ready              (m_m_ready),
+        .m_m_valid              (m_m_valid),
+        .m_v_valid              (m_v_valid),
+        .m_v_ready              (m_v_ready),
+        .m_o_valid              (m_o_valid),
+        .m_o_ready              (m_o_ready),
+        .m_out_valid            (m_out_valid),
+        .m_out_ready            (m_out_ready),
 
-        .m_sram_addr(m_sram_addr),
-        .m_sram_wen(m_sram_wen),
-        .m_sram_req(m_sram_req),
-        .m_sram_transposed_read(m_sram_transposed_read),
-        .m_sram_busy(m_sram_busy),
+        .m_sram_addr            (m_sram_addr),
+        .m_sram_wen             (m_sram_wen),
+        .m_sram_req             (m_sram_req),
+        .m_sram_transposed_read (m_sram_transposed_read),
+        .m_sram_busy            (m_sram_busy),
 
-        .v_v_a_valid(v_v_a_valid),
-        .v_v_a_ready(v_v_a_ready),
-        .v_v_b_valid(v_v_b_valid),
-        .v_v_b_ready(v_v_b_ready),
-        .v_v_out_valid(v_v_out_valid),
-        .v_v_out_ready(v_v_out_ready),
-        .v_s_in_valid(v_s_in_valid),
-        .v_s_in_ready(v_s_in_ready),
-        .v_s_out_valid(v_s_out_valid),
-        .v_s_out_ready(v_s_out_ready),
+        .v_v_a_valid            (v_v_a_valid),
+        .v_v_a_ready            (v_v_a_ready),
+        .v_v_b_valid            (v_v_b_valid),
+        .v_v_b_ready            (v_v_b_ready),
+        .v_v_out_valid          (v_v_out_valid),
+        .v_v_out_ready          (v_v_out_ready),
+        .v_s_in_valid           (v_s_in_valid),
+        .v_s_in_ready           (v_s_in_ready),
+        .v_s_out_valid          (v_s_out_valid),
+        .v_s_out_ready          (v_s_out_ready),
 
-        .s_sram_req_a(s_sram_req_a),
-        .s_sram_wen_a(s_sram_wen_a),
-        .s_sram_addr_a(s_sram_addr_a),
-        .s_sram_mask_a(s_sram_mask_a),
+        .s_sram_req_a           (s_sram_req_a),
+        .s_sram_wen_a           (s_sram_wen_a),
+        .s_sram_addr_a          (s_sram_addr_a),
+        .s_sram_mask_a          (s_sram_mask_a),
 
-        .s_sram_req_b(s_sram_req_b),
-        .s_sram_wen_b(s_sram_wen_b),
-        .s_sram_addr_b(s_sram_addr_b),
-        .s_sram_mask_b(s_sram_mask_b)
-    )
+        .s_sram_req_b           (s_sram_req_b),
+        .s_sram_wen_b           (s_sram_wen_b),
+        .s_sram_addr_b          (s_sram_addr_b),
+        .s_sram_mask_b          (s_sram_mask_b)
+    );
 
     // -----------------------------
     // Computation Units
@@ -327,7 +333,7 @@ module coprocessor (
             .fixed_out_1        (fixed_out_1),
             .fixed_out_2        (fixed_out_2),
             .fp_in              (fp_s_out),
-            .fp_out_1           (fp_s_in)
+            .fp_out             (fp_s_in)
         );
 
     endgenerate

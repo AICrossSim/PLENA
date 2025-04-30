@@ -14,7 +14,7 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   parameter  int DataBitsPerMask = 1, // Number of data bits per bit of write mask
   parameter      MemInitFile     = "", // VMEM file to initialize the memory with
 
-  localparam int Aw              = $clog2(Depth)  // derived parameter
+  localparam int Aw              = $clog2(Depth),  // derived parameter
   localparam int MaskWidth = Width / DataBitsPerMask
 ) (
   input clk_a_i,

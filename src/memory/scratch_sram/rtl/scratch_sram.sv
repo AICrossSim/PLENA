@@ -72,7 +72,7 @@ prim_generic_ram_2p #(
     .b_write_i(write_en_b),
     .b_addr_i(sram_addr_b),
     .b_wdata_i(element_in_b),
-    .b_wmask_i({(MXFP_EXP_WIDTH + MXFP_MANT_WIDTH) * VLEN{1'b1}, mask_in_b}),
+    .b_wmask_i(mask_in_b),
     .b_rdata_o(element_out_b),
 
     // Unused

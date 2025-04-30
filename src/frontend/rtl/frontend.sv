@@ -38,7 +38,7 @@ module frontend #(
     // Control Vector Computation
     output  V_ELEMENT_OP        element_opcode,
     output  V_REDUCT_OP         reduce_opcode,
-    input   logic               broadcast_fp2,
+    output  logic               broadcast_fp2,
 
     // Control Scalar Computation
 
@@ -56,7 +56,7 @@ module frontend #(
 
 
 // Pipeline Control
-logic stall;
+
 
 // Read Instr Control
 INSTR_INFO current_instr_info, next_instr_info;
@@ -76,7 +76,7 @@ always_comb begin
                 element_opcode = STALL_V_ELEMENT;
                 reduce_opcode  = STALL_V_REDUCT;
                 fp_opcode      = STALL_S_FP;
-                fixed_opcode   = LOAD_FOR_ADDR;
+                fixed_opcode   = COMP_ADDR;
                 fps1 = {FP_OPERAND_WIDTH{1'b0}};
                 fps2 = {FP_OPERAND_WIDTH{1'b0}};
                 fpd  = {FP_OPERAND_WIDTH{1'b0}};
@@ -96,16 +96,16 @@ always_comb begin
                 reduce_opcode  = (current_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                  (current_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                 
-                fixed_opcode   = LOAD_FOR_ADDR;
+                fixed_opcode   = COMP_ADDR;
 
                 if (current_instr_info.opcode == V_ADD_VF || current_instr_info.opcode == V_SUB_VF || current_instr_info.opcode == V_MUL_VF) begin
-                    fp_opcode       = LOAD_FP;
+                    fp_opcode       = LD_OUT_FP;
                     rs1             = current_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             = {FIXED_OPERAND_WIDTH{1'b0}};
                     rd              = current_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    fps1          = {FP_OPERAND_WIDTH{1'b0}};
-                    fps2          = current_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
-                    fpd           = {FP_OPERAND_WIDTH{1'b0}};
+                    fps1            = {FP_OPERAND_WIDTH{1'b0}};
+                    fps2            = current_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                    fpd             = {FP_OPERAND_WIDTH{1'b0}};
                     imm             = {IMM_WIDTH{1'b0}};
                 end else begin
                     fp_opcode       = STALL_S_FP;
@@ -175,7 +175,7 @@ always_comb begin
                 element_opcode  = STALL_V_ELEMENT;
                 reduce_opcode   = STALL_V_REDUCT;
                 fp_opcode       = STALL_S_FP;
-                fixed_opcode   = LOAD_FOR_ADDR;
+                fixed_opcode   = COMP_ADDR;
 
                 rs1             = current_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                 rs2             = current_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];

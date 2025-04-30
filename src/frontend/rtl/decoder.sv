@@ -90,7 +90,7 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_M, H_PREFETCH_V, H_LOAD_SCALAR, H_STORE_VECTOR, H_STORE_SCALAR, H_STORE_HBM: begin
+        H_PREFETCH_M, H_PREFETCH_V, H_STORE_VECTOR, H_STORE_HBM: begin
             next_instruction_type = H;
         end
 

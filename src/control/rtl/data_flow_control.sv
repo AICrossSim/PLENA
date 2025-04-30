@@ -9,7 +9,13 @@ Description : This module serves as the controller for all the memory related op
             : It will record the states of the memory, checking whether it is currently busy or not, provide feedback to pipeline control unit.
 */
 
-module data_flow_control #() (
+module data_flow_control #(
+    parameter   OPERAND_WIDTH           = 5,
+    parameter   FIXED_DATA_WIDTH        = 32,
+    parameter   VLEN                    = 8,       
+    parameter   MLEN                    = 8,
+    parameter   Parallel_Rd_Dim         = 4       // Number of inputs per cycle
+) (
 
     input       logic clk,
     input       logic rst,
@@ -23,8 +29,8 @@ module data_flow_control #() (
     input       S_FP_OP             cur_s_fp_op,
     input       S_FIXED_OP          cur_s_fixed_op,
 
-    input       logic [OPERAND_WIDTH - 1 : 0] loaded_rs1,
-    input       logic [OPERAND_WIDTH - 1 : 0] loaded_rs2,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] loaded_rs1,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] loaded_rs2,
 
     input       logic [FIXED_DATA_WIDTH - 1 : 0] vector_waddr,
 
@@ -62,19 +68,19 @@ module data_flow_control #() (
 
     output      logic v_s_in_valid,
     input       logic v_s_in_ready,
-    output      logic v_s_out_valid,
-    input       logic v_s_out_ready,
+    input       logic v_s_out_valid,
+    output      logic v_s_out_ready,
 
     // Interface with Scratchpad SRAM
     output      logic s_sram_req_a,
     output      logic s_sram_wen_a,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] s_sram_addr_a,
-    output      logic [VLEN-1:0] s_sram_mask_a,
+    output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_a,
+    output      logic [VLEN-1:0]                    s_sram_mask_a,
 
     output      logic s_sram_req_b,
     output      logic s_sram_wen_b,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] s_sram_addr_b,
-    output      logic [VLEN-1:0] s_sram_mask_b
+    output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_b,
+    output      logic [VLEN-1:0]                    s_sram_mask_b
 );
 
 
@@ -115,8 +121,6 @@ assign load_process_failed = m_load_failed || s_sram_load_failed;
 // Matrix SRAM Control
 localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim;
 localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
-logic [FIXED_DATA_WIDTH - 1 : 0]        m_sram_addr;
-logic m_sram_busy;
 logic [MATRIX_COUNTER_WIDTH - 1 : 0]    m_sram_counter;
 logic [FIXED_DATA_WIDTH-1:0]            next_m_sram_addr;
 logic m_load_failed;
@@ -126,7 +130,7 @@ M_OP                track_m_op;
 always_comb begin
     next_m_sram_addr = m_sram_addr; // hold current value by default
     if (exe_m_op == MV || exe_m_op == MV_O) begin
-        next_m_sram_addr = loaded_rs2[FIXED_DATA_WIDTH-1:0];
+        next_m_sram_addr = loaded_rs2;
     end
 end
 assign m_sram_addr = next_m_sram_addr;
@@ -179,7 +183,6 @@ always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
         v_v_a_valid     <= 1'b0;
         v_v_b_valid     <= 1'b0;
-        v_v_out_valid   <= 1'b0;
     end else begin
         if(cur_m_op == MV || ((cur_v_ele_op != STALL_V_ELEMENT || cur_v_ele_op != MV_O) && cur_v_broadcast_en)) begin
             // Only Single Port a is required

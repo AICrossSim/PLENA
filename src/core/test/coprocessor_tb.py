@@ -100,6 +100,7 @@ def coprocessor_test():
             "../../../src/basic_components/conversion",
             "../../../src/basic_components/buffer",
             "../../../src/frontend",
+            "../../../src/control",
             "../../../src/matrix_machine",
             "../../../src/vector_machine",
             "../../../src/scalar_machine",
