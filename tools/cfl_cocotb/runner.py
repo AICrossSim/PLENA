@@ -1,4 +1,5 @@
 from os import path, getenv
+import os
 import logging
 from pathlib import Path
 from copy import deepcopy
@@ -15,6 +16,7 @@ from cocotb.runner import get_runner, get_results
 logger = logging.getLogger("sim_runner")
 logger.setLevel("INFO")
 
+SRC_PATH = Path(__file__).parent.parent.parent / "src"
 
 def _verilator_args(hierarchical, trace):
     return [

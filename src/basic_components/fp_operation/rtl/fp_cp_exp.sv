@@ -9,12 +9,12 @@ Description : This module includes elementwise vector computations
 Status      : Under Development
 */
 
-module  fp_exp #(
+module  fp_cp_exp #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
-    output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out,
+    output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
   localparam DATA_LOG2_E_WIDTH = 8;
   localparam DATA_LOG2_E_FRAC_WIDTH = 4;
@@ -44,8 +44,8 @@ module  fp_exp #(
     .SIGN_MAG_WIDTH(DATA_IN_FIXED_WIDTH),
     .SIGN_MAG_FRAC_WIDTH(DATA_R_WIDTH - 1)
   ) fp_to_fixed_conversion_inst (
-    .data_in(data_in),
-    .data_out(data_in_fixed)
+    .fp_in(data_in),
+    .sign_mag_out(data_in_fixed)
   );
 
   assign data_in_fixed_log2_e = data_in_fixed * FIXED_LOG2_E;
