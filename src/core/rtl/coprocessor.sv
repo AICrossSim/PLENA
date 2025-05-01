@@ -18,20 +18,10 @@ module coprocessor (
     input   logic rst,
     // For testing, incoporate PCIe interface later
     input   logic [INSTRUCTION_LENGTH - 1 : 0] instruction,
-    input   logic instruction_valid,
+    input   logic instruction_valid
 
     // HBM Interface TileLink
     // `TL_DECLARE_DEVICE_PORT(DataWidth, AddrWidth, SourceWidth, 1, host),
-
-    // For testing
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      hbm_2_m_element,
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      hbm_2_m_scale,
-
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1,
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetched_v_scale_port1,
-
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2,
-    input logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetched_v_scale_port2
 );
 
     // Control Signals
@@ -41,29 +31,28 @@ module coprocessor (
     logic hbm_v_write_en;
 
     // Hide for simulation
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      hbm_2_m_element;
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     hbm_2_m_scale;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_m_element;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetch_m_scale;
 
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1;
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port1;
+    logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port1;
+    logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetched_v_scale_port1;
 
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2;
-    // logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     prefetched_v_scale_port2;
+    logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetched_v_element_port2;
+    logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetched_v_scale_port2;
     
     // SRAM Control
     logic read_from_m_sram_en, m_transposed_rd_en;
     logic read_from_s_sram_en;
 
-
-
     logic [IMM_WIDTH - 1 : 0] s_imm;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1, s_rs2, s_rd;
     logic [FP_OPERAND_WIDTH - 1 : 0]    s_fps1, s_fps2, s_fpd;
 
-    INSTR_INFO decode_instr_info;
-    logic read_next_instr, decode_instr_valid;
-    OP_BUNDLE assigned_op_bundle;
-    logic m_update_waddr, v_update_waddr;
+    INSTR_INFO  decode_instr_info;
+    logic       read_next_instr, decode_instr_valid;
+    OP_BUNDLE   assigned_op_bundle;
+    logic       m_update_waddr, v_update_waddr;
+    logic       m_write_request, v_write_request;
     
     // Frontend
     decoder #(
@@ -101,12 +90,17 @@ module coprocessor (
         .fetch_next_instr       (read_next_instr),
         .memory_load_failed     (memory_load_failed),
         // .w_query()
+        .v_write_request         (v_write_request),
+        .m_write_request         (m_write_request),        
 
         .pipeline_stall(), // TODO
-        .exe_op_info            (assigned_op_bundle),
+        .assigned_op_bundle     (assigned_op_bundle),
 
         .m_update_waddr         (m_update_waddr),
         .v_update_waddr         (v_update_waddr),
+
+        .v_write_en             (v_write_en),
+        .m_write_en             (m_write_en),
         
         .rs1                (s_rs1),
         .rs2                (s_rs2),
@@ -121,7 +115,9 @@ module coprocessor (
     // Control
     // -----------------------------
 
-    logic [FIXED_DATA_WIDTH - 1 : 0] vector_waddr, m_sram_addr;
+    logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_addr;
+    logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
+    logic v_write_en, m_write_en;
     logic memory_load_failed;
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
@@ -140,6 +136,7 @@ module coprocessor (
     logic s_sram_wen_a, s_sram_wen_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] s_sram_addr_a, s_sram_addr_b;
     logic [VLEN-1:0] s_sram_mask_a, s_sram_mask_b;
+    logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
     
     // Dataflow Control
@@ -160,7 +157,12 @@ module coprocessor (
         .loaded_rs1             (fixed_out_1),
         .loaded_rs2             (fixed_out_2),
         .m_offset_addr          (m_offset_addr),
-        .vector_waddr           (vector_waddr),
+
+        .v_waddr                (v_waddr),
+        .v_write_en             (v_write_en),
+        .m_waddr                (m_waddr),
+        .m_write_en             (m_write_en),
+
         .load_process_failed    (memory_load_failed),
 
         .m_m_ready              (m_m_ready),
@@ -197,7 +199,13 @@ module coprocessor (
         .s_sram_req_b           (s_sram_req_b),
         .s_sram_wen_b           (s_sram_wen_b),
         .s_sram_addr_b          (s_sram_addr_b),
-        .s_sram_mask_b          (s_sram_mask_b)
+        .s_sram_mask_b          (s_sram_mask_b),
+
+        .dma_m_ready            (hbm_m_prefetch_complete),
+        .prefetch_m_ready       (hbm_m_prefetch_en),
+        .dma_v_ready            (hbm_v_prefetch_complete),
+        .prefetch_v_ready       (hbm_v_prefetch_en),
+        .prefetch_addr          (prefetch_addr)
     );
 
     // -----------------------------
@@ -275,10 +283,13 @@ module coprocessor (
 
             .result_waddr(fixed_out_1),
             .result_waddr_update(m_update_waddr),
+
             .out_element(m_out_element),
             .out_scale(m_out_scale),
             .out_valid(m_out_valid),
-            .out_ready(m_out_ready)
+            .out_ready(m_out_ready),
+            .m_waddr(m_waddr),
+            .m_wreq(m_write_request)
         );
 
             // Vector Compute Unit
@@ -327,7 +338,9 @@ module coprocessor (
             .v_out_element          (v_out_element),
             .v_out_scale            (v_out_scale),
             .v_out_valid            (v_v_out_valid),
-            .v_out_ready            (v_v_out_ready)
+            .v_out_ready            (v_v_out_ready),
+            .v_waddr                (v_waddr),
+            .v_wreq                 (v_write_request)
         );
 
         // Scalar Compute Unit
@@ -382,8 +395,8 @@ module coprocessor (
         .write_en           (m_sram_req),
         .write_response     ( ),
         .sram_addr          (m_sram_addr),
-        .element_in         (hbm_2_m_element),
-        .scale_in           (hbm_2_m_scale),
+        .element_in         (prefetch_m_element),
+        .scale_in           (prefetch_m_scale),
         .element_out        (fetched_m_element),
         .scale_out          (fetched_m_scale)
     );
@@ -418,6 +431,45 @@ module coprocessor (
         .scale_out_b        (fetched_v_scale_port2)
     );
 
-    // SRAM for Scalar
+    // HBM Control
+
+    hbm_controller #(
+        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+        .BLOCK_DIM(BLOCK_DIM),
+        .ADDR_WIDTH(FIXED_DATA_WIDTH),
+        .HBM_ADDR_WIDTH(HBM_ADDR_WIDTH),
+        .ADR_OPERAND_WIDTH(ADR_OPERAND_WIDTH),
+        .HBM_ADDR_REG_NUM(HBM_ADDR_REG_NUM),
+        .MLEN(MLEN),
+        .VLEN(MLEN)
+    ) hbm_controller (
+        .clk(clk),
+        .rst(rst),
+
+        // HBM Operation
+        .h_op(assigned_op_bundle.h_op),
+
+        // Address Register
+        .set_addr_reg_en    (assigned_op_bundle.c_op == SET_ADDR_REG),
+        .addr_in_a          (fixed_out_1),
+        .addr_in_b          (fixed_out_2),
+        .addr_reg_operand   (rs2),
+
+        // HBM TileLink Interface TODO
+
+        // Prefetch Vector
+        .prefetch_v_element (prefetched_v_element_port1),
+        .prefetch_v_scale   (prefetched_v_scale_port1),
+        .dma_v_ready        (hbm_v_prefetch_complete),
+        .prefetch_v_ready   (hbm_v_prefetch_en),
+
+        // Prefetch Matrix
+        .prefetch_m_element (prefetch_m_element),
+        .prefetch_m_scale   (prefetch_m_scale),
+        .dma_m_ready        (hbm_m_prefetch_complete),
+        .prefetch_m_ready   (hbm_m_prefetch_en)
+    );
 
 endmodule

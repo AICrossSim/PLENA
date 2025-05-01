@@ -54,13 +54,15 @@ typedef enum logic [3:0] {
 typedef enum logic [1:0] {
     SET_ADDR_REG = 0,
     SET_M_OFFSET = 1,
-    SET_LUT = 2
+    SET_LUT = 2,
+    STALL_C = 3
 } C_OP;
 
 typedef enum logic [1:0] {
     PREFETCH_M = 0,
     PREFETCH_V = 1,
-    STORE_V_HBM = 2
+    STORE_V_HBM = 2,
+    STALL_H = 3
 } H_OP;
 
 function automatic int max(input int a, input int b);
@@ -146,8 +148,6 @@ typedef struct {
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
-parameter TAG_WIDTH = 4;
-
 typedef struct {
     M_OP            m_op;
     V_ELEMENT_OP    v_ele_op;
@@ -158,6 +158,7 @@ typedef struct {
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
+    logic           stall_for_memory;
 } OP_BUNDLE;
 
 

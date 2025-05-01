@@ -30,7 +30,7 @@ module address_mapper #(
     input   logic [ADR_OPERAND_WIDTH - 1 : 0] target_operand,
 
     // HBM Address Mapping
-    output  logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out,
+    output  logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out
 );
 
 
@@ -54,10 +54,11 @@ end
 
 always_comb begin
     if (mapp_addr_en) begin
-        hbm_addr_out = hbm_addr[target_operand] + {HBM_ADDR_WIDTH - ADDR_WIDTH{1'b0}, addr_in_a};
+        hbm_addr_out = hbm_addr[target_operand] + {{HBM_ADDR_WIDTH - ADDR_WIDTH{1'b0}}, addr_in_a};
     end else begin
         hbm_addr_out = {HBM_ADDR_WIDTH{1'b0}};
     end
+end
 
 
 endmodule

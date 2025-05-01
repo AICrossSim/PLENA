@@ -5,7 +5,7 @@
 Module      : Pipeline Control
 Timing      : Combinatorial
 Description : This module monitors the execution stages of each module and decide whether the pipeline is stalled or not. 
-            : THis module will also control the overall execution of the coprocessor.
+            : This module will also control the overall execution of the coprocessor.
 */
 
 module pipeline_control #(
@@ -22,14 +22,17 @@ module pipeline_control #(
 
     // Execution Monitor
     input       logic memory_load_failed,
-    // input       logic v_write_query,            // One clock earlier than the vector output get valid.
-    // input       logic m_write_query,
+    input       logic v_write_request,            // One clock earlier than the vector output get valid.
+    input       logic m_write_request,
 
     // Current control operation
-    output      logic pipeline_stall,
-    output      OP_BUNDLE exe_op_info,
-    output      logic m_update_waddr,
-    output      logic v_update_waddr,
+    output      logic       pipeline_stall,
+    output      OP_BUNDLE   assigned_op_bundle,
+    output      logic       m_update_waddr,
+    output      logic       v_update_waddr,
+
+    output      logic       m_write_en,
+    output      logic       v_write_en,
 
     output      logic [FIXED_DATA_WIDTH - 1 : 0] rs1,
     output      logic [FIXED_DATA_WIDTH - 1 : 0] rs2,
@@ -71,11 +74,11 @@ always_ff @(posedge clk) begin
     if (pipeline_stall) begin
         
         if (m_update_waddr || v_update_waddr) begin
-            exe_op_info.m_op            <= STALL_M;
-            exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
-            exe_op_info.v_reduct_op     <= STALL_V_REDUCT;
-            exe_op_info.s_fp_op         <= STALL_S_FP;
-            exe_op_info.s_fixed_op      <= COMP_ADDR;
+            assigned_op_bundle.m_op            <= STALL_M;
+            assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+            assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+            assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+            assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
 
             rs1             <= rd;
             rs2             <= 'b0;
@@ -90,16 +93,16 @@ always_ff @(posedge clk) begin
 
     end else begin
 
-        exe_op_info.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
-        exe_op_info.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
+        assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
+        assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
         
         case(decode_instr_info.opcode)
             M: begin
-                exe_op_info.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
-                exe_op_info.v_ele_op    <= STALL_V_ELEMENT;
-                exe_op_info.v_reduct_op <= STALL_V_REDUCT;
-                exe_op_info.s_fp_op     <= STALL_S_FP;
-                exe_op_info.s_fixed_op  <= COMP_ADDR;
+                assigned_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
+                assigned_op_bundle.v_ele_op    <= STALL_V_ELEMENT;
+                assigned_op_bundle.v_reduct_op <= STALL_V_REDUCT;
+                assigned_op_bundle.s_fp_op     <= STALL_S_FP;
+                assigned_op_bundle.s_fixed_op  <= COMP_ADDR;
 
                 fps1    <= {FP_OPERAND_WIDTH{1'b0}};
                 fps2    <= {FP_OPERAND_WIDTH{1'b0}};
@@ -112,19 +115,19 @@ always_ff @(posedge clk) begin
             end
 
             V: begin
-                exe_op_info.m_op <= STALL_M;
-                exe_op_info.v_ele_op <= (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
+                assigned_op_bundle.m_op <= STALL_M;
+                assigned_op_bundle.v_ele_op <= (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
                                         (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
                                         (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
                                         (decode_instr_info.opcode == V_EXP_VV)    ? EXP_V_ELEMENT : STALL_V_ELEMENT;
 
-                exe_op_info.v_reduct_op <=  (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
+                assigned_op_bundle.v_reduct_op <=  (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                             (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                 
-                exe_op_info.s_fixed_op   <= COMP_ADDR;
+                assigned_op_bundle.s_fixed_op   <= COMP_ADDR;
 
                 if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
-                    exe_op_info.s_fp_op     <= LD_OUT_FP;
+                    assigned_op_bundle.s_fp_op     <= LD_OUT_FP;
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
                     rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
@@ -133,7 +136,7 @@ always_ff @(posedge clk) begin
                     fpd             <= {FP_OPERAND_WIDTH{1'b0}};
                     imm             <= {IMM_WIDTH{1'b0}};
                 end else begin
-                    exe_op_info.s_fp_op    <= STALL_S_FP;
+                    assigned_op_bundle.s_fp_op    <= STALL_S_FP;
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
@@ -142,17 +145,17 @@ always_ff @(posedge clk) begin
             end
 
             S: begin
-                exe_op_info.m_op            <= STALL_M;
-                exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
-                exe_op_info.v_reduct_op     <= STALL_V_REDUCT;
-                exe_op_info.s_fp_op         <=  (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
+                assigned_op_bundle.m_op            <= STALL_M;
+                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                assigned_op_bundle.s_fp_op         <=  (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
                                                 (decode_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
                                                 (decode_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
                                                 (decode_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
                                                 (decode_instr_info.opcode == S_ISQRT_FP)  ? ISQRT_FP  :
                                                 (decode_instr_info.opcode == S_LOG_FP  )  ? LOG_FP    : STALL_S_FP;
                 
-                exe_op_info.s_fixed_op      <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
+                assigned_op_bundle.s_fixed_op      <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
                                                 (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
                                                 (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
                                                 (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
@@ -196,11 +199,11 @@ always_ff @(posedge clk) begin
             end
 
             C : begin
-                exe_op_info.m_op            <= STALL_M;
-                exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
-                exe_op_info.v_reduct_op     <= STALL_V_REDUCT;
-                exe_op_info.s_fp_op         <= STALL_S_FP;
-                exe_op_info.s_fixed_op      <= COMP_ADDR;
+                assigned_op_bundle.m_op            <= STALL_M;
+                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
                 if (decode_instr_info.opcode == C_SET_ADDR_REG) begin
                     
                 end
@@ -215,11 +218,11 @@ always_ff @(posedge clk) begin
             end
 
             H : begin
-                exe_op_info.m_op            <= STALL_M;
-                exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
-                exe_op_info.v_reduct_op     <= STALL_V_REDUCT;
-                exe_op_info.s_fp_op         <= STALL_S_FP;
-                exe_op_info.s_fixed_op      <= COMP_ADDR;
+                assigned_op_bundle.m_op            <= STALL_M;
+                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
 
                 rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
@@ -231,11 +234,11 @@ always_ff @(posedge clk) begin
             end
 
             default: begin
-                exe_op_info.m_op            <= STALL_M;
-                exe_op_info.v_ele_op        <= STALL_V_ELEMENT;
-                exe_op_info.v_reduct_op     <= STALL_V_REDUCT;
-                exe_op_info.s_fp_op         <= STALL_S_FP;
-                exe_op_info.s_fixed_op      <= STALL_S_FIXED;
+                assigned_op_bundle.m_op            <= STALL_M;
+                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
 
                 rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];

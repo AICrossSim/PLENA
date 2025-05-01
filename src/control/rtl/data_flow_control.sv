@@ -27,7 +27,10 @@ module data_flow_control #(
     input       logic [FIXED_DATA_WIDTH - 1 : 0] loaded_rs2,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr,
 
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] vector_waddr,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] v_waddr,
+    input       logic v_write_en,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr,
+    input       logic m_write_en,
 
     output      logic load_process_failed,
 
@@ -75,33 +78,34 @@ module data_flow_control #(
     output      logic s_sram_req_b,
     output      logic s_sram_wen_b,
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_b,
-    output      logic [VLEN-1:0]                    s_sram_mask_b
+    output      logic [VLEN-1:0]                    s_sram_mask_b,
+
+    // Interface with HBM
+    input       logic dma_m_ready,
+    output      logic prefetch_m_ready,
+    input       logic dma_v_ready,
+    output      logic prefetch_v_ready,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr
 );
 
 
-// -----------------
-// M_OP                exe_m_op;
-// logic               exe_m_transposed_read;
-// V_ELEMENT_OP        exe_v_ele_op;
-// logic               exe_v_broadcast_en;
-// V_REDUCT_OP         exe_v_reduct_op;
-// S_FP_OP             exe_s_fp_op;
-// S_FIXED_OP          exe_s_fixed_op;
-
 OP_BUNDLE         exe_op_bundle;
-
+logic             exe_m_write_en, exe_v_write_en; 
 
 always_ff @(posedge clk or negedge rst ) begin
     if (rst) begin
-        exe_op_bundle          <= {
-            STALL_M,
-            STALL_V_ELEMENT,
-            STALL_V_REDUCT,
-            STALL_S_FP,
-            STALL_S_FIXED,
-            1'b0,
-            1'b0
-        };
+        // exe_op_bundle <= {
+        //     STALL_M,
+        //     STALL_V_ELEMENT,
+        //     STALL_V_REDUCT,
+        //     STALL_S_FP,
+        //     STALL_S_FIXED,
+        //     STALL_C,
+        //     STALL_H,
+        //     1'b0,
+        //     1'b0,
+        //     1'b0
+        // };
     end else begin
         exe_op_bundle          <= assigned_op_bundle;
     end
@@ -116,7 +120,7 @@ localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim;
 localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
 logic [MATRIX_COUNTER_WIDTH - 1 : 0]    m_sram_counter;
 logic [FIXED_DATA_WIDTH-1:0]            next_m_sram_addr;
-logic m_load_failed;
+logic               m_load_failed;
 M_OP                track_m_op;
 
 // Update addr only when the exe operation is MV or MV_O
@@ -124,9 +128,12 @@ always_comb begin
     next_m_sram_addr = m_sram_addr; // hold current value by default
     if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O) begin
         next_m_sram_addr = loaded_rs2;
+    end else if (exe_op_bundle.stall_for_memory && dma_m_ready) begin
+        next_m_sram_addr = prefetch_addr;
     end
 end
 assign m_sram_addr = next_m_sram_addr;
+
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
@@ -134,6 +141,9 @@ always_ff @(posedge clk or negedge rst) begin
         m_sram_counter <= 'b0;
         track_m_op <= STALL_M;
     end else begin
+        exe_m_write_en <= m_write_en;
+        exe_v_write_en <= v_write_en;
+
         if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
             m_sram_busy <= 1'b1;
             m_sram_counter <= 'b0;
@@ -152,6 +162,9 @@ always_ff @(posedge clk or negedge rst) begin
                 m_v_valid <= 1'b1;
                 m_o_valid <= (track_m_op == MV_O) ? 1'b1 : 1'b0;
             end
+        end else if (assigned_op_bundle.stall_for_memory && dma_m_ready) begin
+                m_sram_req <= 1'b1;
+                m_sram_wen <= 1'b1;
         end
 
         if (!m_sram_busy) begin
@@ -168,8 +181,10 @@ end
 
 // Vector SRAM Control
 // Assuming the read cycle is 1 cycle for both ports.
-assign s_sram_addr_a = loaded_rs1;
-assign s_sram_addr_b = (assigned_op_bundle.m_op == MV_O) ? m_offset_addr : loaded_rs2;
+assign s_sram_addr_a = (exe_op_bundle.m_op == MV_O) ?  m_offset_addr :
+                                     exe_v_write_en ?  m_waddr : loaded_rs1;
+
+assign s_sram_addr_b = exe_m_write_en ? v_waddr : loaded_rs2;
 
 logic s_sram_load_failed;
 always_ff @(posedge clk or negedge rst) begin
@@ -177,27 +192,51 @@ always_ff @(posedge clk or negedge rst) begin
         v_v_a_valid     <= 1'b0;
         v_v_b_valid     <= 1'b0;
     end else begin
-        if(assigned_op_bundle.m_op == MV || assigned_op_bundle.v_broadcast_en || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) ) begin
-            // Only Single Port a is required
+        // Scratchpad SRAM Port A Control
+        if(assigned_op_bundle.m_op != STALL_M || assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
+            // Read Vector from SRAM
             v_v_a_valid     <= 1'b1;
-            v_v_b_valid     <= 1'b0;
             s_sram_req_a    <= 1'b1;
-            s_sram_req_b    <= 1'b0;
+            s_sram_wen_a    <= 1'b0;
 
-        end else if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
-            // Two Ports are required
-            v_v_a_valid     <= 1'b1;
-            v_v_b_valid     <= 1'b1;
+        end else if (assigned_op_bundle.stall_for_memory && m_write_en && m_out_valid) begin
+            // Write the result from matrix machine to the s_sram
+            m_out_ready     <= 1'b1;
             s_sram_req_a    <= 1'b1;
+            s_sram_wen_a    <= 1'b1;
+
+        end else begin
+            // No Scratchpad SRAM access request.
+            v_v_a_valid     <= 1'b0;
+            s_sram_req_a    <= 1'b0;
+            s_sram_wen_a    <= 1'b0;
+        end
+
+        // Scratchpad Port B Control 
+        if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
+            // Read Port activated
+            v_v_b_valid     <= 1'b1;
+            s_sram_req_b    <= 1'b1;
+            s_sram_wen_b    <= 1'b0;
+        end else if (v_write_en && v_v_out_valid) begin
+            // Write Port activated
+            v_v_out_ready   <= 1'b1;
+            s_sram_req_b    <= 1'b1;
+            s_sram_wen_b    <= 1'b1;
+        end else if (assigned_op_bundle.stall_for_memory && dma_v_ready) begin
+            // HBM Fetch to the scratchpad sram
+            s_sram_wen_b    <= 1'b1;
             s_sram_req_b    <= 1'b1;
         end
+
         else begin
             // No SRAM access
-            v_v_a_valid     <= 1'b0;
+            s_sram_req_b    <= 1'b0;
             v_v_b_valid     <= 1'b0;
-            s_sram_req_a    <= 1'b0;
             s_sram_req_b    <= 1'b0;
         end
+
+
         // TODO: the check condition of the req signals from matrix machine and vector machine need to be revised.
         if ((s_sram_req_a || s_sram_req_b) && !(v_v_a_ready || v_v_b_ready || m_o_ready || m_v_ready)) begin
             s_sram_load_failed <= 1'b1;
@@ -207,5 +246,7 @@ always_ff @(posedge clk or negedge rst) begin
     end
 
 end
+
+
 endmodule
 

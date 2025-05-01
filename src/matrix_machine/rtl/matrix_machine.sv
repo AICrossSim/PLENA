@@ -79,10 +79,10 @@ module matrix_machine #(
     
     output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      out_element,
     output logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale,
-    output logic                     out_valid,
-    input  logic                     out_ready,
-    output logic [ADDR_WIDTH-1:0]             result_addr_out,
-    output logic result_write_request
+    output logic                            out_valid,
+    input  logic                            out_ready,
+    output logic [ADDR_WIDTH-1:0]             m_waddr,
+    output logic                              m_wreq
     
 );
 

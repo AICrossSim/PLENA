@@ -106,7 +106,8 @@ def coprocessor_test():
             "../../../src/scalar_machine",
             "../../../src/memory/matrix_sram",
             "../../../src/memory/scratch_sram",
-            "../../../src/memory/scalar_sram"
+            "../../../src/memory/scalar_sram",
+            "../../../src/memory/HBM"
         ],       
         definitions_path = "../../../src/definitions",
         # module_param_list=[

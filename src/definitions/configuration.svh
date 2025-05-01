@@ -9,6 +9,9 @@ package configuration_pkg;
     parameter   VLEN                            = 16;
     parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
     parameter   INST_BUFF_DEPTH                 = 8;
+    parameter   HBM_ADDR_WIDTH                  = 64;
+    parameter   ADR_OPERAND_WIDTH               = 3;
+    parameter   HBM_ADDR_REG_NUM                = 8;
 endpackage
 
 `endif

@@ -53,13 +53,13 @@ module vector_machine #(
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
-    input   logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                            v_a_scale,
+    input   logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                             v_a_scale,
     input   logic                   v_a_valid,
     output  logic                   v_a_ready,
 
     // Vector b
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_b_element,
-    input   logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                            v_b_scale,
+    input   logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                             v_b_scale,
     input   logic                   v_b_valid,
     output  logic                   v_b_ready,
 
@@ -80,8 +80,9 @@ module vector_machine #(
     output  logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     v_out_element,
     output  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale,
     output  logic                                                                   v_out_valid,
-    output  logic [ADDR_WIDTH - 1: 0]                                        v_waddr,
-    input   logic                                                                   v_out_ready
+    input   logic                                                                   v_out_ready,
+    output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
+    output  logic                                                                   v_wreq
     
 );
 
