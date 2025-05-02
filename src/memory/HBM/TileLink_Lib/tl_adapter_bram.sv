@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
 
 // An adapter that converts an TL-UL interface to a BRAM interface.

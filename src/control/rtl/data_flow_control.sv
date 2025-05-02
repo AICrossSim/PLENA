@@ -93,22 +93,7 @@ OP_BUNDLE         exe_op_bundle;
 logic             exe_m_write_en, exe_v_write_en; 
 
 always_ff @(posedge clk or negedge rst ) begin
-    if (rst) begin
-        // exe_op_bundle <= {
-        //     STALL_M,
-        //     STALL_V_ELEMENT,
-        //     STALL_V_REDUCT,
-        //     STALL_S_FP,
-        //     STALL_S_FIXED,
-        //     STALL_C,
-        //     STALL_H,
-        //     1'b0,
-        //     1'b0,
-        //     1'b0
-        // };
-    end else begin
-        exe_op_bundle          <= assigned_op_bundle;
-    end
+    exe_op_bundle          <= assigned_op_bundle;
 end
 
 

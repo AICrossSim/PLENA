@@ -51,6 +51,7 @@ def _single_test(
     module_params: dict,
     module_path: Path,
     test_work_dir: Path,
+    workload_path: str = None,
     sim: str = "verilator",
     extra_build_args: list[str] = [],
     seed: int = None,
@@ -80,7 +81,9 @@ def _single_test(
                     includes.append(exclude+ "/rtl/")
             if definitions_path:
                 includes.append(definitions_path)
-                    
+            if workload_path:
+                includes.append(workload_path)
+                
         elif sim == "icarus":
             tool_args = []
             sources = [module_path]
@@ -131,6 +134,7 @@ def veri_runner(
     sim: str = "verilator",
     extra_build_args: list[str] = [],
     seed: int = None,
+    workload_path = None,
     jobs: int = 1,
     trace: bool = False,
     skip_build: bool = False,
@@ -186,6 +190,7 @@ def veri_runner(
                 module_params=module_params,
                 module_path=module_path,
                 test_work_dir=test_work_dir,
+                workload_path=workload_path,
                 sim=sim,
                 extra_build_args=extra_build_args,
                 seed=seed,
