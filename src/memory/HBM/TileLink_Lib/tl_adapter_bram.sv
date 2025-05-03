@@ -68,11 +68,6 @@ module tl_adapter_bram #(
   // Response handling logic //
   /////////////////////////////
 
-  assign host_d.param   = 0;
-  assign host_d.sink    = 'x;
-  assign host_d.denied  = 1'b0;
-  assign host_d.corrupt = 1'b0;
-  assign host_d.data    = bram_rdata_i;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
@@ -92,6 +87,13 @@ module tl_adapter_bram #(
         host_d.source <= host_a.source;
       end
     end
+
+    host_d.param   <= 0;
+    host_d.sink    <= 'x;
+    host_d.denied  <= 1'b0;
+    host_d.corrupt <= 1'b0;
+    host_d.data    <= bram_rdata_i;
+
   end
 
 endmodule

@@ -13,13 +13,14 @@ module tl_master #(
   parameter int DataWidth = 32,
   parameter int AddrWidth = 32,
   parameter int SourceWidth = 1,
-  parameter int SinkWidth = 1
+  parameter int SinkWidth = 1,
+  localparam int MASK_WIDTH = DataWidth / 8
 )(
   input  logic clk,
   input  logic rst,
 
   // Control signals
-  input  logic fetch_en,
+  input  logic req_en,
   input  logic [AddrWidth-1:0] fetch_addr,
   output logic [DataWidth-1:0] fetch_data,
   output logic fetch_data_valid,
@@ -47,7 +48,7 @@ module tl_master #(
   } state_t;
 
   state_t state, next_state;
-  tl_a_op_e next_opcode;
+  tl_a_op_e next_a_opcode;
   logic [AddrWidth-1:0] next_addr;
   logic [DataWidth-1:0] next_wdata;
 
@@ -66,7 +67,7 @@ module tl_master #(
       r_fetch_data_valid <= 1'b0;
     end else begin
       state <= next_state;
-      if (host_d_valid && host_d.opcode == PutFullData) begin // AccessAckData
+      if (host_d_valid && host_d.opcode == AccessAckData) begin // AccessAckData
         r_fetch_data <= host_d.data;
         r_fetch_data_valid <= 1'b1;
       end else begin
@@ -77,26 +78,30 @@ module tl_master #(
 
   // FSM combinational logic
   always_comb begin
-    next_state = state;
+    host_d_ready  = req_en;
+    host_a.mask    = {MASK_WIDTH{1'b1}};
+    // next_state = state;
     case (state)
       IDLE: begin
-        if (fetch_en) begin
-          next_opcode = Get; // Get
-          next_addr   = fetch_addr;
-          next_state  = SEND_REQ;
-        end else if (write_en) begin
-          next_opcode = PutFullData; // PutFullData
-          next_addr   = write_addr;
-          next_wdata  = write_data;
-          next_state  = SEND_REQ;
-        end
+        if (req_en) begin
+          if (write_en) begin
+            next_a_opcode = PutFullData; // PutFullData
+            next_addr   = write_addr;
+            next_wdata  = write_data;
+            next_state  = SEND_REQ;
+          end else begin
+            next_a_opcode = Get; // Get
+            next_addr   = fetch_addr;
+            next_state  = SEND_REQ;
+          end
+        end 
       end
 
       SEND_REQ: begin
         host_a_valid   = 1'b1;
-        host_a.opcode  = next_opcode;
+        host_a.opcode  = next_a_opcode;
         host_a.address = next_addr;
-        if (next_opcode == PutFullData) begin // PutFullData
+        if (next_a_opcode == PutFullData) begin // PutFullData
           host_a.data = next_wdata;
         end
         if (host_a_ready) begin
@@ -115,13 +120,10 @@ module tl_master #(
         host_a_valid   = 1'b0;
         host_a.opcode  = PutFullData;
         host_a.param   = 3'b000;
-        host_a.size    = 3'b010; // 4 bytes
+        host_a.size    = 3'b110; // 4 bytes
         host_a.source  = '0;
         host_a.address = '0;
         host_a.data    = '0;
-        host_a.mask    = 4'b1111;
-        host_d_ready   = 1'b1;
-
       end
     endcase
   end

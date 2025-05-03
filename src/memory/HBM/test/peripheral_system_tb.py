@@ -14,46 +14,62 @@ import math
 
 
 @cocotb.test()
-async def test_bram_basic(dut):
+async def test_peripheral_basic(dut):
     # Start clock
-    cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.clk, 5, units="ns").start())
+    print("Read test...")
+    dut.fetch_en.value      = 1
+    dut.fetch_addr.value    = 0
+    dut.write_en.value      = 0
+    await Timer(20, units="ns")
+    print(f"DUT fetch data: {dut.fetch_data.value}")
 
-    # Helper to apply inputs
-    async def write(addr, data, mask):
-        dut.bram_en_o.value = 1
-        dut.bram_addr_o.value = addr
-        dut.bram_wdata_o.value = data
-        dut.bram_wmask_o.value = mask
-        await RisingEdge(dut.clk)
-        dut.bram_en_o.value = 0
-        dut.bram_wmask_o.value = 0
-        await RisingEdge(dut.clk)
 
-    async def read(addr):
-        dut.bram_en_o.value = 1
-        dut.bram_addr_o.value = addr
-        await RisingEdge(dut.clk)
-        data = dut.bram_rdata_i.value.integer
-        dut.bram_en_o.value = 0
-        await RisingEdge(dut.clk)
-        return data
+    print("monitor tl_master")
+    print(f"-<host_d_ready: {dut.tl_master_init.host_d_ready.value}")
+    print(f"-<host_a_ready: {dut.tl_master_init.host_a_ready.value}")
+    print(f"-<tl_state: {dut.tl_master_init.state.value}")
 
-    # Wait a couple cycles
-    dut.bram_en_o.value = 0
-    dut.bram_wmask_o.value = 0
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
+    print("Write test...")
+    dut.fetch_en.value      = 1
+    dut.write_en.value      = 1
+    dut.fetch_addr.value    = 0
+    dut.write_data.value    = 0x8765
 
-    # Test read from initial file
-    read_val = await read(0)
-    cocotb.log.info(f"Read value at address 0x0: 0x{read_val:016x}")
+    await Timer(20, units="ns")
 
-    # Write and read back
-    # await write(4, 0x123456789abcdef0, 0xFF)
-    val = await read(4)
-    print(f"Read value at address 0x4: 0x{val:016x}")
-    # assert val == 0x123456789abcdef0, f"Read {val:#x}, expected 0x123456789abcdef0"
+    print("monitor tl_master")
+    print(f"tl_state: {dut.tl_master_init.state.value}")
+    print(f"next_opcode: {dut.tl_master_init.next_a_opcode.value}")
 
+    print("monitor fake bram signal")
+    print(f"host_link_a_valid: {dut.fake_hbm.host_link_a_valid.value}")
+    print(f"host_link_a: {dut.fake_hbm.host_link_a.value}")
+
+
+    print(f"bram_wdata_o:   {dut.fake_hbm.bram_wdata.value}")
+    print(f"bram_addr_o:    {dut.fake_hbm.bram_addr.value}")
+    print(f"bram_en_o:      {dut.fake_hbm.bram_en.value}")
+    print(f"bram_we_o:      {dut.fake_hbm.bram_we.value}")
+    print(f"bram_wmask:     {dut.fake_hbm.bram_wmask.value}")
+    
+    
+    print("Confirm test...")
+    dut.fetch_en.value      = 1
+    dut.fetch_addr.value    = 0
+    dut.write_en.value      = 0
+    await Timer(10, units="ns")
+    print("monitor tl_master")
+    print(f"tl_state: {dut.tl_master_init.state.value}")
+    print(f"next_opcode: {dut.tl_master_init.next_a_opcode.value}")
+
+    await Timer(10, units="ns")
+    print(f"bram_addr_o:    {dut.fake_hbm.bram_addr.value}")
+    print(f"bram_en_o:      {dut.fake_hbm.bram_en.value}")
+    print(f"bram_we_o:      {dut.fake_hbm.bram_we.value}")
+    print(f"bram_rdata:     {dut.fake_hbm.bram_rdata.value}")
+    await Timer(10, units="ns")
+    print(f"DUT fetch data: {dut.fetch_data.value}")
 
 
 
@@ -67,7 +83,7 @@ def bram_test():
         ],       
         workload_path = "/home/george/Coprocessor_for_Llama/src/memory/HBM/test/simple_benchmark.txt",
         module_param_list=[
-            {"DATA_WIDTH": 16, "ADDR_WIDTH": 32, "BRAM_ADDR_WIDTH": 16},
+            {"DATA_WIDTH": 16, "ADDR_WIDTH": 32, "BRAM_ADDR_WIDTH": 16, "INIT_FILE": "\"/home/george/Coprocessor_for_Llama/src/memory/HBM/test/simple_benchmark.mem\""},
         ],
         definitions_path = "../../../../src/memory/HBM/TileLink_Lib",
         trace = True,

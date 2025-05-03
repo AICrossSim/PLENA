@@ -14,7 +14,7 @@ module fake_hbm #(
     parameter int SourceWidth      = 1,
     parameter int SinkWidth        = 1,
     parameter int ID_WIDTH          = 8,
-    parameter     MemInitFile       = ""
+    parameter string  MemInitFile       = ""
 
 )(
     input logic clk,
@@ -32,6 +32,8 @@ logic [DATA_WIDTH-1:0] bram_rdata;
 logic bram_en;
 logic bram_we;
 
+`TL_DECLARE(DATA_WIDTH, ADDR_WIDTH, SourceWidth, SinkWidth, host_link);
+`TL_BIND_DEVICE_PORT(host, host_link);
 
 tl_adapter_bram #(
     .AddrWidth(ADDR_WIDTH),
@@ -40,10 +42,10 @@ tl_adapter_bram #(
     .BramAddrWidth(BRAM_ADDR_WIDTH)
 ) tl_adapter (
     .clk_i(clk),
-    .rst_ni(rst),
+    .rst_ni(!rst),
 
     // TileLink Interface
-    `TL_CONNECT_DEVICE_PORT(host, host),
+    `TL_CONNECT_DEVICE_PORT(host, host_link),
 
     // Memory Interface
     .bram_en_o(bram_en),
@@ -61,6 +63,7 @@ bram #(
 ) bram_inst (
     .clk(clk),
     .bram_en_o(bram_en),
+    .bram_we_o(bram_we),
     .bram_addr_o(bram_addr),
     .bram_wdata_o(bram_wdata),
     .bram_wmask_o(bram_wmask),

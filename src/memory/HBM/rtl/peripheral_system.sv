@@ -15,16 +15,16 @@ module peripheral_system #(
     parameter BRAM_ADDR_WIDTH           = 32,
     parameter int unsigned SourceWidth  = 1,
     parameter int unsigned SinkWidth    = 1,
-    parameter INIT_FILE  = "/home/george/Coprocessor_for_Llama/src/memory/HBM/test/simple_benchmark.txt"
+    parameter string INIT_FILE  = "/home/george/Coprocessor_for_Llama/src/memory/HBM/test/simple_benchmark.txt"
 )(
     input logic clk,
     input logic rst,
 
-    output  logic [DATA_WIDTH-1:0] fetch_data,
-    input   logic [ADDR_WIDTH-1:0] fetch_addr,
-    input   logic     fetch_en,
-    input   logic     write_en,
-    input   logic [DATA_WIDTH-1:0] write_data
+    output  logic [DATA_WIDTH-1:0]  fetch_data,
+    input   logic [ADDR_WIDTH-1:0]  fetch_addr,
+    input   logic                   fetch_en,
+    input   logic                   write_en,
+    input   logic [DATA_WIDTH-1:0]  write_data
 );
 
 `TL_DECLARE(DATA_WIDTH, ADDR_WIDTH, SourceWidth, SinkWidth, mem);
@@ -39,7 +39,7 @@ tl_master #(
     .rst(rst),
 
     // Control signals
-    .fetch_en(fetch_en),
+    .req_en(fetch_en),
     .fetch_addr(fetch_addr),
     .fetch_data(fetch_data),
 
