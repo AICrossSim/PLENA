@@ -3,7 +3,7 @@
 
 /*
 Module      : Memory Control
-Timing      : Combinatorial
+Timing      : Sequential, 1 cycle to make the decision
 Description : This module serves as the controller for all the memory related operations in the coprocessor,
             : controlling matrix sram, scratch sram, scalar sram and HBM interface.
             : It will record the states of the memory, checking whether it is currently busy or not, provide feedback to pipeline control unit.

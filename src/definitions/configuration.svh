@@ -12,6 +12,9 @@ package configuration_pkg;
     parameter   HBM_ADDR_WIDTH                  = 64;
     parameter   ADR_OPERAND_WIDTH               = 3;
     parameter   HBM_ADDR_REG_NUM                = 8;
+    parameter   SourceWidth                     = 1;
+    parameter   SinkWidth                       = 1;
+    parameter   HBM_DATA_WIDTH                  = 128;
 endpackage
 
 `endif

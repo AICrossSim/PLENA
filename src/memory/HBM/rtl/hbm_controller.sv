@@ -6,6 +6,9 @@
 Module      : HBM - DMA - TL Controller
 Timing      : Sequential Logic
 Status      : Under Development (Need to consider TileLink)
+Description : This module is used to control the HBM memory and TileLink interface.
+              Two Tilelink Channels, one for element and another for scale in MX format.
+Status      : Under Development
 */
 
 module hbm_controller #(
@@ -17,42 +20,56 @@ module hbm_controller #(
     parameter   MLEN                = 8,
     parameter   VLEN                = 8,
     parameter   Parallel_Rd_Dim     = 4,
+
     parameter   ADR_OPERAND_WIDTH   = 5,
+    localparam  M_BLOCK_NUM         = MLEN / BLOCK_DIM,
 
     // HBM Config and TL settings
     parameter   HBM_ADDR_WIDTH          = 64,
     parameter   HBM_ADDR_REG_NUM        = 4,
+
     parameter int unsigned SourceWidth  = 1,
     parameter int unsigned SinkWidth    = 1,
-    localparam int DataWidth = MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH)
+
+    localparam int ELE_WIDTH =   Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int SCALE_WIDTH = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+
+    parameter int HBM_DATA_WIDTH = 128
 )(
     input   logic clk,
     input   logic rst,
 
-    input   H_OP    h_op, // HBM operation
+    // HBM addr mapping
+    input   H_OP    h_op, 
     input   logic   set_addr_reg_en,
-    input   logic   [ADDR_WIDTH - 1 : 0] addr_in_a,
-    input   logic   [ADDR_WIDTH - 1 : 0] addr_in_b,
-    input   logic   [ADR_OPERAND_WIDTH - 1 : 0] addr_reg_operand,
+    input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
+    input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_b,
+    input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_operand,
 
-    output  logic   [VLEN - 1 : 0] [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   prefetch_v_element,
-    output  logic   [VLEN - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]               prefetch_v_scale,
-    output  logic                                                           dma_v_ready,
-    input   logic                                                           prefetch_v_ready,
+    // HBM data prefetching
+    output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
+    output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
+    output  logic                                   prefetch_data_valid,
+    input   logic                                   prefetch_data_ready,
+    output  logic   [ADDR_WIDTH - 1 : 0]            prefetch_waddr,
 
-    output  logic   [DataWidth * Parallel_Rd_Dim - 1 : 0]                   prefetch_m_element,
-    output  logic   [MLEN - 1 : 0]  [MXFP_SCALE_WIDTH - 1 : 0]              prefetch_m_scale,
-    output  logic                                                           dma_m_ready,
-    input   logic                                                           prefetch_m_ready,
-    output  logic   [ADDR_WIDTH - 1 : 0]                                    prefetch_waddr,
+    // HBM data writing
+    input   logic                                   hbm_write_en,
+    input   logic                                   hbm_write_valid,
+    output  logic                                   hbm_write_ready,
+    input   logic   [ELE_WIDTH - 1 : 0]             hbm_write_element,
+    input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,
 
     // TL Interface
-    `TL_DECLARE_HOST_PORT(DataWidth, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, mem)
-
+    `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
+    `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
 );
+    initial begin
+        assert (MLEN == VLEN) else $fatal("MLEN and VLEN should be equal for hbm controller");
+    end
 
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
-
+    // Mapping inputted Addr to HBM address
     address_mapper #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .ADR_OPERAND_WIDTH(ADR_OPERAND_WIDTH),
@@ -69,8 +86,83 @@ module hbm_controller #(
         .hbm_addr_out(hbm_addr_out)
     );
 
+    `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth,      tl_element);
 
-    `TL_DECLARE(DataWidth, PhysAddrLen, SourceWidth, SinkWidth, mem);
+    // TL for element
+    tl_master #(
+        .DataWidth(ELE_WIDTH),
+        .AddrWidth(HBM_ADDR_WIDTH),
+        .SourceWidth(SourceWidth),
+        .SinkWidth(SinkWidth)
+    ) element_master (
+        .clk(clk),
+        .rst(rst),
 
+        // Control signals
+        .req_en(fetch_en),
+        .write_en(write_en),
+        
+        .fetch_addr(fetch_addr),
+        .fetch_data(prefetch_element),
+        .write_data(hbm_write_element),
+
+        `TL_CONNECT_HOST_PORT(host, tl_element)
+    );
+
+    tl_adapter #(
+        .HostDataWidth(WEIGHT_WIDTH),
+        .DeviceDataWidth(HBM_DATA_WIDTH),
+        .AddrWidth(HBM_ADDR_WIDTH),
+        .SourceWidth(SourceWidth),
+        .SinkWidth(SinkWidth),
+        .HostFifo(1),
+        .DeviceFifo(1)
+    ) adapter_for_element (
+        .clk_i(clk),
+        .rst_ni(!rst),
+        // TileLink Interface
+        `TL_CONNECT_HOST_PORT   (host, host_scale),
+        `TL_CONNECT_DEVICE_PORT (device, tl_element)
+    )
+
+    // TL for scale
+    `TL_DECLARE(WEIGHT_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
+
+    // Converting to TileLink
+    tl_master #(
+        .DataWidth(SCALE_WIDTH),
+        .AddrWidth(HBM_ADDR_WIDTH),
+        .SourceWidth(SourceWidth),
+        .SinkWidth(SinkWidth)
+    ) scale_master (
+        .clk(clk),
+        .rst(rst),
+
+        // Control signals
+        .req_en(fetch_en),
+        .write_en(write_en),
+        
+        .fetch_addr(fetch_addr),
+        .fetch_data(prefetch_scale),
+        .write_data(hbm_write_scale),
+
+        `TL_CONNECT_HOST_PORT(host, tl_scale)
+    );
+
+    tl_adapter #(
+        .HostDataWidth(SCALE_WIDTH),
+        .DeviceDataWidth(HBM_DATA_WIDTH),
+        .AddrWidth(HBM_ADDR_WIDTH),
+        .SourceWidth(SourceWidth),
+        .SinkWidth(SinkWidth),
+        .HostFifo(1),
+        .DeviceFifo(1)
+    ) adapter_for_scale (
+        .clk_i(clk),
+        .rst_ni(!rst),
+        // TileLink Interface
+        `TL_CONNECT_HOST_PORT   (host, host_scale),
+        `TL_CONNECT_DEVICE_PORT (device, tl_scale)
+    )
 
 endmodule

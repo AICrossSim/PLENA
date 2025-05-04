@@ -23,11 +23,14 @@ module tl_master #(
   input  logic req_en,
   input  logic [AddrWidth-1:0] fetch_addr,
   output logic [DataWidth-1:0] fetch_data,
-  output logic fetch_data_valid,
 
   input  logic write_en,
   input  logic [AddrWidth-1:0] write_addr,
   input  logic [DataWidth-1:0] write_data,
+
+  // Status Indicators
+  output logic fetch_data_valid,
+  // output logic write_data_complete,
 
   `TL_DECLARE_HOST_PORT(DataWidth, AddrWidth, SourceWidth, SinkWidth, host)
 );
@@ -70,7 +73,7 @@ module tl_master #(
       if (host_d_valid && host_d.opcode == AccessAckData) begin // AccessAckData
         r_fetch_data <= host_d.data;
         r_fetch_data_valid <= 1'b1;
-      end else begin
+      end else if (host_d.opcode == AccessAck) begin
         r_fetch_data_valid <= 1'b0;
       end
     end
