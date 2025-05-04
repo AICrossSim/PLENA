@@ -2,10 +2,9 @@
 // `include "operation.svh"
 
 /*
-Module      : Vector Exp
+Module      : FP Square Root
 Timing      : Combinatorial Logic
-Description : This module includes elementwise vector computations 
-            : 4. Elementwise Exponential
+Description : This module computes the square root of a floating point number
 Status      : Under Development
 */
 
@@ -17,7 +16,20 @@ module fp_cp_sqrt #(
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 
-    assert (data_in[EXP_WIDTH + MANT_WIDTH : 0] != 0) else $error("data_in is not positive");
+    initial begin
+        assert (data_in[EXP_WIDTH + MANT_WIDTH : 0] != 0) else $error("data_in is not positive");
+    end
+    logic sign_bit;
+    assign sign_bit = data_in[EXP_WIDTH + MANT_WIDTH];
+    
+    // Runtime check for positive input
+    always_comb begin
+        if (sign_bit) begin
+            // Handle negative input - return 0 or NaN
+            data_out = '0; // Return 0 for negative inputs
+        end
+    end
+
     localparam SIGN_MANT_WIDTH = MANT_WIDTH + 2;
     localparam UNSIGNED_MANT_WIDTH = MANT_WIDTH + 1;
 
@@ -31,17 +43,26 @@ module fp_cp_sqrt #(
         .MANT_WIDTH(MANT_WIDTH)
     ) fp_ieee_partition_inst (
         .data_in(data_in),
-        .signed_mantissa(sign_mant),
+        .signed_mant(sign_mant),
         .signed_exp(signed_exp)
     );
-    // if a data want to be sent to sqrt, the data must be positive
 
     logic [EXP_WIDTH-1:0] new_exp;
     logic [MANT_WIDTH-1:0] new_mant;
 
+    // For sqrt, exponent is divided by 2
+    // If exponent is odd, we need to adjust the mantissa
     localparam K = 8'd127; // The value of 2^(0.5)
-    assign new_exp = (signed_exp[0] == 0) ? signed_exp >> 1 : (signed_exp - 1) >> 1;
-    assign new_mant = (signed_exp[0] == 0) ? sign_mant : (sign_mant * K);
+    
+    always_comb begin
+        if (!sign_bit) begin
+            new_exp = (signed_exp[0] == 0) ? signed_exp >> 1 : (signed_exp - 1) >> 1;
+            new_mant = (signed_exp[0] == 0) ? sign_mant : (sign_mant * K);
+        end else begin
+            new_exp = '0;
+            new_mant = '0;
+        end
+    end
 
     logic [MANT_WIDTH-1:0] round_new_mant;
 

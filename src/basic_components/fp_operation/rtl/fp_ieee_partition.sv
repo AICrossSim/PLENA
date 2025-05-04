@@ -11,11 +11,11 @@ Status      : Under Development
 module fp_ieee_partition #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10,
-    parameter   OUT_MANT_WIDTH = MANT_WIDTH + 2,
+    parameter   OUT_MANT_WIDTH = MANT_WIDTH + 2
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
     output logic signed [EXP_WIDTH - 1:0] signed_exp,
-    output logic signed [OUT_MANT_WIDTH - 1:0] signed_mantissa
+    output logic signed [OUT_MANT_WIDTH - 1:0] signed_mant
 );
 
     localparam BIAS = (1 << (EXP_WIDTH - 1)) - 1;
@@ -23,18 +23,23 @@ module fp_ieee_partition #(
     logic sign_bit;
     logic [EXP_WIDTH - 1:0] exp_bit;
     logic [MANT_WIDTH - 1:0] mant_bit;
-    logic [OUT_MANT_WIDTH - 2:0] unsigned_mantissa;
-
-    assert (exp_bit != (EXP_WIDTH - 1){1'b1}) else $error("we cannot handle inf or nan in our current design");
+    logic [OUT_MANT_WIDTH - 2:0] unsigned_mant;
 
     assign sign_bit = data_in[EXP_WIDTH + MANT_WIDTH];
     assign exp_bit = data_in[EXP_WIDTH + MANT_WIDTH - 1:MANT_WIDTH];
-
     assign mant_bit = data_in[MANT_WIDTH - 1:0];
+    localparam EXP_HIGH = EXP_WIDTH - 1;
 
-    assign signed_exp = (exp_bit[EXP_WIDTH - 1] == 1) ? (exp_bit - BIAS) : (signed(exp_bit) - BIAS);
-    assign unsigned_mantissa = (exp_bit == 0) ? mant_bit + (1<<(MANT_WIDTH - 1)) : mant_bit;
+    always @(*) begin
+        assert (exp_bit != {(EXP_WIDTH-1){1'b1}}) else $warning("we cannot handle inf or nan in our current design");
+    end
 
-    assign signed_mantissa = (sign_bit == 1) ? -unsigned_mantissa : unsigned_mantissa;
+    assign signed_exp = signed'(exp_bit) - BIAS;
+    
+    assign unsigned_mant = (exp_bit == 0) ? 
+                               {1'b0, mant_bit} : 
+                               {1'b1, mant_bit};
+
+    assign signed_mant = (sign_bit == 1) ? -signed'(unsigned_mant) : signed'(unsigned_mant);
 
 endmodule
