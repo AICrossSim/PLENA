@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
 
 module tl_burst_tracker import tl_pkg::*; import prim_util_pkg::*; #(

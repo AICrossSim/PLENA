@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
 
 module tl_regslice import tl_pkg::*; #(

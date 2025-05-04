@@ -34,7 +34,8 @@ module hbm_controller #(
     localparam int ELE_WIDTH =   Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int SCALE_WIDTH = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
 
-    parameter int HBM_DATA_WIDTH = 128
+    parameter int HBM_ELE_WIDTH = 128,
+    parameter int HBM_SCALE_WIDTH = 128
 )(
     input   logic clk,
     input   logic rst,
@@ -62,8 +63,8 @@ module hbm_controller #(
     input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,
 
     // TL Interface
-    `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
-    `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
 );
     initial begin
         assert (MLEN == VLEN) else $fatal("MLEN and VLEN should be equal for hbm controller");
@@ -112,7 +113,7 @@ module hbm_controller #(
 
     tl_adapter #(
         .HostDataWidth(WEIGHT_WIDTH),
-        .DeviceDataWidth(HBM_DATA_WIDTH),
+        .DeviceDataWidth(HBM_ELE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
@@ -124,7 +125,7 @@ module hbm_controller #(
         // TileLink Interface
         `TL_CONNECT_HOST_PORT   (host, host_scale),
         `TL_CONNECT_DEVICE_PORT (device, tl_element)
-    )
+    );
 
     // TL for scale
     `TL_DECLARE(WEIGHT_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
@@ -152,7 +153,7 @@ module hbm_controller #(
 
     tl_adapter #(
         .HostDataWidth(SCALE_WIDTH),
-        .DeviceDataWidth(HBM_DATA_WIDTH),
+        .DeviceDataWidth(HBM_SCALE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
@@ -164,6 +165,6 @@ module hbm_controller #(
         // TileLink Interface
         `TL_CONNECT_HOST_PORT   (host, host_scale),
         `TL_CONNECT_DEVICE_PORT (device, tl_scale)
-    )
+    );
 
 endmodule

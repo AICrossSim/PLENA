@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
 
 // An adapter that joins two TileLink links with different parameters.

@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
 
 module tl_socket_1n import tl_pkg::*; import prim_util_pkg::*; #(

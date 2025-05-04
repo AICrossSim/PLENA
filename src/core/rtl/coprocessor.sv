@@ -21,7 +21,8 @@ module coprocessor (
     input   logic rst,
     // For testing, incoporate PCIe interface later
     input   logic [INSTRUCTION_LENGTH - 1 : 0] instruction,
-    input   logic instruction_valid
+    input   logic instruction_valid,
+    output  logic instruction_ready,
 
     // HBM Interface TileLink
     `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_element),
@@ -29,8 +30,9 @@ module coprocessor (
 
 );
 
-    // Control Signals Declaration
+    assign instruction_ready = 1'b1;
 
+    // Control Signals Declaration
     // HBM Control
     logic hbm_m_prefetch_complete, hbm_m_prefetch_en;
     logic hbm_v_prefetch_complete, hbm_v_prefetch_en;
@@ -373,7 +375,8 @@ module coprocessor (
     );
 
     // Scratchpad SRAM
-    // Port A : Vector Result 
+    // Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
+    // Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
     scratch_sram #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),

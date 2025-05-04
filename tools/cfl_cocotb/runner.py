@@ -46,7 +46,7 @@ def _single_test(
     i: int,  # id
     include_files: Path,
     extra_include_files: str,
-    definitions_path: str,
+    definitions_path,
     module: str,
     module_params: dict,
     module_path: Path,
@@ -80,10 +80,10 @@ def _single_test(
                 for exclude in extra_include_files:
                     includes.append(exclude+ "/rtl/")
             if definitions_path:
-                includes.append(definitions_path)
+                for definition in definitions_path:
+                    includes.append(definition)
             if workload_path:
                 includes.append(workload_path)
-                
         elif sim == "icarus":
             tool_args = []
             sources = [module_path]

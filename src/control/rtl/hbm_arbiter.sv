@@ -23,7 +23,7 @@ module hbm_arbiter #(
     localparam int M_BLOCK_NUM      = MLEN / BLOCK_DIM,
     localparam int V_BLOCK_NUM      = VLEN / BLOCK_DIM,
     localparam int ELE_WIDTH        = Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
-    localparam int SCALE_WIDTH      = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH
+    localparam int SCALE_WIDTH      = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
     localparam int V_ELE_WIDTH      = VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int V_SCALE_WIDTH    = V_BLOCK_NUM * MXFP_SCALE_WIDTH
 
