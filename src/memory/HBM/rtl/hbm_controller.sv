@@ -40,7 +40,7 @@ module hbm_controller #(
     input   logic rst,
 
     // HBM addr mapping
-    input   H_OP    h_op, 
+    
     input   logic   set_addr_reg_en,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_b,
@@ -50,8 +50,9 @@ module hbm_controller #(
     output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
-    input   logic                                   prefetch_data_ready,
-    output  logic   [ADDR_WIDTH - 1 : 0]            prefetch_waddr,
+    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        prefetch_addr,
+    input   logic                                   hbm_prefetch_en,
+
 
     // HBM data writing
     input   logic                                   hbm_write_en,
@@ -78,7 +79,7 @@ module hbm_controller #(
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
-        .mapp_addr_en(h_op != STALL_H ),
+        .mapp_addr_en(hbm_write_en || hbm_prefetch_en),
         .set_addr_en(set_addr_reg_en),
         .addr_in_a(addr_in_a),
         .addr_in_b(addr_in_b),
@@ -99,7 +100,7 @@ module hbm_controller #(
         .rst(rst),
 
         // Control signals
-        .req_en(fetch_en),
+        .req_en(hbm_prefetch_en),
         .write_en(write_en),
         
         .fetch_addr(fetch_addr),
@@ -139,7 +140,7 @@ module hbm_controller #(
         .rst(rst),
 
         // Control signals
-        .req_en(fetch_en),
+        .req_en(hbm_prefetch_en),
         .write_en(write_en),
         
         .fetch_addr(fetch_addr),

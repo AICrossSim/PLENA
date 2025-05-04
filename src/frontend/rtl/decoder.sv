@@ -93,7 +93,7 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_M, H_PREFETCH_V, H_STORE_V_HBM: begin
+        H_PREFETCH_M, H_PREFETCH_V, H_STORE_V: begin
             decode_instruction_type = H;
         end
 

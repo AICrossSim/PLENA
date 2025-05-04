@@ -61,7 +61,7 @@ typedef enum logic [1:0] {
 typedef enum logic [1:0] {
     PREFETCH_M = 0,
     PREFETCH_V = 1,
-    STORE_V_HBM = 2,
+    STORE_V = 2,
     STALL_H = 3
 } H_OP;
 
@@ -120,7 +120,7 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Memory Operation
     H_PREFETCH_M    = 31,
     H_PREFETCH_V    = 32,
-    H_STORE_V_HBM   = 33,
+    H_STORE_V   = 33,
 
     // CSR Setting
     C_SET_ADDR_REG = 34,
