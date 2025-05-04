@@ -27,7 +27,8 @@ package simulation_pkg;
     parameter   HBM_SCALE_WIDTH                 = 128;
     parameter   HBM_ADDR_WIDTH                  = 64;
     parameter   FAKE_HBM_ADDR_WIDTH             = 16;
-    
 endpackage
+
+
 
 `endif

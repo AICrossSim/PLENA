@@ -1,6 +1,25 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
+
+
+parameter FIXED_OPERAND_WIDTH = 3;
+parameter FP_OPERAND_WIDTH = 3;
+parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
+parameter OPCODE_WIDTH = 6;
+parameter IMM_WIDTH = 32;
+parameter INSTRUCTION_LENGTH = 16;
+
+
+package instruction_pkg;
+    parameter FIXED_OPERAND_WIDTH = 3;
+    parameter FP_OPERAND_WIDTH = 3;
+    parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
+    parameter OPCODE_WIDTH = 6;
+    parameter IMM_WIDTH = 32;
+    parameter INSTRUCTION_LENGTH = 16;
+endpackage
+
 typedef enum logic [1:0] {
     MV      = 0,
     MV_O    = 1,
@@ -68,15 +87,6 @@ typedef enum logic [1:0] {
 function automatic int max(input int a, input int b);
     return (a > b) ? a : b;
 endfunction
-
-package instruction_pkg;
-    parameter FIXED_OPERAND_WIDTH = 3;
-    parameter FP_OPERAND_WIDTH = 3;
-    parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
-    parameter OPCODE_WIDTH = 6;
-    parameter IMM_WIDTH = 32;
-    parameter INSTRUCTION_LENGTH = 16;
-endpackage
 
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {

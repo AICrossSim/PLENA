@@ -25,9 +25,13 @@ import random
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 
-instr_file = "benchmark.mem"
-hbm_element_file = "hbm_ele.mem"
-hbm_scale_file = "hbm_scale.mem"
+from pathlib import Path
+
+current_path = Path(__file__).resolve().parent
+
+instr_file = f"{current_path}/benchmark.mem"
+hbm_element_file = f"{current_path}/hbm_ele.mem"
+hbm_scale_file = f"{current_path}/hbm_scale.mem"
 INSTRUCTION_LENGTH = 32
 
 

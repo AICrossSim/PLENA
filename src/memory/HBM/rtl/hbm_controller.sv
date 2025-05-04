@@ -51,7 +51,6 @@ module hbm_controller #(
     output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
-    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        prefetch_addr,
     input   logic                                   hbm_prefetch_en,
 
 
@@ -88,7 +87,7 @@ module hbm_controller #(
         .hbm_addr_out(hbm_addr_out)
     );
 
-    `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth,      tl_element);
+    `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_element);
 
     // TL for element
     tl_master #(
@@ -112,7 +111,7 @@ module hbm_controller #(
     );
 
     tl_adapter #(
-        .HostDataWidth(WEIGHT_WIDTH),
+        .HostDataWidth(ELE_WIDTH),
         .DeviceDataWidth(HBM_ELE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
@@ -123,12 +122,12 @@ module hbm_controller #(
         .clk_i(clk),
         .rst_ni(!rst),
         // TileLink Interface
-        `TL_CONNECT_HOST_PORT   (host, host_scale),
-        `TL_CONNECT_DEVICE_PORT (device, tl_element)
+        `TL_CONNECT_DEVICE_PORT(host, tl_element ),
+        `TL_CONNECT_HOST_PORT(device, host_scale )
     );
 
     // TL for scale
-    `TL_DECLARE(WEIGHT_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
+    `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
 
     // Converting to TileLink
     tl_master #(
@@ -163,8 +162,8 @@ module hbm_controller #(
         .clk_i(clk),
         .rst_ni(!rst),
         // TileLink Interface
-        `TL_CONNECT_HOST_PORT   (host, host_scale),
-        `TL_CONNECT_DEVICE_PORT (device, tl_scale)
+        `TL_CONNECT_DEVICE_PORT(host, tl_scale ),
+        `TL_CONNECT_HOST_PORT(device, host_scale)
     );
 
 endmodule

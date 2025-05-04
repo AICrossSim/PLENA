@@ -10,7 +10,10 @@ Description : This module monitors the execution stages of each module and decid
 
 module pipeline_control #(
     parameter   OPERAND_WIDTH           = 5,
-    parameter   FIXED_DATA_WIDTH        = 32
+    parameter   FIXED_OPERAND_WIDTH     = 5,
+    parameter   FP_OPERAND_WIDTH        = 5,
+    parameter   FIXED_DATA_WIDTH        = 32,
+    parameter   IMM_WIDTH             = 12
 ) (
     input       logic clk,
     input       logic rst,
@@ -34,9 +37,9 @@ module pipeline_control #(
     output      logic       m_write_en,
     output      logic       v_write_en,
 
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] rs1,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] rs2,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] rd,
+    output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
+    output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
+    output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
     output      logic [FP_OPERAND_WIDTH - 1 : 0] fps1,
     output      logic [FP_OPERAND_WIDTH - 1 : 0] fps2,
     output      logic [FP_OPERAND_WIDTH - 1 : 0] fpd,

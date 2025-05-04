@@ -1,12 +1,10 @@
 `timescale 1ns / 1ps
+
 `include "operation.svh"
 `include "precision.svh"
 `include "configuration.svh"
 `include "tl_util.svh"
 
-import precision_pkg::*;
-import configuration_pkg::*;
-import instruction_pkg::*;
 
 /*
 Module      : Coprocessor Top Module
@@ -25,10 +23,15 @@ module coprocessor (
     output  logic instruction_ready,
 
     // HBM Interface TileLink
-    `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_element),
-    `TL_DECLARE_HOST_PORT(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_scale)
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_scale)
 
 );
+
+    import precision_pkg::*;
+    import configuration_pkg::*;
+    import instruction_pkg::*;
+
 
     assign instruction_ready = 1'b1;
 
@@ -82,7 +85,10 @@ module coprocessor (
 
     pipeline_control #(
         .OPERAND_WIDTH          (OPERAND_WIDTH),
-        .FIXED_DATA_WIDTH       (FIXED_DATA_WIDTH)
+        .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
+        .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
+        .FIXED_DATA_WIDTH       (FIXED_DATA_WIDTH),
+        .IMM_WIDTH              (IMM_WIDTH)
     ) pipeline_control_init (
         .clk(clk),
         .rst(rst),
@@ -406,22 +412,22 @@ module coprocessor (
         .scale_out_b        (fetched_v_scale_port2)
     );
 
-    `TL_DECLARE(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
+    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
     `TL_BIND_HOST_PORT(out_element, element);
-    `TL_DECLARE(HBM_DATA_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
+    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
     `TL_BIND_HOST_PORT(out_scale, scale);
 
     // HBM Control
-    logic [Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
-    logic [Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
+    logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
+    logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
-    logic [ADDR_WIDTH - 1 : 0] prefetch_target_addr;
+    logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_target_addr;
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_prefetch_addr;
     logic prefetch_content_ready;
 
     logic hbm_write_en;
-    logic [Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_in;
-    logic [Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_in;
+    logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_in;
+    logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_in;
     logic hbm_write_valid, hbm_write_ready;
 
     // TODO WMask Impelmentation
@@ -494,7 +500,8 @@ module coprocessor (
         .HBM_ADDR_REG_NUM(HBM_ADDR_REG_NUM),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
-        .HBM_DATA_WIDTH(HBM_DATA_WIDTH)
+        .HBM_ELE_WIDTH(HBM_ELE_WIDTH),
+        .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH)
     ) hbm_controller_init (
         .clk(clk),
         .rst(rst),
@@ -510,7 +517,6 @@ module coprocessor (
         .prefetch_scale     (hbm_scale_out),
         .prefetch_data_valid(hbm_prefetch_valid),
         .hbm_prefetch_en    (hbm_read_en),
-        .prefetch_waddr     (),
 
         // HBM Write
         .hbm_write_en       (hbm_write_en),

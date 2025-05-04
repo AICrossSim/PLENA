@@ -88,11 +88,7 @@ logic [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
 
 
 always_ff @(posedge clk or posedge rst) begin
-    if (rst) begin
-        prefetch_v_element <= '0;
-        prefetch_v_scale   <= '0;
-        prefetch_v_data_valid <= 1'b0;
-    end else begin
+    if (!rst) begin
         if (prefetch_data_valid) begin
             if (hbm_state == HBM_PREFETCH_V) begin
                 hbm_v_element <= prefetch_element;
