@@ -26,13 +26,13 @@ typedef enum logic [3:0] {
     SUB_FP    = 1,
     MUL_FP    = 2,
     EXP_FP    = 3,
-    ISQRT_FP  = 4,
-    LOG_FP    = 5,
+    RECI_FP   = 4,
+    SQRT_FP   = 5,
     LD_REG_FP   = 6,
     LD_OUT_FP   = 7,
     ST_REG_FP  = 8,
     ST_IN_FP  = 9,
-    STALL_S_FP = 10
+    STALL_S_FP = 10,
 } S_FP_OP;
 
 typedef enum logic [3:0] {

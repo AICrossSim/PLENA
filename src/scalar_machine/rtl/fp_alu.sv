@@ -41,14 +41,14 @@ always_comb begin
             data_out = fp_mul_out;
         end
 
-        ISQRT_FP: begin
+        RECI_FP: begin
             negated_en = 1'b0;
-            data_out = fp_isqrt_out;
+            data_out = fp_reciprocal_out;
         end
 
-        LOG_FP: begin
+        SQRT_FP: begin
             negated_en = 1'b0;
-            data_out = fp_log_out;
+            data_out = fp_sqrt_out;
         end
 
         EXP_FP: begin
@@ -84,7 +84,21 @@ fp_cp_adder #(
     .data_out(fp_add_out)
 );
 
-// TODO
+fp_cp_reciprocal #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
+) fp_reciprocal (
+    .data_in(data_a),
+    .data_out(fp_reciprocal_out)
+);
+
+fp_cp_sqrt #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
+) fp_sqrt (
+    .data_in(data_a),
+    .data_out(fp_sqrt_out)
+);
 
 
 endmodule

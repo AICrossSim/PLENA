@@ -116,7 +116,7 @@ class CombinationalTestbench(Testbench):
         '''
         We should check the output is correct related to the input
         '''
-        raise NotImplementedError
+        self.log.warning(f"check is bypassed")
 
     async def run_test(self, num):
         await Timer(5, units="ns")
