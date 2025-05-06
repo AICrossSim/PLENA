@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
+`include "configuration.svh"
 
 /*
 Module      : Pipeline Control
@@ -8,7 +9,7 @@ Description : This module monitors the execution stages of each module and decid
             : This module will also control the overall execution of the coprocessor.
 */
 
-module pipeline_control #(
+module pipeline_control import pipeline_pkg::*; #(
     parameter   OPERAND_WIDTH           = 5,
     parameter   FIXED_OPERAND_WIDTH     = 5,
     parameter   FP_OPERAND_WIDTH        = 5,
@@ -71,194 +72,196 @@ module pipeline_control #(
 
     end
 
+    assign fetch_next_instr = decode_instr_valid && !pipeline_stall;
 
-
-always_ff @(posedge clk) begin
-    if (pipeline_stall) begin
-        
-        if (m_update_waddr || v_update_waddr) begin
-            assigned_op_bundle.m_op            <= STALL_M;
-            assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
-            assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
-            assigned_op_bundle.s_fp_op         <= STALL_S_FP;
-            assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
-
-            rs1             <= rd;
-            rs2             <= 'b0;
-            rd              <= 'b0;
-            fps1            <= 'b0;
-            fps2            <= 'b0;
-            fpd             <= 'b0;
-            imm             <= 'b0;
-        end else begin
+    always_ff @(posedge clk) begin
+        if (pipeline_stall) begin
             
-        end
-
-    end else begin
-
-        assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
-        assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
-        
-        case(decode_instr_info.opcode)
-            M: begin
-                assigned_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
-                assigned_op_bundle.v_ele_op    <= STALL_V_ELEMENT;
-                assigned_op_bundle.v_reduct_op <= STALL_V_REDUCT;
-                assigned_op_bundle.s_fp_op     <= STALL_S_FP;
-                assigned_op_bundle.s_fixed_op  <= COMP_ADDR;
-
-                fps1    <= {FP_OPERAND_WIDTH{1'b0}};
-                fps2    <= {FP_OPERAND_WIDTH{1'b0}};
-                fpd     <= {FP_OPERAND_WIDTH{1'b0}};
-
-                rs1     <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2     <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd      <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                imm     <= 'b0;
-            end
-
-            V: begin
-                assigned_op_bundle.m_op <= STALL_M;
-                assigned_op_bundle.v_ele_op <= (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
-                                        (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
-                                        (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
-                                        (decode_instr_info.opcode == V_EXP_VV)    ? EXP_V_ELEMENT : STALL_V_ELEMENT;
-
-                assigned_op_bundle.v_reduct_op <=  (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
-                                            (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
-                
-                assigned_op_bundle.s_fixed_op   <= COMP_ADDR;
-
-                if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
-                    assigned_op_bundle.s_fp_op     <= LD_OUT_FP;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    fps1            <= {FP_OPERAND_WIDTH{1'b0}};
-                    fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
-                    fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                    imm             <= {IMM_WIDTH{1'b0}};
-                end else begin
-                    assigned_op_bundle.s_fp_op    <= STALL_S_FP;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    imm             <= {IMM_WIDTH{1'b0}};
-                end
-            end
-
-            S: begin
-                assigned_op_bundle.m_op            <= STALL_M;
-                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
-                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
-                assigned_op_bundle.s_fp_op         <=  (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
-                                                (decode_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
-                                                (decode_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
-                                                (decode_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
-                                                (decode_instr_info.opcode == S_ISQRT_FP)  ? ISQRT_FP  :
-                                                (decode_instr_info.opcode == S_LOG_FP  )  ? LOG_FP    : STALL_S_FP;
-                
-                assigned_op_bundle.s_fixed_op      <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
-                                                (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
-                                                (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
-                                                (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
-                                                (decode_instr_info.opcode == S_DIV_FIX)   ? DIV_FIX   :
-                                                (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
-                                                (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : STALL_S_FIXED;
-                
-                if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MUL_FP) begin
-                    rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
-                    fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
-                    fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    imm             <= {IMM_WIDTH{1'b0}};
-                end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_ISQRT_FP || decode_instr_info.opcode == S_LOG_FP) begin
-                    rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
-                    fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                    fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    imm             <= {IMM_WIDTH{1'b0}};
-                end else if ( decode_instr_info.opcode == S_ADDI_FIX) begin
-                    rs1             <= decode_instr_info.rs1;
-                    rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};;
-                    rd              <= decode_instr_info.rd;
-                    fps1            <= {FP_OPERAND_WIDTH{1'b0}};
-                    fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                    fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                    imm             <= {{(IMM_WIDTH - FIXED_OPERAND_WIDTH){1'b0}}, decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0]};
-                end else begin
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    fps1            <= {FP_OPERAND_WIDTH{1'b0}};
-                    fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                    fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                    imm             <= {IMM_WIDTH{1'b0}};
-                end
-            end
-
-            C : begin
+            if (m_update_waddr || v_update_waddr) begin
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                 assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                 assigned_op_bundle.s_fp_op         <= STALL_S_FP;
                 assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
-                if (decode_instr_info.opcode == C_SET_ADDR_REG) begin
+
+                rs1             <= rd;
+                rs2             <= 'b0;
+                rd              <= 'b0;
+                fps1            <= 'b0;
+                fps2            <= 'b0;
+                fpd             <= 'b0;
+                imm             <= 'b0;
+            end else begin
+                
+            end
+
+        end else begin
+
+            assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
+            assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
+            
+            case(decode_instr_info.opcode)
+                M: begin
+                    assigned_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
+                    assigned_op_bundle.v_ele_op    <= STALL_V_ELEMENT;
+                    assigned_op_bundle.v_reduct_op <= STALL_V_REDUCT;
+                    assigned_op_bundle.s_fp_op     <= STALL_S_FP;
+                    assigned_op_bundle.s_fixed_op  <= COMP_ADDR;
+
+                    fps1    <= {FP_OPERAND_WIDTH{1'b0}};
+                    fps2    <= {FP_OPERAND_WIDTH{1'b0}};
+                    fpd     <= {FP_OPERAND_WIDTH{1'b0}};
+
+                    rs1     <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2     <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd      <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    imm     <= 'b0;
+                end
+
+                V: begin
+                    assigned_op_bundle.m_op <= STALL_M;
+                    assigned_op_bundle.v_ele_op <= (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
+                                            (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
+                                            (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
+                                            (decode_instr_info.opcode == V_EXP_VV)    ? EXP_V_ELEMENT : STALL_V_ELEMENT;
+
+                    assigned_op_bundle.v_reduct_op <=  (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
+                                                (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                     
+                    assigned_op_bundle.s_fixed_op   <= COMP_ADDR;
+
+                    if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
+                        assigned_op_bundle.s_fp_op     <= LD_OUT_FP;
+                        rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                        fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                        fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                        imm             <= {IMM_WIDTH{1'b0}};
+                    end else begin
+                        assigned_op_bundle.s_fp_op    <= STALL_S_FP;
+                        rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                        imm             <= {IMM_WIDTH{1'b0}};
+                    end
                 end
 
-                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                fps1            <= {FP_OPERAND_WIDTH{1'b0}};
-                fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                imm             <= {IMM_WIDTH{1'b0}};
-            end
+                S: begin
+                    assigned_op_bundle.m_op            <= STALL_M;
+                    assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                    assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                    assigned_op_bundle.s_fp_op         <=  (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
+                                                    (decode_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
+                                                    (decode_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
+                                                    (decode_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
+                                                    (decode_instr_info.opcode == S_ISQRT_FP)  ? ISQRT_FP  :
+                                                    (decode_instr_info.opcode == S_LOG_FP  )  ? LOG_FP    : STALL_S_FP;
+                    
+                    assigned_op_bundle.s_fixed_op      <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
+                                                    (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
+                                                    (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
+                                                    (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
+                                                    (decode_instr_info.opcode == S_DIV_FIX)   ? DIV_FIX   :
+                                                    (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
+                                                    (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : STALL_S_FIXED;
+                    
+                    if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MUL_FP) begin
+                        rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
+                        fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                        fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
+                        imm             <= {IMM_WIDTH{1'b0}};
+                    end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_ISQRT_FP || decode_instr_info.opcode == S_LOG_FP) begin
+                        rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
+                        fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
+                        imm             <= {IMM_WIDTH{1'b0}};
+                    end else if ( decode_instr_info.opcode == S_ADDI_FIX) begin
+                        rs1             <= decode_instr_info.rs1;
+                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};;
+                        rd              <= decode_instr_info.rd;
+                        fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                        imm             <= {{(IMM_WIDTH - FIXED_OPERAND_WIDTH){1'b0}}, decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0]};
+                    end else begin
+                        rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                        fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                        imm             <= {IMM_WIDTH{1'b0}};
+                    end
+                end
 
-            H : begin
-                assigned_op_bundle.m_op            <= STALL_M;
-                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
-                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
-                assigned_op_bundle.s_fp_op         <= STALL_S_FP;
-                assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
+                C : begin
+                    assigned_op_bundle.m_op            <= STALL_M;
+                    assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                    assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                    assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                    assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
+                    if (decode_instr_info.opcode == C_SET_ADDR_REG) begin
+                        
+                    end
 
-                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                fps1            <= {FP_OPERAND_WIDTH{1'b0}};
-                fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                imm             <= {IMM_WIDTH{1'b0}};
-            end
+                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                    fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                    fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                    imm             <= {IMM_WIDTH{1'b0}};
+                end
 
-            default: begin
-                assigned_op_bundle.m_op            <= STALL_M;
-                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
-                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
-                assigned_op_bundle.s_fp_op         <= STALL_S_FP;
-                assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
+                H : begin
+                    assigned_op_bundle.m_op            <= STALL_M;
+                    assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                    assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                    assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                    assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
 
-                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                fps1            <= {FP_OPERAND_WIDTH{1'b0}};
-                fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                imm             <= {IMM_WIDTH{1'b0}};
-            end
-      
-        endcase
+                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                    fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                    fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                    imm             <= {IMM_WIDTH{1'b0}};
+                end
 
-    end    
+                default: begin
+                    assigned_op_bundle.m_op            <= STALL_M;
+                    assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                    assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                    assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                    assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
+
+                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                    fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                    fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                    imm             <= {IMM_WIDTH{1'b0}};
+                end
+        
+            endcase
+
+        end    
 
 
-end
+    end
 
+    // Trace Registers in execution and decide on the pipeline stalls.
+    logic [FIXED_OPERAND_WIDTH - 1 : 0] tracked_write_fixed_reg [MAX_PIPELINE_STAGE - 1: 0];
 
 
 endmodule

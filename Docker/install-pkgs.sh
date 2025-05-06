@@ -77,7 +77,7 @@ mkdir -p /srcPkgs \
 # Install Python versions
 log "Installing Python versions..."
 apt-get update -y \
-    && apt-get install -y clang-12
+    && apt-get install -y clang-14
 
 export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y software-properties-common \

@@ -32,7 +32,7 @@ module coprocessor (
     import configuration_pkg::*;
     import instruction_pkg::*;
 
-
+    // TODO: PCIe Interface
     assign instruction_ready = 1'b1;
 
     // Control Signals Declaration
@@ -100,7 +100,7 @@ module coprocessor (
         // .w_query()
         .v_write_request         (v_write_request),
         .m_write_request         (m_write_request),        
-        .pipeline_stall(), // TODO
+        // .pipeline_stall(), // TODO
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
         .v_update_waddr         (v_update_waddr),

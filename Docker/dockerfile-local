@@ -9,7 +9,6 @@ ADD install-pkgs.sh install-pkgs.sh
 RUN bash install-pkgs.sh
 CMD ["bash"]
 
-Install pip packages 
+# Install pip packages 
 ADD install-pips.sh install-pips.sh
 RUN bash install-pips.sh
-

@@ -1,6 +1,6 @@
-# LLama Acceleration Coprocessor Design
+# AIXSim: Llama Acceleration Coprocessor Design
 
-This project contains the implementation of a coprocessor for LlaMA model's inference process.
+This project contains the implementation of a coprocessor for Llama model's inference process.
 
 **Diagram of the coprocessor:**  
 [View Diagram on Google Drawio](https://drive.google.com/file/d/1sSbIB95fhO-RxaFWXCJFLtUKPwHVk12C/view?usp=sharing)
@@ -11,7 +11,7 @@ This project contains the implementation of a coprocessor for LlaMA model's infe
 **Progress Report:**  
 [View Document on Notion](https://www.notion.so/Coprocessor-Project-Plan-1d628f1ee68e8052ab7dc51a36905c15?pvs=4)
 
-![Figure 1: Diagram of the Coprocessor](doc/CoProcessor_Design.png)
+<!-- ![Figure 1: Diagram of the Coprocessor](doc/CoProcessor_Design.png) -->
 
 **SystemVerilog RTL Format:**  
 TODO: 

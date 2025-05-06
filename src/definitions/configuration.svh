@@ -18,6 +18,10 @@ package configuration_pkg;
     parameter   HBM_SCALE_WIDTH                 = 128;
 endpackage
 
+package pipeline_pkg;
+    parameter   MAX_PIPELINE_STAGE              = 10;    
+endpackage
+
 
 package simulation_pkg;
     parameter   BATCH_SIZE                      = 1;
