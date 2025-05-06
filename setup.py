@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='cfl_cocotb',  
+    name='llama_coprocessor',  
     version='1.0',  # random
     packages=find_packages("tools"),
     package_dir={'': 'tools'},
