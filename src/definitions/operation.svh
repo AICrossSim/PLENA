@@ -91,53 +91,53 @@ endfunction
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Matrix Operation
-    M_MV        = 0,
-    M_MV_O      = 1,
+    M_MV        = 0x0,
+    M_MV_O      = 0x1,
     M_TMV       = 2,
     M_TMV_O     = 3,
 
     // Vector Operation
-    V_ADD_VV    = 4,
-    V_ADD_VF    = 5,
-    V_SUB_VV    = 6,
-    V_SUB_VF    = 7,
-    V_MUL_VV    = 8,
-    V_MUL_VF    = 9,
-    V_EXP_VV    = 10,
-    V_RED_SUM   = 11,
-    V_RED_MAX   = 12,
+    V_ADD_VV    = 0x4,
+    V_ADD_VF    = 0x5,
+    V_SUB_VV    = 0x6,
+    V_SUB_VF    = 0x7,
+    V_MUL_VV    = 0x8,
+    V_MUL_VF    = 0x9,
+    V_EXP_VV    = 0xa,
+    V_RED_SUM   = 0xb,
+    V_RED_MAX   = 0xc,
 
     // Scalar Operation
-    S_ADD_FP    = 13,
-    S_SUB_FP    = 14,
-    S_MAX_FP    = 15,
-    S_MUL_FP    = 16,
-    S_EXP_FP    = 17,
-    S_ISQRT_FP  = 18,
-    S_LOG_FP    = 19,
-    S_LOAD_FP   = 20,
-    S_STORE_FP  = 21,
-    S_ADD_FIX   = 22,
-    S_ADDI_FIX  = 23,
-    S_SUB_FIX   = 24,
-    S_MUL_FIX   = 25,
-    S_DIV_FIX   = 26,
-    S_LUI_FIX   = 27,
-    S_MV_FIX    = 28,
-    S_LD_FIX    = 29,
-    S_ST_FIX    = 30,
+    S_ADD_FP    = 0xd,
+    S_SUB_FP    = 0xe,
+    S_MAX_FP    = 0xf,
+    S_MUL_FP    = 0x10,
+    S_EXP_FP    = 0x11,
+    S_ISQRT_FP  = 0x12,
+    S_LOG_FP    = 0x13,
+    S_LOAD_FP   = 0x14,
+    S_STORE_FP  = 0x15,
+    S_ADD_FIX   = 0x16,
+    S_ADDI_FIX  = 0x17,
+    S_SUB_FIX   = 0x18,
+    S_MUL_FIX   = 0x19,
+    S_DIV_FIX   = 0x1a,
+    S_LUI_FIX   = 0x1b,
+    S_MV_FIX    = 0x1c,
+    S_LD_FIX    = 0x1d,
+    S_ST_FIX    = 0x1e,
 
     // Memory Operation
-    H_PREFETCH_M    = 31,
-    H_PREFETCH_V    = 32,
-    H_STORE_V   = 33,
+    H_PREFETCH_M    = 0x1f,
+    H_PREFETCH_V    = 0x20,
+    H_STORE_V       = 0x21,
 
     // CSR Setting
-    C_SET_ADDR_REG = 34,
-    C_SET_M_OFFSET  = 35,
-    C_SET_LUT        = 36,  // Left for Cano's work.
+    C_SET_ADDR_REG  = 0x22,
+    C_SET_M_OFFSET  = 0x23,
+    C_SET_LUT       = 0x24,  // Left for Cano's work.
 
-    INVALID_OPCODE   = 37
+    INVALID_OPCODE  = 0x25
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] { 
