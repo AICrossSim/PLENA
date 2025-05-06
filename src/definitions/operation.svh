@@ -21,37 +21,38 @@ package instruction_pkg;
 endpackage
 
 typedef enum logic [1:0] {
-    MV      = 0,
-    MV_O    = 1,
-    STALL_M   = 2
+    MV          = 0,
+    MV_O        = 1,
+    STALL_M     = 2
 } M_OP;
 
 typedef enum logic [2:0] {
-    ADD_V_ELEMENT = 0,
-    SUB_V_ELEMENT = 1,
-    MUL_V_ELEMENT = 2,
-    EXP_V_ELEMENT = 3,
+    ADD_V_ELEMENT   = 0,
+    SUB_V_ELEMENT   = 1,
+    MUL_V_ELEMENT   = 2,
+    EXP_V_ELEMENT   = 3,
     STALL_V_ELEMENT = 4
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
-    SUM_V_REDUCT = 0,
-    MAX_V_REDUCT = 1,
-    STALL_V_REDUCT = 2
+    SUM_V_REDUCT    = 0,
+    MAX_V_REDUCT    = 1,
+    STALL_V_REDUCT  = 2
 } V_REDUCT_OP;
 
 typedef enum logic [3:0] {
-    ADD_FP    = 0,
-    SUB_FP    = 1,
-    MUL_FP    = 2,
-    EXP_FP    = 3,
-    RECI_FP   = 4,
-    SQRT_FP   = 5,
-    LD_REG_FP   = 6,
-    LD_OUT_FP   = 7,
-    ST_REG_FP  = 8,
-    ST_IN_FP  = 9,
-    STALL_S_FP = 10,
+    ADD_FP      = 0,
+    SUB_FP      = 1,
+    MAX_FP      = 2,
+    MUL_FP      = 3,
+    EXP_FP      = 4,
+    RECI_FP     = 5,
+    SQRT_FP     = 6,
+    LD_REG_FP   = 7,
+    LD_OUT_FP   = 8,
+    ST_REG_FP   = 9,
+    ST_IN_FP    = 10,
+    STALL_S_FP  = 11
 } S_FP_OP;
 
 typedef enum logic [3:0] {
@@ -65,7 +66,6 @@ typedef enum logic [3:0] {
     LD_FIX    = 7,
     ST_FIX    = 8,
     COMP_ADDR = 9,
-    CONCAT    = 10,
     STALL_S_FIXED = 11
 } S_FIXED_OP;
 
@@ -91,54 +91,60 @@ endfunction
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Matrix Operation
-    M_MV        = 0x0,
-    M_MV_O      = 0x1,
-    M_TMV       = 2,
-    M_TMV_O     = 3,
+    M_MV            = 6'h00,
+    M_MV_O          = 6'h01,
+    M_TMV           = 6'h02,
+    M_TMV_O         = 6'h03,
 
     // Vector Operation
-    V_ADD_VV    = 0x4,
-    V_ADD_VF    = 0x5,
-    V_SUB_VV    = 0x6,
-    V_SUB_VF    = 0x7,
-    V_MUL_VV    = 0x8,
-    V_MUL_VF    = 0x9,
-    V_EXP_VV    = 0xa,
-    V_RED_SUM   = 0xb,
-    V_RED_MAX   = 0xc,
+    V_ADD_VV        = 6'h04,
+    V_ADD_VF        = 6'h05,
+    V_SUB_VV        = 6'h06,
+    V_SUB_VF        = 6'h07,
+    V_MUL_VV        = 6'h08,
+    V_MUL_VF        = 6'h09,
+    V_EXP_VV        = 6'h0A,
+    V_RED_SUM       = 6'h0B,
+    V_RED_MAX       = 6'h0C,
 
-    // Scalar Operation
-    S_ADD_FP    = 0xd,
-    S_SUB_FP    = 0xe,
-    S_MAX_FP    = 0xf,
-    S_MUL_FP    = 0x10,
-    S_EXP_FP    = 0x11,
-    S_ISQRT_FP  = 0x12,
-    S_LOG_FP    = 0x13,
-    S_LOAD_FP   = 0x14,
-    S_STORE_FP  = 0x15,
-    S_ADD_FIX   = 0x16,
-    S_ADDI_FIX  = 0x17,
-    S_SUB_FIX   = 0x18,
-    S_MUL_FIX   = 0x19,
-    S_DIV_FIX   = 0x1a,
-    S_LUI_FIX   = 0x1b,
-    S_MV_FIX    = 0x1c,
-    S_LD_FIX    = 0x1d,
-    S_ST_FIX    = 0x1e,
+    // Scalar Operation (Floating-Point)
+    S_ADD_FP        = 6'h0D,
+    S_SUB_FP        = 6'h0E,
+    S_MAX_FP        = 6'h0F,
+    S_MUL_FP        = 6'h10,
+    S_EXP_FP        = 6'h11,
+    S_RECI_FP       = 6'h12,
+    S_SQRT_FP       = 6'h13,
+    S_LD_REG_FP     = 6'h14,
+    // S_LD_OUT_FP     = 6'h15,
+    S_ST_REG_FP     = 6'h16,
+
+    // Scalar Operation (Fixed-Point)
+    S_ADD_FIX       = 6'h17,
+    S_ADDI_FIX      = 6'h18,
+    S_SUB_FIX       = 6'h19,
+    S_MUL_FIX       = 6'h1A,
+    S_DIV_FIX       = 6'h1B,
+    S_LUI_FIX       = 6'h1C,
+    S_MV_FIX        = 6'h1D,
+    S_LD_FIX        = 6'h1E,
+    S_ST_FIX        = 6'h1F,
 
     // Memory Operation
-    H_PREFETCH_M    = 0x1f,
-    H_PREFETCH_V    = 0x20,
-    H_STORE_V       = 0x21,
+    H_PREFETCH_M    = 6'h20,
+    H_PREFETCH_V    = 6'h21,
+    H_STORE_V       = 6'h22,
 
     // CSR Setting
-    C_SET_ADDR_REG  = 0x22,
-    C_SET_M_OFFSET  = 0x23,
-    C_SET_LUT       = 0x24,  // Left for Cano's work.
+    C_SET_ADDR_REG  = 6'h23,
+    C_SET_M_OFFSET  = 6'h24,
+    C_SET_LUT       = 6'h25,
 
-    INVALID_OPCODE  = 0x25
+    // Invalid
+    INVALID_OPCODE  = 6'h26
 } CUSTOM_ISA_OPCODE;
+
+
 
 typedef enum logic [2:0] { 
     M = 0,

@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 /*
 Module      : fp_ieee_partition
 Timing      : Combinatorial Logic

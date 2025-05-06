@@ -1,0 +1,27 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue May  6 23:07:23 2025
+[*]
+[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Tue May  6 22:43:15 2025"
+[dumpfile_size] 10715744
+[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[timestart] 0
+[size] 3428 1359
+[pos] -1812 -380
+*-16.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 214
+[signals_width] 254
+[sst_expanded] 1
+[sst_vpaned_height] 419
+@28
+clk
+@22
+instruction[31:0]
+@28
+instruction_ready
+instruction_valid
+@29
+rst
+[pattern_trace] 1
+[pattern_trace] 0

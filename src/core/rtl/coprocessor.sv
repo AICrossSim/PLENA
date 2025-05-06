@@ -233,95 +233,95 @@ module coprocessor (
 
                 
     generate;
-        matrix_machine #(
-            .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-            .MLEN(MLEN),
-            .BLOCK_DIM(BLOCK_DIM),
-            .PRODUCT_EXT_EXP_WIDTH(PRODUCT_EXT_EXP_WIDTH),
-            .PRODUCT_EXT_MANT_WIDTH(PRODUCT_EXT_MANT_WIDTH),
-            .BLOCK_ADD_EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
-            .BLOCK_ADD_EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH),
-            .FP_ADD_EXT_EXP_WIDTH(FP_ADD_EXT_EXP_WIDTH),
-            .FP_ADD_EXT_MANT_WIDTH(FP_ADD_EXT_MANT_WIDTH),
-            .Matrix_Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim),
-            .ADDR_WIDTH(FIXED_DATA_WIDTH)
-        ) matrix_machine (
-            .clk(clk),
-            .rst(rst),
-            .matrix_opcode          (assigned_op_bundle.m_op),
-            .ready_for_next_op      (),
-            .set_offset_addr        ((assigned_op_bundle.h_op == SET_ADDR_REG)),
-            .offset_addr            (fixed_out_1),
-            .offset_addr_out        (m_offset_addr),
-            .m_element              (fetched_m_element),
-            .m_scale                (fetched_m_scale),
-            .m_valid                (m_m_valid),
-            .m_ready                (m_m_ready),
-            .v_element              (fetched_v_element_port1),
-            .v_scale                (fetched_v_scale_port1),
-            .v_valid                (m_v_valid),
-            .v_ready                (m_v_ready),
-            .o_element              (fetched_v_element_port2),
-            .o_scale                (fetched_v_scale_port2),
-            .o_valid                (m_o_valid),
-            .o_ready                (m_o_ready),
-            .result_waddr           (fixed_out_1),
-            .result_waddr_update    (m_update_waddr),
-            .out_element            (m_out_element),
-            .out_scale              (m_out_scale),
-            .out_valid              (m_out_valid),
-            .out_ready              (m_out_ready),
-            .m_waddr                (m_waddr),
-            .m_wreq                 (m_write_request)
-        );
+        // matrix_machine #(
+        //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+        //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+        //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+        //     .MLEN(MLEN),
+        //     .BLOCK_DIM(BLOCK_DIM),
+        //     .PRODUCT_EXT_EXP_WIDTH(PRODUCT_EXT_EXP_WIDTH),
+        //     .PRODUCT_EXT_MANT_WIDTH(PRODUCT_EXT_MANT_WIDTH),
+        //     .BLOCK_ADD_EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
+        //     .BLOCK_ADD_EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH),
+        //     .FP_ADD_EXT_EXP_WIDTH(FP_ADD_EXT_EXP_WIDTH),
+        //     .FP_ADD_EXT_MANT_WIDTH(FP_ADD_EXT_MANT_WIDTH),
+        //     .Matrix_Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim),
+        //     .ADDR_WIDTH(FIXED_DATA_WIDTH)
+        // ) matrix_machine (
+        //     .clk(clk),
+        //     .rst(rst),
+        //     .matrix_opcode          (assigned_op_bundle.m_op),
+        //     .ready_for_next_op      (),
+        //     .set_offset_addr        ((assigned_op_bundle.h_op == SET_ADDR_REG)),
+        //     .offset_addr            (fixed_out_1),
+        //     .offset_addr_out        (m_offset_addr),
+        //     .m_element              (fetched_m_element),
+        //     .m_scale                (fetched_m_scale),
+        //     .m_valid                (m_m_valid),
+        //     .m_ready                (m_m_ready),
+        //     .v_element              (fetched_v_element_port1),
+        //     .v_scale                (fetched_v_scale_port1),
+        //     .v_valid                (m_v_valid),
+        //     .v_ready                (m_v_ready),
+        //     .o_element              (fetched_v_element_port2),
+        //     .o_scale                (fetched_v_scale_port2),
+        //     .o_valid                (m_o_valid),
+        //     .o_ready                (m_o_ready),
+        //     .result_waddr           (fixed_out_1),
+        //     .result_waddr_update    (m_update_waddr),
+        //     .out_element            (m_out_element),
+        //     .out_scale              (m_out_scale),
+        //     .out_valid              (m_out_valid),
+        //     .out_ready              (m_out_ready),
+        //     .m_waddr                (m_waddr),
+        //     .m_wreq                 (m_write_request)
+        // );
 
-            // Vector Compute Unit
-        vector_machine #(
-            .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-            .FP_EXP_WIDTH(FP_EXP_WIDTH),
-            .FP_MANT_WIDTH(FP_MANT_WIDTH),
-            .VLEN(MLEN),
-            .BLOCK_DIM(BLOCK_DIM),
-            .VE_EXT_EXP_WIDTH(0),
-            .VE_EXT_MANT_WIDTH(0),
-            .VR_EXT_EXP_WIDTH(0),
-            .VR_EXT_MANT_WIDTH(0),
-            .ROUND_FP_EN(1),
-            .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
-            .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
-        ) vector_machine (
-            .clk(clk),
-            .rst(rst),
-            .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
-            .element_v_control      (assigned_op_bundle.v_ele_op),
-            .reduct_v_control       (assigned_op_bundle.v_reduct_op),
-            .v_a_element            (fetched_v_element_port1),
-            .v_a_scale              (fetched_v_scale_port1),
-            .v_a_valid              (v_v_a_valid),
-            .v_a_ready              (v_v_a_ready),
-            .v_b_element            (fetched_v_element_port2),
-            .v_b_scale              (fetched_v_scale_port2),
-            .v_b_valid              (v_v_b_valid),
-            .v_b_ready              (v_v_b_ready),
-            .s_in                   (fp_s_in),
-            .s_in_valid             (v_s_in_valid),
-            .s_in_ready             (v_s_in_ready),
-            .s_out                  (fp_s_out),
-            .s_out_valid            (v_s_out_valid),
-            .s_out_ready            (v_s_out_ready),
-            .result_waddr           (fixed_out_1),
-            .result_waddr_update    (v_update_waddr),
-            .v_out_element          (v_out_element),
-            .v_out_scale            (v_out_scale),
-            .v_out_valid            (v_v_out_valid),
-            .v_out_ready            (v_v_out_ready),
-            .v_waddr                (v_waddr),
-            .v_wreq                 (v_write_request)
-        );
+        //     // Vector Compute Unit
+        // vector_machine #(
+        //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+        //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+        //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+        //     .FP_EXP_WIDTH(FP_EXP_WIDTH),
+        //     .FP_MANT_WIDTH(FP_MANT_WIDTH),
+        //     .VLEN(MLEN),
+        //     .BLOCK_DIM(BLOCK_DIM),
+        //     .VE_EXT_EXP_WIDTH(0),
+        //     .VE_EXT_MANT_WIDTH(0),
+        //     .VR_EXT_EXP_WIDTH(0),
+        //     .VR_EXT_MANT_WIDTH(0),
+        //     .ROUND_FP_EN(1),
+        //     .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
+        //     .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
+        // ) vector_machine (
+        //     .clk(clk),
+        //     .rst(rst),
+        //     .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
+        //     .element_v_control      (assigned_op_bundle.v_ele_op),
+        //     .reduct_v_control       (assigned_op_bundle.v_reduct_op),
+        //     .v_a_element            (fetched_v_element_port1),
+        //     .v_a_scale              (fetched_v_scale_port1),
+        //     .v_a_valid              (v_v_a_valid),
+        //     .v_a_ready              (v_v_a_ready),
+        //     .v_b_element            (fetched_v_element_port2),
+        //     .v_b_scale              (fetched_v_scale_port2),
+        //     .v_b_valid              (v_v_b_valid),
+        //     .v_b_ready              (v_v_b_ready),
+        //     .s_in                   (fp_s_in),
+        //     .s_in_valid             (v_s_in_valid),
+        //     .s_in_ready             (v_s_in_ready),
+        //     .s_out                  (fp_s_out),
+        //     .s_out_valid            (v_s_out_valid),
+        //     .s_out_ready            (v_s_out_ready),
+        //     .result_waddr           (fixed_out_1),
+        //     .result_waddr_update    (v_update_waddr),
+        //     .v_out_element          (v_out_element),
+        //     .v_out_scale            (v_out_scale),
+        //     .v_out_valid            (v_v_out_valid),
+        //     .v_out_ready            (v_v_out_ready),
+        //     .v_waddr                (v_waddr),
+        //     .v_wreq                 (v_write_request)
+        // );
 
         // Scalar Compute Unit
         scalar_machine #(
@@ -358,59 +358,59 @@ module coprocessor (
     // -----------------------------
 
     // Matrix Memory 
-    matrix_sram_with_rounding #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .MLEN(MLEN),
-        .BLOCK_DIM(BLOCK_DIM),
-        .SRAM_DEPTH(MATRIX_SRAM_DEPTH),
-        .PARALLEL_DIM(Matrix_Parallel_Rd_Dim)
-    ) matrix_sram (
-        .clk(clk),
-        .rst(rst),
-        .req                (m_sram_req),
-        .transposed_read    (m_sram_transposed_read),
-        .write_en           (m_sram_wen),
-        .write_response     (),
-        .sram_addr          (m_sram_addr),
-        .element_in         (prefetch_m_element),
-        .scale_in           (prefetch_m_scale),
-        .element_out        (fetched_m_element),
-        .scale_out          (fetched_m_scale)
-    );
+    // matrix_sram_with_rounding #(
+    //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+    //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+    //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+    //     .MLEN(MLEN),
+    //     .BLOCK_DIM(BLOCK_DIM),
+    //     .SRAM_DEPTH(MATRIX_SRAM_DEPTH),
+    //     .PARALLEL_DIM(Matrix_Parallel_Rd_Dim)
+    // ) matrix_sram (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .req                (m_sram_req),
+    //     .transposed_read    (m_sram_transposed_read),
+    //     .write_en           (m_sram_wen),
+    //     .write_response     (),
+    //     .sram_addr          (m_sram_addr),
+    //     .element_in         (prefetch_m_element),
+    //     .scale_in           (prefetch_m_scale),
+    //     .element_out        (fetched_m_element),
+    //     .scale_out          (fetched_m_scale)
+    // );
 
     // Scratchpad SRAM
     // Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
     // Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
-    scratch_sram #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .VLEN(MLEN),
-        .BLOCK_DIM(BLOCK_DIM),
-        .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
-    ) vector_sram (
-        .clk(clk),
-        .rst(rst),
-        .req_a              (s_sram_req_a),
-        .write_en_a         (s_sram_wen_a),
-        .sram_addr_a        (s_sram_addr_a),
-        .element_in_a       (prefetched_v_element_port1),
-        .scale_in_a         (prefetched_v_scale_port1),
-        .mask_in_a          (s_sram_mask_a),
-        .element_out_a      (fetched_v_element_port1),
-        .scale_out_a        (fetched_v_scale_port1),
+    // scratch_sram #(
+    //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+    //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+    //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+    //     .VLEN(MLEN),
+    //     .BLOCK_DIM(BLOCK_DIM),
+    //     .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
+    // ) vector_sram (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .req_a              (s_sram_req_a),
+    //     .write_en_a         (s_sram_wen_a),
+    //     .sram_addr_a        (s_sram_addr_a),
+    //     .element_in_a       (prefetched_v_element_port1),
+    //     .scale_in_a         (prefetched_v_scale_port1),
+    //     .mask_in_a          (s_sram_mask_a),
+    //     .element_out_a      (fetched_v_element_port1),
+    //     .scale_out_a        (fetched_v_scale_port1),
         
-        .req_b              (s_sram_req_b),
-        .write_en_b         (s_sram_wen_b),
-        .sram_addr_b        (s_sram_addr_b),
-        .element_in_b       (prefetched_v_element_port2),
-        .scale_in_b         (prefetched_v_scale_port2),
-        .mask_in_b          (s_sram_mask_b),
-        .element_out_b      (fetched_v_element_port2),
-        .scale_out_b        (fetched_v_scale_port2)
-    );
+    //     .req_b              (s_sram_req_b),
+    //     .write_en_b         (s_sram_wen_b),
+    //     .sram_addr_b        (s_sram_addr_b),
+    //     .element_in_b       (prefetched_v_element_port2),
+    //     .scale_in_b         (prefetched_v_scale_port2),
+    //     .mask_in_b          (s_sram_mask_b),
+    //     .element_out_b      (fetched_v_element_port2),
+    //     .scale_out_b        (fetched_v_scale_port2)
+    // );
 
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
     `TL_BIND_HOST_PORT(out_element, element);

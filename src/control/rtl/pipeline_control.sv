@@ -152,22 +152,28 @@ module pipeline_control import pipeline_pkg::*; #(
                     assigned_op_bundle.m_op            <= STALL_M;
                     assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                     assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
-                    assigned_op_bundle.s_fp_op         <=  (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
-                                                    (decode_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
-                                                    (decode_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
-                                                    (decode_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
-                                                    (decode_instr_info.opcode == S_ISQRT_FP)  ? ISQRT_FP  :
-                                                    (decode_instr_info.opcode == S_LOG_FP  )  ? LOG_FP    : STALL_S_FP;
+                    assigned_op_bundle.s_fp_op         <=   (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
+                                                            (decode_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
+                                                            (decode_instr_info.opcode == S_MAX_FP )   ? MAX_FP    :
+                                                            (decode_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
+                                                            (decode_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
+                                                            (decode_instr_info.opcode == S_RECI_FP)   ? RECI_FP   :
+                                                            (decode_instr_info.opcode == S_SQRT_FP)   ? SQRT_FP   :
+                                                            (decode_instr_info.opcode == S_LD_REG_FP) ? LD_REG_FP :
+                                                            (decode_instr_info.opcode == S_ST_REG_FP) ? ST_REG_FP : STALL_S_FP;
                     
-                    assigned_op_bundle.s_fixed_op      <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
-                                                    (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
-                                                    (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
-                                                    (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
-                                                    (decode_instr_info.opcode == S_DIV_FIX)   ? DIV_FIX   :
-                                                    (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
-                                                    (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : STALL_S_FIXED;
+                    assigned_op_bundle.s_fixed_op      <=   (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
+                                                            (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
+                                                            (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
+                                                            (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
+                                                            (decode_instr_info.opcode == S_DIV_FIX)   ? DIV_FIX   :
+                                                            (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
+                                                            (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : 
+                                                            (decode_instr_info.opcode == S_LD_FIX)    ? LD_FIX    :
+                                                            (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    : STALL_S_FIXED;
                     
-                    if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MUL_FP) begin
+                    if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MAX_FP || decode_instr_info.opcode == S_MUL_FP) begin
+                        // Two FP source operands and one FP destination operand
                         rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
                         rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
                         rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
@@ -175,7 +181,8 @@ module pipeline_control import pipeline_pkg::*; #(
                         fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
                         fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                         imm             <= {IMM_WIDTH{1'b0}};
-                    end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_ISQRT_FP || decode_instr_info.opcode == S_LOG_FP) begin
+                    end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_RECI_FP || decode_instr_info.opcode == S_SQRT_FP) begin
+                        // Single FP source operand and single FP destination operand
                         rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
                         rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
                         rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
@@ -183,15 +190,17 @@ module pipeline_control import pipeline_pkg::*; #(
                         fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                         fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                         imm             <= {IMM_WIDTH{1'b0}};
-                    end else if ( decode_instr_info.opcode == S_ADDI_FIX) begin
-                        rs1             <= decode_instr_info.rs1;
-                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};;
-                        rd              <= decode_instr_info.rd;
+                    end else if (decode_instr_info.opcode == S_LD_REG_FP || decode_instr_info.opcode == S_ST_REG_FP) begin
+                        // Single FIXED Source operand (Storing Addr) and one IMM and one FP destination operand
+                        rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                        rd              <= {FIXED_OPERAND_WIDTH{1'b0}};
                         fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                         fps2            <= {FP_OPERAND_WIDTH{1'b0}};
-                        fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                        imm             <= {{(IMM_WIDTH - FIXED_OPERAND_WIDTH){1'b0}}, decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0]};
+                        fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
+                        imm             <= decode_instr_info.imm; // Might require shifting
                     end else begin
+                        // FIXED
                         rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                         rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                         rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];

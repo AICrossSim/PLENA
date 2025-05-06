@@ -123,7 +123,7 @@ Status      : Discarded
 //                                     (current_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
 //                                     (current_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
 //                                     (current_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
-//                                     (current_instr_info.opcode == S_ISQRT_FP)  ? ISQRT_FP  :
+//                                     (current_instr_info.opcode == S_SQRT_FP)  ? ISQRT_FP  :
 //                                     (current_instr_info.opcode == S_LOG_FP  )  ? LOG_FP    : STALL_S_FP;
                 
 //                 fixed_opcode    =   (current_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
@@ -142,7 +142,7 @@ Status      : Discarded
 //                     fps2          = current_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
 //                     fpd           = current_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
 //                     imm             = {IMM_WIDTH{1'b0}};
-//                 end else if (current_instr_info.opcode == S_EXP_FP || current_instr_info.opcode == S_ISQRT_FP || current_instr_info.opcode == S_LOG_FP) begin
+//                 end else if (current_instr_info.opcode == S_EXP_FP || current_instr_info.opcode == S_SQRT_FP || current_instr_info.opcode == S_LOG_FP) begin
 //                     rs1             = {FIXED_OPERAND_WIDTH{1'b0}};
 //                     rs2             = {FIXED_OPERAND_WIDTH{1'b0}};
 //                     rd              = {FIXED_OPERAND_WIDTH{1'b0}};

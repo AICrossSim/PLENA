@@ -16,19 +16,24 @@ module fp_cp_sqrt #(
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 
-    initial begin
-        assert (data_in[EXP_WIDTH + MANT_WIDTH : 0] != 0) else $error("data_in is not positive");
-    end
+    // initial begin
+    //     assert (data_in[EXP_WIDTH + MANT_WIDTH : 0] != 0) else $error("data_in is not positive");
+    // end
     logic sign_bit;
     assign sign_bit = data_in[EXP_WIDTH + MANT_WIDTH];
     
     // Runtime check for positive input
-    always_comb begin
-        if (sign_bit) begin
-            // Handle negative input - return 0 or NaN
-            data_out = '0; // Return 0 for negative inputs
-        end
-    end
+    // TODO Hide here due to multiple drive for data_out.
+    
+    logic [EXP_WIDTH + MANT_WIDTH : 0] computed_out;
+
+    // always_comb begin
+    //     if (sign_bit) begin
+    //         // Handle negative input - return 0 or NaN
+    //         data_out = '0; // Return 0 for negative inputs
+    //     end
+    // end
+    assign data_out = sign_bit ? '0 : computed_out;
 
     localparam SIGN_MANT_WIDTH = MANT_WIDTH + 2;
     localparam UNSIGNED_MANT_WIDTH = MANT_WIDTH + 1;
@@ -64,7 +69,8 @@ module fp_cp_sqrt #(
         end
     end
 
-    logic [MANT_WIDTH-1:0] round_new_mant;
+    // TODO
+    logic [MANT_WIDTH : 0] round_new_mant;
 
     fixed_round #(
         .IN_WIDTH(SIGN_MANT_WIDTH + 8),
@@ -89,7 +95,7 @@ module fp_cp_sqrt #(
     ) fp_ieee_normalize_inst (
         .signed_mant(signed_sqrt_mantissa),
         .signed_exp(new_exp),
-        .fp_out(data_out)
+        .fp_out(computed_out)
     );
 
 endmodule
