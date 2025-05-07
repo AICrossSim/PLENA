@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed May  7 17:09:26 2025
+[*] Wed May  7 22:09:29 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed May  7 17:05:12 2025"
-[dumpfile_size] 10720438
+[dumpfile_mtime] "Wed May  7 21:22:40 2025"
+[dumpfile_size] 19036811
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] -1 -1
-*-16.000000 183500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.000000 706400 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.hbm_controller_init.
@@ -29,21 +29,76 @@ rst
 SimTop.dut.decoder_init.loaded_opcode[5:0]
 @28
 SimTop.dut.decoder_init.decode_instr_valid
-@22
-SimTop.dut.scalar_machine.fixed_control[3:0]
-SimTop.dut.scalar_machine.fixed_alu_out[31:0]
-@28
-SimTop.dut.hbm_controller_init.set_addr_reg_en
-SimTop.dut.hbm_controller_init.address_mapper_inst.set_addr_en
-@22
-SimTop.dut.hbm_controller_init.address_mapper_inst.addr_in_a[31:0]
-SimTop.dut.hbm_controller_init.address_mapper_inst.addr_in_b[31:0]
-@28
 SimTop.dut.hbm_arbiter_init.hbm_prefetch_en
-SimTop.dut.hbm_controller_init.addr_reg_read_operand[2:0]
 @22
 SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
+SimTop.fake_hbm_element.bram_addr[63:0]
+@28
+SimTop.fake_hbm_element.bram_en
+@22
+SimTop.fake_hbm_element.bram_rdata[127:0]
+SimTop.fake_hbm_element.bram_wdata[127:0]
+@28
+SimTop.fake_hbm_element.bram_we
+SimTop.fake_hbm_element.clk
+SimTop.fake_hbm_element.host_a_valid_i
+SimTop.fake_hbm_element.host_a_ready_o
+SimTop.dut.hbm_controller_init.element_master.host_a_valid
+SimTop.dut.hbm_controller_init.element_master.host_a_ready_i
+SimTop.dut.hbm_controller_init.element_master.host_a_ready
+@22
+SimTop.dut.hbm_controller_init.element_master.host_a_o[147:0]
+@28
+SimTop.dut.hbm_controller_init.element_master.fetch_data_valid
+@22
+SimTop.dut.hbm_controller_init.element_master.host_a.address[63:0]
+@28
+SimTop.dut.hbm_controller_init.element_master.host_a.corrupt
+@22
+SimTop.dut.hbm_controller_init.element_master.host_a.data[63:0]
+SimTop.dut.element_a.address[63:0]
+SimTop.dut.hbm_controller_init.host_element_a_o[219:0]
+@28
+SimTop.dut.hbm_controller_init.element_master.state[1:0]
+@22
+SimTop.dut.hbm_controller_init.tl_element_a.address[63:0]
+@28
+SimTop.dut.hbm_controller_init.tl_element_a.opcode[2:0]
+SimTop.dut.hbm_controller_init.adapted_tl_element_a.opcode[2:0]
+@22
+SimTop.dut.hbm_controller_init.adapted_tl_element_a.mask[7:0]
+SimTop.dut.hbm_controller_init.adapted_tl_element_a.address[63:0]
+@28
+SimTop.dut.hbm_controller_init.adapted_tl_element_a_ready
+SimTop.dut.hbm_controller_init.adapted_tl_element_a_valid
+@22
+SimTop.dut.hbm_controller_init.adapter_for_element.data_cvt_a.address[63:0]
+@28
+SimTop.dut.hbm_controller_init.adapter_for_element.data_cvt_a.opcode[2:0]
+@22
+SimTop.dut.hbm_controller_init.adapter_for_element.sink_cvt_a.address[63:0]
+SimTop.dut.hbm_controller_init.adapter_for_element.device_a_o[219:0]
+@28
+SimTop.dut.hbm_controller_init.host_element_a_ready_i
+@22
+SimTop.dut.hbm_controller_init.host_element_a_o[219:0]
+@28
+SimTop.element_link_a_ready
+SimTop.dut.out_element_a_ready_i
+SimTop.dut.hbm_controller_init.host_element_a_ready_i
+SimTop.dut.element_a_ready
+SimTop.dut.hbm_controller_init.adapted_tl_element_a.opcode[2:0]
+SimTop.dut.hbm_controller_init.adapted_tl_element_a_ready
+SimTop.dut.hbm_controller_init.adapted_tl_element_a_valid
+@22
+SimTop.dut.hbm_controller_init.adapter_for_element.device_a_o[219:0]
+@28
+SimTop.dut.hbm_controller_init.adapter_for_element.device_a_ready
+SimTop.dut.hbm_controller_init.adapter_for_element.device_a_valid
+SimTop.dut.hbm_controller_init.adapter_for_element.device_a_valid_o
+@22
+SimTop.dut.hbm_controller_init.adapter_for_element.device_a_o[219:0]
 @23
-SimTop.dut.hbm_controller_init.addr_in_a[31:0]
+SimTop.dut.hbm_controller_init.host_element_a_o[219:0]
 [pattern_trace] 1
 [pattern_trace] 0

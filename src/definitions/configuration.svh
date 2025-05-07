@@ -3,10 +3,10 @@
 
 package configuration_pkg;
     parameter   BATCH_SIZE                      = 1;
-    parameter   MLEN                            = 16;
+    parameter   MLEN                            = 4;
     parameter   Matrix_Parallel_Rd_Dim          = 2;
     parameter   MATRIX_SRAM_DEPTH               = 128;
-    parameter   VLEN                            = 16;
+    parameter   VLEN                            = 4;
     parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
     parameter   INST_BUFF_DEPTH                 = 8;
     parameter   HBM_ADDR_WIDTH                  = 64;

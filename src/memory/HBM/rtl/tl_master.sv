@@ -81,53 +81,59 @@ module tl_master #(
 
   // FSM combinational logic
   always_comb begin
-    host_d_ready  = req_en;
-    host_a.mask    = {MASK_WIDTH{1'b1}};
-    // next_state = state;
-    case (state)
-      IDLE: begin
-        if (req_en) begin
-          if (write_en) begin
-            next_a_opcode = PutFullData; // PutFullData
-            next_addr   = write_addr;
-            next_wdata  = write_data;
-            next_state  = SEND_REQ;
-          end else begin
-            next_a_opcode = Get; // Get
-            next_addr   = fetch_addr;
-            next_state  = SEND_REQ;
+    if (rst) begin
+      next_state = IDLE;
+    end else begin
+      
+      host_d_ready  = req_en;
+      host_a.mask    = {MASK_WIDTH{1'b1}};
+      // next_state = state;
+      case (state)
+        IDLE: begin
+          if (req_en) begin
+            if (write_en) begin
+              next_a_opcode = PutFullData; // PutFullData
+              next_addr   = write_addr;
+              next_wdata  = write_data;
+              next_state  = SEND_REQ;
+            end else begin
+              next_a_opcode = Get; // Get
+              next_addr   = fetch_addr;
+              next_state  = SEND_REQ;
+            end
+          end 
+        end
+
+        SEND_REQ: begin
+          host_a_valid   = 1'b1;
+          host_a.opcode  = next_a_opcode;
+          host_a.address = next_addr;
+          if (next_a_opcode == PutFullData) begin // PutFullData
+            host_a.data = next_wdata;
           end
-        end 
-      end
-
-      SEND_REQ: begin
-        host_a_valid   = 1'b1;
-        host_a.opcode  = next_a_opcode;
-        host_a.address = next_addr;
-        if (next_a_opcode == PutFullData) begin // PutFullData
-          host_a.data = next_wdata;
+          if (host_a_ready) begin
+            next_state = WAIT_RESP;
+          end
         end
-        if (host_a_ready) begin
-          next_state = WAIT_RESP;
-        end
-      end
 
-      WAIT_RESP: begin
-        if (host_d_valid) begin
-          next_state = IDLE;
+        WAIT_RESP: begin
+          if (host_d_valid) begin
+            next_state = IDLE;
+          end
         end
-      end
 
-      default: begin
-        // Default TileLink signals
-        host_a_valid   = 1'b0;
-        host_a.opcode  = PutFullData;
-        host_a.param   = 3'b000;
-        host_a.size    = 3'b110; // 4 bytes
-        host_a.source  = '0;
-        host_a.address = '0;
-        host_a.data    = '0;
-      end
-    endcase
+        default: begin
+          // Default TileLink signals
+          host_a_valid   = 1'b0;
+          host_a.opcode  = PutFullData;
+          host_a.param   = 3'b000;
+          host_a.size    = 3'b110; // 4 bytes
+          host_a.source  = '0;
+          host_a.address = '0;
+          host_a.data    = '0;
+          next_state     = IDLE;
+        end
+      endcase
+    end
   end
 endmodule

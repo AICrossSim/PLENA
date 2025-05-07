@@ -63,7 +63,7 @@ module hbm_controller #(
     input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,
 
     // TL Interface
-    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
 );
     initial begin
@@ -90,6 +90,8 @@ module hbm_controller #(
     );
 
     `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_element);
+    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, adapted_tl_element);
+    `TL_BIND_HOST_PORT(host_element, adapted_tl_element);
 
     // TL for element
     tl_master #(
@@ -112,24 +114,29 @@ module hbm_controller #(
         `TL_CONNECT_HOST_PORT(host, tl_element)
     );
 
+    logic [219:0] test_device_a_data_o;
     tl_adapter #(
         .HostDataWidth(ELE_WIDTH),
         .DeviceDataWidth(HBM_ELE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
-        .HostFifo(1),
-        .DeviceFifo(1)
+        .HostFifo(1'b0),
+        .DeviceFifo(1'b1)
     ) adapter_for_element (
         .clk_i(clk),
         .rst_ni(!rst),
         // TileLink Interface
-        `TL_CONNECT_DEVICE_PORT(host, tl_element ),
-        `TL_CONNECT_HOST_PORT(device, host_scale )
+        `TL_CONNECT_DEVICE_PORT(host, tl_element),
+        `TL_CONNECT_HOST_PORT(device, adapted_tl_element)
     );
 
+    
+
     // TL for scale
-    `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
+    `TL_DECLARE(SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
+    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, adapted_tl_scale);
+    `TL_BIND_HOST_PORT(host_scale, adapted_tl_scale);
 
     // Converting to TileLink
     tl_master #(

@@ -413,6 +413,7 @@ module coprocessor (
 
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
     `TL_BIND_HOST_PORT(out_element, element);
+
     `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
     `TL_BIND_HOST_PORT(out_scale, scale);
 
@@ -480,8 +481,6 @@ module coprocessor (
         .h_op(assigned_op_bundle.h_op),
         .prefetch_content_ready (prefetch_content_ready)
     );
-
-
 
     hbm_controller #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
