@@ -7,7 +7,7 @@ parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
 parameter OPCODE_WIDTH = 6;
-parameter IMM_WIDTH = 32;
+parameter IMM_WIDTH = 7;
 parameter INSTRUCTION_LENGTH = 16;
 
 
@@ -16,7 +16,7 @@ package instruction_pkg;
     parameter FP_OPERAND_WIDTH = 3;
     parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
     parameter OPCODE_WIDTH = 6;
-    parameter IMM_WIDTH = 32;
+    parameter IMM_WIDTH = 7;
     parameter INSTRUCTION_LENGTH = 16;
 endpackage
 
@@ -66,7 +66,7 @@ typedef enum logic [3:0] {
     LD_FIX    = 7,
     ST_FIX    = 8,
     COMP_ADDR = 9,
-    STALL_S_FIXED = 11
+    STALL_S_FIXED = 10
 } S_FIXED_OP;
 
 
@@ -116,33 +116,33 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_RECI_FP       = 6'h12,
     S_SQRT_FP       = 6'h13,
     S_LD_REG_FP     = 6'h14,
-    // S_LD_OUT_FP     = 6'h15,
-    S_ST_REG_FP     = 6'h16,
+    S_ST_REG_FP     = 6'h15,
 
     // Scalar Operation (Fixed-Point)
-    S_ADD_FIX       = 6'h17,
-    S_ADDI_FIX      = 6'h18,
-    S_SUB_FIX       = 6'h19,
-    S_MUL_FIX       = 6'h1A,
-    S_DIV_FIX       = 6'h1B,
-    S_LUI_FIX       = 6'h1C,
-    S_MV_FIX        = 6'h1D,
-    S_LD_FIX        = 6'h1E,
-    S_ST_FIX        = 6'h1F,
+    S_ADD_FIX       = 6'h16,
+    S_ADDI_FIX      = 6'h17,
+    S_SUB_FIX       = 6'h18,
+    S_MUL_FIX       = 6'h19,
+    S_DIV_FIX       = 6'h1A,
+    S_LUI_FIX       = 6'h1B,
+    S_MV_FIX        = 6'h1C,
+    S_LD_FIX        = 6'h1D,
+    S_ST_FIX        = 6'h1E,
 
     // Memory Operation
-    H_PREFETCH_M    = 6'h20,
-    H_PREFETCH_V    = 6'h21,
-    H_STORE_V       = 6'h22,
+    H_PREFETCH_M    = 6'h1F,
+    H_PREFETCH_V    = 6'h20,
+    H_STORE_V       = 6'h21,
 
     // CSR Setting
-    C_SET_ADDR_REG  = 6'h23,
-    C_SET_M_OFFSET  = 6'h24,
-    C_SET_LUT       = 6'h25,
+    C_SET_ADDR_REG  = 6'h22,
+    C_SET_M_OFFSET  = 6'h23,
+    C_SET_LUT       = 6'h24,
 
     // Invalid
-    INVALID_OPCODE  = 6'h26
+    INVALID_OPCODE  = 6'h25
 } CUSTOM_ISA_OPCODE;
+
 
 
 

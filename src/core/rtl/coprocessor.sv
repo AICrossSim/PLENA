@@ -32,8 +32,6 @@ module coprocessor (
     import configuration_pkg::*;
     import instruction_pkg::*;
 
-    // TODO: PCIe Interface
-    assign instruction_ready = 1'b1;
 
     // Control Signals Declaration
     // HBM Control

@@ -24,13 +24,25 @@ module regfile_2p1w #(
     output logic [BITWIDTH-1:0]   rdata2            // Read data port 2
 );
 
+
+
     // Memory declaration
     logic [BITWIDTH-1:0] mem [0:DEPTH-1];
+
+    initial begin
+        // Initialize memory to zero
+        for (int i = 0; i < DEPTH; i++) begin
+            mem[i] = '0;
+        end
+    end
 
     // Write logic
     always_ff @(posedge clk) begin
         if (we) begin
-            mem[waddr] <= wdata;
+            // assert (waddr != 0) else $error("Attempting to write to address 0");
+            if (waddr != 0) begin  // Avoid writing to address 0
+                mem[waddr] <= wdata;
+            end
         end
     end
 

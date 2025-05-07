@@ -35,12 +35,10 @@ module decoder #(
     output  logic decode_instr_valid
 );
 
-logic loaded_instr_valid;
 logic [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic read_instr_from_fifo;
-logic fifo_empty;
 
-assign read_instr_from_fifo = read_next_instr && !fifo_empty;
+assign read_instr_from_fifo = read_next_instr;
 
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
@@ -52,9 +50,9 @@ fifo #(
     .data_in_valid(instruction_valid),
     .data_in_ready(instruction_ready),
     .data_out(loaded_instr),
-    .data_out_valid(loaded_instr_valid),
+    .data_out_valid(decode_instr_valid),
     .data_out_ready(read_instr_from_fifo),
-    .empty(fifo_empty),
+    .empty(),
     .full(instr_buffer_full)
 );
 
@@ -68,11 +66,11 @@ logic [IMM_WIDTH - 1 : 0]       loaded_imm;
 
 
 
-assign loaded_imm       = loaded_instr[INSTRUCTION_LENGTH - 1 -: OPERAND_WIDTH];
+assign loaded_imm       = loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_WIDTH];
 assign loaded_rs2       = loaded_instr[INSTRUCTION_LENGTH - 1 -: OPERAND_WIDTH];
 assign loaded_rs1       = loaded_instr[(INSTRUCTION_LENGTH - OPERAND_WIDTH - 1) -: OPERAND_WIDTH];
 assign loaded_rd        = loaded_instr[(INSTRUCTION_LENGTH - 2 * OPERAND_WIDTH - 1) -: OPERAND_WIDTH];
-assign loaded_opcode    = loaded_instr[OPERAND_WIDTH - 1 : 0];
+assign loaded_opcode    = loaded_instr[OPCODE_WIDTH - 1 : 0];
 
 CUSTOM_ISA_TYPE decode_instruction_type;
 

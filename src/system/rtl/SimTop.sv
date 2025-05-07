@@ -33,6 +33,7 @@ coprocessor  dut (
     .rst(rst),
     .instruction(instruction),
     .instruction_valid(instruction_valid),
+    .instruction_ready(instruction_ready),
     `TL_CONNECT_HOST_PORT(out_element,  element_link),
     `TL_CONNECT_HOST_PORT(out_scale,    scale_link)
 );

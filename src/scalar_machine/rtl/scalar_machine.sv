@@ -11,6 +11,7 @@ Status      : Under Testing
 */
 
 module scalar_machine #(
+
     // MX-FP Data Format
     parameter   MXFP_MANT_WIDTH   = 8,
     parameter   MXFP_EXP_WIDTH    = 4,
@@ -119,20 +120,21 @@ module scalar_machine #(
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram;
     logic fix_we;
 
-    assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != COMP_ADDR && fixed_control == ST_FIX) ? 1'b1 : 1'b0;
+    assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != COMP_ADDR && fixed_control != ST_FIX) ? 1'b1 : 1'b0;
     assign fixed_reg_wdata = (fixed_control == LD_FIX) ? fixed_ld_from_sram : fixed_alu_out;
-    assign fixed_out_1 = fixed_reg_1;
-    assign fixed_out_2 = fixed_reg_2;
+    assign fixed_out_1 = (fixed_control == COMP_ADDR) ? fixed_reg_1 : 'b0;
+    assign fixed_out_2 = (fixed_control == COMP_ADDR) ? fixed_reg_2 : 'b0;
 
 
     fixed_alu #(
-        .BITWIDTH(FIXED_DATA_WIDTH)
+        .BITWIDTH(FIXED_DATA_WIDTH),
+        .IMM_WIDTH(IMM_WIDTH)
     ) fixed_alu (
-        .operand_a(fixed_reg_1),
-        .operand_b(fixed_reg_2),
-        .imm_value(imm_in),
-        .operation(fixed_control),
-        .result(fixed_alu_out)
+        .operand_a  (fixed_reg_1),
+        .operand_b  (fixed_reg_2),
+        .imm_value  (imm_in),
+        .operation  (fixed_control),
+        .result     (fixed_alu_out)
     );
 
 
@@ -140,14 +142,14 @@ module scalar_machine #(
         .BITWIDTH(FIXED_DATA_WIDTH),
         .DEPTH(2 << FIXED_OPERAND_WIDTH)
     ) fixed_reg_file (
-        .clk(clk),
-        .we(fix_we),
-        .waddr(rd),
-        .wdata(fixed_reg_wdata),
-        .raddr1(rs1),
-        .raddr2(rs2),
-        .rdata1(fixed_reg_1),
-        .rdata2(fixed_reg_2)
+        .clk        (clk),
+        .we         (fix_we),
+        .waddr      (rd),
+        .wdata      (fixed_reg_wdata),
+        .raddr1     (rs1),
+        .raddr2     (rs2),
+        .rdata1     (fixed_reg_1),
+        .rdata2     (fixed_reg_2)
     );
 
 

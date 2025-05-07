@@ -92,7 +92,7 @@ module pipeline_control import pipeline_pkg::*; #(
                 fpd             <= 'b0;
                 imm             <= 'b0;
             end else begin
-                
+                // TODO
             end
 
         end else begin
@@ -100,7 +100,7 @@ module pipeline_control import pipeline_pkg::*; #(
             assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
             assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
             
-            case(decode_instr_info.opcode)
+            case(decode_instr_info.instruction_type)
                 M: begin
                     assigned_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
                     assigned_op_bundle.v_ele_op    <= STALL_V_ELEMENT;
@@ -199,6 +199,15 @@ module pipeline_control import pipeline_pkg::*; #(
                         fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                         fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                         imm             <= decode_instr_info.imm; // Might require shifting
+                    end else if (decode_instr_info.opcode == S_ADDI_FIX ) begin
+                        // S_ADDI_FIX
+                        rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                        fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                        imm             <= {{IMM_WIDTH - FIXED_OPERAND_WIDTH {1'b0}}, decode_instr_info.imm[FIXED_OPERAND_WIDTH:0]}; // Might require shifting
                     end else begin
                         // FIXED
                         rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
@@ -207,7 +216,7 @@ module pipeline_control import pipeline_pkg::*; #(
                         fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                         fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                         fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                        imm             <= {IMM_WIDTH{1'b0}};
+                        imm             <= decode_instr_info.imm; // Might require shifting
                     end
                 end
 
@@ -261,16 +270,28 @@ module pipeline_control import pipeline_pkg::*; #(
                     fpd             <= {FP_OPERAND_WIDTH{1'b0}};
                     imm             <= {IMM_WIDTH{1'b0}};
                 end
-        
             endcase
-
         end    
-
-
     end
 
     // Trace Registers in execution and decide on the pipeline stalls.
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] tracked_write_fixed_reg [MAX_PIPELINE_STAGE - 1: 0];
+
+
+    // typedef struct packed {
+    //     logic [FIXED_OPERAND_WIDTH - 1 : 0] operand_idx;
+    //     logic valid;
+    // } write_reg_tracked_content;
+    
+    
+    // logic [FIXED_OPERAND_WIDTH - 1 : 0] tracked_write_fixed_reg [MAX_PIPELINE_STAGE - 1: 0];
+    
+    // always_ff @(posedge clk) begin
+    //     if (!pipeline_stall) begin
+    //         for (int i = 0; i < MAX_PIPELINE_STAGE; i++) begin
+    //             tracked_write_fixed_reg[i] <= tracked_write_fixed_reg[i];
+    //         end
+    //     end 
+    // end
 
 
 endmodule

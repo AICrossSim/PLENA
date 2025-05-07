@@ -9,12 +9,13 @@ Status      : Under Development
 */
 
 module fixed_alu #(
-    parameter int BITWIDTH = 32
+    parameter int BITWIDTH = 32,
+    parameter int IMM_WIDTH = 16
 )(
     input  logic [BITWIDTH-1:0]   operand_a,
     input  logic [BITWIDTH-1:0]   operand_b,
-    input  logic [BITWIDTH-1:0]   imm_value,    // Immediate value
-    input  S_FIXED_OP         operation,           // 0 for add, 1 for sub
+    input  logic [IMM_WIDTH-1:0]  imm_value,    // Immediate value
+    input  S_FIXED_OP             operation,           // 0 for add, 1 for sub
     output logic [BITWIDTH-1:0]   result
 );
 
@@ -27,6 +28,10 @@ module fixed_alu #(
                 result = operand_a + operand_b; // Addition
             SUB_FIX:
                 result = operand_a - operand_b; // Subtraction
+            DIV_FIX:
+                result = operand_a / operand_b; // Division
+            LUI_FIX:
+                result = { {(BITWIDTH - IMM_WIDTH - 12){1'b0}}, imm_value, 12'b0};     // Load upper immediate
             default: result = '0;
         endcase
     end
