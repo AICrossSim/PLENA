@@ -66,7 +66,8 @@ typedef enum logic [3:0] {
     LD_FIX    = 7,
     ST_FIX    = 8,
     COMP_ADDR = 9,
-    STALL_S_FIXED = 10
+    COMP_ADDR_2 = 10,
+    STALL_S_FIXED = 11
 } S_FIXED_OP;
 
 

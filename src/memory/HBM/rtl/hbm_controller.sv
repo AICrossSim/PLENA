@@ -45,7 +45,8 @@ module hbm_controller #(
     input   logic   set_addr_reg_en,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_b,
-    input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_operand,
+    input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_write_operand,
+    input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_read_operand,
 
     // HBM data prefetching
     output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
@@ -79,12 +80,13 @@ module hbm_controller #(
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
-        .mapp_addr_en(hbm_write_en || hbm_prefetch_en),
-        .set_addr_en(set_addr_reg_en),
-        .addr_in_a(addr_in_a),
-        .addr_in_b(addr_in_b),
-        .target_operand(addr_reg_operand),
-        .hbm_addr_out(hbm_addr_out)
+        .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
+        .set_addr_en    (set_addr_reg_en),
+        .addr_in_a      (addr_in_a),
+        .addr_in_b      (addr_in_b),
+        .read_operand   (addr_reg_read_operand),
+        .write_operand  (addr_reg_write_operand),
+        .hbm_addr_out   (hbm_addr_out)
     );
 
     `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_element);
@@ -103,7 +105,7 @@ module hbm_controller #(
         .req_en(hbm_prefetch_en),
         .write_en(write_en),
         
-        .fetch_addr(fetch_addr),
+        .fetch_addr(hbm_addr_out),
         .fetch_data(prefetch_element),
         .write_data(hbm_write_element),
 
@@ -143,7 +145,7 @@ module hbm_controller #(
         .req_en(hbm_prefetch_en),
         .write_en(write_en),
         
-        .fetch_addr(fetch_addr),
+        .fetch_addr(hbm_addr_out),
         .fetch_data(prefetch_scale),
         .write_data(hbm_write_scale),
 

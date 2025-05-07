@@ -28,6 +28,7 @@ module pipeline_control import pipeline_pkg::*; #(
     input       logic memory_load_failed,
     input       logic v_write_request,            // One clock earlier than the vector output get valid.
     input       logic m_write_request,
+    input       logic s_fp_reg_write_request,
 
     // Current control operation
     output      logic       pipeline_stall,
@@ -83,7 +84,8 @@ module pipeline_control import pipeline_pkg::*; #(
                 assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                 assigned_op_bundle.s_fp_op         <= STALL_S_FP;
                 assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
-
+                assigned_op_bundle.c_op            <= STALL_C;
+                assigned_op_bundle.h_op            <= STALL_H;
                 rs1             <= rd;
                 rs2             <= 'b0;
                 rd              <= 'b0;
@@ -107,7 +109,8 @@ module pipeline_control import pipeline_pkg::*; #(
                     assigned_op_bundle.v_reduct_op <= STALL_V_REDUCT;
                     assigned_op_bundle.s_fp_op     <= STALL_S_FP;
                     assigned_op_bundle.s_fixed_op  <= COMP_ADDR;
-
+                    assigned_op_bundle.c_op            <= STALL_C;
+                    assigned_op_bundle.h_op            <= STALL_H;
                     fps1    <= {FP_OPERAND_WIDTH{1'b0}};
                     fps2    <= {FP_OPERAND_WIDTH{1'b0}};
                     fpd     <= {FP_OPERAND_WIDTH{1'b0}};
@@ -129,7 +132,8 @@ module pipeline_control import pipeline_pkg::*; #(
                                                 (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                     
                     assigned_op_bundle.s_fixed_op   <= COMP_ADDR;
-
+                    assigned_op_bundle.c_op            <= STALL_C;
+                    assigned_op_bundle.h_op            <= STALL_H;
                     if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
                         assigned_op_bundle.s_fp_op     <= LD_OUT_FP;
                         rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
@@ -171,7 +175,8 @@ module pipeline_control import pipeline_pkg::*; #(
                                                             (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : 
                                                             (decode_instr_info.opcode == S_LD_FIX)    ? LD_FIX    :
                                                             (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    : STALL_S_FIXED;
-                    
+                    assigned_op_bundle.c_op            <= STALL_C;
+                    assigned_op_bundle.h_op            <= STALL_H;
                     if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MAX_FP || decode_instr_info.opcode == S_MUL_FP) begin
                         // Two FP source operands and one FP destination operand
                         rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};
@@ -226,13 +231,18 @@ module pipeline_control import pipeline_pkg::*; #(
                     assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                     assigned_op_bundle.s_fp_op         <= STALL_S_FP;
                     assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
+                    assigned_op_bundle.h_op            <= STALL_H;
+
                     if (decode_instr_info.opcode == C_SET_ADDR_REG) begin
-                        
+                        assigned_op_bundle.c_op <= SET_ADDR_REG;
                     end
+                    assigned_op_bundle.c_op <=  (decode_instr_info.opcode == C_SET_ADDR_REG)    ? SET_ADDR_REG :
+                                                (decode_instr_info.opcode == C_SET_M_OFFSET)    ? SET_M_OFFSET :
+                                                (decode_instr_info.opcode == C_SET_LUT)         ? SET_LUT : STALL_C; 
 
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
                     fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     fpd             <= {FP_OPERAND_WIDTH{1'b0}};
@@ -244,11 +254,17 @@ module pipeline_control import pipeline_pkg::*; #(
                     assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                     assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                     assigned_op_bundle.s_fp_op         <= STALL_S_FP;
-                    assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
+                    assigned_op_bundle.s_fixed_op      <= COMP_ADDR_2;
+                    assigned_op_bundle.c_op            <= STALL_C;
+                    assigned_op_bundle.h_op <=  (decode_instr_info.opcode == H_PREFETCH_M)    ? PREFETCH_M :
+                                                (decode_instr_info.opcode == H_PREFETCH_V)    ? PREFETCH_V :
+                                                (decode_instr_info.opcode == H_STORE_V)       ? STORE_V : STALL_H;
+
+
 
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
                     fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     fpd             <= {FP_OPERAND_WIDTH{1'b0}};
@@ -261,6 +277,8 @@ module pipeline_control import pipeline_pkg::*; #(
                     assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                     assigned_op_bundle.s_fp_op         <= STALL_S_FP;
                     assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
+                    assigned_op_bundle.c_op            <= STALL_C;
+                    assigned_op_bundle.h_op            <= STALL_H;
 
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];

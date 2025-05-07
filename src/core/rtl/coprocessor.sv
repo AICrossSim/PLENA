@@ -58,7 +58,7 @@ module coprocessor (
 
     INSTR_INFO  decode_instr_info;
     logic       read_next_instr, decode_instr_valid;
-    OP_BUNDLE   assigned_op_bundle;
+    OP_BUNDLE   assigned_op_bundle, exe_op_bundle;
     logic       m_update_waddr, v_update_waddr;
     logic       m_write_request, v_write_request;
     
@@ -197,7 +197,8 @@ module coprocessor (
         .prefetch_m_ready       (hbm_m_prefetch_en),
         .dma_v_ready            (hbm_v_prefetch_complete),
         .prefetch_v_ready       (hbm_v_prefetch_en),
-        .prefetch_addr          (prefetch_addr)
+        .prefetch_addr          (prefetch_addr),
+        .exe_op_bundle          (exe_op_bundle)
     );
 
     // -----------------------------
@@ -419,7 +420,6 @@ module coprocessor (
     logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
     logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
-    logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_target_addr;
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_prefetch_addr;
     logic prefetch_content_ready;
 
@@ -448,12 +448,11 @@ module coprocessor (
         .prefetch_scale         (hbm_scale_out),
         .prefetch_data_valid    (hbm_prefetch_valid),
         .hbm_prefetch_en        (hbm_prefetch_en),
-        .target_addr            (prefetch_target_addr),
+        .target_addr            (fixed_out_2),
         .prefetch_hbm_raddr     (hbm_prefetch_addr),
 
         // HBM Write
         .hbm_write_en           (hbm_write_en),
-        .hbm_read_en            (hbm_read_en),
         .hbm_write_ready        (hbm_write_ready),
         .hbm_write_valid        (hbm_write_valid),
         .hbm_write_element      (hbm_element_in),
@@ -508,13 +507,14 @@ module coprocessor (
         .set_addr_reg_en    (assigned_op_bundle.c_op == SET_ADDR_REG),
         .addr_in_a          (fixed_out_1),
         .addr_in_b          (fixed_out_2),
-        .addr_reg_operand   (rs2),
+        .addr_reg_write_operand   (s_rd),
+        .addr_reg_read_operand    (s_rs2),
 
         // Prefetching
         .prefetch_element   (hbm_element_out),
         .prefetch_scale     (hbm_scale_out),
         .prefetch_data_valid(hbm_prefetch_valid),
-        .hbm_prefetch_en    (hbm_read_en),
+        .hbm_prefetch_en    (hbm_prefetch_en),
 
         // HBM Write
         .hbm_write_en       (hbm_write_en),

@@ -1,18 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed May  7 10:47:39 2025
+[*] Wed May  7 17:09:26 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed May  7 10:35:59 2025"
-[dumpfile_size] 10717051
+[dumpfile_mtime] "Wed May  7 17:05:12 2025"
+[dumpfile_size] 10720438
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] -1 -1
-*-16.000000 140000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.000000 183500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[sst_width] 214
+[treeopen] SimTop.dut.hbm_controller_init.
+[sst_width] 326
 [signals_width] 254
 [sst_expanded] 1
 [sst_vpaned_height] 419
@@ -30,7 +31,19 @@ SimTop.dut.decoder_init.loaded_opcode[5:0]
 SimTop.dut.decoder_init.decode_instr_valid
 @22
 SimTop.dut.scalar_machine.fixed_control[3:0]
-@23
 SimTop.dut.scalar_machine.fixed_alu_out[31:0]
+@28
+SimTop.dut.hbm_controller_init.set_addr_reg_en
+SimTop.dut.hbm_controller_init.address_mapper_inst.set_addr_en
+@22
+SimTop.dut.hbm_controller_init.address_mapper_inst.addr_in_a[31:0]
+SimTop.dut.hbm_controller_init.address_mapper_inst.addr_in_b[31:0]
+@28
+SimTop.dut.hbm_arbiter_init.hbm_prefetch_en
+SimTop.dut.hbm_controller_init.addr_reg_read_operand[2:0]
+@22
+SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
+@23
+SimTop.dut.hbm_controller_init.addr_in_a[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

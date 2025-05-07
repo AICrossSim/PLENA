@@ -10,7 +10,8 @@ Status      : Under Development
 
 module fixed_alu #(
     parameter int BITWIDTH = 32,
-    parameter int IMM_WIDTH = 16
+    parameter int IMM_WIDTH = 16,
+    parameter int IMM_SHIFT_AMOUNT = 12
 )(
     input  logic [BITWIDTH-1:0]   operand_a,
     input  logic [BITWIDTH-1:0]   operand_b,
@@ -31,7 +32,7 @@ module fixed_alu #(
             DIV_FIX:
                 result = operand_a / operand_b; // Division
             LUI_FIX:
-                result = { {(BITWIDTH - IMM_WIDTH - 12){1'b0}}, imm_value, 12'b0};     // Load upper immediate
+                result = { {(BITWIDTH - IMM_WIDTH - IMM_SHIFT_AMOUNT){1'b0}}, imm_value, {IMM_SHIFT_AMOUNT{1'b0}}};     // Load upper immediate
             default: result = '0;
         endcase
     end

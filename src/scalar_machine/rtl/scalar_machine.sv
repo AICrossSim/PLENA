@@ -116,15 +116,20 @@ module scalar_machine #(
         .rdata_o(fp_ld_from_sram)
     );
 
+
+
     // Fixed Unit
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram;
     logic fix_we;
 
     assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != COMP_ADDR && fixed_control != ST_FIX) ? 1'b1 : 1'b0;
     assign fixed_reg_wdata = (fixed_control == LD_FIX) ? fixed_ld_from_sram : fixed_alu_out;
-    assign fixed_out_1 = (fixed_control == COMP_ADDR) ? fixed_reg_1 : 'b0;
-    assign fixed_out_2 = (fixed_control == COMP_ADDR) ? fixed_reg_2 : 'b0;
+    assign fixed_out_1 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_1 : 'b0;
+    assign fixed_out_2 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_2 : 'b0;
 
+    logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
+    assign fixed_reg_addr_1 = rs1;
+    assign fixed_reg_addr_2 = (fixed_control == COMP_ADDR_2) ? rd : rs2;
 
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH),
@@ -146,8 +151,8 @@ module scalar_machine #(
         .we         (fix_we),
         .waddr      (rd),
         .wdata      (fixed_reg_wdata),
-        .raddr1     (rs1),
-        .raddr2     (rs2),
+        .raddr1     (fixed_reg_addr_1),
+        .raddr2     (fixed_reg_addr_2),
         .rdata1     (fixed_reg_1),
         .rdata2     (fixed_reg_2)
     );

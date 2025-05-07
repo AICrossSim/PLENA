@@ -85,11 +85,12 @@ module data_flow_control #(
     output      logic prefetch_m_ready,
     input       logic dma_v_ready,
     output      logic prefetch_v_ready,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr,
+
+    // Execution
+    output      OP_BUNDLE         exe_op_bundle
 );
 
-
-OP_BUNDLE         exe_op_bundle;
 logic             exe_m_write_en, exe_v_write_en; 
 
 always_ff @(posedge clk or negedge rst ) begin

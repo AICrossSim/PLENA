@@ -41,7 +41,6 @@ module hbm_arbiter #(
     input   logic   [HBM_ADDR_WIDTH - 1 : 0]        prefetch_hbm_raddr,
 
     output   logic                                  hbm_write_en,
-    output   logic                                  hbm_read_en,
     input    logic                                  hbm_write_ready,
     output   logic                                  hbm_write_valid,
     output   logic   [ELE_WIDTH - 1 : 0]            hbm_write_element,
@@ -73,7 +72,10 @@ module hbm_arbiter #(
 // Scratchpad SRAM, Distributer is required.
 
 typedef enum logic [1:0] {
-    IDLE, HBM_PREFETCH_M, HBM_PREFETCH_V, HBM_STORE_V
+    IDLE            = 2'b00, 
+    HBM_PREFETCH_M  = 2'b01, 
+    HBM_PREFETCH_V  = 2'b10, 
+    HBM_STORE_V     = 2'b11
 } HBM_STATE;
 
 HBM_STATE hbm_state, next_hbm_state;
@@ -88,7 +90,10 @@ logic [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
 
 
 always_ff @(posedge clk or posedge rst) begin
-    if (!rst) begin
+    if (rst) begin
+        hbm_state <= IDLE;
+    end else begin
+        hbm_state <= next_hbm_state;
         if (prefetch_data_valid) begin
             if (hbm_state == HBM_PREFETCH_V) begin
                 hbm_v_element <= prefetch_element;
@@ -102,11 +107,9 @@ always_ff @(posedge clk or posedge rst) begin
                 hbm_m_addr_tag <= prefetch_hbm_raddr;
             end
         end 
-        hbm_state <= next_hbm_state;
     end
-end 
+end
 
-logic [ADDR_WIDTH - 1 : 0]          recorded_prefetch_raddr;
 logic [ADDR_WIDTH - 1 : 0]          recorded_prefetch_waddr;
 logic [Parallel_Rd_Dim - 1 : 0]     matched_tag;
 logic [V_ELE_WIDTH- 1 : 0]          matched_v_element;
@@ -117,22 +120,18 @@ always_comb  begin
         IDLE: begin
             if (h_op == PREFETCH_M) begin
                 next_hbm_state = HBM_PREFETCH_M;
-                recorded_prefetch_raddr = target_addr;
-                hbm_read_en = 1'b1;
+                recorded_prefetch_waddr = target_addr;
                 hbm_prefetch_en = 1'b1;
             end else if (h_op == PREFETCH_V) begin
                 next_hbm_state = HBM_PREFETCH_V;
-                recorded_prefetch_raddr = target_addr;
-                hbm_read_en = 1'b1;
+                recorded_prefetch_waddr = target_addr;
                 hbm_prefetch_en = 1'b1;
             end else if (h_op == STORE_V) begin
                 next_hbm_state = HBM_STORE_V;
-                hbm_read_en = 1'b0;
                 hbm_prefetch_en = 1'b0;
                 recorded_prefetch_waddr = target_addr;
             end else begin
                 next_hbm_state = IDLE;
-                hbm_read_en = 1'b0;
                 hbm_prefetch_en = 1'b0;
             end
             hbm_write_en = 1'b0;
@@ -183,7 +182,7 @@ always_comb  begin
     // Check if the prefetch data is ready.
     if (hbm_state == HBM_PREFETCH_V) begin
         for (int i = 0; i < Parallel_Rd_Dim; i++) begin
-            if (hbm_v_addr_tag[i] == recorded_prefetch_raddr) begin
+            if (hbm_v_addr_tag[i] == recorded_prefetch_waddr) begin
                 matched_tag[i] = 1'b1;
                 matched_v_element[i] = hbm_v_element[i];
                 matched_v_scale[i] = hbm_v_scale[i];
@@ -194,7 +193,7 @@ always_comb  begin
         end
         prefetch_content_ready = &matched_tag;
     end else if (hbm_state == HBM_PREFETCH_M) begin
-        prefetch_content_ready = (hbm_m_addr_tag == recorded_prefetch_raddr);
+        prefetch_content_ready = (hbm_m_addr_tag == recorded_prefetch_waddr);
     end
 end
 
