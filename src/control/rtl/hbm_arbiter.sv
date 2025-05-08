@@ -23,6 +23,8 @@ module hbm_arbiter #(
 
     localparam int M_BLOCK_NUM      = MLEN / BLOCK_DIM,
     localparam int V_BLOCK_NUM      = VLEN / BLOCK_DIM,
+    localparam int HBM_ELE_WIDTH    = MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int HBM_SCALE_WIDTH  = MLEN * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
     localparam int ELE_WIDTH        = Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int SCALE_WIDTH      = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
     localparam int V_ELE_WIDTH      = VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
@@ -33,8 +35,8 @@ module hbm_arbiter #(
     input logic rst,
 
     // HBM 
-    input   logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
-    input   logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
+    input   logic   [HBM_ELE_WIDTH - 1 : 0]         prefetch_element,
+    input   logic   [HBM_SCALE_WIDTH - 1 : 0]       prefetch_scale,
     input   logic                                   prefetch_data_valid,
     output  logic                                   hbm_prefetch_en,
     input   logic   [ADDR_WIDTH - 1 : 0]            target_addr,
@@ -82,13 +84,14 @@ typedef enum logic [1:0] {
 
 HBM_STATE hbm_state, next_hbm_state;
 
-logic [Parallel_Rd_Dim - 1 : 0] [V_ELE_WIDTH - 1 : 0]       hbm_v_element;
-logic [Parallel_Rd_Dim - 1 : 0] [V_SCALE_WIDTH - 1 : 0]     hbm_v_scale;
-logic [Parallel_Rd_Dim - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]    hbm_v_addr_tag;
+logic [MLEN - 1 : 0] [V_ELE_WIDTH - 1 : 0]       hbm_v_element;
+logic [MLEN - 1 : 0] [V_SCALE_WIDTH - 1 : 0]     hbm_v_scale;
+logic [MLEN - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]    hbm_v_addr_tag;
 
-logic [ELE_WIDTH - 1 : 0]       hbm_m_element;
-logic [SCALE_WIDTH - 1 : 0]     hbm_m_scale;
-logic [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
+logic [MATRIX_READ_ITERATIONS - 1 : 0][ELE_WIDTH - 1 : 0]       hbm_m_element;
+logic [MATRIX_READ_ITERATIONS - 1 : 0][SCALE_WIDTH - 1 : 0]     hbm_m_scale;
+
+logic [MATRIX_READ_ITERATIONS - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
 
 // Storting the prefetch data
 always_ff @(posedge clk or posedge rst) begin
@@ -100,13 +103,15 @@ always_ff @(posedge clk or posedge rst) begin
             if (hbm_state == HBM_PREFETCH_V) begin
                 hbm_v_element <= prefetch_element;
                 hbm_v_scale   <= prefetch_scale;
-                for (int i = 0; i < Parallel_Rd_Dim; i++) begin
-                    hbm_v_addr_tag[i] <= prefetch_hbm_raddr + i * (VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
+                for (int i = 0; i < MLEN; i++) begin
+                    hbm_v_addr_tag[i] <= prefetch_hbm_raddr + i * (MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
                 end
             end else if (hbm_state == HBM_PREFETCH_M) begin
                 hbm_m_element   <= prefetch_element;
                 hbm_m_scale     <= prefetch_scale;
-                hbm_m_addr_tag  <= prefetch_hbm_raddr;
+                for (int i = 0; i < MATRIX_READ_ITERATIONS; i++) begin
+                    hbm_m_addr_tag[i] <= prefetch_hbm_raddr + i * (Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
+                end
             end
         end 
     end
@@ -114,9 +119,15 @@ end
 
 logic [ADDR_WIDTH - 1 : 0]          recorded_prefetch_waddr;
 logic [HBM_ADDR_WIDTH - 1 : 0]      recorded_hbm_prefetch_addr;
-logic [Parallel_Rd_Dim - 1 : 0]     matched_tag;
+logic [MLEN - 1 : 0]     matched_v_tag;
+localparam MATRIX_READ_ITERATIONS = MLEN / BLOCK_DIM;
+logic [MATRIX_READ_ITERATIONS - 1 : 0] matched_m_tag;
+
 logic [V_ELE_WIDTH- 1 : 0]          matched_v_element;
 logic [V_SCALE_WIDTH- 1 : 0]        matched_v_scale;
+
+logic [ELE_WIDTH - 1 : 0]            matched_m_element;
+logic [SCALE_WIDTH - 1 : 0]          matched_m_scale;
 
 always_comb  begin
     case (hbm_state)
@@ -145,8 +156,8 @@ always_comb  begin
         HBM_PREFETCH_M: begin
             if (prefetch_m_ready & hbm_m_prefetch_complete) begin
                 next_hbm_state = IDLE;
-                prefetch_m_element = hbm_m_element;
-                prefetch_m_scale   = hbm_m_scale;
+                prefetch_m_element = matched_m_element;
+                prefetch_m_scale   = matched_m_scale;
                 prefetch_m_data_valid = 1'b1;
             end else begin
                 next_hbm_state = HBM_PREFETCH_M;
@@ -185,19 +196,32 @@ always_comb  begin
     endcase
     // Check if the prefetch data is ready.
     if (hbm_state == HBM_PREFETCH_V) begin
-        for (int i = 0; i < Parallel_Rd_Dim; i++) begin
+        for (int i = 0; i < MLEN; i++) begin
             if (hbm_v_addr_tag[i] == recorded_hbm_prefetch_addr) begin
-                matched_tag[i]      = 1'b1;
+                matched_v_tag[i]      = 1'b1;
                 matched_v_element   = hbm_v_element[i];
                 matched_v_scale     = hbm_v_scale[i];
             end 
             else begin
-                matched_tag[i] = 1'b0;
+                matched_v_tag[i] = 1'b0;
             end
         end
-        hbm_v_prefetch_complete = |matched_tag;
+        hbm_v_prefetch_complete = |matched_v_tag;
     end else if (hbm_state == HBM_PREFETCH_M) begin
-        hbm_m_prefetch_complete = (hbm_m_addr_tag == recorded_hbm_prefetch_addr);
+        for (int i = 0; i < MATRIX_READ_ITERATIONS; i++) begin
+            if (hbm_m_addr_tag[i] == recorded_hbm_prefetch_addr) begin
+                matched_m_tag[i]      = 1'b1;
+                matched_m_element   = hbm_m_element[i];
+                matched_m_scale     = hbm_m_scale[i];
+            end 
+            else begin
+                matched_m_tag[i] = 1'b0;
+            end
+        end
+        hbm_m_prefetch_complete = |matched_m_tag;
+    end else begin
+        hbm_v_prefetch_complete = 1'b0;
+        hbm_m_prefetch_complete = 1'b0;
     end
 end
 

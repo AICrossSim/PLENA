@@ -96,7 +96,7 @@ module coprocessor (
         .decode_instr_info      (decode_instr_info),
         .decode_instr_valid     (decode_instr_valid),
         .fetch_next_instr       (read_next_instr),
-        .stall_for_mem(stall_for_mem),
+        .mem_stall_req          (stall_for_mem),
 
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
@@ -411,8 +411,8 @@ module coprocessor (
     `TL_BIND_HOST_PORT(out_scale, scale);
 
     // HBM Control
-    logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
-    logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
+    logic [MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
+    logic [MLEN * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_prefetch_addr;
 

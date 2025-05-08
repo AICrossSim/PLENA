@@ -100,13 +100,17 @@ end
 // Stall Request
 always_comb begin
     if (dma_m_ready & !complete_m_mam_access) begin
-        stall_req.stall_m_sram = 1'b0;
+        stall_req.stall_m_sram = 1'b1;
+        stall_req.stall_s_sram = 1'b0;
+        stall_req.stall_s_reg = 1'b0;
     end else if (dma_v_ready) begin
         stall_req.stall_s_sram = 1'b0;
+        stall_req.stall_m_sram = 1'b0;
+        stall_req.stall_s_reg = 1'b0;
     end else begin
-        stall_req.stall_m_sram = 1'b1;
-        stall_req.stall_s_sram = 1'b1;
-        stall_req.stall_s_reg = 1'b1;
+        stall_req.stall_m_sram = 1'b0;
+        stall_req.stall_s_sram = 1'b0;
+        stall_req.stall_s_reg = 1'b0;
     end
 end
 
@@ -172,7 +176,7 @@ always_ff @(posedge clk or negedge rst) begin
         // end 
         
         else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
-                if (m_sram_counter == MATRIX_LOAD_ITERATION - 1) begin
+                if (m_sram_counter == MATRIX_LOAD_ITERATION) begin
                     m_sram_req <= 1'b0;
                     m_sram_wen <= 1'b0;
                     m_sram_counter <= 'b0;

@@ -25,7 +25,7 @@ module pipeline_control #(
     output      logic fetch_next_instr,
 
     // Execution Monitor
-    input       MEM_STALL_TYPE stall_for_mem,
+    input       MEM_STALL_TYPE mem_stall_req,
 
     // Current control operation
     output      logic       pipeline_stall,
@@ -56,7 +56,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall  = 1'b1;
-        end else if (stall_for_mem.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV & decode_instr_info.opcode == M_TMV) ) begin
+        end else if (mem_stall_req.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV & decode_instr_info.opcode == M_TMV) ) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall = 1'b1;
@@ -89,7 +89,7 @@ import pipeline_pkg::*;
                 fps2            <= 'b0;
                 fpd             <= 'b0;
                 imm             <= 'b0;
-            end else if (stall_for_mem.stall_m_sram == 1'b1 || stall_for_mem.stall_s_sram == 1'b1 || stall_for_mem.stall_s_reg == 1'b1) begin
+            end else if (mem_stall_req.stall_m_sram == 1'b1 || mem_stall_req.stall_s_sram == 1'b1 || mem_stall_req.stall_s_reg == 1'b1) begin
                 // If any of the stall request is enabled.
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
@@ -98,7 +98,7 @@ import pipeline_pkg::*;
                 assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
                 assigned_op_bundle.c_op            <= STALL_C;
                 assigned_op_bundle.h_op            <= STALL_H;
-                assigned_op_bundle.stall_for_memory <= stall_for_mem;
+                assigned_op_bundle.stall_for_memory <= mem_stall_req;
                 rs1             <= 'b0;
                 rs2             <= 'b0;
                 rd              <= 'b0;
@@ -112,8 +112,10 @@ import pipeline_pkg::*;
 
             assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
             assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
+            
             // Normal execution without stalls for memory.
-            assigned_op_bundle.stall_for_memory <= '{stall_m_sram: 1'b0, stall_s_sram: 1'b0, stall_s_reg: 1'b0};
+            assigned_op_bundle.stall_for_memory <= mem_stall_req;
+
             case(decode_instr_info.instruction_type)
                 M: begin
                     assigned_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;

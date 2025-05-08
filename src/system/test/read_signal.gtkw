@@ -1,28 +1,25 @@
 [*]
-[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu May  8 16:22:09 2025
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu May  8 22:53:05 2025
 [*]
-[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Thu May  8 16:15:42 2025"
-[dumpfile_size] 25331074
-[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 170000
-[size] 1512 831
+[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Thu May  8 21:38:46 2025"
+[dumpfile_size] 28779977
+[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[timestart] 0
+[size] 3428 1359
 [pos] -1 -1
-*-16.000000 300000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.000000 433500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.hbm_controller_init.
+[treeopen] SimTop.dut.pipeline_control_init.
 [sst_width] 326
-[signals_width] 254
+[signals_width] 270
 [sst_expanded] 1
-[sst_vpaned_height] 419
+[sst_vpaned_height] 753
 @28
 SimTop.dut.clk
-@22
-SimTop.dut.hbm_controller_init.prefetch_element[63:0]
-SimTop.dut.hbm_controller_init.prefetch_scale[15:0]
-@28
 SimTop.dut.hbm_controller_init.hbm_prefetch_en
 @22
 SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
@@ -36,10 +33,28 @@ SimTop.dut.hbm_arbiter_init.prefetch_m_element[63:0]
 SimTop.dut.hbm_arbiter_init.hbm_v_prefetch_complete
 @22
 SimTop.dut.hbm_arbiter_init.prefetch_hbm_raddr[63:0]
-SimTop.dut.hbm_arbiter_init.hbm_m_addr_tag[63:0]
 @28
 SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
-@29
 SimTop.dut.hbm_arbiter_init.hbm_m_prefetch_complete
+SimTop.dut.hbm_arbiter_init.prefetch_m_ready
+SimTop.dut.pipeline_control_init.mem_stall_req.stall_m_sram
+SimTop.dut.pipeline_control_init.mem_stall_req.stall_s_reg
+SimTop.dut.pipeline_control_init.mem_stall_req.stall_s_reg
+SimTop.dut.data_flow_init.complete_m_mam_access
+SimTop.dut.data_flow_init.m_sram_req
+SimTop.dut.data_flow_init.m_sram_wen
+SimTop.dut.data_flow_init.m_sram_counter[0]
+SimTop.dut.data_flow_init.complete_m_mam_access
+@22
+SimTop.dut.data_flow_init.recorded_m_prefetch_addr[31:0]
+@28
+SimTop.dut.data_flow_init.record_m_prefetch_addr_en
+@22
+SimTop.dut.decoder_init.instruction[15:0]
+@28
+SimTop.dut.decoder_init.instruction_valid
+SimTop.dut.decoder_init.decode_instr_valid
+@23
+SimTop.dut.decoder_init.loaded_instr[15:0]
 [pattern_trace] 1
 [pattern_trace] 0

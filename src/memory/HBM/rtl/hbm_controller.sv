@@ -31,11 +31,12 @@ module hbm_controller #(
     parameter int unsigned SourceWidth  = 1,
     parameter int unsigned SinkWidth    = 1,
 
-    localparam int ELE_WIDTH =   Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
-    localparam int SCALE_WIDTH = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+    localparam int ELE_WIDTH    =   MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int SCALE_WIDTH  =   MLEN * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
 
     parameter int HBM_ELE_WIDTH = 128,
-    parameter int HBM_SCALE_WIDTH = 128
+    parameter int HBM_SCALE_WIDTH = 128,
+    parameter SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
     input   logic rst,
@@ -153,7 +154,7 @@ module hbm_controller #(
         // Control signals
         .req_en(hbm_prefetch_en),
         .write_en(write_en),
-        .fetch_addr(hbm_addr_out),
+        .fetch_addr(hbm_addr_out + SCALE_DATA_OFFSET),
         .fetch_data(prefetch_scale),
         .write_data(hbm_write_scale),
         `TL_CONNECT_HOST_PORT(host, tl_scale)
