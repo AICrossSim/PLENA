@@ -6,6 +6,7 @@ Module      : HBM Arbiter
 Timing      : Combinatorial
 Description : This module is used to schedule the data prefetched from HBM to Matrix SRAM and Scratchpad SRAM.
             : It also shdules the write process from the two SRAMs to HBM.
+            ： When the prefetch data is ready, it will outputs to the pipeline control to decide when to pass the data to the sram.
 Status      : Under Development
 */
 
@@ -65,7 +66,8 @@ module hbm_arbiter #(
 
     // Control signals
     input    H_OP                                   h_op, 
-    output   logic                                  prefetch_content_ready  // For vector prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
+    output   logic                                  hbm_m_prefetch_complete, // For matrix prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
+    output   logic                                  hbm_v_prefetch_complete  // For vector prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
 );
 
 // Matrix SRAM, as the load data dimension matches the HBM data dimension, just need to assign the data directly. We also don't need to read from Matrix SRAM for HBM write.
@@ -88,7 +90,7 @@ logic [ELE_WIDTH - 1 : 0]       hbm_m_element;
 logic [SCALE_WIDTH - 1 : 0]     hbm_m_scale;
 logic [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
 
-
+// Storting the prefetch data
 always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
         hbm_state <= IDLE;
@@ -102,15 +104,16 @@ always_ff @(posedge clk or posedge rst) begin
                     hbm_v_addr_tag[i] <= prefetch_hbm_raddr + i * (VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
                 end
             end else if (hbm_state == HBM_PREFETCH_M) begin
-                hbm_m_element <= prefetch_element;
-                hbm_m_scale   <= prefetch_scale;
-                hbm_m_addr_tag <= prefetch_hbm_raddr;
+                hbm_m_element   <= prefetch_element;
+                hbm_m_scale     <= prefetch_scale;
+                hbm_m_addr_tag  <= prefetch_hbm_raddr;
             end
         end 
     end
 end
 
 logic [ADDR_WIDTH - 1 : 0]          recorded_prefetch_waddr;
+logic [HBM_ADDR_WIDTH - 1 : 0]      recorded_hbm_prefetch_addr;
 logic [Parallel_Rd_Dim - 1 : 0]     matched_tag;
 logic [V_ELE_WIDTH- 1 : 0]          matched_v_element;
 logic [V_SCALE_WIDTH- 1 : 0]        matched_v_scale;
@@ -140,19 +143,20 @@ always_comb  begin
         end
 
         HBM_PREFETCH_M: begin
-            if (prefetch_m_ready) begin
+            if (prefetch_m_ready & hbm_m_prefetch_complete) begin
                 next_hbm_state = IDLE;
                 prefetch_m_element = hbm_m_element;
                 prefetch_m_scale   = hbm_m_scale;
                 prefetch_m_data_valid = 1'b1;
             end else begin
                 next_hbm_state = HBM_PREFETCH_M;
+                recorded_hbm_prefetch_addr = prefetch_hbm_raddr;
                 prefetch_m_data_valid = 1'b0;
             end
         end
 
         HBM_PREFETCH_V: begin
-            if (prefetch_v_ready) begin
+            if (prefetch_v_ready & hbm_v_prefetch_complete) begin
                 next_hbm_state = HBM_STORE_V;
                 prefetch_v_element = matched_v_element;
                 prefetch_v_scale   = matched_v_scale;
@@ -182,18 +186,18 @@ always_comb  begin
     // Check if the prefetch data is ready.
     if (hbm_state == HBM_PREFETCH_V) begin
         for (int i = 0; i < Parallel_Rd_Dim; i++) begin
-            if (hbm_v_addr_tag[i] == recorded_prefetch_waddr) begin
-                matched_tag[i] = 1'b1;
-                matched_v_element[i] = hbm_v_element[i];
-                matched_v_scale[i] = hbm_v_scale[i];
+            if (hbm_v_addr_tag[i] == recorded_hbm_prefetch_addr) begin
+                matched_tag[i]      = 1'b1;
+                matched_v_element   = hbm_v_element[i];
+                matched_v_scale     = hbm_v_scale[i];
             end 
             else begin
                 matched_tag[i] = 1'b0;
             end
         end
-        prefetch_content_ready = &matched_tag;
+        hbm_v_prefetch_complete = |matched_tag;
     end else if (hbm_state == HBM_PREFETCH_M) begin
-        prefetch_content_ready = (hbm_m_addr_tag == recorded_prefetch_waddr);
+        hbm_m_prefetch_complete = (hbm_m_addr_tag == recorded_hbm_prefetch_addr);
     end
 end
 

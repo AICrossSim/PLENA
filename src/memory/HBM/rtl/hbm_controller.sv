@@ -43,6 +43,7 @@ module hbm_controller #(
     // HBM addr mapping
     
     input   logic   set_addr_reg_en,
+    input   logic   [ADDR_WIDTH - 1 : 0]            hbm_offset_addr,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_b,
     input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_write_operand,
@@ -53,6 +54,7 @@ module hbm_controller #(
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
     input   logic                                   hbm_prefetch_en,
+    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_prefetch_addr,
 
 
     // HBM data writing
@@ -71,6 +73,7 @@ module hbm_controller #(
     end
 
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
+    assign hbm_prefetch_addr = hbm_addr_out;
     // Mapping inputted Addr to HBM address
     address_mapper #(
         .ADDR_WIDTH(ADDR_WIDTH),
@@ -82,6 +85,7 @@ module hbm_controller #(
         .rst(rst),
         .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
         .set_addr_en    (set_addr_reg_en),
+        .addr_offset     (hbm_offset_addr),
         .addr_in_a      (addr_in_a),
         .addr_in_b      (addr_in_b),
         .read_operand   (addr_reg_read_operand),
@@ -102,19 +106,17 @@ module hbm_controller #(
     ) element_master (
         .clk(clk),
         .rst(rst),
-
         // Control signals
         .req_en(hbm_prefetch_en),
         .write_en(write_en),
-        
         .fetch_addr(hbm_addr_out),
         .fetch_data(prefetch_element),
         .write_data(hbm_write_element),
+        .fetch_data_valid(prefetch_data_valid),
 
         `TL_CONNECT_HOST_PORT(host, tl_element)
     );
 
-    logic [219:0] test_device_a_data_o;
     tl_adapter #(
         .HostDataWidth(ELE_WIDTH),
         .DeviceDataWidth(HBM_ELE_WIDTH),
@@ -151,11 +153,9 @@ module hbm_controller #(
         // Control signals
         .req_en(hbm_prefetch_en),
         .write_en(write_en),
-        
         .fetch_addr(hbm_addr_out),
         .fetch_data(prefetch_scale),
         .write_data(hbm_write_scale),
-
         `TL_CONNECT_HOST_PORT(host, tl_scale)
     );
 
@@ -172,7 +172,7 @@ module hbm_controller #(
         .rst_ni(!rst),
         // TileLink Interface
         `TL_CONNECT_DEVICE_PORT(host, tl_scale ),
-        `TL_CONNECT_HOST_PORT(device, host_scale)
+        `TL_CONNECT_HOST_PORT(device, adapted_tl_scale)
     );
 
 endmodule

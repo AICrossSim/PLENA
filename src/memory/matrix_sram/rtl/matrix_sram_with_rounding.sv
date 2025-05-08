@@ -1,20 +1,23 @@
+`timescale 1ns/1ps
+
 /*
 Module      : Top Level SRAM design solely for Matrix Machine 
 Timing      : Sequential Logic, x cycle for read/write process.
 Description :
             : This module supports parallel row / column read and write.
             : The addressing mode is Little Endian.
+            ： The units for the address is Byte
 Status      : Passed Simple Row/Col Read/Write Tests
 */
 
-
-`timescale 1ns/1ps
 
 module matrix_sram_with_rounding #(
     // MX-FP Data Format
     parameter MXFP_EXP_WIDTH    = 4,
     parameter MXFP_MANT_WIDTH   = 3,
     parameter MXFP_SCALE_WIDTH  = 8,
+
+    parameter FIXED_DATA_WIDTH  = 32,
 
     // Dimension
     parameter   MLEN              = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.
@@ -35,13 +38,20 @@ module matrix_sram_with_rounding #(
     input   logic write_en,
     output  logic write_response,
 
-    input   logic [AddrLen-1:0] sram_addr,   
+    input   logic [FIXED_DATA_WIDTH-1:0] sram_addr,   
     input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
     input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in, 
     output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
     output  logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out
 
 );
+
+
+// Address Translation
+localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
+logic [AddrLen - 1 : 0] addr_for_sub_sram;
+assign addr_for_sub_sram = sram_addr >> $clog2(BITWIDTH_PER_ROW);
+
 
 // scale duplication
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
@@ -72,7 +82,7 @@ biaccess_sram #(
     .transposed_read(transposed_read),
     .write_en(write_en),
     .write_response(scale_write_response),
-    .sram_addr(sram_addr),
+    .sram_addr(addr_for_sub_sram),
     .write_data(dumplicated_scale_in),
     .out_data(loaded_scale_out)
 );
@@ -89,7 +99,7 @@ biaccess_sram #(
     .transposed_read(transposed_read),
     .write_en(write_en),
     .write_response(element_write_response),
-    .sram_addr(sram_addr),
+    .sram_addr(addr_for_sub_sram),
     .write_data(element_in),
     .out_data(loaded_element_out)
 );

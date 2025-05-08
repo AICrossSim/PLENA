@@ -90,6 +90,7 @@ module tl_master #(
       // next_state = state;
       case (state)
         IDLE: begin
+          host_a_valid   = 1'b0;
           if (req_en) begin
             if (write_en) begin
               next_a_opcode = PutFullData; // PutFullData
@@ -117,6 +118,7 @@ module tl_master #(
         end
 
         WAIT_RESP: begin
+          host_a_valid   = 1'b0;
           if (host_d_valid) begin
             next_state = IDLE;
           end

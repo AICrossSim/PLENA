@@ -1,8 +1,6 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
-
-
 parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
@@ -10,6 +8,11 @@ parameter OPCODE_WIDTH = 6;
 parameter IMM_WIDTH = 7;
 parameter INSTRUCTION_LENGTH = 16;
 
+typedef struct {
+    logic stall_m_sram;
+    logic stall_s_sram;
+    logic stall_s_reg;
+} MEM_STALL_TYPE;
 
 package instruction_pkg;
     parameter FIXED_OPERAND_WIDTH = 3;
@@ -175,8 +178,11 @@ typedef struct {
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
-    logic           stall_for_memory;
+    MEM_STALL_TYPE  stall_for_memory;
 } OP_BUNDLE;
+
+
+
 
 
 `endif

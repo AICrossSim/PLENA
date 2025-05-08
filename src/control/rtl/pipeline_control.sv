@@ -9,7 +9,7 @@ Description : This module monitors the execution stages of each module and decid
             : This module will also control the overall execution of the coprocessor.
 */
 
-module pipeline_control import pipeline_pkg::*; #(
+module pipeline_control #(
     parameter   OPERAND_WIDTH           = 5,
     parameter   FIXED_OPERAND_WIDTH     = 5,
     parameter   FP_OPERAND_WIDTH        = 5,
@@ -25,19 +25,13 @@ module pipeline_control import pipeline_pkg::*; #(
     output      logic fetch_next_instr,
 
     // Execution Monitor
-    input       logic memory_load_failed,
-    input       logic v_write_request,            // One clock earlier than the vector output get valid.
-    input       logic m_write_request,
-    input       logic s_fp_reg_write_request,
+    input       MEM_STALL_TYPE stall_for_mem,
 
     // Current control operation
     output      logic       pipeline_stall,
     output      OP_BUNDLE   assigned_op_bundle,
     output      logic       m_update_waddr,
     output      logic       v_update_waddr,
-
-    output      logic       m_write_en,
-    output      logic       v_write_en,
 
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
@@ -48,6 +42,7 @@ module pipeline_control import pipeline_pkg::*; #(
     output      logic [IMM_WIDTH - 1 : 0] imm
 );
 
+import pipeline_pkg::*;
     // Pipeline Control
  
     // Decision for pipeline stall
@@ -61,7 +56,7 @@ module pipeline_control import pipeline_pkg::*; #(
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall  = 1'b1;
-        end else if (memory_load_failed) begin
+        end else if (stall_for_mem.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV & decode_instr_info.opcode == M_TMV) ) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall = 1'b1;
@@ -76,8 +71,9 @@ module pipeline_control import pipeline_pkg::*; #(
     assign fetch_next_instr = decode_instr_valid && !pipeline_stall;
 
     always_ff @(posedge clk) begin
+        // TODO rewrite the pipeline determination logic
         if (pipeline_stall) begin
-            
+            // Stall Condition 1: When the three oprands both pointer for addresses, need 2 cycles to obtain the address for the two port regfile.
             if (m_update_waddr || v_update_waddr) begin
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
@@ -93,15 +89,31 @@ module pipeline_control import pipeline_pkg::*; #(
                 fps2            <= 'b0;
                 fpd             <= 'b0;
                 imm             <= 'b0;
-            end else begin
-                // TODO
+            end else if (stall_for_mem > 3'b0) begin
+                // If any of the stall request is enabled.
+                assigned_op_bundle.m_op            <= STALL_M;
+                assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
+                assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
+                assigned_op_bundle.s_fp_op         <= STALL_S_FP;
+                assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
+                assigned_op_bundle.c_op            <= STALL_C;
+                assigned_op_bundle.h_op            <= STALL_H;
+                assigned_op_bundle.stall_for_memory <= stall_for_mem;
+                rs1             <= 'b0;
+                rs2             <= 'b0;
+                rd              <= 'b0;
+                fps1            <= 'b0;
+                fps2            <= 'b0;
+                fpd             <= 'b0;
+                imm             <= 'b0;
             end
 
         end else begin
 
             assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
             assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
-            
+            // Normal execution without stalls for memory.
+            assigned_op_bundle.stall_for_memory <= '{stall_m_sram: 1'b0, stall_s_sram: 1'b0, stall_s_reg: 1'b0};
             case(decode_instr_info.instruction_type)
                 M: begin
                     assigned_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
@@ -114,7 +126,6 @@ module pipeline_control import pipeline_pkg::*; #(
                     fps1    <= {FP_OPERAND_WIDTH{1'b0}};
                     fps2    <= {FP_OPERAND_WIDTH{1'b0}};
                     fpd     <= {FP_OPERAND_WIDTH{1'b0}};
-
                     rs1     <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2     <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd      <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];

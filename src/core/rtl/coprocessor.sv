@@ -34,6 +34,8 @@ module coprocessor (
 
 
     // Control Signals Declaration
+
+    MEM_STALL_TYPE stall_for_mem;
     // HBM Control
     logic hbm_m_prefetch_complete, hbm_m_prefetch_en;
     logic hbm_v_prefetch_complete, hbm_v_prefetch_en;
@@ -94,16 +96,11 @@ module coprocessor (
         .decode_instr_info      (decode_instr_info),
         .decode_instr_valid     (decode_instr_valid),
         .fetch_next_instr       (read_next_instr),
-        .memory_load_failed     (memory_load_failed),
-        // .w_query()
-        .v_write_request         (v_write_request),
-        .m_write_request         (m_write_request),        
-        // .pipeline_stall(), // TODO
+        .stall_for_mem(stall_for_mem),
+
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
         .v_update_waddr         (v_update_waddr),
-        .v_write_en             (v_write_en),
-        .m_write_en             (m_write_en),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
         .rd                     (s_rd),
@@ -120,7 +117,6 @@ module coprocessor (
     logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
     logic v_write_en, m_write_en;
-    logic memory_load_failed;
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
     logic m_o_valid,    m_o_ready;
@@ -140,11 +136,11 @@ module coprocessor (
     logic [VLEN-1:0] s_sram_mask_a, s_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
-    
+    logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr;
+
     // Dataflow Control
     data_flow_control #(
         .OPERAND_WIDTH(FIXED_OPERAND_WIDTH),
-        .FIXED_DATA_WIDTH(FIXED_DATA_WIDTH),
         .VLEN(MLEN),
         .MLEN(MLEN),
         .Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim)
@@ -154,14 +150,14 @@ module coprocessor (
         // Current Execution
         .assigned_op_bundle     (assigned_op_bundle),
         // Fetched Operand Values
-        .loaded_rs1             (fixed_out_1),
-        .loaded_rs2             (fixed_out_2),
+        .fixed_addr_1             (fixed_out_1),
+        .fixed_addr_2             (fixed_out_2),
         .m_offset_addr          (m_offset_addr),
         .v_waddr                (v_waddr),
         .v_write_en             (v_write_en),
         .m_waddr                (m_waddr),
         .m_write_en             (m_write_en),
-        .load_process_failed    (memory_load_failed),
+        .stall_req              (stall_for_mem),
         .m_m_ready              (m_m_ready),
         .m_m_valid              (m_m_valid),
         .m_v_valid              (m_v_valid),
@@ -193,12 +189,9 @@ module coprocessor (
         .s_sram_wen_b           (s_sram_wen_b),
         .s_sram_addr_b          (s_sram_addr_b),
         .s_sram_mask_b          (s_sram_mask_b),
+        .hbm_offset_addr        (hbm_offset_addr),
         .dma_m_ready            (hbm_m_prefetch_complete),
-        .prefetch_m_ready       (hbm_m_prefetch_en),
-        .dma_v_ready            (hbm_v_prefetch_complete),
-        .prefetch_v_ready       (hbm_v_prefetch_en),
-        .prefetch_addr          (prefetch_addr),
-        .exe_op_bundle          (exe_op_bundle)
+        .dma_v_ready            (hbm_v_prefetch_complete)
     );
 
     // -----------------------------
@@ -357,27 +350,27 @@ module coprocessor (
     // -----------------------------
 
     // Matrix Memory 
-    // matrix_sram_with_rounding #(
-    //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-    //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-    //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-    //     .MLEN(MLEN),
-    //     .BLOCK_DIM(BLOCK_DIM),
-    //     .SRAM_DEPTH(MATRIX_SRAM_DEPTH),
-    //     .PARALLEL_DIM(Matrix_Parallel_Rd_Dim)
-    // ) matrix_sram (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .req                (m_sram_req),
-    //     .transposed_read    (m_sram_transposed_read),
-    //     .write_en           (m_sram_wen),
-    //     .write_response     (),
-    //     .sram_addr          (m_sram_addr),
-    //     .element_in         (prefetch_m_element),
-    //     .scale_in           (prefetch_m_scale),
-    //     .element_out        (fetched_m_element),
-    //     .scale_out          (fetched_m_scale)
-    // );
+    matrix_sram_with_rounding #(
+        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+        .MLEN(MLEN),
+        .BLOCK_DIM(BLOCK_DIM),
+        .SRAM_DEPTH(MATRIX_SRAM_DEPTH),
+        .PARALLEL_DIM(Matrix_Parallel_Rd_Dim)
+    ) matrix_sram (
+        .clk(clk),
+        .rst(rst),
+        .req                (m_sram_req),
+        .transposed_read    (m_sram_transposed_read),
+        .write_en           (m_sram_wen),
+        .write_response     (),
+        .sram_addr          (m_sram_addr),
+        .element_in         (prefetch_m_element),
+        .scale_in           (prefetch_m_scale),
+        .element_out        (fetched_m_element),
+        .scale_out          (fetched_m_scale)
+    );
 
     // Scratchpad SRAM
     // Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
@@ -422,7 +415,6 @@ module coprocessor (
     logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_prefetch_addr;
-    logic prefetch_content_ready;
 
     logic hbm_write_en;
     logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_in;
@@ -479,7 +471,8 @@ module coprocessor (
 
         // HBM Operation
         .h_op(assigned_op_bundle.h_op),
-        .prefetch_content_ready (prefetch_content_ready)
+        .hbm_m_prefetch_complete (hbm_m_prefetch_complete),
+        .hbm_v_prefetch_complete (hbm_v_prefetch_complete)
     );
 
     hbm_controller #(
@@ -504,8 +497,10 @@ module coprocessor (
 
         // Address Register
         .set_addr_reg_en    (assigned_op_bundle.c_op == SET_ADDR_REG),
+        .hbm_offset_addr    (hbm_offset_addr),
         .addr_in_a          (fixed_out_1),
         .addr_in_b          (fixed_out_2),
+        // Address Register Index
         .addr_reg_write_operand   (s_rd),
         .addr_reg_read_operand    (s_rs2),
 
@@ -514,6 +509,7 @@ module coprocessor (
         .prefetch_scale     (hbm_scale_out),
         .prefetch_data_valid(hbm_prefetch_valid),
         .hbm_prefetch_en    (hbm_prefetch_en),
+        .hbm_prefetch_addr  (hbm_prefetch_addr),
 
         // HBM Write
         .hbm_write_en       (hbm_write_en),

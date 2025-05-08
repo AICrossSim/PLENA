@@ -27,6 +27,7 @@ module address_mapper #(
     // Address Mapping
     input   logic [ADDR_WIDTH - 1 : 0] addr_in_a,
     input   logic [ADDR_WIDTH - 1 : 0] addr_in_b,
+    input   logic [ADDR_WIDTH - 1 : 0] addr_offset,
     input   logic [ADR_OPERAND_WIDTH - 1 : 0] write_operand,
     input   logic [ADR_OPERAND_WIDTH - 1 : 0] read_operand,
 
@@ -55,7 +56,7 @@ end
 
 always_comb begin
     if (mapp_addr_en) begin
-        hbm_addr_out = hbm_addr[read_operand] + {{HBM_ADDR_WIDTH - ADDR_WIDTH{1'b0}}, addr_in_a};
+        hbm_addr_out = hbm_addr[read_operand] + {{HBM_ADDR_WIDTH - ADDR_WIDTH{1'b0}}, addr_offset};
     end else begin
         hbm_addr_out = {HBM_ADDR_WIDTH{1'b0}};
     end
