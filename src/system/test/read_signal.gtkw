@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu May  8 14:55:24 2025
+[*] Thu May  8 16:22:09 2025
 [*]
 [dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Thu May  8 10:14:30 2025"
-[dumpfile_size] 25329741
+[dumpfile_mtime] "Thu May  8 16:15:42 2025"
+[dumpfile_size] 25331074
 [savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 170000
 [size] 1512 831
@@ -30,8 +30,16 @@ SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
 SimTop.dut.hbm_controller_init.element_master.state[1:0]
 SimTop.dut.hbm_controller_init.element_master.host_a_valid
 SimTop.dut.hbm_controller_init.prefetch_data_valid
-SimTop.dut.hbm_arbiter_init.prefetch_content_ready
-@23
+@22
 SimTop.dut.hbm_arbiter_init.prefetch_m_element[63:0]
+@28
+SimTop.dut.hbm_arbiter_init.hbm_v_prefetch_complete
+@22
+SimTop.dut.hbm_arbiter_init.prefetch_hbm_raddr[63:0]
+SimTop.dut.hbm_arbiter_init.hbm_m_addr_tag[63:0]
+@28
+SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
+@29
+SimTop.dut.hbm_arbiter_init.hbm_m_prefetch_complete
 [pattern_trace] 1
 [pattern_trace] 0

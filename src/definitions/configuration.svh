@@ -20,19 +20,6 @@ endpackage
 
 package pipeline_pkg;
     parameter   MAX_PIPELINE_STAGE              = 10;   
-    // typedef enum logic[1:0] { 
-    //     STALL_M_SRAM = 2'b00,
-    //     STALL_S_SRAM = 2'b01,
-    //     STALL_S_REG = 2'b10,
-    //     CLEAR   = 2'b11
-    // } MEM_STALL_TYPE; 
-
-    typedef struct {
-        logic stall_m_sram;
-        logic stall_s_sram;
-        logic stall_s_reg;
-    } MEM_STALL_TYPE;
-    
 endpackage
 
 

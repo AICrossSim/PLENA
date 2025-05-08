@@ -12,7 +12,7 @@ Description : This module serves as the controller for all the memory related op
 TODO: Failed load/write assertions, remove m_write_en and v_write_en
 */
 
-module data_flow_control import precision_pkg::*; import pipeline_pkg::*; #(
+module data_flow_control import precision_pkg::*; #(
     parameter   OPERAND_WIDTH           = 5,
     parameter   VLEN                    = 8,       
     parameter   MLEN                    = 8,

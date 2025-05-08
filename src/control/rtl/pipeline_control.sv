@@ -89,7 +89,7 @@ import pipeline_pkg::*;
                 fps2            <= 'b0;
                 fpd             <= 'b0;
                 imm             <= 'b0;
-            end else if (stall_for_mem > 3'b0) begin
+            end else if (stall_for_mem.stall_m_sram == 1'b1 || stall_for_mem.stall_s_sram == 1'b1 || stall_for_mem.stall_s_reg == 1'b1) begin
                 // If any of the stall request is enabled.
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
