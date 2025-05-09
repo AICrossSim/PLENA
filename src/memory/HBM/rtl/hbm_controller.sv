@@ -80,16 +80,20 @@ module hbm_controller #(
     logic start_prefetch;
 
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
+    logic ready_for_prefetch;
 
-    assign hbm_prefetch_addr =  hbm_addr_out;
-    assign addr_to_prefetch  =  hbm_addr_out;
-
-    always_ff @(posedge clk or negedge rst) begin
-        if (!rst) begin
-            start_prefetch <= 1'b0;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            start_prefetch              <= 1'b0;
+            ready_for_prefetch          <= 1'b0;
+            addr_to_prefetch            <= 'b0;
+            addr_for_prefetched_data    <= 'b0;
         end else begin
-            if(hbm_prefetch_en && !hbm_prefetch_content_exist) begin
-                addr_for_prefetched_data <= hbm_addr_out;
+            addr_to_prefetch    <= hbm_addr_out;
+            ready_for_prefetch  <= hbm_prefetch_en;
+
+            if(ready_for_prefetch && !hbm_prefetch_content_exist) begin
+                addr_for_prefetched_data <= addr_to_prefetch;
                 start_prefetch <= 1'b1;
             end else begin
                 start_prefetch <= 1'b0;
@@ -108,7 +112,7 @@ module hbm_controller #(
         .rst(rst),
         .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
         .set_addr_en    (set_addr_reg_en),
-        .addr_offset     (hbm_offset_addr),
+        .addr_offset     (addr_for_prefetched_data),
         .addr_in_a      (addr_in_a),
         .addr_in_b      (addr_in_b),
         .read_operand   (addr_reg_read_operand),
@@ -176,7 +180,7 @@ module hbm_controller #(
         // Control signals
         .req_en(hbm_prefetch_en),
         .write_en(write_en),
-        .fetch_addr(hbm_addr_out + SCALE_DATA_OFFSET),
+        .fetch_addr(addr_for_prefetched_data + SCALE_DATA_OFFSET),
         .fetch_data(prefetch_scale),
         .write_data(hbm_write_scale),
         `TL_CONNECT_HOST_PORT(host, tl_scale)

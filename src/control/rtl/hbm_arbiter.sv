@@ -39,7 +39,6 @@ module hbm_arbiter #(
     input   logic   [HBM_SCALE_WIDTH - 1 : 0]       prefetch_scale,
     input   logic                                   prefetch_data_valid,
     output  logic                                   hbm_prefetch_en,
-    input   logic   [ADDR_WIDTH - 1 : 0]            target_addr,
 
     input   logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_to_prefetch,
     input   logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_for_prefetched_data,
@@ -73,6 +72,7 @@ module hbm_arbiter #(
 
 // Matrix SRAM, as the load data dimension matches the HBM data dimension, just need to assign the data directly. We also don't need to read from Matrix SRAM for HBM write.
 // Scratchpad SRAM, Distributer is required.
+localparam MATRIX_READ_ITERATIONS = MLEN / Parallel_Rd_Dim;
 
 typedef enum logic [1:0] {
     IDLE            = 2'b00, 
@@ -81,7 +81,7 @@ typedef enum logic [1:0] {
     HBM_STORE_V     = 2'b11
 } HBM_STATE;
 
-HBM_STATE hbm_state, next_hbm_state;
+HBM_STATE hbm_state, next_hbm_state, previous_hbm_state;
 
 logic [MLEN - 1 : 0] [V_ELE_WIDTH - 1 : 0]       hbm_v_element;
 logic [MLEN - 1 : 0] [V_SCALE_WIDTH - 1 : 0]     hbm_v_scale;
@@ -92,20 +92,27 @@ logic [MATRIX_READ_ITERATIONS - 1 : 0][SCALE_WIDTH - 1 : 0]     hbm_m_scale;
 
 logic [MATRIX_READ_ITERATIONS - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
 
+logic tag_m_valid, tag_v_valid;
 // Storting the prefetch data
 always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
         hbm_state <= IDLE;
+        previous_hbm_state <= IDLE;
+        tag_m_valid <= 1'b0;
+        tag_v_valid <= 1'b0;
     end else begin
         hbm_state <= next_hbm_state;
+        previous_hbm_state <= hbm_state;
         if (prefetch_data_valid) begin
             if (hbm_state == HBM_PREFETCH_V) begin
+                tag_v_valid <= 1'b1;
                 hbm_v_element <= prefetch_element;
                 hbm_v_scale   <= prefetch_scale;
                 for (int i = 0; i < MLEN; i++) begin
                     hbm_v_addr_tag[i] <= addr_for_prefetched_data + i * (MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
                 end
             end else if (hbm_state == HBM_PREFETCH_M) begin
+                tag_m_valid <= 1'b1;
                 hbm_m_element   <= prefetch_element;
                 hbm_m_scale     <= prefetch_scale;
                 for (int i = 0; i < MATRIX_READ_ITERATIONS; i++) begin
@@ -116,10 +123,9 @@ always_ff @(posedge clk or posedge rst) begin
     end
 end
 
-logic [ADDR_WIDTH - 1 : 0]          recorded_prefetch_waddr;
 logic [HBM_ADDR_WIDTH - 1 : 0]      recorded_hbm_prefetch_addr;
 logic [MLEN - 1 : 0]     matched_v_tag;
-localparam MATRIX_READ_ITERATIONS = MLEN / BLOCK_DIM;
+
 logic [MATRIX_READ_ITERATIONS - 1 : 0] matched_m_tag;
 
 logic [V_ELE_WIDTH- 1 : 0]          matched_v_element;
@@ -133,16 +139,13 @@ always_comb  begin
         IDLE: begin
             if (h_op == PREFETCH_M) begin
                 next_hbm_state = HBM_PREFETCH_M;
-                recorded_prefetch_waddr = target_addr;
                 hbm_prefetch_en = 1'b1;
             end else if (h_op == PREFETCH_V) begin
                 next_hbm_state = HBM_PREFETCH_V;
-                recorded_prefetch_waddr = target_addr;
                 hbm_prefetch_en = 1'b1;
             end else if (h_op == STORE_V) begin
                 next_hbm_state = HBM_STORE_V;
                 hbm_prefetch_en = 1'b0;
-                recorded_prefetch_waddr = target_addr;
             end else begin
                 next_hbm_state = IDLE;
                 hbm_prefetch_en = 1'b0;
@@ -158,8 +161,13 @@ always_comb  begin
                 prefetch_m_scale   = matched_m_scale;
             end else begin
                 next_hbm_state = HBM_PREFETCH_M;
+                
+            end
+            if (previous_hbm_state == IDLE) begin
+                // Only update when the state just changed from IDLE to HBM_PREFETCH_M
                 recorded_hbm_prefetch_addr = addr_to_prefetch;
             end
+
         end
 
         HBM_PREFETCH_V: begin
@@ -190,7 +198,7 @@ always_comb  begin
         
     endcase
     // Check if the prefetch data is ready.
-    if (hbm_state == HBM_PREFETCH_V) begin
+    if ((hbm_state == HBM_PREFETCH_V) & (tag_v_valid == 1'b1)) begin
         for (int i = 0; i < MLEN; i++) begin
             if (hbm_v_addr_tag[i] == recorded_hbm_prefetch_addr) begin
                 matched_v_tag[i]      = 1'b1;
@@ -202,7 +210,7 @@ always_comb  begin
             end
         end
         hbm_v_prefetch_complete = |matched_v_tag;
-    end else if (hbm_state == HBM_PREFETCH_M) begin
+    end else if ((hbm_state == HBM_PREFETCH_M) & (tag_m_valid == 1'b1)) begin
         for (int i = 0; i < MATRIX_READ_ITERATIONS; i++) begin
             if (hbm_m_addr_tag[i] == recorded_hbm_prefetch_addr) begin
                 matched_m_tag[i]      = 1'b1;

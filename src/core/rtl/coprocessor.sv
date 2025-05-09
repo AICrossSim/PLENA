@@ -440,8 +440,7 @@ module coprocessor (
         .prefetch_scale         (hbm_scale_out),
         .prefetch_data_valid    (hbm_prefetch_valid),
         .hbm_prefetch_en        (hbm_prefetch_en),
-        .target_addr            (fixed_out_2),
-        .addr_to_prefetch     (addr_to_prefetch),
+        .addr_to_prefetch       (addr_to_prefetch),
         .addr_for_prefetched_data (addr_for_prefetched_data),
 
         // HBM Write
@@ -469,7 +468,7 @@ module coprocessor (
         .v_out_data_wen         (),
 
         // HBM Operation
-        .h_op(exe_op_bundle.h_op),
+        .h_op(assigned_op_bundle.h_op),
         .hbm_m_prefetch_complete (hbm_m_prefetch_complete),
         .hbm_v_prefetch_complete (hbm_v_prefetch_complete)
     );

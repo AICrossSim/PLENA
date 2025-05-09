@@ -124,8 +124,20 @@ module scalar_machine #(
 
     assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != COMP_ADDR && fixed_control != ST_FIX) ? 1'b1 : 1'b0;
     assign fixed_reg_wdata = (fixed_control == LD_FIX) ? fixed_ld_from_sram : fixed_alu_out;
+
+    // always_ff @(posedge clk or posedge rst) begin
+    //     if (rst) begin
+    //         fixed_out_1 <= 'b0;
+    //         fixed_out_2 <= 'b0;
+    //     end else begin
+    //         fixed_out_1 <= (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_1 : 'b0;
+    //         fixed_out_2 <= (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_2 : 'b0;
+    //     end
+    // end
+    
     assign fixed_out_1 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_1 : 'b0;
     assign fixed_out_2 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_2 : 'b0;
+
 
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     assign fixed_reg_addr_1 = rs1;
