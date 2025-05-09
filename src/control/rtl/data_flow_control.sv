@@ -54,7 +54,6 @@ module data_flow_control import precision_pkg::*; #(
     output      logic m_sram_wen,
     output      logic m_sram_req,
     output      logic m_sram_transposed_read,
-    output      logic m_sram_busy,
 
     // Interface with Vector Machine
     output      logic v_v_a_valid,
@@ -85,68 +84,72 @@ module data_flow_control import precision_pkg::*; #(
     // Interface with HBM
     output      logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr,
     input       logic dma_m_ready,
-    input       logic dma_v_ready
+    input       logic dma_v_ready,
+
+    // Execution Control
+    output      OP_BUNDLE          exe_op_bundle
 );
 
 localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 logic             exe_m_write_en, exe_v_write_en; 
 
-OP_BUNDLE          exe_op_bundle;
+
 always_ff @(posedge clk or negedge rst ) begin
     exe_op_bundle          <= assigned_op_bundle;
 end
 
 
 // Stall Request
-always_comb begin
-    if (dma_m_ready & !complete_m_mam_access) begin
-        stall_req.stall_m_sram = 1'b1;
-        stall_req.stall_s_sram = 1'b0;
-        stall_req.stall_s_reg = 1'b0;
-    end else if (dma_v_ready) begin
-        stall_req.stall_s_sram = 1'b0;
-        stall_req.stall_m_sram = 1'b0;
-        stall_req.stall_s_reg = 1'b0;
+logic previous_dma_m_ready;
+logic previous_dma_v_ready;
+always_ff @(posedge clk or negedge rst) begin
+    if (rst) begin
+        previous_dma_m_ready <= 1'b0;
+        previous_dma_v_ready <= 1'b0;
     end else begin
-        stall_req.stall_m_sram = 1'b0;
-        stall_req.stall_s_sram = 1'b0;
-        stall_req.stall_s_reg = 1'b0;
+        previous_dma_m_ready <= dma_m_ready;
+        previous_dma_v_ready <= dma_v_ready;
     end
 end
+
+always_comb begin
+    stall_req.stall_m_sram = ((dma_m_ready == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
+    stall_req.stall_s_sram = ((dma_v_ready == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
+    stall_req.stall_s_reg = 1'b0;
+end
+
+
+
 
 // Matrix SRAM Control
 localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim;
 localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
 logic [MATRIX_COUNTER_WIDTH - 1 : 0]    m_sram_counter;
-logic [FIXED_DATA_WIDTH-1:0]            next_m_sram_addr;
 logic               m_load_failed;
 M_OP                track_m_op;
-logic complete_m_mam_access;
 
 // Update addr only when the exe operation is MV or MV_O
 always_comb begin
-    next_m_sram_addr = m_sram_addr; // hold current value by default
     if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O) begin
-        next_m_sram_addr = fixed_addr_2;
+        m_sram_addr = fixed_addr_2;
     end else if (exe_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
-        next_m_sram_addr = recorded_m_prefetch_addr + m_sram_counter << $clog2(BITWIDTH_PER_ROW);
+        m_sram_addr = recorded_m_prefetch_addr;
     end
     if (record_m_prefetch_addr_en) begin
         recorded_m_prefetch_addr = fixed_addr_2;
     end
 end
 
-assign m_sram_addr = next_m_sram_addr;
-
 logic record_m_prefetch_addr_en;
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr;
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
-        m_sram_busy <= 1'b0;
         m_sram_counter <= 'b0;
         track_m_op <= STALL_M;
-        complete_m_mam_access <= 1'b0;
+        m_sram_req <= 1'b0;
+        m_sram_wen <= 1'b0;
+
     end else begin
         exe_m_write_en <= m_write_en;
         exe_v_write_en <= v_write_en;
@@ -154,7 +157,6 @@ always_ff @(posedge clk or negedge rst) begin
         if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
             // Fetching the data from the Matrix Sram to the Matrix Machine
             // m_sram_busy <= 1'b1;
-            m_sram_counter  <= 'b0;
             m_sram_req      <= 1'b1;
             m_sram_transposed_read <= assigned_op_bundle.m_transposed_read;
         end
@@ -176,17 +178,11 @@ always_ff @(posedge clk or negedge rst) begin
         // end 
         
         else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
-                if (m_sram_counter == MATRIX_LOAD_ITERATION) begin
-                    m_sram_req <= 1'b0;
-                    m_sram_wen <= 1'b0;
-                    m_sram_counter <= 'b0;
-                    complete_m_mam_access <= 1'b1;
-                end else begin
-                    m_sram_counter <= m_sram_counter + 'b1;
-                    m_sram_req <= 1'b1;
-                    m_sram_wen <= 1'b1;
-                    complete_m_mam_access <= 1'b0;
-                end
+            m_sram_req <= 1'b1;
+            m_sram_wen <= 1'b1;
+        end else begin
+            m_sram_req <= 1'b0;
+            m_sram_wen <= 1'b0;
         end
 
 

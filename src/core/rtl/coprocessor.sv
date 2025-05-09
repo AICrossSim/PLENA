@@ -122,7 +122,7 @@ module coprocessor (
     logic m_o_valid,    m_o_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
-    logic m_sram_busy;          // TODO: For pipeline control
+    logic m_write_response;
 
     logic v_v_a_valid,      v_v_a_ready;
     logic v_v_b_valid,      v_v_b_ready;
@@ -170,7 +170,6 @@ module coprocessor (
         .m_sram_wen             (m_sram_wen),
         .m_sram_req             (m_sram_req),
         .m_sram_transposed_read (m_sram_transposed_read),
-        .m_sram_busy            (m_sram_busy),
         .v_v_a_valid            (v_v_a_valid),
         .v_v_a_ready            (v_v_a_ready),
         .v_v_b_valid            (v_v_b_valid),
@@ -191,7 +190,8 @@ module coprocessor (
         .s_sram_mask_b          (s_sram_mask_b),
         .hbm_offset_addr        (hbm_offset_addr),
         .dma_m_ready            (hbm_m_prefetch_complete),
-        .dma_v_ready            (hbm_v_prefetch_complete)
+        .dma_v_ready            (hbm_v_prefetch_complete),
+        .exe_op_bundle          (exe_op_bundle)
     );
 
     // -----------------------------
@@ -364,7 +364,6 @@ module coprocessor (
         .req                (m_sram_req),
         .transposed_read    (m_sram_transposed_read),
         .write_en           (m_sram_wen),
-        .write_response     (),
         .sram_addr          (m_sram_addr),
         .element_in         (prefetch_m_element),
         .scale_in           (prefetch_m_scale),
@@ -414,7 +413,7 @@ module coprocessor (
     logic [MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
     logic [MLEN * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
-    logic [HBM_ADDR_WIDTH - 1 : 0] hbm_prefetch_addr;
+    logic [HBM_ADDR_WIDTH - 1 : 0] addr_to_prefetch, addr_for_prefetched_data;
 
     logic hbm_write_en;
     logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_in;
@@ -442,7 +441,8 @@ module coprocessor (
         .prefetch_data_valid    (hbm_prefetch_valid),
         .hbm_prefetch_en        (hbm_prefetch_en),
         .target_addr            (fixed_out_2),
-        .prefetch_hbm_raddr     (hbm_prefetch_addr),
+        .addr_to_prefetch     (addr_to_prefetch),
+        .addr_for_prefetched_data (addr_for_prefetched_data),
 
         // HBM Write
         .hbm_write_en           (hbm_write_en),
@@ -453,24 +453,23 @@ module coprocessor (
 
         // Matrix SRAM
         // Write to Matrix SRAM
-        .prefetch_m_ready       (),
+        .prefetch_m_ready       (m_sram_wen),
         .prefetch_m_element     (prefetch_m_element),
         .prefetch_m_scale       (prefetch_m_scale),
-        .prefetch_m_data_valid  (),
 
         // Vector SRAM
         // Write to Vector SRAM
         .prefetch_v_ready       (),
         .prefetch_v_element     (prefetched_v_element_port2),
         .prefetch_v_scale       (prefetched_v_scale_port2),
-        .prefetch_v_data_valid  (),
+
         // Read from Vector SRAM
         .v_out_element          (fetched_v_element_port2),
         .v_out_scale            (fetched_v_scale_port2),
         .v_out_data_wen         (),
 
         // HBM Operation
-        .h_op(assigned_op_bundle.h_op),
+        .h_op(exe_op_bundle.h_op),
         .hbm_m_prefetch_complete (hbm_m_prefetch_complete),
         .hbm_v_prefetch_complete (hbm_v_prefetch_complete)
     );
@@ -509,7 +508,8 @@ module coprocessor (
         .prefetch_scale     (hbm_scale_out),
         .prefetch_data_valid(hbm_prefetch_valid),
         .hbm_prefetch_en    (hbm_prefetch_en),
-        .hbm_prefetch_addr  (hbm_prefetch_addr),
+        .addr_to_prefetch  (addr_to_prefetch),
+        .addr_for_prefetched_data (addr_for_prefetched_data),
 
         // HBM Write
         .hbm_write_en       (hbm_write_en),
@@ -517,6 +517,7 @@ module coprocessor (
         .hbm_write_ready    (hbm_write_ready),
         .hbm_write_element  (hbm_element_in),
         .hbm_write_scale    (hbm_scale_in),
+        .hbm_prefetch_content_exist(hbm_m_prefetch_complete || hbm_v_prefetch_complete),
 
         // HBM Interface
         `TL_CONNECT_HOST_PORT(host_element, element),

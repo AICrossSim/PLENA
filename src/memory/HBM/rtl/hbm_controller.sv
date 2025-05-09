@@ -42,7 +42,6 @@ module hbm_controller #(
     input   logic rst,
 
     // HBM addr mapping
-    
     input   logic   set_addr_reg_en,
     input   logic   [ADDR_WIDTH - 1 : 0]            hbm_offset_addr,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
@@ -55,7 +54,9 @@ module hbm_controller #(
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
     input   logic                                   hbm_prefetch_en,
-    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_prefetch_addr,
+
+    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_to_prefetch,
+    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_for_prefetched_data,
 
 
     // HBM data writing
@@ -65,6 +66,9 @@ module hbm_controller #(
     input   logic   [ELE_WIDTH - 1 : 0]             hbm_write_element,
     input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,
 
+    // Check Existence
+    input   logic                                   hbm_prefetch_content_exist,
+
     // TL Interface
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
@@ -73,8 +77,26 @@ module hbm_controller #(
         assert (MLEN == VLEN) else $fatal("MLEN and VLEN should be equal for hbm controller");
     end
 
+    logic start_prefetch;
+
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
-    assign hbm_prefetch_addr = hbm_addr_out;
+
+    assign hbm_prefetch_addr =  hbm_addr_out;
+    assign addr_to_prefetch  =  hbm_addr_out;
+
+    always_ff @(posedge clk or negedge rst) begin
+        if (!rst) begin
+            start_prefetch <= 1'b0;
+        end else begin
+            if(hbm_prefetch_en && !hbm_prefetch_content_exist) begin
+                addr_for_prefetched_data <= hbm_addr_out;
+                start_prefetch <= 1'b1;
+            end else begin
+                start_prefetch <= 1'b0;
+            end
+        end
+    end
+
     // Mapping inputted Addr to HBM address
     address_mapper #(
         .ADDR_WIDTH(ADDR_WIDTH),
@@ -108,7 +130,7 @@ module hbm_controller #(
         .clk(clk),
         .rst(rst),
         // Control signals
-        .req_en(hbm_prefetch_en),
+        .req_en(start_prefetch),
         .write_en(write_en),
         .fetch_addr(hbm_addr_out),
         .fetch_data(prefetch_element),

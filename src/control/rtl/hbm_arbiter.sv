@@ -41,7 +41,8 @@ module hbm_arbiter #(
     output  logic                                   hbm_prefetch_en,
     input   logic   [ADDR_WIDTH - 1 : 0]            target_addr,
 
-    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        prefetch_hbm_raddr,
+    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_to_prefetch,
+    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_for_prefetched_data,
 
     output   logic                                  hbm_write_en,
     input    logic                                  hbm_write_ready,
@@ -53,14 +54,12 @@ module hbm_arbiter #(
     input    logic                                  prefetch_m_ready,
     output   logic   [ELE_WIDTH - 1 : 0]            prefetch_m_element,
     output   logic   [SCALE_WIDTH - 1 : 0]          prefetch_m_scale,
-    output   logic                                  prefetch_m_data_valid,
 
 
     // Scratchpad SRAM
     input    logic                                  prefetch_v_ready,
     output   logic   [V_ELE_WIDTH- 1 : 0]           prefetch_v_element,
     output   logic   [V_SCALE_WIDTH- 1 : 0]         prefetch_v_scale,
-    output   logic                                  prefetch_v_data_valid,
 
     input    logic   [ELE_WIDTH - 1 : 0]            v_out_element,
     input    logic   [SCALE_WIDTH - 1 : 0]          v_out_scale,
@@ -104,13 +103,13 @@ always_ff @(posedge clk or posedge rst) begin
                 hbm_v_element <= prefetch_element;
                 hbm_v_scale   <= prefetch_scale;
                 for (int i = 0; i < MLEN; i++) begin
-                    hbm_v_addr_tag[i] <= prefetch_hbm_raddr + i * (MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
+                    hbm_v_addr_tag[i] <= addr_for_prefetched_data + i * (MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
                 end
             end else if (hbm_state == HBM_PREFETCH_M) begin
                 hbm_m_element   <= prefetch_element;
                 hbm_m_scale     <= prefetch_scale;
                 for (int i = 0; i < MATRIX_READ_ITERATIONS; i++) begin
-                    hbm_m_addr_tag[i] <= prefetch_hbm_raddr + i * (Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
+                    hbm_m_addr_tag[i] <= addr_for_prefetched_data + i * (Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) / 8);
                 end
             end
         end 
@@ -149,32 +148,28 @@ always_comb  begin
                 hbm_prefetch_en = 1'b0;
             end
             hbm_write_en = 1'b0;
-            prefetch_m_data_valid = 1'b0;
-            prefetch_v_data_valid = 1'b0;
         end
 
         HBM_PREFETCH_M: begin
+            hbm_prefetch_en = 1'b0;
             if (prefetch_m_ready & hbm_m_prefetch_complete) begin
                 next_hbm_state = IDLE;
                 prefetch_m_element = matched_m_element;
                 prefetch_m_scale   = matched_m_scale;
-                prefetch_m_data_valid = 1'b1;
             end else begin
                 next_hbm_state = HBM_PREFETCH_M;
-                recorded_hbm_prefetch_addr = prefetch_hbm_raddr;
-                prefetch_m_data_valid = 1'b0;
+                recorded_hbm_prefetch_addr = addr_to_prefetch;
             end
         end
 
         HBM_PREFETCH_V: begin
+            hbm_prefetch_en = 1'b0;
             if (prefetch_v_ready & hbm_v_prefetch_complete) begin
                 next_hbm_state = HBM_STORE_V;
                 prefetch_v_element = matched_v_element;
                 prefetch_v_scale   = matched_v_scale;
-                prefetch_v_data_valid = 1'b1;
             end else begin
                 next_hbm_state = HBM_PREFETCH_V;
-                prefetch_v_data_valid = 1'b0;
             end
         end
 

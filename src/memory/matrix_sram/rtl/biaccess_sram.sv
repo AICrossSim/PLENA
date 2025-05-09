@@ -53,8 +53,6 @@ logic read_data_valid;
 
 // Control Signals
 always_comb begin
-    write_response = 1'b1;
-    read_data_valid = 1'b1;
     write_response =  (individual_subs_sram_write_response == {SubSRAM_Amount{1'b1}});
     read_data_valid = (individual_subs_sram_read_valid == {SubSRAM_Amount{1'b1}});
 end 

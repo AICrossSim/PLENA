@@ -56,7 +56,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall  = 1'b1;
-        end else if (mem_stall_req.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV & decode_instr_info.opcode == M_TMV) ) begin
+        end else if (mem_stall_req.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall = 1'b1;

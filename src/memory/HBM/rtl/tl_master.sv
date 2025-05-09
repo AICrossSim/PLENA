@@ -79,13 +79,22 @@ module tl_master #(
     end
   end
 
+
+  logic fetch_in_progress;
+
   // FSM combinational logic
   always_comb begin
     if (rst) begin
       next_state = IDLE;
+      fetch_in_progress = 1'b0;
     end else begin
-      
-      host_d_ready  = req_en;
+      if (req_en) begin
+          fetch_in_progress = 1'b1;
+      end else if (host_d_valid && host_d.opcode == AccessAckData) begin // AccessAckData
+          fetch_in_progress = 1'b0;
+      end
+
+      host_d_ready  = fetch_in_progress;
       host_a.mask    = {MASK_WIDTH{1'b1}};
       // next_state = state;
       case (state)

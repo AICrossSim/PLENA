@@ -4,6 +4,7 @@
 // An adapter that converts an TL-UL interface to a BRAM interface.
 //
 // SinkWidth is fixed to 1 because sink is unused for TL-UL link.
+// Note: This is modifed that the BRAM read is ready at the next time when the a is valid.
 module tl_adapter_bram #(
   parameter  int unsigned AddrWidth   = 56,
   parameter  int unsigned DataWidth   = 64,
@@ -68,19 +69,21 @@ module tl_adapter_bram #(
   // Response handling logic //
   /////////////////////////////
 
-
+  logic delayed_do_op;
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       host_d_valid  <= 1'b0;
       host_d.opcode <= tl_d_op_e'('x);
       host_d.size   <= 'x;
       host_d.source <= 'x;
+      delayed_do_op <= 1'b0;
     end
     else begin
+      delayed_do_op <= do_op;
       if (host_d_valid && host_d_ready) begin
         host_d_valid <= 1'b0;
       end
-      if (do_op) begin
+      if (delayed_do_op) begin
         host_d_valid  <= 1'b1;
         host_d.opcode <= host_a.opcode != Get ? AccessAck : AccessAckData;
         host_d.size   <= host_a.size;
