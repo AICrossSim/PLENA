@@ -232,7 +232,7 @@ always_ff @(posedge clk or negedge rst) begin
         v_v_a_valid     <= 1'b0;
         v_v_b_valid     <= 1'b0;
     end else begin
-        // Scratchpad SRAM Port A Control
+        // Scratchpad Port A ->  R: Matrix Multiplicand Vector or Vector Operand
         if(assigned_op_bundle.m_op != STALL_M || assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
             // Read Vector from SRAM
             v_v_a_valid     <= 1'b1;
@@ -251,7 +251,7 @@ always_ff @(posedge clk or negedge rst) begin
             s_sram_wen_a    <= 1'b0;
         end
 
-        // Scratchpad Port B Control 
+        // Scratchpad Port B ->  R: Matrix Offest Vector or Vector Operand ( Not Broadcasted )or HBM Write Data
         if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
             // Read Port activated
             v_v_b_valid     <= 1'b1;
@@ -262,7 +262,7 @@ always_ff @(posedge clk or negedge rst) begin
             v_v_out_ready   <= 1'b1;
             s_sram_req_b    <= 1'b1;
             s_sram_wen_b    <= 1'b1;
-        end else if (assigned_op_bundle.stall_for_memory.stall_s_reg && dma_v_ready) begin
+        end else if (assigned_op_bundle.stall_for_memory.stall_s_sram && dma_v_ready) begin
             // HBM Fetch to the scratchpad sram
             s_sram_wen_b    <= 1'b1;
             s_sram_req_b    <= 1'b1;

@@ -174,11 +174,15 @@ always_comb  begin
         HBM_PREFETCH_V: begin
             hbm_prefetch_en = 1'b0;
             if (prefetch_v_ready & hbm_v_prefetch_complete) begin
-                next_hbm_state = HBM_STORE_V;
+                next_hbm_state = IDLE;
                 prefetch_v_element = matched_v_element;
                 prefetch_v_scale   = matched_v_scale;
             end else begin
                 next_hbm_state = HBM_PREFETCH_V;
+            end
+            if (previous_hbm_state == IDLE) begin
+                // Only update when the state just changed from IDLE to HBM_PREFETCH_M
+                recorded_hbm_prefetch_addr = addr_to_prefetch;
             end
         end
 

@@ -101,6 +101,7 @@ module coprocessor (
         .fetch_next_instr       (read_next_instr),
         .mem_stall_req          (stall_for_mem),
         .hbm_in_used   (hbm_in_used),
+        .continuous_m_prefetch(continuous_prefetch_m_en),
 
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
@@ -382,42 +383,43 @@ module coprocessor (
     // Scratchpad SRAM
     // Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
     // Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
-    // scratch_sram #(
-    //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-    //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-    //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-    //     .VLEN(MLEN),
-    //     .BLOCK_DIM(BLOCK_DIM),
-    //     .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
-    // ) vector_sram (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .req_a              (s_sram_req_a),
-    //     .write_en_a         (s_sram_wen_a),
-    //     .sram_addr_a        (s_sram_addr_a),
-    //     .element_in_a       (prefetched_v_element_port1),
-    //     .scale_in_a         (prefetched_v_scale_port1),
-    //     .mask_in_a          (s_sram_mask_a),
-    //     .element_out_a      (fetched_v_element_port1),
-    //     .scale_out_a        (fetched_v_scale_port1),
+    scratch_sram #(
+        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+        .VLEN(VLEN),
+        .BLOCK_DIM(BLOCK_DIM),
+        .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
+    ) vector_sram (
+        .clk(clk),
+        .rst(rst),
+        .req_a              (s_sram_req_a),
+        .write_en_a         (s_sram_wen_a),
+        .sram_addr_a        (s_sram_addr_a),
+        .element_in_a       (prefetched_v_element_port1),
+        .scale_in_a         (prefetched_v_scale_port1),
+        .mask_in_a          (s_sram_mask_a),
+        .element_out_a      (fetched_v_element_port1),
+        .scale_out_a        (fetched_v_scale_port1),
         
-    //     .req_b              (s_sram_req_b),
-    //     .write_en_b         (s_sram_wen_b),
-    //     .sram_addr_b        (s_sram_addr_b),
-    //     .element_in_b       (prefetched_v_element_port2),
-    //     .scale_in_b         (prefetched_v_scale_port2),
-    //     .mask_in_b          (s_sram_mask_b),
-    //     .element_out_b      (fetched_v_element_port2),
-    //     .scale_out_b        (fetched_v_scale_port2)
-    // );
+        .req_b              (s_sram_req_b),
+        .write_en_b         (s_sram_wen_b),
+        .sram_addr_b        (s_sram_addr_b),
+        .element_in_b       (prefetched_v_element_port2),
+        .scale_in_b         (prefetched_v_scale_port2),
+        .mask_in_b          (s_sram_mask_b),
+        .element_out_b      (fetched_v_element_port2),
+        .scale_out_b        (fetched_v_scale_port2)
+    );
 
+    // HBM Control
+    // TL Declaration
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
     `TL_BIND_HOST_PORT(out_element, element);
 
     `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
     `TL_BIND_HOST_PORT(out_scale, scale);
 
-    // HBM Control
     logic [MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
     logic [MLEN * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
@@ -466,14 +468,14 @@ module coprocessor (
 
         // Vector SRAM
         // Write to Vector SRAM
-        .prefetch_v_ready       (),
+        .prefetch_v_ready       (s_sram_wen_b),
         .prefetch_v_element     (prefetched_v_element_port2),
         .prefetch_v_scale       (prefetched_v_scale_port2),
 
         // Read from Vector SRAM
         .v_out_element          (fetched_v_element_port2),
         .v_out_scale            (fetched_v_scale_port2),
-        .v_out_data_wen         (),
+        .v_out_data_wen         (), // Left for store vector into HBM
 
         // HBM Operation
         .h_op(assigned_op_bundle.h_op),

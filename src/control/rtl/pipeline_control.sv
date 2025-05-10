@@ -27,6 +27,7 @@ module pipeline_control #(
     // Execution Monitor
     input       MEM_STALL_TYPE  mem_stall_req,
     input       logic           hbm_in_used,   // Activated when we need to prefetch data from HBM through TL.
+    input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
 
     // Current control operation
     output      logic           pipeline_stall,
@@ -50,7 +51,7 @@ import pipeline_pkg::*;
     // Prefetch monitor
     logic prefetch_in_progress;
     logic prefetch_stage_1_in_progress, prefetch_stage_2_in_progress;
-    assign prefetch_in_progress = prefetch_stage_1_in_progress || prefetch_stage_2_in_progress;
+    assign prefetch_in_progress = prefetch_stage_1_in_progress || prefetch_stage_2_in_progress || continuous_m_prefetch;
     assign prefetch_stage_2_in_progress = hbm_in_used;
     logic [$clog2(PREFETCH_STAGE_1_CYCLES) : 0] prefetch_stage_1_counter;
 
