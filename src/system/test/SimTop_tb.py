@@ -21,18 +21,22 @@ from typing import Literal, Optional, Tuple, Union, Dict, List
 import math
 from functools import partial
 import random
+import argparse
+from pathlib import Path
+
+
+# parser = argparse.ArgumentParser(description="Greet someone.")
+# parser.add_argument("--benchmark", type=str, default="general")
+# args = parser.parse_args()
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
-
-from pathlib import Path
-
 current_path = Path(__file__).resolve().parent
 
-instr_file = f"{current_path}/benchmark.mem"
-hbm_element_file = f"{current_path}/hbm_ele.mem"
-hbm_scale_file = f"{current_path}/hbm_scale.mem"
-INSTRUCTION_LENGTH = 32
+instr_file = f"{current_path}/benchmarks/matrix.mem"
+hbm_element_file = f"{current_path}/workload/hbm_ele.mem"
+hbm_scale_file = f"{current_path}/workload/hbm_scale.mem"
+INSTRUCTION_LENGTH = 16
 
 
 class SimTOP(Testbench):

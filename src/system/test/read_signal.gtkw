@@ -1,21 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat May 10 00:05:39 2025
+[*] Sat May 10 17:33:39 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sat May 10 00:02:32 2025"
-[dumpfile_size] 11729785
+[dumpfile_mtime] "Sat May 10 17:28:05 2025"
+[dumpfile_size] 11732388
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] 32735 32735
-*-17.000000 473100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.000000 260000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.data_flow_init.assigned_op_bundle.
-[treeopen] SimTop.dut.hbm_controller_init.
-[treeopen] SimTop.dut.matrix_sram.
 [treeopen] SimTop.dut.pipeline_control_init.
 [sst_width] 326
 [signals_width] 347
@@ -24,57 +21,31 @@
 @28
 SimTop.dut.clk
 @22
-SimTop.dut.hbm_controller_init.prefetch_element[127:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
 @28
-SimTop.dut.hbm_controller_init.hbm_prefetch_en
-SimTop.dut.hbm_controller_init.hbm_prefetch_content_exist
 SimTop.dut.hbm_controller_init.start_prefetch
 @22
-SimTop.dut.hbm_controller_init.addr_for_prefetched_data[63:0]
-SimTop.dut.hbm_controller_init.prefetch_element[127:0]
-@28
-SimTop.dut.hbm_arbiter_init.prefetch_data_valid
-SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
-@22
-SimTop.dut.hbm_arbiter_init.hbm_m_addr_tag[0][63:0]
-SimTop.dut.hbm_arbiter_init.hbm_m_addr_tag[1][63:0]
-@28
-SimTop.dut.hbm_arbiter_init.hbm_m_prefetch_complete
-SimTop.dut.hbm_arbiter_init.tag_m_valid
-@22
-SimTop.dut.hbm_arbiter_init.recorded_hbm_prefetch_addr[63:0]
-@28
-SimTop.dut.hbm_arbiter_init.matched_m_tag[1:0]
-SimTop.dut.hbm_arbiter_init.hbm_m_prefetch_complete
-@22
-SimTop.dut.hbm_arbiter_init.matched_m_element[63:0]
-@28
-SimTop.dut.matrix_sram.write_en
-SimTop.dut.matrix_sram.write_response
-SimTop.dut.data_flow_init.continuous_prefetch_m_en
-SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
-SimTop.dut.data_flow_init.m_sram_counter[1:0]
-SimTop.dut.data_flow_init.dma_m_ready
-SimTop.dut.data_flow_init.assigned_op_bundle.stall_for_memory.stall_m_sram
-SimTop.dut.data_flow_init.m_sram_wen
-SimTop.dut.hbm_arbiter_init.prefetch_data_valid
-@22
-SimTop.dut.hbm_arbiter_init.addr_for_prefetched_data[63:0]
-@28
-SimTop.dut.hbm_arbiter_init.prefetch_data_valid
-SimTop.dut.hbm_controller_init.element_master.host_d_valid
-SimTop.dut.hbm_controller_init.element_master.host_a_valid
-@22
-SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
-@28
-SimTop.dut.hbm_controller_init.ready_for_prefetch
-@22
-SimTop.dut.hbm_controller_init.addr_to_prefetch[63:0]
-@28
-SimTop.dut.hbm_controller_init.continuous_prefetch_m_en
-@22
-SimTop.dut.matrix_sram.element_in[1][0][7:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.rd[3:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.rs1[3:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.rs2[3:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.imm[6:0]
 @29
-SimTop.dut.matrix_sram.write_en
+SimTop.dut.pipeline_control_init.pipeline_stall
+@28
+SimTop.dut.pipeline_control_init.mem_stall_req.stall_m_sram
+@22
+SimTop.dut.scalar_machine.fixed_control[3:0]
+SimTop.dut.scalar_machine.fixed_alu_out[31:0]
+@28
+SimTop.dut.scalar_machine.fix_we
+@22
+SimTop.dut.scalar_machine.fixed_reg_1[31:0]
+SimTop.dut.scalar_machine.fixed_reg_2[31:0]
+SimTop.dut.scalar_machine.fixed_reg_wdata[31:0]
+SimTop.dut.scalar_machine.rd[2:0]
+@28
+SimTop.dut.pipeline_control_init.prefetch_stage_1_in_progress
+SimTop.dut.pipeline_control_init.prefetch_stage_2_in_progress
 [pattern_trace] 1
 [pattern_trace] 0

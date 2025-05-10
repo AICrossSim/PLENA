@@ -66,9 +66,9 @@ logic [IMM_WIDTH - 1 : 0]       loaded_imm;
 
 
 
-assign loaded_imm       = loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_WIDTH];
-assign loaded_rs2       = loaded_instr[INSTRUCTION_LENGTH - 1 -: OPERAND_WIDTH];
-assign loaded_rs1       = loaded_instr[(INSTRUCTION_LENGTH - OPERAND_WIDTH - 1) -: OPERAND_WIDTH];
+assign loaded_imm       = (loaded_opcode == S_ADDI_FIX) ? {{(IMM_WIDTH - IMM_2_WIDTH){1'b0}} , loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_2_WIDTH]} : loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_WIDTH];
+assign loaded_rs2       = loaded_instr[INSTRUCTION_LENGTH - 2 -: OPERAND_WIDTH];
+assign loaded_rs1       = loaded_instr[(INSTRUCTION_LENGTH - OPERAND_WIDTH - 2) -: OPERAND_WIDTH];
 assign loaded_rd        = loaded_instr[(INSTRUCTION_LENGTH - 2 * OPERAND_WIDTH - 2) -: OPERAND_WIDTH];
 assign loaded_opcode    = loaded_instr[OPCODE_WIDTH - 1 : 0];
 
@@ -77,7 +77,7 @@ CUSTOM_ISA_TYPE decode_instruction_type;
 always_comb begin
     case (loaded_opcode)
         // Matrix Operations
-        M_MV, M_TMV: begin
+        M_MV, M_MV_O, M_TMV, M_TMV_O: begin
             decode_instruction_type = M;
         end
 

@@ -6,6 +6,7 @@ parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
 parameter OPCODE_WIDTH = 6;
 parameter IMM_WIDTH = 7;
+parameter IMM_2_WIDTH = 4;
 parameter INSTRUCTION_LENGTH = 16;
 
 typedef struct {
@@ -19,6 +20,7 @@ package instruction_pkg;
     parameter FP_OPERAND_WIDTH = 3;
     parameter OPERAND_WIDTH = max(FIXED_OPERAND_WIDTH, FP_OPERAND_WIDTH);
     parameter OPCODE_WIDTH = 6;
+    parameter IMM_2_WIDTH = 4;
     parameter IMM_WIDTH = 7;
     parameter INSTRUCTION_LENGTH = 16;
 endpackage
@@ -69,7 +71,7 @@ typedef enum logic [3:0] {
     LD_FIX        = 8,
     ST_FIX        = 9,
     COMP_ADDR     = 10,
-    COMP_ADDR_2   = 11,
+    COMP_ADDR_2   = 11, // outputs rd adress.
     STALL_S_FIXED = 0
 } S_FIXED_OP;
 

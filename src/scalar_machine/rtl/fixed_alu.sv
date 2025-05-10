@@ -29,6 +29,8 @@ module fixed_alu #(
                 result = operand_a + operand_b; // Addition
             SUB_FIX:
                 result = operand_a - operand_b; // Subtraction
+            MUL_FIX:
+                result = operand_a * operand_b; // Multiplication
             DIV_FIX:
                 result = operand_a / operand_b; // Division
             LUI_FIX:

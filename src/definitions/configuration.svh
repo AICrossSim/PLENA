@@ -20,6 +20,7 @@ endpackage
 
 package pipeline_pkg;
     parameter   MAX_PIPELINE_STAGE              = 10;   
+    parameter   PREFETCH_STAGE_1_CYCLES        = 2;
 endpackage
 
 

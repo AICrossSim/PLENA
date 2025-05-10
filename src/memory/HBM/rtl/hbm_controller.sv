@@ -60,7 +60,7 @@ module hbm_controller #(
 
     output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_to_prefetch,
     output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_for_prefetched_data,
-    // TODO : consider to move this part to upper level
+    // TODO : consider to move this part to upper level, here continuous prefetch means to continuously prefetch section [Parallel_Rd_Dim, MLEN] data into the matrix sram until the [MLEN, MLEN] data is transferred.
     input   logic                                   continuous_prefetch_m_en,
     input   logic   [MATRIX_COUNTER_WIDTH - 1 : 0]  m_sram_continuous_prefetch_counter,
 
@@ -74,6 +74,7 @@ module hbm_controller #(
 
     // Check Existence
     input   logic                                   hbm_prefetch_content_exist,
+    output  logic track_prefetch_status,            // 0 for idle, 1 for in prefetching progress.
 
     // TL Interface
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
@@ -89,6 +90,7 @@ module hbm_controller #(
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
     logic ready_for_prefetch;
     logic delayed_continuous_prefetch_m_en;
+    
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -109,6 +111,16 @@ module hbm_controller #(
                 start_prefetch <= 1'b0;
             end
         end
+    end
+
+    always_comb begin
+        if (rst) begin
+            track_prefetch_status = 1'b0;
+        end else if (start_prefetch) begin
+            track_prefetch_status = 1'b1;
+        end else if (prefetch_data_valid) begin
+            track_prefetch_status = 1'b0;
+        end 
     end
 
     // Mapping inputted Addr to HBM address

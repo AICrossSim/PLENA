@@ -25,45 +25,79 @@ module pipeline_control #(
     output      logic fetch_next_instr,
 
     // Execution Monitor
-    input       MEM_STALL_TYPE mem_stall_req,
+    input       MEM_STALL_TYPE  mem_stall_req,
+    input       logic           hbm_in_used,   // Activated when we need to prefetch data from HBM through TL.
 
     // Current control operation
-    output      logic       pipeline_stall,
-    output      OP_BUNDLE   assigned_op_bundle,
-    output      logic       m_update_waddr,
-    output      logic       v_update_waddr,
+    output      logic           pipeline_stall,
+    output      OP_BUNDLE       assigned_op_bundle,
+    output      logic           m_update_waddr,
+    output      logic           v_update_waddr,
 
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
-    output      logic [FP_OPERAND_WIDTH - 1 : 0] fps1,
-    output      logic [FP_OPERAND_WIDTH - 1 : 0] fps2,
-    output      logic [FP_OPERAND_WIDTH - 1 : 0] fpd,
-    output      logic [IMM_WIDTH - 1 : 0] imm
+    output      logic [FP_OPERAND_WIDTH - 1 : 0]    fps1,
+    output      logic [FP_OPERAND_WIDTH - 1 : 0]    fps2,
+    output      logic [FP_OPERAND_WIDTH - 1 : 0]    fpd,
+    output      logic [IMM_WIDTH - 1 : 0]           imm
 );
 
 import pipeline_pkg::*;
     // Pipeline Control
- 
+    
+    // Status Monitor Signals
+    // Prefetch monitor
+    logic prefetch_in_progress;
+    logic prefetch_stage_1_in_progress, prefetch_stage_2_in_progress;
+    assign prefetch_in_progress = prefetch_stage_1_in_progress || prefetch_stage_2_in_progress;
+    assign prefetch_stage_2_in_progress = hbm_in_used;
+    logic [$clog2(PREFETCH_STAGE_1_CYCLES) : 0] prefetch_stage_1_counter;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            prefetch_stage_1_in_progress <= 1'b0;
+            prefetch_stage_1_counter <= 'b0;
+        end else begin
+            if (!pipeline_stall && decode_instr_valid && (decode_instr_info.opcode == H_PREFETCH_M || decode_instr_info.opcode == H_PREFETCH_V)) begin
+                prefetch_stage_1_in_progress <= 1'b1;
+                prefetch_stage_1_counter <= 'b0;
+            end else if (prefetch_stage_1_counter == PREFETCH_STAGE_1_CYCLES - 1) begin
+                prefetch_stage_1_in_progress <= 1'b0;
+                prefetch_stage_1_counter <= 'b0;
+            end else if (prefetch_stage_1_in_progress) begin
+                prefetch_stage_1_counter <= prefetch_stage_1_counter + 1'b1;
+            end else begin
+                prefetch_stage_1_counter <= 'b0;
+            end
+        end
+    end
+
+
     // Decision for pipeline stall
     always_comb begin
         // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
-        if(decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV ) begin
+        if (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_TMV_O) begin
             m_update_waddr   = 1'b1;
             v_update_waddr   = 1'b0;
-            pipeline_stall  = 1'b1;
+            pipeline_stall   = 1'b1;
         end else if (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_MUL_VV) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
-            pipeline_stall  = 1'b1;
+            pipeline_stall   = 1'b1;
         end else if (mem_stall_req.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
-            pipeline_stall = 1'b1;
+            pipeline_stall   = 1'b1;
+        end else if (prefetch_in_progress & (decode_instr_info.opcode == H_PREFETCH_M || decode_instr_info.opcode == H_PREFETCH_V)) begin
+            // Release until the prefetching is done.
+            m_update_waddr   = 1'b0;
+            v_update_waddr   = 1'b0;
+            pipeline_stall   = 1'b1;            
         end else begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
-            pipeline_stall = 1'b0;
+            pipeline_stall   = 1'b0;
         end
 
     end
@@ -89,7 +123,7 @@ import pipeline_pkg::*;
                 fps2            <= 'b0;
                 fpd             <= 'b0;
                 imm             <= 'b0;
-            end else if (mem_stall_req.stall_m_sram == 1'b1 || mem_stall_req.stall_s_sram == 1'b1 || mem_stall_req.stall_s_reg == 1'b1) begin
+            end else begin
                 // If any of the stall request is enabled.
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
@@ -98,7 +132,6 @@ import pipeline_pkg::*;
                 assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
                 assigned_op_bundle.c_op            <= STALL_C;
                 assigned_op_bundle.h_op            <= STALL_H;
-                assigned_op_bundle.stall_for_memory <= mem_stall_req;
                 rs1             <= 'b0;
                 rs2             <= 'b0;
                 rd              <= 'b0;
@@ -107,6 +140,9 @@ import pipeline_pkg::*;
                 fpd             <= 'b0;
                 imm             <= 'b0;
             end
+            
+            // Memory Req was set to be the highest priority. TODO
+            assigned_op_bundle.stall_for_memory <= mem_stall_req;
 
         end else begin
 

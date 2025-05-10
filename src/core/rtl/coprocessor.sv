@@ -64,6 +64,9 @@ module coprocessor (
     logic       m_update_waddr, v_update_waddr;
     logic       m_write_request, v_write_request;
     
+    // Status Tracking
+    logic       hbm_in_used;
+    
     // Frontend
     decoder #(
         .INSTRUCTION_LENGTH         (INSTRUCTION_LENGTH),
@@ -97,6 +100,7 @@ module coprocessor (
         .decode_instr_valid     (decode_instr_valid),
         .fetch_next_instr       (read_next_instr),
         .mem_stall_req          (stall_for_mem),
+        .hbm_in_used   (hbm_in_used),
 
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
@@ -524,6 +528,7 @@ module coprocessor (
         .hbm_write_element  (hbm_element_in),
         .hbm_write_scale    (hbm_scale_in),
         .hbm_prefetch_content_exist(hbm_m_prefetch_complete || hbm_v_prefetch_complete),
+        .track_prefetch_status (hbm_in_used),
 
         // HBM Interface
         `TL_CONNECT_HOST_PORT(host_element, element),
