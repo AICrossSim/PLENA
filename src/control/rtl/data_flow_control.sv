@@ -16,7 +16,9 @@ module data_flow_control import precision_pkg::*; #(
     parameter   OPERAND_WIDTH           = 5,
     parameter   VLEN                    = 8,       
     parameter   MLEN                    = 8,
-    parameter   Parallel_Rd_Dim         = 4       // Number of inputs per cycle
+    parameter   Parallel_Rd_Dim         = 4,       // Number of inputs per cycle
+    localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim,
+    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION)
 ) (
 
     input       logic clk,
@@ -85,12 +87,14 @@ module data_flow_control import precision_pkg::*; #(
     output      logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr,
     input       logic dma_m_ready,
     input       logic dma_v_ready,
+    output      logic continuous_prefetch_m_en,
+    output      logic [MATRIX_COUNTER_WIDTH - 1: 0] m_sram_continuous_prefetch_counter,
 
     // Execution Control
     output      OP_BUNDLE          exe_op_bundle
 );
 
-localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
+localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 logic             exe_m_write_en, exe_v_write_en; 
 
 
@@ -111,7 +115,7 @@ always_ff @(posedge clk or negedge rst) begin
         previous_dma_v_ready <= dma_v_ready;
     end
 end
-
+//Request Asserted in single cycle
 always_comb begin
     stall_req.stall_m_sram = ((dma_m_ready == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
     stall_req.stall_s_sram = ((dma_v_ready == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
@@ -119,12 +123,13 @@ always_comb begin
 end
 
 
-
+logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr;
 
 // Matrix SRAM Control
-localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim;
-localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
-logic [MATRIX_COUNTER_WIDTH - 1 : 0]    m_sram_counter;
+
+logic [MATRIX_COUNTER_WIDTH : 0]    m_sram_counter;
+assign m_sram_continuous_prefetch_counter = m_sram_counter;
+
 logic               m_load_failed;
 M_OP                track_m_op;
 
@@ -133,15 +138,21 @@ always_comb begin
     if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O) begin
         m_sram_addr = fixed_addr_2;
     end else if (exe_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
-        m_sram_addr = recorded_m_prefetch_addr;
+        m_sram_addr = recorded_m_prefetch_addr + m_sram_counter * BYTES_PER_ROW;
     end
-    if (record_m_prefetch_addr_en) begin
+
+    if (rst) begin
+        continuous_prefetch_m_en = 1'b0;
+        recorded_m_prefetch_addr = 'b0;
+    end else if (assigned_op_bundle.h_op == PREFETCH_M) begin
         recorded_m_prefetch_addr = fixed_addr_2;
+        continuous_prefetch_m_en = 1'b1;
+    end else if (m_sram_counter == MATRIX_LOAD_ITERATION) begin
+        continuous_prefetch_m_en = 1'b0;
     end
 end
 
-logic record_m_prefetch_addr_en;
-logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr;
+
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
@@ -158,6 +169,7 @@ always_ff @(posedge clk or negedge rst) begin
             // Fetching the data from the Matrix Sram to the Matrix Machine
             // m_sram_busy <= 1'b1;
             m_sram_req      <= 1'b1;
+            m_sram_wen      <= 1'b0;
             m_sram_transposed_read <= assigned_op_bundle.m_transposed_read;
         end
         
@@ -177,20 +189,23 @@ always_ff @(posedge clk or negedge rst) begin
 
         // end 
         
+        
         else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
             m_sram_req <= 1'b1;
             m_sram_wen <= 1'b1;
+            m_sram_counter <= m_sram_counter + 1'b1;
+        end else if (continuous_prefetch_m_en) begin
+            // Prefetching the data from the HBM to the Matrix Sram
+            m_sram_req <= 1'b0;
+            m_sram_wen <= 1'b0;
+            m_sram_counter <= m_sram_counter;
         end else begin
             m_sram_req <= 1'b0;
             m_sram_wen <= 1'b0;
+            m_sram_counter <= 'b0;
         end
 
 
-        if (assigned_op_bundle.h_op == PREFETCH_M) begin
-            record_m_prefetch_addr_en <= 1'b1;
-        end else begin
-            record_m_prefetch_addr_en <= 1'b0;
-        end
 
         // if (!m_sram_busy) begin
         //     track_m_op <= assigned_op_bundle.m_op;

@@ -122,7 +122,7 @@ module coprocessor (
     logic m_o_valid,    m_o_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
-    logic m_write_response;
+    logic continuous_prefetch_m_en;
 
     logic v_v_a_valid,      v_v_a_ready;
     logic v_v_b_valid,      v_v_b_ready;
@@ -135,9 +135,11 @@ module coprocessor (
     logic [FIXED_DATA_WIDTH - 1 : 0] s_sram_addr_a, s_sram_addr_b;
     logic [VLEN-1:0] s_sram_mask_a, s_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
-
     logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr;
 
+    localparam MATRIX_LOAD_ITERATION = MLEN / Matrix_Parallel_Rd_Dim;
+    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
+    logic [MATRIX_COUNTER_WIDTH - 1 : 0] m_sram_continuous_prefetch_counter;
     // Dataflow Control
     data_flow_control #(
         .OPERAND_WIDTH(FIXED_OPERAND_WIDTH),
@@ -191,6 +193,8 @@ module coprocessor (
         .hbm_offset_addr        (hbm_offset_addr),
         .dma_m_ready            (hbm_m_prefetch_complete),
         .dma_v_ready            (hbm_v_prefetch_complete),
+        .continuous_prefetch_m_en(continuous_prefetch_m_en),
+        .m_sram_continuous_prefetch_counter(m_sram_continuous_prefetch_counter),
         .exe_op_bundle          (exe_op_bundle)
     );
 
@@ -469,6 +473,7 @@ module coprocessor (
 
         // HBM Operation
         .h_op(assigned_op_bundle.h_op),
+        .continuous_prefetch_m_en (continuous_prefetch_m_en),
         .hbm_m_prefetch_complete (hbm_m_prefetch_complete),
         .hbm_v_prefetch_complete (hbm_v_prefetch_complete)
     );
@@ -509,6 +514,8 @@ module coprocessor (
         .hbm_prefetch_en    (hbm_prefetch_en),
         .addr_to_prefetch  (addr_to_prefetch),
         .addr_for_prefetched_data (addr_for_prefetched_data),
+        .continuous_prefetch_m_en(continuous_prefetch_m_en),
+        .m_sram_continuous_prefetch_counter(m_sram_continuous_prefetch_counter),
 
         // HBM Write
         .hbm_write_en       (hbm_write_en),

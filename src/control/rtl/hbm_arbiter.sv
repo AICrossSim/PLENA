@@ -66,6 +66,7 @@ module hbm_arbiter #(
 
     // Control signals
     input    H_OP                                   h_op, 
+    input    logic                                  continuous_prefetch_m_en, // For matrix prefetch, it requires multiple cycles to prefetch the MLEN * MLEN data to the matrix sram.
     output   logic                                  hbm_m_prefetch_complete, // For matrix prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
     output   logic                                  hbm_v_prefetch_complete  // For vector prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
 );
@@ -137,7 +138,7 @@ logic [SCALE_WIDTH - 1 : 0]          matched_m_scale;
 always_comb  begin
     case (hbm_state)
         IDLE: begin
-            if (h_op == PREFETCH_M) begin
+            if (h_op == PREFETCH_M || continuous_prefetch_m_en == 1'b1) begin
                 next_hbm_state = HBM_PREFETCH_M;
                 hbm_prefetch_en = 1'b1;
             end else if (h_op == PREFETCH_V) begin

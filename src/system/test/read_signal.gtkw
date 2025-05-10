@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri May  9 16:39:55 2025
+[*] Sat May 10 00:05:39 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri May  9 16:36:05 2025"
-[dumpfile_size] 11718809
+[dumpfile_mtime] "Sat May 10 00:02:32 2025"
+[dumpfile_size] 11729785
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] 32735 32735
-*-17.000000 944300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.000000 473100 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
@@ -48,14 +48,33 @@ SimTop.dut.hbm_arbiter_init.matched_m_tag[1:0]
 SimTop.dut.hbm_arbiter_init.hbm_m_prefetch_complete
 @22
 SimTop.dut.hbm_arbiter_init.matched_m_element[63:0]
-SimTop.dut.matrix_sram.element_in[0][0][7:0]
-SimTop.dut.matrix_sram.element_in[0][1][7:0]
-SimTop.dut.matrix_sram.element_in[0][2][7:0]
-SimTop.dut.matrix_sram.element_in[0][3][7:0]
-SimTop.dut.matrix_sram.element_in[1][0][7:0]
 @28
 SimTop.dut.matrix_sram.write_en
-@29
 SimTop.dut.matrix_sram.write_response
+SimTop.dut.data_flow_init.continuous_prefetch_m_en
+SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
+SimTop.dut.data_flow_init.m_sram_counter[1:0]
+SimTop.dut.data_flow_init.dma_m_ready
+SimTop.dut.data_flow_init.assigned_op_bundle.stall_for_memory.stall_m_sram
+SimTop.dut.data_flow_init.m_sram_wen
+SimTop.dut.hbm_arbiter_init.prefetch_data_valid
+@22
+SimTop.dut.hbm_arbiter_init.addr_for_prefetched_data[63:0]
+@28
+SimTop.dut.hbm_arbiter_init.prefetch_data_valid
+SimTop.dut.hbm_controller_init.element_master.host_d_valid
+SimTop.dut.hbm_controller_init.element_master.host_a_valid
+@22
+SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
+@28
+SimTop.dut.hbm_controller_init.ready_for_prefetch
+@22
+SimTop.dut.hbm_controller_init.addr_to_prefetch[63:0]
+@28
+SimTop.dut.hbm_controller_init.continuous_prefetch_m_en
+@22
+SimTop.dut.matrix_sram.element_in[1][0][7:0]
+@29
+SimTop.dut.matrix_sram.write_en
 [pattern_trace] 1
 [pattern_trace] 0

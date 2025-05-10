@@ -75,6 +75,8 @@ module tl_master #(
         r_fetch_data_valid <= 1'b1;
       end else if (host_d.opcode == AccessAck) begin
         r_fetch_data_valid <= 1'b0;
+      end else begin
+        r_fetch_data_valid <= 1'b0;
       end
     end
   end

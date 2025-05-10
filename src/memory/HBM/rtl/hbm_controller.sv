@@ -36,7 +36,10 @@ module hbm_controller #(
 
     parameter int HBM_ELE_WIDTH = 128,
     parameter int HBM_SCALE_WIDTH = 128,
-    parameter SCALE_DATA_OFFSET = 32'h80000000
+    parameter SCALE_DATA_OFFSET = 32'h80000000,
+
+    localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim,
+    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION)
 )(
     input   logic clk,
     input   logic rst,
@@ -57,6 +60,9 @@ module hbm_controller #(
 
     output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_to_prefetch,
     output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_for_prefetched_data,
+    // TODO : consider to move this part to upper level
+    input   logic                                   continuous_prefetch_m_en,
+    input   logic   [MATRIX_COUNTER_WIDTH - 1 : 0]  m_sram_continuous_prefetch_counter,
 
 
     // HBM data writing
@@ -73,14 +79,16 @@ module hbm_controller #(
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
 );
+
+    localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
     initial begin
         assert (MLEN == VLEN) else $fatal("MLEN and VLEN should be equal for hbm controller");
     end
 
     logic start_prefetch;
-
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
     logic ready_for_prefetch;
+    logic delayed_continuous_prefetch_m_en;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -88,8 +96,10 @@ module hbm_controller #(
             ready_for_prefetch          <= 1'b0;
             addr_to_prefetch            <= 'b0;
             addr_for_prefetched_data    <= 'b0;
+            delayed_continuous_prefetch_m_en <= 1'b0;
         end else begin
-            addr_to_prefetch    <= hbm_addr_out;
+            delayed_continuous_prefetch_m_en <= continuous_prefetch_m_en;
+            addr_to_prefetch    <= delayed_continuous_prefetch_m_en ? addr_for_prefetched_data + m_sram_continuous_prefetch_counter * BYTES_PER_ROW : hbm_addr_out;
             ready_for_prefetch  <= hbm_prefetch_en;
 
             if(ready_for_prefetch && !hbm_prefetch_content_exist) begin

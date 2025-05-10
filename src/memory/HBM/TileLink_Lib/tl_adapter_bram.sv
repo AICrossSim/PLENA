@@ -80,14 +80,13 @@ module tl_adapter_bram #(
     end
     else begin
       delayed_do_op <= do_op;
-      if (host_d_valid && host_d_ready) begin
-        host_d_valid <= 1'b0;
-      end
       if (delayed_do_op) begin
         host_d_valid  <= 1'b1;
         host_d.opcode <= host_a.opcode != Get ? AccessAck : AccessAckData;
         host_d.size   <= host_a.size;
         host_d.source <= host_a.source;
+      end else begin
+        host_d_valid <= 1'b0;
       end
     end
 
