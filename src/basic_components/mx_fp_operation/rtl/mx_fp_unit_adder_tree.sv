@@ -101,7 +101,7 @@ module mx_fp_unit_adder_tree #(
                 .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
             ) temp_store_element (
                 .clk           (clk),
-                .rst           (!rst),                        // Inverted reset
+                .rst           (rst),                        // Inverted reset
                 .element_data_in       (element_sum[i]),      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
                 .data_in_valid (valid[i]),
                 .data_in_ready (element_ready[i]),
@@ -114,7 +114,7 @@ module mx_fp_unit_adder_tree #(
                 .DATA_WIDTH(LEVEL_OUT_DIM * MXFP_SCALE_WIDTH)
             ) temp_store_scale (
                 .clk           (clk),
-                .rst           (!rst),                        // Inverted reset
+                .rst           (rst),                        // Inverted reset
                 .data_in       (scale_sum[i]),                      // flattened LEVEL_OUT_DIM * SCALE_WIDTH
                 .data_in_valid (valid[i]),
                 .data_in_ready (scale_ready[i]),

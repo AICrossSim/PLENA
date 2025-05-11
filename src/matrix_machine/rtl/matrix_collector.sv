@@ -21,22 +21,20 @@ module matrix_collector #(
     input  logic                                clear,
 
     // Input port
-    input  logic [Collect_Dim * MLEN * DATA_WIDTH - 1 : 0]   in_data,
+    input  logic [Collect_Dim * DATA_WIDTH - 1 : 0]   in_data,
     input  logic                                in_valid,
     output logic                                in_ready,
 
     // Output port
-    output logic [MLEN * MLEN * DATA_WIDTH - 1 : 0]          out_matrix,
+    output logic [MLEN * DATA_WIDTH - 1 : 0]          out_matrix,
     output logic                                out_valid,
     input  logic                                out_ready
 );
 
     localparam int NUM_CYCLES = MLEN / Collect_Dim;
-    localparam int ADDR_WIDTH = $clog2(NUM_CYCLES + 1);
 
     // Internal storage
-    logic [DATA_WIDTH-1:0] buffer [0:MLEN-1];
-    logic [ADDR_WIDTH-1:0] cycle_count;
+    logic [$clog2(NUM_CYCLES + 1)-1:0] cycle_count;
 
     logic collecting;
     assign collecting = (cycle_count < NUM_CYCLES);
@@ -45,29 +43,26 @@ module matrix_collector #(
     // Flatten and register output matrix
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n || clear) begin
-            cycle_count <= 0;
-            out_valid   <= 0;
+            cycle_count <= 'b0;
+            out_valid   <= 1'b0;
         end else begin
             if (in_valid && in_ready) begin
                 // Write incoming data into buffer
                 for (int i = 0; i < Collect_Dim; i++) begin
-                    buffer[cycle_count * Collect_Dim + i] <= in_data[i*DATA_WIDTH +: DATA_WIDTH];
+                    out_matrix[(cycle_count * Collect_Dim + i) * DATA_WIDTH +: DATA_WIDTH] <= in_data[i*DATA_WIDTH +: DATA_WIDTH];
                 end
-                cycle_count <= cycle_count + 1;
-
                 // If last cycle, prepare output matrix
-                if (cycle_count + 1 == NUM_CYCLES) begin
-                    out_valid <= 1;
-                    for (int j = 0; j < MLEN; j++) begin
-                        out_matrix[j*DATA_WIDTH +: DATA_WIDTH] <= buffer[j];
-                    end
-                    cycle_count <= 0;
+                if (cycle_count == NUM_CYCLES - 1) begin
+                    out_valid <= 1'b1;
+                    cycle_count <= 'b0;
+                end else begin
+                    cycle_count <= cycle_count + 1;
                 end
             end
 
             // Accepting output
             if (out_valid && out_ready) begin
-                out_valid <= 0;
+                out_valid <= 1'b0;
             end
         end
     end

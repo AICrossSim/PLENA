@@ -90,12 +90,7 @@ initial begin
 end
 
 // Fetch Control
-logic clear_m;
-logic buffer_ready_m, buffer_ready_v, buffer_ready_o;
-assign m_ready  = (matrix_opcode != STALL_M) ? buffer_ready_m : 1'b0;
-assign v_ready  = (matrix_opcode != STALL_M) ? buffer_ready_v : 1'b0;
-assign o_ready  = (matrix_opcode == MV_O)    ? buffer_ready_o : 1'b0;
-
+logic clear_m;  // TODO
 
 typedef struct {
     logic [ADDR_WIDTH-1:0]             waddr;
@@ -174,7 +169,7 @@ split_n #(
     .N(2)
 ) eb_split_i (
     .data_in_valid (m_valid),
-    .data_in_ready (buffer_ready_m),
+    .data_in_ready (m_ready),
     .data_out_valid({collect_in_m_ele_valid, collect_in_m_scale_valid}),
     .data_out_ready({collect_in_m_ele_ready, collect_in_m_scale_ready})
 );
@@ -185,7 +180,7 @@ matrix_collector #(
     .Collect_Dim(Matrix_Parallel_Rd_Dim)
 ) element_collect (
     .clk(clk),
-    .rst_n(rst),
+    .rst_n(!rst),
     .clear(clear_m),
 
     // Input
@@ -242,7 +237,7 @@ split_n #(
     .N(2)
 ) v_split_i (
     .data_in_valid (v_valid),
-    .data_in_ready (buffer_ready_v),
+    .data_in_ready (v_ready),
     .data_out_valid({stored_v_in_ele_valid, stored_v_in_scale_valid}),
     .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
 );
@@ -304,7 +299,7 @@ split_n #(
     .N(2)
 ) o_split_i (
     .data_in_valid (o_valid),
-    .data_in_ready (buffer_ready_o),
+    .data_in_ready (o_ready),
     .data_out_valid({stored_o_in_ele_valid, stored_o_in_scale_valid}),
     .data_out_ready({stored_o_in_ele_ready, stored_o_in_scale_ready})
 );
@@ -412,20 +407,22 @@ always_comb begin
         out_scale   = acc_scale;
         out_valid   = acc_out_valid;
         acc_in_valid    = prod_valid;
-        acc_out_ready   = out_ready;
-        prod_ready   = acc_in_ready;
     end else if( pipeline_compute_track[MATRIX_W_OFFSET_CYCLES].mop == MV) begin
         out_element     = prod_element;
         out_scale       = prod_scale;
         out_valid       = prod_valid;
         acc_in_valid    = 1'b0;
-        acc_out_ready   = 1'b0;
-        prod_ready   = out_ready;
     end else begin
         out_element = {MLEN{1'b0}};
         out_scale   = {BLOCK_NUM{1'b0}};
         out_valid   = 1'b0;
     end
+
+    prod_ready      = out_ready;
+    acc_out_ready   = out_ready;
+
+
+
 end
 
 generate;

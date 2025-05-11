@@ -208,8 +208,8 @@ module coprocessor (
  
     parameter BLOCK_NUM = MLEN / BLOCK_DIM;
     // Matrix
-    logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      fetched_m_element;
-    logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      fetched_m_scale;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    fetched_m_element;
+    logic [BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]               fetched_m_scale;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 m_out_element;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 m_out_scale;
@@ -221,8 +221,8 @@ module coprocessor (
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 fetched_v_element_port2;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 fetched_v_scale_port2;
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]         v_out_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                         v_out_scale;
+    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]             v_out_element;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                             v_out_scale;
 
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_in;
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_out;

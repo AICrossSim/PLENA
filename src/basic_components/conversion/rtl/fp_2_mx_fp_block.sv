@@ -111,7 +111,7 @@ module fp_2_mx_fp_block #(
                 .DATA_WIDTH(MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH + 1)
             ) element_data (
                 .clk           (clk),
-                .rst           (!rst),                        // Inverted reset
+                .rst           (rst),                        // Inverted reset
                 .data_in       ({p2_fp_sgns[i], p2_elems[i]}),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
                 .data_in_valid (p2_data_valid),
                 .data_in_ready (element_in_ready[i]),                            // No sequential operation beforehand, hence ignored.

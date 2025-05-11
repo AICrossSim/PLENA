@@ -180,7 +180,7 @@ skid_buffer #(
     .DATA_WIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
 ) v_a_buffer (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
 
     // Input
     .data_in(converted_v_a),
@@ -197,7 +197,7 @@ skid_buffer #(
     .DATA_WIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
 ) v_b_buffer (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
 
     // Input
     .data_in(broadcast_fp2 ? unpacked_v_s : converted_v_b ),

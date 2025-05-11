@@ -64,7 +64,7 @@ module fp_vector_add #(
       .DATA_WIDTH(VEC_DIM * (EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH + 1)) 
   ) register_slice (
       .clk           (clk),
-      .rst           (!rst),
+      .rst           (rst),
       .data_in       (result_vector),
       .data_in_valid (add_data_in_valid),
       .data_in_ready (add_data_in_ready),

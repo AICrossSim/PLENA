@@ -94,7 +94,7 @@ module fp_reduction_compute_unit #(
             .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),
-            .rst           (!rst),                        // Inverted reset
+            .rst           (rst),                        // Inverted reset
             .data_in       (sum[i]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),

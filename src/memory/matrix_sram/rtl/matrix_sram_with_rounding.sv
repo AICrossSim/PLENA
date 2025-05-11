@@ -62,46 +62,46 @@ logic scale_write_response, element_write_response;
 assign write_response = scale_write_response & element_write_response;
 
 duplicate_data_section #(
-    .DATA_SEC_WIDTH(MXFP_SCALE_WIDTH),
-    .REPEAT(BLOCK_DIM),
-    .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH * BLOCK_NUM * PARALLEL_DIM)
+    .DATA_SEC_WIDTH     (MXFP_SCALE_WIDTH),
+    .REPEAT             (BLOCK_DIM),
+    .BITSTREAM_WIDTH    (MXFP_SCALE_WIDTH * BLOCK_NUM * PARALLEL_DIM)
 ) dumplicate_scale(
-    .in_data(scale_in),
-    .out_data(dumplicated_scale_in)
+    .in_data        (scale_in),
+    .out_data       (dumplicated_scale_in)
 );
 
 // scale storage
 biaccess_sram #(
-    .DataWidth(MXFP_SCALE_WIDTH),
-    .SRAM_DEPTH(SRAM_DEPTH),
-    .MLEN(MLEN),
+    .DataWidth      (MXFP_SCALE_WIDTH),
+    .SRAM_DEPTH     (SRAM_DEPTH),
+    .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)
 ) scale_storage (
     .clk(clk),
     .req(req),
-    .transposed_read(transposed_read),
-    .write_en(write_en),
-    .write_response(scale_write_response),
-    .sram_addr(addr_for_sub_sram),
-    .write_data(dumplicated_scale_in),
-    .out_data(loaded_scale_out)
+    .transposed_read    (transposed_read),
+    .write_en           (write_en),
+    .write_response     (scale_write_response),
+    .sram_addr          (addr_for_sub_sram),
+    .write_data         (dumplicated_scale_in),
+    .out_data           (loaded_scale_out)
 );
 
 // element storage
 biaccess_sram #(
-    .DataWidth(MXFP_SCALE_WIDTH),
-    .SRAM_DEPTH(SRAM_DEPTH),
-    .MLEN(MLEN),
+    .DataWidth      (MXFP_SCALE_WIDTH),
+    .SRAM_DEPTH     (SRAM_DEPTH),
+    .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)
 ) element_storage (
     .clk(clk),
     .req(req),
-    .transposed_read(transposed_read),
-    .write_en(write_en),
-    .write_response(element_write_response),
-    .sram_addr(addr_for_sub_sram),
-    .write_data(element_in),
-    .out_data(loaded_element_out)
+    .transposed_read    (transposed_read),
+    .write_en           (write_en),
+    .write_response     (element_write_response),
+    .sram_addr          (addr_for_sub_sram),
+    .write_data         (element_in),
+    .out_data           (loaded_element_out)
 );
 
 // Output Rescale
@@ -109,19 +109,19 @@ generate
     for (genvar i = 0; i < PARALLEL_DIM; i++) begin : output_rescale
         for (genvar j = 0; j < BLOCK_NUM; j++) begin : output_rescale_block
             mx_fp_rescale #(
-                .IN_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-                .IN_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-                .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-                .BLOCK_DIM(BLOCK_DIM),
-                .OUT_MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-                .OUT_MXFP_MANT_WIDTH(MXFP_MANT_WIDTH)
+                .IN_MXFP_EXP_WIDTH      (MXFP_EXP_WIDTH),
+                .IN_MXFP_MANT_WIDTH     (MXFP_MANT_WIDTH),
+                .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
+                .BLOCK_DIM              (BLOCK_DIM),
+                .OUT_MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .OUT_MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH)
             ) rescale_output(
                 .clk(clk),
                 .rst(rst),
-                .element_in(loaded_element_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
-                .scale_in(loaded_scale_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
-                .element_data_out(element_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
-                .scale_data_out(scale_out[i][j])
+                .element_in         (loaded_element_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
+                .scale_in           (loaded_scale_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
+                .element_data_out   (element_out[i][j * BLOCK_DIM +: BLOCK_DIM]),
+                .scale_data_out     (scale_out[i][j])
             );
         end
 

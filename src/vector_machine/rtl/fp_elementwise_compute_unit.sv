@@ -70,7 +70,7 @@ skid_buffer #(
     .DATA_WIDTH(VLEN * (MANT_WIDTH + EXP_WIDTH + 1))
 ) skid_buf_inst (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
     .data_in(v_alu_out),
     .data_in_valid(v_in_valid),
     .data_in_ready(v_in_ready),
