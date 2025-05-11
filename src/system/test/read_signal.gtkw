@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat May 10 19:37:41 2025
+[*] Sun May 11 00:35:05 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sat May 10 19:36:10 2025"
-[dumpfile_size] 12746119
+[dumpfile_mtime] "Sat May 10 20:34:36 2025"
+[dumpfile_size] 12747208
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] 32735 32735
-*-17.000000 756200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.000000 1144200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.

@@ -74,14 +74,22 @@ import pipeline_pkg::*;
         end
     end
 
+    // Matrix Monitor
+    logic rd_operand_ready; // The stall is for loading the third operand from the register files.
+
 
     // Decision for pipeline stall
     always_comb begin
         // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
-        if (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_TMV_O) begin
+        if (rd_operand_ready == 1'b0 & (decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_TMV_O)) begin
             m_update_waddr   = 1'b1;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;
+        end else if (prefetch_in_progress & (decode_instr_info.instruction_type == M)) begin
+            // Note: Any M type instruction involves interaction with the matrix sram, hence need to stall when its prefetching.
+            m_update_waddr   = 1'b0;
+            v_update_waddr   = 1'b0;
+            pipeline_stall   = 1'b1;            
         end else if (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_MUL_VV) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
@@ -110,6 +118,7 @@ import pipeline_pkg::*;
         if (pipeline_stall) begin
             // Stall Condition 1: When the three oprands both pointer for addresses, need 2 cycles to obtain the address for the two port regfile.
             if (m_update_waddr || v_update_waddr) begin
+                rd_operand_ready <= 1'b1;
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                 assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
@@ -126,6 +135,7 @@ import pipeline_pkg::*;
                 imm             <= 'b0;
             end else begin
                 // If any of the stall request is enabled.
+                rd_operand_ready <= 1'b0;
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                 assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
@@ -146,6 +156,7 @@ import pipeline_pkg::*;
             assigned_op_bundle.stall_for_memory <= mem_stall_req;
 
         end else begin
+            rd_operand_ready <= 1'b0;
 
             assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
             assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;

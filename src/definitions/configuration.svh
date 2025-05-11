@@ -21,6 +21,9 @@ endpackage
 package pipeline_pkg;
     parameter   MAX_PIPELINE_STAGE              = 10;   
     parameter   PREFETCH_STAGE_1_CYCLES        = 2;
+    parameter   MATRIX_LOADING_CYCLES          = 2;
+    parameter   MATRIX_WO_OFFSET_CYCLES        = 8;
+    parameter   MATRIX_W_OFFSET_CYCLES         = 10;
 endpackage
 
 

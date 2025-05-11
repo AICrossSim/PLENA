@@ -123,32 +123,40 @@ always_comb begin
 end
 
 
-logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr;
+logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr, recorded_m_load_addr;
 
 // Matrix SRAM Control
 
-logic [MATRIX_COUNTER_WIDTH : 0]    m_sram_counter;
-assign m_sram_continuous_prefetch_counter = m_sram_counter;
+logic [MATRIX_COUNTER_WIDTH : 0]    m_sram_prefetch_counter;
+assign m_sram_continuous_prefetch_counter = m_sram_prefetch_counter;
+logic continuous_load_m_en;
+logic [MATRIX_COUNTER_WIDTH - 1 : 0] m_sram_load_counter;
+
+
 
 logic               m_load_failed;
-M_OP                track_m_op;
 
 // Update addr only when the exe operation is MV or MV_O
 always_comb begin
     if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O) begin
-        m_sram_addr = fixed_addr_2;
+        m_sram_addr = recorded_m_load_addr + m_sram_load_counter * BYTES_PER_ROW;
     end else if (exe_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
-        m_sram_addr = recorded_m_prefetch_addr + m_sram_counter * BYTES_PER_ROW;
+        m_sram_addr = recorded_m_prefetch_addr + m_sram_prefetch_counter * BYTES_PER_ROW;
     end
 
     if (rst) begin
-        continuous_prefetch_m_en = 1'b0;
-        recorded_m_prefetch_addr = 'b0;
-    end else if (assigned_op_bundle.h_op == PREFETCH_M) begin
-        recorded_m_prefetch_addr = fixed_addr_2;
-        continuous_prefetch_m_en = 1'b1;
-    end else if (m_sram_counter == MATRIX_LOAD_ITERATION) begin
-        continuous_prefetch_m_en = 1'b0;
+        continuous_prefetch_m_en    = 1'b0;
+        recorded_m_prefetch_addr    = 'b0;
+        recorded_m_load_addr        = 'b0;
+    end else begin 
+        if (assigned_op_bundle.h_op == PREFETCH_M) begin
+            recorded_m_prefetch_addr = fixed_addr_2;
+            continuous_prefetch_m_en = 1'b1;
+        end else if (m_sram_prefetch_counter == MATRIX_LOAD_ITERATION) begin
+            continuous_prefetch_m_en = 1'b0;
+        end else if (assigned_op_bundle.m_op != STALL_M) begin
+            recorded_m_load_addr = fixed_addr_2;
+        end 
     end
 end
 
@@ -156,66 +164,54 @@ end
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
-        m_sram_counter <= 'b0;
-        track_m_op <= STALL_M;
+        m_sram_prefetch_counter <= 'b0;
         m_sram_req <= 1'b0;
         m_sram_wen <= 1'b0;
+        continuous_load_m_en <= 1'b0;
+        m_sram_prefetch_counter <= 'b0;
 
     end else begin
         exe_m_write_en <= m_write_en;
         exe_v_write_en <= v_write_en;
-
+        // Loading Process (NOTE: Assuming the load process and the prefetch process do not overlap, controlled by the pipeline control unit)
         if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
             // Fetching the data from the Matrix Sram to the Matrix Machine
-            // m_sram_busy <= 1'b1;
             m_sram_req      <= 1'b1;
+            m_m_valid       <= 1'b1;
             m_sram_wen      <= 1'b0;
             m_sram_transposed_read <= assigned_op_bundle.m_transposed_read;
+            m_sram_prefetch_counter <= 'b0;
+            continuous_load_m_en <= 1'b1;
+        end else if (continuous_load_m_en & m_m_ready) begin
+            if (m_sram_prefetch_counter == MATRIX_LOAD_ITERATION - 1) begin
+                m_sram_req <= 1'b0;
+                m_sram_wen <= 1'b0;
+                m_sram_prefetch_counter <= 'b0;
+                continuous_load_m_en <= 1'b0;
+                m_m_valid <= 1'b0;
+            end else begin
+                m_sram_req  <= 1'b1;
+                m_m_valid   <= 1'b1;
+                m_sram_wen  <= 1'b0;
+                m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
+            end
         end
-        
-        // Wait for Testing MV_O
-        // else if (m_sram_busy && m_m_ready) begin
-        //     if (m_sram_counter == MATRIX_LOAD_ITERATION - 1) begin
-        //         // m_sram_busy <= 1'b0;
-        //         m_sram_counter <= 'b0;
-        //         m_m_valid <= 1'b0;
-                
-        //     end else begin
-        //         m_sram_counter <= m_sram_counter + 1'b1;
-        //         m_m_valid <= 1'b1;
-        //         m_v_valid <= 1'b1;
-        //         m_o_valid <= (track_m_op == MV_O) ? 1'b1 : 1'b0;
-        //     end
-
-        // end 
-        
-        
+        // Prefetching the data from the HBM to the Matrix Sram
         else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
             m_sram_req <= 1'b1;
             m_sram_wen <= 1'b1;
-            m_sram_counter <= m_sram_counter + 1'b1;
+            m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
         end else if (continuous_prefetch_m_en) begin
-            // Prefetching the data from the HBM to the Matrix Sram
             m_sram_req <= 1'b0;
             m_sram_wen <= 1'b0;
-            m_sram_counter <= m_sram_counter;
+            m_sram_prefetch_counter <= m_sram_prefetch_counter;
         end else begin
             m_sram_req <= 1'b0;
             m_sram_wen <= 1'b0;
-            m_sram_counter <= 'b0;
+            m_sram_prefetch_counter <= 'b0;
+            m_sram_prefetch_counter <= 'b0;
+            continuous_load_m_en <= 1'b0;
         end
-
-
-
-        // if (!m_sram_busy) begin
-        //     track_m_op <= assigned_op_bundle.m_op;
-        // end
-
-        // if (m_sram_busy && !m_m_ready) begin
-        //     m_load_failed <= 1'b1;
-        // end else if (m_sram_busy && m_m_ready) begin
-        //     m_load_failed <= 1'b0;
-        // end
     end
 end
 

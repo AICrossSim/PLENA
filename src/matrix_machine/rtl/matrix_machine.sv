@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
+`include "configuration.svh"
 
 /*
 Module      : Matrix Machine Module
@@ -40,15 +41,14 @@ module matrix_machine #(
     parameter   ADDR_WIDTH = 32,
 
     // Pipeline Stages
-    localparam  PIPELINE_STAGES = 5,
-    localparam  CYC_TO_COMPLETE_LOADING = 2
+    localparam  PIPELINE_STAGES = 5
 ) (
     input   logic   clk,
     input   logic   rst,
 
     // Execution Control
     input   M_OP    matrix_opcode,
-    output  logic   ready_for_next_op,
+    output  logic   load_input_ready,
 
     // Offset Addressing
     input  logic                              set_offset_addr,
@@ -85,6 +85,8 @@ module matrix_machine #(
     output logic                              m_wreq
     
 );
+
+import pipeline_pkg::*;
 
 initial begin
 
@@ -126,17 +128,17 @@ always_ff @(posedge clk or negedge rst) begin
 end
 
 always_comb begin
-    if (pipeline_track[CYC_TO_COMPLETE_LOADING] == MV) begin
+    if (pipeline_track[MATRIX_LOADING_CYCLES] == MV) begin
         if (collect_m_valid && stored_v_valid) begin
-            ready_for_next_op = 1'b1;
+            load_input_ready = 1'b1;
         end else begin
-            ready_for_next_op = 1'b0;
+            load_input_ready = 1'b0;
         end
-    end else if (pipeline_track[CYC_TO_COMPLETE_LOADING] == MV_O) begin
+    end else if (pipeline_track[MATRIX_LOADING_CYCLES] == MV_O) begin
         if (collect_m_valid && stored_v_valid && stored_o_valid) begin
-            ready_for_next_op = 1'b1;
+            load_input_ready = 1'b1;
         end else begin
-            ready_for_next_op = 1'b0;
+            load_input_ready = 1'b0;
         end
     end
 end
