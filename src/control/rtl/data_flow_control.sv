@@ -126,15 +126,10 @@ end
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr, recorded_m_load_addr;
 
 // Matrix SRAM Control
-
 logic [MATRIX_COUNTER_WIDTH : 0]    m_sram_prefetch_counter;
 assign m_sram_continuous_prefetch_counter = m_sram_prefetch_counter;
 logic continuous_load_m_en;
 logic [MATRIX_COUNTER_WIDTH - 1 : 0] m_sram_load_counter;
-
-
-
-logic               m_load_failed;
 
 // Update addr only when the exe operation is MV or MV_O
 always_comb begin
@@ -195,9 +190,8 @@ always_ff @(posedge clk or negedge rst) begin
                 m_sram_wen  <= 1'b0;
                 m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
             end
-        end
-        // Prefetching the data from the HBM to the Matrix Sram
-        else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
+        end else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
+            // Prefetching the data from the HBM to the Matrix Sram
             m_sram_req <= 1'b1;
             m_sram_wen <= 1'b1;
             m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
@@ -217,37 +211,76 @@ end
 
 // Vector SRAM Control
 // Assuming the read cycle is 1 cycle for both ports.
-assign s_sram_addr_a = (exe_op_bundle.m_op == MV_O) ?  m_offset_addr :
-                                     exe_v_write_en ?  m_waddr : fixed_addr_1;
+// Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
+// Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
 
-assign s_sram_addr_b = exe_m_write_en ? v_waddr : fixed_addr_2;
+logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
+logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
+
+
+always_comb begin
+    // Port A Addr Mangement
+    if (exe_op_bundle.stall_for_memory.stall_s_sram == 1'b1 && exe_m_write_en) begin
+        s_sram_addr_a = m_waddr;
+    end else begin
+        s_sram_addr_a = recorded_v_load_addr_1;
+    end
+
+    // Port B Addr Mangement
+    if (exe_op_bundle.m_op == MV_O) begin
+        s_sram_addr_b = m_offset_addr;
+    end else if (exe_op_bundle.stall_for_memory.stall_s_sram == 1'b1 && dma_v_ready) begin
+        s_sram_addr_b = recorded_v_prefetch_addr;
+    end else begin
+        s_sram_addr_b = recorded_v_load_addr_2;
+    end
+
+    // Prefetch Record
+    if (rst) begin
+        recorded_v_prefetch_addr = 'b0;
+    end else if (assigned_op_bundle.h_op == PREFETCH_V) begin
+        recorded_v_prefetch_addr = fixed_addr_1;
+    end
+end
+
 
 logic s_sram_load_failed;
+
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
         v_v_a_valid     <= 1'b0;
         v_v_b_valid     <= 1'b0;
+        recorded_v_load_addr_1 <= 'b0;
+        recorded_v_load_addr_2 <= 'b0;
     end else begin
-        // Scratchpad Port A ->  R: Matrix Multiplicand Vector or Vector Operand
-        if(assigned_op_bundle.m_op != STALL_M || assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
+        recorded_v_load_addr_1 <= fixed_addr_1;
+        recorded_v_load_addr_2 <= fixed_addr_2;
+        //Port A
+        if(assigned_op_bundle.m_op != STALL_M || m_v_ready) begin
             // Read Vector from SRAM
+            m_v_valid       <= 1'b1;
+            s_sram_req_a    <= 1'b1;
+            s_sram_wen_a    <= 1'b0;
+        end else if (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
+            m_v_valid       <= 1'b1;
             v_v_a_valid     <= 1'b1;
             s_sram_req_a    <= 1'b1;
             s_sram_wen_a    <= 1'b0;
-
         end else if (assigned_op_bundle.stall_for_memory.stall_s_sram == 1'b1 && m_write_en && m_out_valid) begin
             // Write the result from matrix machine to the s_sram
+            m_v_valid       <= 1'b1;
             m_out_ready     <= 1'b1;
             s_sram_req_a    <= 1'b1;
             s_sram_wen_a    <= 1'b1;
         end else begin
             // No Scratchpad SRAM access request.
+            m_v_valid       <= 1'b1;
             v_v_a_valid     <= 1'b0;
             s_sram_req_a    <= 1'b0;
             s_sram_wen_a    <= 1'b0;
         end
 
-        // Scratchpad Port B ->  R: Matrix Offest Vector or Vector Operand ( Not Broadcasted )or HBM Write Data
+        //Port B
         if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
             // Read Port activated
             v_v_b_valid     <= 1'b1;

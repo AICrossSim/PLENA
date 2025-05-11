@@ -1,90 +1,56 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun May 11 00:35:05 2025
+[*] Sun May 11 16:03:00 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sat May 10 20:34:36 2025"
-[dumpfile_size] 12747208
+[dumpfile_mtime] "Sun May 11 15:54:06 2025"
+[dumpfile_size] 23759523
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
+[timestart] 489600
 [size] 3428 1359
 [pos] 32735 32735
-*-17.000000 1144200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.887817 680000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.data_flow_init.assigned_op_bundle.
+[treeopen] SimTop.dut.decoder_init.
+[treeopen] SimTop.dut.pipeline_control_init.
+[treeopen] SimTop.dut.scalar_machine.
+[treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
 [sst_width] 326
 [signals_width] 347
 [sst_expanded] 1
 [sst_vpaned_height] 753
 @28
 SimTop.dut.clk
-@22
-SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
-SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
-@28
 SimTop.dut.hbm_controller_init.start_prefetch
+SimTop.dut.pipeline_control_init.pipeline_stall
 @22
-SimTop.dut.pipeline_control_init.decode_instr_info.rd[3:0]
-SimTop.dut.pipeline_control_init.decode_instr_info.rs1[3:0]
-SimTop.dut.pipeline_control_init.decode_instr_info.rs2[3:0]
-SimTop.dut.pipeline_control_init.decode_instr_info.imm[6:0]
+SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
 @28
 SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.pipeline_control_init.mem_stall_req.stall_m_sram
 @22
-SimTop.dut.scalar_machine.fixed_control[3:0]
-SimTop.dut.scalar_machine.fixed_alu_out[31:0]
-@28
-SimTop.dut.scalar_machine.fix_we
-@22
-SimTop.dut.scalar_machine.fixed_reg_1[31:0]
-SimTop.dut.scalar_machine.fixed_reg_2[31:0]
-SimTop.dut.scalar_machine.fixed_reg_wdata[31:0]
-SimTop.dut.scalar_machine.rd[2:0]
-@28
-SimTop.dut.pipeline_control_init.prefetch_stage_1_in_progress
-SimTop.dut.pipeline_control_init.prefetch_stage_2_in_progress
-@22
-SimTop.dut.hbm_controller_init.hbm_addr_out[63:0]
-SimTop.dut.hbm_controller_init.addr_in_a[31:0]
-SimTop.dut.hbm_controller_init.addr_in_b[31:0]
-SimTop.dut.hbm_controller_init.address_mapper_inst.hbm_addr[0][63:0]
-SimTop.dut.hbm_controller_init.address_mapper_inst.hbm_addr[1][63:0]
-SimTop.dut.hbm_controller_init.address_mapper_inst.addr_in_a[31:0]
-SimTop.dut.hbm_controller_init.address_mapper_inst.addr_in_b[31:0]
-SimTop.dut.scalar_machine.fixed_control[3:0]
-SimTop.dut.scalar_machine.fixed_reg_1[31:0]
-SimTop.dut.scalar_machine.fixed_reg_2[31:0]
-@28
-SimTop.dut.scalar_machine.rs1[2:0]
-SimTop.dut.scalar_machine.rs2[2:0]
-@22
-SimTop.dut.decoder_init.loaded_instr[15:0]
+SimTop.dut.decoder_init.instruction[15:0]
 SimTop.dut.decoder_init.loaded_opcode[5:0]
-SimTop.dut.decoder_init.loaded_rd[3:0]
-SimTop.dut.decoder_init.loaded_rs1[3:0]
-SimTop.dut.decoder_init.loaded_rs2[3:0]
-SimTop.dut.decoder_init.loaded_imm[6:0]
 @28
-SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
-SimTop.dut.hbm_arbiter_init.hbm_v_prefetch_complete
-SimTop.dut.data_flow_init.stall_req.stall_s_reg
-SimTop.dut.data_flow_init.stall_req.stall_s_sram
-SimTop.dut.data_flow_init.dma_v_ready
-SimTop.dut.data_flow_init.previous_dma_v_ready
-SimTop.dut.data_flow_init.s_sram_req_b
-SimTop.dut.data_flow_init.s_sram_wen_b
-SimTop.dut.data_flow_init.assigned_op_bundle.stall_for_memory.stall_s_sram
+SimTop.dut.pipeline_control_init.assigned_op_bundle.m_op[1:0]
+SimTop.dut.matrix_machine.buffer_ready_m
+SimTop.dut.matrix_sram.req
 @22
-SimTop.dut.vector_sram.element_in_a[0][7:0]
-SimTop.dut.vector_sram.element_in_a[1][7:0]
-SimTop.dut.vector_sram.element_in_b[0][7:0]
-SimTop.dut.vector_sram.element_in_b[1][7:0]
+SimTop.dut.matrix_sram.sram_addr[31:0]
 @28
 SimTop.dut.vector_sram.req_a
-@29
-SimTop.dut.vector_sram.req_b
+@23
+SimTop.dut.vector_sram.sram_addr_a[6:0]
+@22
+SimTop.dut.data_flow_init.fixed_addr_1[31:0]
+SimTop.dut.data_flow_init.fixed_addr_1[31:0]
+SimTop.dut.data_flow_init.recorded_v_load_addr_1[31:0]
+SimTop.dut.data_flow_init.recorded_v_load_addr_2[31:0]
+@28
+SimTop.dut.data_flow_init.exe_m_write_en
+@22
+SimTop.dut.data_flow_init.s_sram_addr_a[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

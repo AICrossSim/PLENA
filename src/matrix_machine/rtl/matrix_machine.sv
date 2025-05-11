@@ -38,17 +38,14 @@ module matrix_machine #(
     parameter   Matrix_Parallel_Rd_Dim = 2,
 
     // Offset Management
-    parameter   ADDR_WIDTH = 32,
-
-    // Pipeline Stages
-    localparam  PIPELINE_STAGES = 5
+    parameter   ADDR_WIDTH = 32
 ) (
     input   logic   clk,
     input   logic   rst,
 
     // Execution Control
     input   M_OP    matrix_opcode,
-    output  logic   load_input_ready,
+    output  logic   m_load_in_process,
 
     // Offset Addressing
     input  logic                              set_offset_addr,
@@ -57,7 +54,7 @@ module matrix_machine #(
 
     // Matix - row-major order
     input  logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_element,
-    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MXFP_SCALE_WIDTH-1:0]         m_scale,
+    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MXFP_SCALE_WIDTH-1:0]        m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
@@ -77,7 +74,7 @@ module matrix_machine #(
     input  logic [ADDR_WIDTH-1:0]             result_waddr,
     input  logic result_waddr_update,
     
-    output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      out_element,
+    output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_element,
     output logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale,
     output logic                            out_valid,
     input  logic                            out_ready,
@@ -99,50 +96,68 @@ assign m_ready  = (matrix_opcode != STALL_M) ? buffer_ready_m : 1'b0;
 assign v_ready  = (matrix_opcode != STALL_M) ? buffer_ready_v : 1'b0;
 assign o_ready  = (matrix_opcode == MV_O)    ? buffer_ready_o : 1'b0;
 
-M_OP pipeline_track [PIPELINE_STAGES-1:0];
-logic [ADDR_WIDTH-1:0] pipeline_result_addr [PIPELINE_STAGES-1:0];
 
+typedef struct {
+    logic [ADDR_WIDTH-1:0]             waddr;
+    M_OP                               mop;
+} RECORDED_INFO_TYPE;
 
+RECORDED_INFO_TYPE pipeline_compute_track [0:MAX_PIPELINE_STAGE-1];
+
+logic result_waddr_ready;
+
+M_OP    recorded_m_op;
+logic [ADDR_WIDTH-1:0] recorded_m_waddr;
+
+// Preparation Units 
 always_ff @(posedge clk or negedge rst) begin
-    if (!rst) begin
-        for (int i = 0; i < PIPELINE_STAGES; i++) begin
-            pipeline_track[i] <= STALL_M;
-            pipeline_result_addr[i] <= 'b0;
-        end
-        offset_addr_out <= 'b0;
-    end else begin
-        
-        pipeline_track[0] <= matrix_opcode;
-        pipeline_result_addr[0] <= (result_waddr_update == 1'b1) ? result_waddr : 'b0;
-        
-        for (int i = 1; i < PIPELINE_STAGES; i++) begin
-            pipeline_track[i] <= pipeline_track[i-1];
-            pipeline_result_addr[i] <= pipeline_result_addr[i-1];
+    if (rst) begin
+
+        for (int i = 0; i < MAX_PIPELINE_STAGE; i++) begin
+            pipeline_compute_track[i].waddr <= 'b0;
+            pipeline_compute_track[i].mop   <= STALL_M;
         end
 
+        offset_addr_out <= 'b0;
+        result_waddr_ready <= 1'b0;
+        m_load_in_process <= 1'b0;
+        recorded_m_op <= STALL_M;
+        recorded_m_waddr <= 'b0;
+    end else begin
+        // Set result waddr
+        result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
+        
+        if (result_waddr_ready)begin
+            recorded_m_waddr <= result_waddr;
+        end
+        
         // Set offset address
         if (set_offset_addr) begin
             offset_addr_out <= offset_addr;
         end
+        // Store Operation
+        if (!m_load_in_process && matrix_opcode != STALL_M) begin
+            recorded_m_op     <= matrix_opcode;
+            m_load_in_process <= 1'b1;
+
+        end else if (m_load_in_process) begin
+            if ((recorded_m_op == MV && collect_m_valid && stored_v_valid) ||
+                (recorded_m_op == MV_O && collect_m_valid && stored_v_valid && stored_o_valid)) begin
+
+                m_load_in_process <= 1'b0;
+                pipeline_compute_track[0] <= '{waddr: recorded_m_waddr, mop: recorded_m_op};
+
+            end else begin
+                m_load_in_process <= 1'b1;
+            end
+        end
+
+        for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
+            pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
+        end
+
     end
 end
-
-always_comb begin
-    if (pipeline_track[MATRIX_LOADING_CYCLES] == MV) begin
-        if (collect_m_valid && stored_v_valid) begin
-            load_input_ready = 1'b1;
-        end else begin
-            load_input_ready = 1'b0;
-        end
-    end else if (pipeline_track[MATRIX_LOADING_CYCLES] == MV_O) begin
-        if (collect_m_valid && stored_v_valid && stored_o_valid) begin
-            load_input_ready = 1'b1;
-        end else begin
-            load_input_ready = 1'b0;
-        end
-    end
-end
-
 
 // Matrix Buffering
 // Element Collector
@@ -236,7 +251,7 @@ skid_buffer #(
     .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
 ) multiplicand_vec_element_buffer (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
 
     // Input
     .data_in(v_element),
@@ -253,7 +268,7 @@ skid_buffer #(
     .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
 ) multiplicand_vec_scale_buffer (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
 
     // Input
     .data_in(v_scale),
@@ -298,7 +313,7 @@ skid_buffer #(
     .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
 ) offset_vec_element_buffer (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
 
     // Input
     .data_in(o_element),
@@ -315,7 +330,7 @@ skid_buffer #(
     .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
 ) offset_vec_scale_buffer (
     .clk(clk),
-    .rst(!rst),
+    .rst(rst),
 
     // Input
     .data_in(o_scale),
@@ -392,14 +407,14 @@ logic acc_out_valid, acc_out_ready;
 
 
 always_comb begin
-    if (pipeline_track[PIPELINE_STAGES] == MV_O) begin
+    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES].mop == MV_O) begin
         out_element = acc_element;
         out_scale   = acc_scale;
         out_valid   = acc_out_valid;
         acc_in_valid    = prod_valid;
         acc_out_ready   = out_ready;
         prod_ready   = acc_in_ready;
-    end else if( pipeline_track[PIPELINE_STAGES] == MV) begin
+    end else if( pipeline_compute_track[MATRIX_W_OFFSET_CYCLES].mop == MV) begin
         out_element     = prod_element;
         out_scale       = prod_scale;
         out_valid       = prod_valid;

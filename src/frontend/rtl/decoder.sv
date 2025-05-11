@@ -40,6 +40,7 @@ logic read_instr_from_fifo;
 
 assign read_instr_from_fifo = read_next_instr;
 
+// Note: When the buffer is empty, there is one last instruction in the buffer
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
     .DEPTH(INST_BUFF_DEPTH)

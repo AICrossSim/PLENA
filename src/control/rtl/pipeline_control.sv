@@ -50,16 +50,21 @@ import pipeline_pkg::*;
     // Status Monitor Signals
     // Prefetch monitor
     logic prefetch_in_progress;
+    logic delayed_hbm_in_used; // Extend extra cycle to determine the write to matrix/scratchpad sram
     logic prefetch_stage_1_in_progress, prefetch_stage_2_in_progress;
+
     assign prefetch_in_progress = prefetch_stage_1_in_progress || prefetch_stage_2_in_progress || continuous_m_prefetch;
-    assign prefetch_stage_2_in_progress = hbm_in_used;
+    assign prefetch_stage_2_in_progress = hbm_in_used || delayed_hbm_in_used;
+
     logic [$clog2(PREFETCH_STAGE_1_CYCLES) : 0] prefetch_stage_1_counter;
 
     always_ff @(posedge clk) begin
         if (rst) begin
             prefetch_stage_1_in_progress <= 1'b0;
             prefetch_stage_1_counter <= 'b0;
+            delayed_hbm_in_used <= 1'b0;
         end else begin
+            delayed_hbm_in_used <= hbm_in_used;
             if (!pipeline_stall && decode_instr_valid && (decode_instr_info.opcode == H_PREFETCH_M || decode_instr_info.opcode == H_PREFETCH_V)) begin
                 prefetch_stage_1_in_progress <= 1'b1;
                 prefetch_stage_1_counter <= 'b0;
@@ -81,7 +86,7 @@ import pipeline_pkg::*;
     // Decision for pipeline stall
     always_comb begin
         // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
-        if (rd_operand_ready == 1'b0 & (decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_TMV_O)) begin
+        if (rd_operand_ready == 1'b0 & (decode_instr_info.instruction_type == M)) begin
             m_update_waddr   = 1'b1;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;
@@ -94,7 +99,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall   = 1'b1;
-        end else if (mem_stall_req.stall_m_sram == 1'b1 & (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ) begin
+        end else if ((mem_stall_req.stall_m_sram == 1'b1 || mem_stall_req.stall_s_sram == 1'b1) & (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;
@@ -123,19 +128,18 @@ import pipeline_pkg::*;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                 assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                 assigned_op_bundle.s_fp_op         <= STALL_S_FP;
-                assigned_op_bundle.s_fixed_op      <= COMP_ADDR;
+                assigned_op_bundle.s_fixed_op      <= COMP_ADDR_2;
                 assigned_op_bundle.c_op            <= STALL_C;
                 assigned_op_bundle.h_op            <= STALL_H;
-                rs1             <= rd;
+                rs1             <= 'b0;
                 rs2             <= 'b0;
-                rd              <= 'b0;
+                rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                 fps1            <= 'b0;
                 fps2            <= 'b0;
                 fpd             <= 'b0;
                 imm             <= 'b0;
             end else begin
                 // If any of the stall request is enabled.
-                rd_operand_ready <= 1'b0;
                 assigned_op_bundle.m_op            <= STALL_M;
                 assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                 assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
