@@ -116,7 +116,7 @@ module mx_fp_adder_tree_fp_out #(
             .DEPTH(BLOCK_ADD_LEVELS)
         ) temp_store_scale (
             .clk           (clk),
-            .rst           (!rst),                        // Inverted reset
+            .rst           (rst),                        // Inverted reset
             .data_in       (scale_data_in),                      // flattened LEVEL_OUT_DIM * SCALE_WIDTH
             .data_in_valid (scale_storage_in_valid),
             .data_in_ready (scale_storage_in_ready),
@@ -179,8 +179,5 @@ module mx_fp_adder_tree_fp_out #(
         end
 
     endgenerate
-
-
-
 
 endmodule

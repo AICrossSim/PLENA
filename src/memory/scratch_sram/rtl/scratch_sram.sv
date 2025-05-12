@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 /*
 Module      : Top Level SRAM design for scratchpad
 Timing      : Sequential Logic, 1 cycle for read/write process.
@@ -6,9 +8,6 @@ Description :
             : The addressing mode is Little Endian.
 Status      :
 */
-
-
-`timescale 1ns/1ps
 
 module scratch_sram #(
     // MX-FP Data Format

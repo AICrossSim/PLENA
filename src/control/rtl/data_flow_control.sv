@@ -2,6 +2,7 @@
 `include "operation.svh"
 `include "precision.svh"
 `include "configuration.svh"
+
 /*
 Module      : Data Flow Control
 Timing      : Sequential, 1 cycle to make the decision
@@ -9,7 +10,6 @@ Description : This module serves as the controller for all the memory related op
             : controlling matrix sram, scratch sram, scalar sram and HBM interface.
             : It will record the states of the memory, checking whether it is currently busy or not, provide feedback to pipeline control unit.
             : It also controls iterative load process.
-TODO: Failed load/write assertions, remove m_write_en and v_write_en
 */
 
 module data_flow_control import precision_pkg::*; #(
@@ -31,12 +31,7 @@ module data_flow_control import precision_pkg::*; #(
     input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_2,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr,
 
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] v_waddr,
-    input       logic v_write_en,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr,
-    input       logic m_write_en,
-
-    output      MEM_STALL_TYPE stall_req,
+    output      MEM_WREQ_INFO write_req,
 
     // Interface with Matrix Machine
     input       logic m_m_ready,
@@ -50,6 +45,9 @@ module data_flow_control import precision_pkg::*; #(
 
     input       logic m_out_valid,
     output      logic m_out_ready,
+
+    input       logic m_write_request,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
 
     // Interface with Matrix SRAM
     output      logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_addr,
@@ -72,11 +70,15 @@ module data_flow_control import precision_pkg::*; #(
     input       logic v_s_out_valid,
     output      logic v_s_out_ready,
 
+    input       logic v_write_request,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0] v_write_addr,
+
     // Interface with Scratchpad SRAM
     output      logic s_sram_req_a,
     output      logic s_sram_wen_a,
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_a,
     output      logic [VLEN-1:0]                    s_sram_mask_a,
+    output      logic select_write_data_a,          
 
     output      logic s_sram_req_b,
     output      logic s_sram_wen_b,
@@ -95,7 +97,6 @@ module data_flow_control import precision_pkg::*; #(
 );
 
 localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
-logic             exe_m_write_en, exe_v_write_en; 
 
 
 always_ff @(posedge clk or negedge rst ) begin
@@ -115,11 +116,13 @@ always_ff @(posedge clk or negedge rst) begin
         previous_dma_v_ready <= dma_v_ready;
     end
 end
+
 //Request Asserted in single cycle
 always_comb begin
-    stall_req.stall_m_sram = ((dma_m_ready == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
-    stall_req.stall_s_sram = ((dma_v_ready == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
-    stall_req.stall_s_reg = 1'b0;
+    write_req.wreq_m_sram        = ((dma_m_ready == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
+    write_req.wreq_s_sram_port_a = ((m_write_request == 1'b1) || (v_write_request == 1'b1)) ? 1'b1 : 1'b0;
+    write_req.wreq_s_sram_port_b = ((dma_v_ready == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
+    write_req.wreq_s_reg         = 1'b0; // TODO
 end
 
 
@@ -137,7 +140,7 @@ logic m_m_load, m_v_load, m_o_load;
 always_comb begin
     if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O || continuous_load_m_en) begin
         m_sram_addr = recorded_m_load_addr + m_sram_load_counter * BYTES_PER_ROW;
-    end else if (exe_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
+    end else if (exe_op_bundle.mem_write.w_m_sram_en == 1'b1 && dma_m_ready) begin
         m_sram_addr = recorded_m_prefetch_addr + (m_sram_prefetch_counter - 1) * BYTES_PER_ROW;
     end
 
@@ -174,9 +177,6 @@ always_ff @(posedge clk or negedge rst) begin
         // Computation Ready Signal Control TODO: Need to be revised
         m_out_ready <= 1'b1;
 
-
-        exe_m_write_en <= m_write_en;
-        exe_v_write_en <= v_write_en;
         // Loading Process (NOTE: Assuming the load process and the prefetch process do not overlap, controlled by the pipeline control unit)
         if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
             // Fetching the data from the Matrix Sram to the Matrix Machine
@@ -200,7 +200,7 @@ always_ff @(posedge clk or negedge rst) begin
                 m_sram_wen  <= 1'b0;
                 m_sram_load_counter <= m_sram_load_counter + 1'b1;
             end
-        end else if (assigned_op_bundle.stall_for_memory.stall_m_sram == 1'b1 && dma_m_ready) begin
+        end else if (assigned_op_bundle.mem_write.w_m_sram_en == 1'b1 && dma_m_ready) begin
             // Prefetching the data from the HBM to the Matrix Sram
             m_m_load   <= 1'b0;
             m_sram_req <= 1'b1;
@@ -230,12 +230,14 @@ end
 
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
-
+logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
 
 always_comb begin
     // Port A Addr Mangement
-    if (exe_op_bundle.stall_for_memory.stall_s_sram == 1'b1 && exe_m_write_en) begin
-        s_sram_addr_a = m_waddr;
+    if (exe_op_bundle.mem_write.w_s_sram_port_a_en == 1'b1 && select_write_data_a == 1'b1) begin
+        s_sram_addr_a = recorded_m_write_addr;
+    end else if (exe_op_bundle.mem_write.w_s_sram_port_a_en == 1'b1 && select_write_data_a == 1'b0) begin
+        s_sram_addr_a = recorded_v_write_addr;
     end else begin
         s_sram_addr_a = recorded_v_load_addr_1;
     end
@@ -243,7 +245,7 @@ always_comb begin
     // Port B Addr Mangement
     if (exe_op_bundle.m_op == MV_O) begin
         s_sram_addr_b = m_offset_addr;
-    end else if (exe_op_bundle.stall_for_memory.stall_s_sram == 1'b1 && dma_v_ready) begin
+    end else if (exe_op_bundle.mem_write.w_s_sram_port_b_en == 1'b1 && dma_v_ready) begin
         s_sram_addr_b = recorded_v_prefetch_addr;
     end else begin
         s_sram_addr_b = recorded_v_load_addr_2;
@@ -266,6 +268,8 @@ always_ff @(posedge clk or negedge rst) begin
         v_v_b_valid     <= 1'b0;
         recorded_v_load_addr_1 <= 'b0;
         recorded_v_load_addr_2 <= 'b0;
+        recorded_m_write_addr <= 'b0;
+        recorded_v_write_addr <= 'b0;
         m_v_valid       <= 1'b0;
         m_v_load        <= 1'b0;
     end else begin
@@ -281,7 +285,7 @@ always_ff @(posedge clk or negedge rst) begin
             v_v_a_valid     <= 1'b1;
             s_sram_req_a    <= 1'b1;
             s_sram_wen_a    <= 1'b0;
-        end else if (assigned_op_bundle.stall_for_memory.stall_s_sram == 1'b1 && m_write_en && m_out_valid) begin
+        end else if (assigned_op_bundle.mem_write.w_s_sram_port_a_en == 1'b1) begin
             // Write the result from matrix machine to the s_sram
             m_v_load        <= 1'b0;
             s_sram_req_a    <= 1'b1;
@@ -294,40 +298,52 @@ always_ff @(posedge clk or negedge rst) begin
             s_sram_wen_a    <= 1'b0;
         end
 
+        if (m_out_valid && v_v_out_valid) begin
+            // When the two data are ready at the same time, need to decide the priority. Now set the matrix machine to be higher priority.
+            select_write_data_a <= 1'b1;
+            v_v_out_ready       <= 1'b0;
+        end else if (m_out_valid) begin    
+            select_write_data_a <= 1'b1;
+            v_v_out_ready       <= 1'b1;
+        end else if (v_v_out_valid) begin
+            select_write_data_a <= 1'b0;
+            v_v_out_ready       <= 1'b1;
+        end else begin
+            select_write_data_a <= 1'b0;
+            v_v_out_ready       <= 1'b1;
+        end
+
         //Port B
         if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
             // Read Port activated
             v_v_b_valid     <= 1'b1;
             s_sram_req_b    <= 1'b1;
             s_sram_wen_b    <= 1'b0;
-        end else if (v_write_en && v_v_out_valid) begin
-            // Write Port activated
-            v_v_out_ready   <= 1'b1;
-            s_sram_req_b    <= 1'b1;
-            s_sram_wen_b    <= 1'b1;
-        end else if (assigned_op_bundle.stall_for_memory.stall_s_sram && dma_v_ready) begin
+        end else if (assigned_op_bundle.mem_write.w_s_sram_port_b_en && dma_v_ready) begin
             // HBM Fetch to the scratchpad sram
             s_sram_wen_b    <= 1'b1;
             s_sram_req_b    <= 1'b1;
-        end
-
-        else begin
+        end else begin
             // No SRAM access
             s_sram_req_b    <= 1'b0;
             v_v_b_valid     <= 1'b0;
             s_sram_req_b    <= 1'b0;
         end
-
-
-        // TODO: the check condition of the req signals from matrix machine and vector machine need to be revised.
-        if ((s_sram_req_a || s_sram_req_b) && !(v_v_a_ready || v_v_b_ready || m_o_ready || m_v_ready)) begin
-            s_sram_load_failed <= 1'b1;
-        end else begin
-            s_sram_load_failed <= 1'b0;
-        end
         
         recorded_v_load_addr_1 <= fixed_addr_1;
         recorded_v_load_addr_2 <= fixed_addr_2;
+
+        if (m_write_request) begin
+            recorded_m_write_addr <= m_write_addr;
+        end else begin
+            recorded_m_write_addr <= recorded_m_write_addr;
+        end
+
+        if (v_write_request) begin
+            recorded_v_write_addr <= v_write_addr;
+        end else begin
+            recorded_v_write_addr <= recorded_v_write_addr;
+        end
         m_v_valid <= m_v_load;
     end
 

@@ -45,7 +45,6 @@ module matrix_machine #(
 
     // Execution Control
     input   M_OP    matrix_opcode,
-    output  logic   m_load_in_process,
 
     // Offset Addressing
     input  logic                              set_offset_addr,
@@ -76,11 +75,10 @@ module matrix_machine #(
     
     output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_element,
     output logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale,
-    output logic                            out_valid,
-    input  logic                            out_ready,
-    output logic [ADDR_WIDTH-1:0]             m_waddr,
-    output logic                              m_wreq
-    
+    output logic                                out_valid,
+    input  logic                                out_ready,
+    output logic [ADDR_WIDTH-1:0]               m_waddr,
+    output logic                                m_wreq
 );
 
 import pipeline_pkg::*;
@@ -91,6 +89,7 @@ end
 
 // Fetch Control
 logic clear_m;  // TODO
+logic m_load_in_process;
 
 typedef struct {
     logic [ADDR_WIDTH-1:0]             waddr;
@@ -144,7 +143,11 @@ always_ff @(posedge clk or negedge rst) begin
 
             end else begin
                 m_load_in_process <= 1'b1;
+                pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
             end
+        end else begin
+            m_load_in_process <= 1'b0;
+            pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
         end
 
         for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
@@ -201,7 +204,7 @@ matrix_collector #(
     .Collect_Dim(Matrix_Parallel_Rd_Dim)
 ) scale_collect (
     .clk(clk),
-    .rst_n(rst),
+    .rst_n(!rst),
 
     // Input
     .in_data(m_scale),
@@ -348,9 +351,9 @@ join_n #(
 );
 
 // Control Logic
-logic   prod_valid, prod_ready;
-logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prod_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     prod_scale;
+logic prod_valid, prod_ready;
+logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]         prod_element;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                         prod_scale;
 
 // Matrix - Vector multiplication Unit
 mx_fp_mv #(
@@ -395,34 +398,62 @@ mx_fp_mv #(
 );
 
 // offset addition
-logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      acc_element;
+logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     acc_element;
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
 logic acc_in_valid, acc_in_ready;
 logic acc_out_valid, acc_out_ready;
+logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     result_element;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     result_scale;
 
-
+// Assuming there is no case that MV is followed by MV_O, where both might write to the sram at the same time.
 always_comb begin
-    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES].mop == MV_O) begin
-        out_element = acc_element;
-        out_scale   = acc_scale;
+    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-1].mop == MV_O) begin
+        // With Offset
+        result_element = acc_element;
+        result_scale   = acc_scale;
         out_valid   = acc_out_valid;
         acc_in_valid    = prod_valid;
-    end else if( pipeline_compute_track[MATRIX_W_OFFSET_CYCLES].mop == MV) begin
-        out_element     = prod_element;
-        out_scale       = prod_scale;
+    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV) begin
+        // Without Offset
+        result_element     = prod_element;
+        result_scale       = prod_scale;
         out_valid       = prod_valid;
         acc_in_valid    = 1'b0;
     end else begin
-        out_element = {MLEN{1'b0}};
-        out_scale   = {BLOCK_NUM{1'b0}};
+        result_element = {MLEN{1'b0}};
+        result_scale   = {BLOCK_NUM{1'b0}};
         out_valid   = 1'b0;
     end
 
     prod_ready      = out_ready;
     acc_out_ready   = out_ready;
 
+    // One cycle ahead, informing the dataflow centre to prepare writing to the scratchpad sram.
+    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-2].mop == MV_O) begin
+        m_wreq  = 1'b1;
+        m_waddr = pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-2].waddr;
+    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-2].mop == MV) begin
+        m_wreq  = 1'b1;
+        m_waddr = pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-2].waddr;
+    end else begin
+        m_wreq  = 1'b0;
+        m_waddr = 'b0;
+    end
+end
 
-
+always_ff @(posedge clk or negedge rst) begin
+    if (rst) begin
+        out_scale   <= 'b0;
+        out_element <= 'b0;
+    end else begin
+        if (out_valid) begin
+            out_scale   <= result_scale;
+            out_element <= result_element;
+        end else begin
+            out_scale   <= out_scale;
+            out_element <= out_element;
+        end
+    end
 end
 
 generate;

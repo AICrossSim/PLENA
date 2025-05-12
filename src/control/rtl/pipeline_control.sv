@@ -25,7 +25,7 @@ module pipeline_control #(
     output      logic fetch_next_instr,
 
     // Execution Monitor
-    input       MEM_STALL_TYPE  mem_stall_req,
+    input       MEM_WREQ_INFO   mem_write_req,
     input       logic           hbm_in_used,   // Activated when we need to prefetch data from HBM through TL.
     input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
 
@@ -82,7 +82,6 @@ import pipeline_pkg::*;
     // Matrix Monitor
     logic rd_operand_ready; // The stall is for loading the third operand from the register files.
 
-
     // Decision for pipeline stall
     always_comb begin
         // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
@@ -99,7 +98,8 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall   = 1'b1;
-        end else if ((mem_stall_req.stall_m_sram == 1'b1 || mem_stall_req.stall_s_sram == 1'b1) & (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ) begin
+        end else if ((mem_write_req.wreq_m_sram == 1'b1 || mem_write_req.wreq_s_sram_port_b == 1'b1) & (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ) begin
+            // In prefetching mode
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;
@@ -117,9 +117,16 @@ import pipeline_pkg::*;
     end
 
     assign fetch_next_instr = decode_instr_valid && !pipeline_stall;
+    
+    MEM_WEN_INFO permit_mem_write;
+    assign permit_mem_write = '{
+        w_m_sram_en           : mem_write_req.wreq_m_sram,
+        w_s_sram_port_a_en    : mem_write_req.wreq_s_sram_port_a,
+        w_s_sram_port_b_en    : mem_write_req.wreq_s_sram_port_b,
+        stall_s_reg           : mem_write_req.wreq_s_reg
+    };
 
-    always_ff @(posedge clk) begin
-        // TODO rewrite the pipeline determination logic
+    always_ff @(posedge clk) begin  
         if (pipeline_stall) begin
             // Stall Condition 1: When the three oprands both pointer for addresses, need 2 cycles to obtain the address for the two port regfile.
             if (m_update_waddr || v_update_waddr) begin
@@ -157,7 +164,8 @@ import pipeline_pkg::*;
             end
             
             // Memory Req was set to be the highest priority. TODO
-            assigned_op_bundle.stall_for_memory <= mem_stall_req;
+
+            assigned_op_bundle.mem_write <= permit_mem_write;
 
         end else begin
             rd_operand_ready <= 1'b0;
@@ -165,8 +173,8 @@ import pipeline_pkg::*;
             assigned_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
             assigned_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
             
-            // Normal execution without stalls for memory.
-            assigned_op_bundle.stall_for_memory <= mem_stall_req;
+            // Normal execution without stalls for memory. TODO
+            assigned_op_bundle.mem_write <= permit_mem_write;
 
             case(decode_instr_info.instruction_type)
                 M: begin

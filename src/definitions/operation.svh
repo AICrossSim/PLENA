@@ -10,10 +10,19 @@ parameter IMM_2_WIDTH = 4;
 parameter INSTRUCTION_LENGTH = 16;
 
 typedef struct {
-    logic stall_m_sram;
-    logic stall_s_sram;
+    logic w_m_sram_en;
+    logic w_s_sram_port_a_en;
+    logic w_s_sram_port_b_en;
     logic stall_s_reg;
-} MEM_STALL_TYPE;
+} MEM_WEN_INFO;
+
+
+typedef struct {
+    logic wreq_m_sram;
+    logic wreq_s_sram_port_a;
+    logic wreq_s_sram_port_b;
+    logic wreq_s_reg;
+} MEM_WREQ_INFO;
 
 package instruction_pkg;
     parameter FIXED_OPERAND_WIDTH = 3;
@@ -179,7 +188,7 @@ typedef struct {
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
-    MEM_STALL_TYPE  stall_for_memory;
+    MEM_WEN_INFO  mem_write;
 } OP_BUNDLE;
 
 
