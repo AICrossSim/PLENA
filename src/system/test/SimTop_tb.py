@@ -33,7 +33,8 @@ logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
-instr_file = f"{current_path}/benchmarks/matrix.mem"
+testcase_name = "vector"
+instr_file = f"{current_path}/benchmarks/{testcase_name}.mem"
 hbm_element_file = f"{current_path}/workload/hbm_ele.mem"
 hbm_scale_file = f"{current_path}/workload/hbm_scale.mem"
 INSTRUCTION_LENGTH = 16

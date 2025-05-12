@@ -222,8 +222,8 @@ module coprocessor (
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_out;
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]             v_out_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                             v_out_scale;
+    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_out_element;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_out_scale;
 
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_in;
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_out;
@@ -234,6 +234,7 @@ module coprocessor (
 
                 
     generate;
+        // Matrix Compute Unit
         matrix_machine #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
@@ -277,51 +278,51 @@ module coprocessor (
             .m_wreq                 (m_write_request)
         );
 
-        //     // Vector Compute Unit
-        // vector_machine #(
-        //     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        //     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        //     .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        //     .FP_EXP_WIDTH(FP_EXP_WIDTH),
-        //     .FP_MANT_WIDTH(FP_MANT_WIDTH),
-        //     .VLEN(MLEN),
-        //     .BLOCK_DIM(BLOCK_DIM),
-        //     .VE_EXT_EXP_WIDTH(0),
-        //     .VE_EXT_MANT_WIDTH(0),
-        //     .VR_EXT_EXP_WIDTH(0),
-        //     .VR_EXT_MANT_WIDTH(0),
-        //     .ROUND_FP_EN(1),
-        //     .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
-        //     .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
-        // ) vector_machine (
-        //     .clk(clk),
-        //     .rst(rst),
-        //     .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
-        //     .element_v_control      (assigned_op_bundle.v_ele_op),
-        //     .reduct_v_control       (assigned_op_bundle.v_reduct_op),
-        //     .v_a_element            (v_element_port_a_out),
-        //     .v_a_scale              (v_scale_port_a_out),
-        //     .v_a_valid              (v_v_a_valid),
-        //     .v_a_ready              (v_v_a_ready),
-        //     .v_b_element            (v_element_port_b_out),
-        //     .v_b_scale              (v_scale_port_b_out),
-        //     .v_b_valid              (v_v_b_valid),
-        //     .v_b_ready              (v_v_b_ready),
-        //     .s_in                   (fp_s_in),
-        //     .s_in_valid             (v_s_in_valid),
-        //     .s_in_ready             (v_s_in_ready),
-        //     .s_out                  (fp_s_out),
-        //     .s_out_valid            (v_s_out_valid),
-        //     .s_out_ready            (v_s_out_ready),
-        //     .result_waddr           (fixed_out_1),
-        //     .result_waddr_update    (v_update_waddr),
-        //     .v_out_element          (v_out_element),
-        //     .v_out_scale            (v_out_scale),
-        //     .v_out_valid            (v_v_out_valid),
-        //     .v_out_ready            (v_v_out_ready),
-        //     .v_waddr                (v_waddr),
-        //     .v_wreq                 (v_write_request)
-        // );
+        // Vector Compute Unit
+        vector_machine #(
+            .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+            .FP_EXP_WIDTH(FP_EXP_WIDTH),
+            .FP_MANT_WIDTH(FP_MANT_WIDTH),
+            .VLEN(MLEN),
+            .BLOCK_DIM(BLOCK_DIM),
+            .VE_EXT_EXP_WIDTH(0),
+            .VE_EXT_MANT_WIDTH(0),
+            .VR_EXT_EXP_WIDTH(0),
+            .VR_EXT_MANT_WIDTH(0),
+            .ROUND_FP_EN(1),
+            .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
+            .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
+        ) vector_machine (
+            .clk(clk),
+            .rst(rst),
+            .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
+            .element_v_control      (assigned_op_bundle.v_ele_op),
+            .reduct_v_control       (assigned_op_bundle.v_reduct_op),
+            .v_a_element            (v_element_port_a_out),
+            .v_a_scale              (v_scale_port_a_out),
+            .v_a_valid              (v_v_a_valid),
+            .v_a_ready              (v_v_a_ready),
+            .v_b_element            (v_element_port_b_out),
+            .v_b_scale              (v_scale_port_b_out),
+            .v_b_valid              (v_v_b_valid),
+            .v_b_ready              (v_v_b_ready),
+            .s_in                   (fp_s_in),
+            .s_in_valid             (v_s_in_valid),
+            .s_in_ready             (v_s_in_ready),
+            .s_out                  (fp_s_out),
+            .s_out_valid            (v_s_out_valid),
+            .s_out_ready            (v_s_out_ready),
+            .result_waddr           (fixed_out_1),
+            .result_waddr_update    (v_update_waddr),
+            .v_out_element          (v_out_element),
+            .v_out_scale            (v_out_scale),
+            .v_out_valid            (v_v_out_valid),
+            .v_out_ready            (v_v_out_ready),
+            .v_waddr                (v_waddr),
+            .v_wreq                 (v_write_request)
+        );
 
         // Scalar Compute Unit
         scalar_machine #(

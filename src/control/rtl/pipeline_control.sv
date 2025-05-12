@@ -94,7 +94,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;            
-        end else if (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_MUL_VV) begin
+        end else if (rd_operand_ready == 1'b0 & (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_MUL_VV)) begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall   = 1'b1;

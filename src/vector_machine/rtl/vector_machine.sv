@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
+`include "configuration.svh"
 
 /*
 Module      : Vector Machine Module
@@ -69,8 +70,8 @@ module vector_machine #(
     output  logic                   s_in_ready,
 
     output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] s_out,
-    output  logic                     s_out_valid,
-    input   logic                     s_out_ready,
+    output  logic                   s_out_valid,
+    input   logic                   s_out_ready,
 
 
     // Output
@@ -81,42 +82,79 @@ module vector_machine #(
     output  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale,
     output  logic                                                                   v_out_valid,
     input   logic                                                                   v_out_ready,
+
     output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
     output  logic                                                                   v_wreq
     
 );
 
+import pipeline_pkg::*;
 
-logic [ADDR_WIDTH - 1:0] pipeline_waddr_track [VECTOR_PIPLINE_DEPTH];
-assign v_waddr = pipeline_waddr_track[VECTOR_PIPLINE_DEPTH - 1];
+typedef struct {
+    logic [ADDR_WIDTH-1:0]             waddr;
+    V_ELEMENT_OP                       ele_op;
+    V_REDUCT_OP                        red_op;
+} RECORDED_INFO_TYPE;
+
+RECORDED_INFO_TYPE pipeline_compute_track [0:VECTOR_MAX_CYCLES-1];
 
 // Vector Machine Control
-V_ELEMENT_OP p1_element_v_control;
-V_REDUCT_OP p1_reduct_v_control;
-logic select_result; // 0 for reduction, 1 for elementwise compute
+V_ELEMENT_OP recorded_ele_control;
+V_REDUCT_OP recorded_red_control;
+logic result_waddr_ready;
+logic recorded_broadcast_en;
+logic [ADDR_WIDTH-1:0] recorded_v_waddr;
 
 always_ff @(posedge clk or negedge rst) begin
-    if (!rst) begin
-        p1_element_v_control    <= STALL_V_ELEMENT;
-        p1_reduct_v_control     <= STALL_V_REDUCT;
-        for (int i = 0; i < VECTOR_PIPLINE_DEPTH; i = i + 1) begin
-            pipeline_waddr_track[i] <= {ADDR_WIDTH{1'b0}};
+    if (rst) begin
+        recorded_ele_control    <= STALL_V_ELEMENT;
+        recorded_red_control     <= STALL_V_REDUCT;
+        for (int i = 0; i < VECTOR_MAX_CYCLES; i++) begin
+            pipeline_compute_track[i] <= '{
+                waddr  : '0,
+                ele_op : STALL_V_ELEMENT,
+                red_op : STALL_V_REDUCT
+            };
         end
+        recorded_broadcast_en <= 1'b0;
     end else begin
-        p1_element_v_control    <= element_v_control;
-        p1_reduct_v_control     <= reduct_v_control;
-        pipeline_waddr_track[0] <= (result_waddr_update) ? result_waddr : 'b0;
-        for (int i = 1; i < VECTOR_PIPLINE_DEPTH; i = i + 1) begin
-            pipeline_waddr_track[i] <= pipeline_waddr_track[i - 1];
+        // Set result waddr
+        result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
+        
+        if (result_waddr_ready)begin
+            recorded_v_waddr <= result_waddr;
         end
-    end
 
-    if (p1_element_v_control != STALL_V_ELEMENT) begin
-        select_result <= 1'b1;
-    end else if (p1_reduct_v_control != STALL_V_REDUCT) begin
-        select_result <= 1'b0;
-    end else begin
-        select_result <= 1'b0;
+        if (element_v_control != STALL_V_ELEMENT) begin
+            pipeline_compute_track[0] <= '{
+                waddr  : result_waddr,
+                ele_op : element_v_control,
+                red_op : STALL_V_REDUCT
+            };
+            recorded_broadcast_en <= broadcast_fp2;
+        end else if (reduct_v_control != STALL_V_REDUCT) begin
+            pipeline_compute_track[0] <= '{
+                waddr  : result_waddr,
+                ele_op : STALL_V_ELEMENT,
+                red_op : reduct_v_control
+            };
+            recorded_broadcast_en <= 1'b0;
+        end else begin
+            pipeline_compute_track[0] <= '{
+                waddr  : result_waddr,
+                ele_op : STALL_V_ELEMENT,
+                red_op : STALL_V_REDUCT
+            };
+            recorded_broadcast_en <= 1'b0;
+        end 
+
+        // Shift the pipeline
+        for (int i = VECTOR_MAX_CYCLES-1; i > 0; i--) begin
+            pipeline_compute_track[i].waddr     <= pipeline_compute_track[i-1].waddr;
+            pipeline_compute_track[i].ele_op    <= pipeline_compute_track[i-1].ele_op;
+            pipeline_compute_track[i].red_op    <= pipeline_compute_track[i-1].red_op;
+        end
+
     end
 
 end
@@ -128,9 +166,6 @@ logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] conv
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_a;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_b;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] unpacked_v_s;
-
-logic prepared_v_a_ready, prepared_v_a_valid;
-logic prepared_v_b_ready, prepared_v_b_valid;
 
 // TODO : Not sure if this is correct
 assign s_in_ready = v_b_ready;
@@ -189,8 +224,8 @@ skid_buffer #(
 
     // Output
     .data_out(prepared_v_a),
-    .data_out_valid(prepared_v_a_valid),
-    .data_out_ready(prepared_v_a_ready)
+    .data_out_valid(element_v_in_a_valid),
+    .data_out_ready(element_v_in_a_ready)
 );
 
 skid_buffer #(
@@ -206,8 +241,8 @@ skid_buffer #(
 
     // Output
     .data_out(prepared_v_b),
-    .data_out_valid(prepared_v_b_valid),
-    .data_out_ready(prepared_v_b_ready)
+    .data_out_valid(element_v_in_b_valid),
+    .data_out_ready(element_v_in_b_ready)
 );
 
 
@@ -263,11 +298,61 @@ fp_reduction_compute_unit #(
     .v_out_ready(red_v_out_ready)
 );
 
+/*  Result Selection
+    Note: Different vector operations can end and trigger write to the memory at different cycles,
+    Here we assume all the vector operations on flight does not have data dependency and can be directly write to memory once it is completed.
+    The pipeline control unit will in charge of removing possible data dependency by inserting stall cycles.
+    It does not require to wait for the vector operations assigned before it to finish.
+*/
+logic [ADDR_WIDTH-1:0] stored_result_waddr;
+assign element_v_out_ready = compute_result_ready;
+always_comb begin
+    if (
+        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_ADD_VV ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_ADD_VF ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_SUB_VV ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_SUB_VF ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_MUL_VV ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_MUL_VF
+    ) begin
+        result_v_out = element_v_out;
+        compute_result_valid = element_v_out_valid;
+        stored_result_waddr = pipeline_compute_track[VECTOR_BASIC_CYCLES].waddr;
+    end 
+    // TODO add other non linear function stalled cycles.
+    
+end
+
+always_ff @(posedge clk or negedge rst) begin
+    if (rst) begin
+        v_wreq <= 1'b0;
+    end else begin
+        if (compute_result_valid)begin
+            v_wreq <= 1'b1;
+            v_waddr <= stored_result_waddr;
+        end 
+    end
+end
 
 // Convert FP to MX-FP 2 cycles
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] result_v_out;
-assign result_v_out = select_result ? element_v_out : red_v_out;
+logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] result_v_out;
+logic compute_result_valid, compute_result_ready;
+logic [BLOCK_NUM-1:0] fp_mxfp_in_valid, fp_mxfp_in_ready;
+logic [BLOCK_NUM-1:0] fp_mxfp_out_valid, fp_mxfp_out_ready;
+logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_EXP_WIDTH + MXFP_MANT_WIDTH) : 0] mx_fp_element;
+logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0] mx_fp_scale;
+
 generate;
+    split_n #(
+        .N(2)
+    ) v_split_i (
+        .data_in_valid (compute_result_valid),
+        .data_in_ready (compute_result_ready),
+        .data_out_valid({stored_v_in_ele_valid, stored_v_in_scale_valid}),
+        .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
+    );
+    
+    
     for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
         fp_2_mx_fp_block #(
             .BLOCK_DIM(BLOCK_DIM),
@@ -280,16 +365,30 @@ generate;
             .clk(clk),
             .rst(rst),
             .data_in(result_v_out[i]),
-            .data_in_valid(element_v_out_valid),
-            .data_in_ready(element_v_out_ready),
+            .data_in_valid(fp_mxfp_in_valid[i]),
+            .data_in_ready(fp_mxfp_in_ready[i]),
 
-            .element_data_out(v_out_element[i]),
-            .scale_data_out(v_out_scale[i]),
-            .mx_fp_data_out_valid(v_out_valid),
-            .mx_fp_data_out_ready(v_out_ready)
+            .element_data_out(mx_fp_element[i]),
+            .scale_data_out(mx_fp_scale[i]),
+            .mx_fp_data_out_valid(fp_mxfp_out_valid[i]),
+            .mx_fp_data_out_ready(fp_mxfp_out_ready[i])
         );
     end
+
+    join_n #(
+        .NUM_HANDSHAKES (BLOCK_NUM)
+    ) join_v_element (
+        .data_in_valid(fp_mxfp_out_valid),
+        .data_in_ready(fp_mxfp_out_ready),
+        .data_out_valid(v_out_valid),
+        .data_out_ready(v_out_ready)
+    );
+
+
 endgenerate
+
+assign v_out_element = mx_fp_element;
+assign v_out_scale = mx_fp_scale;
 
 
 endmodule

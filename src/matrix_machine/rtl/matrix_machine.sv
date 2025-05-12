@@ -96,7 +96,7 @@ typedef struct {
     M_OP                               mop;
 } RECORDED_INFO_TYPE;
 
-RECORDED_INFO_TYPE pipeline_compute_track [0:MAX_PIPELINE_STAGE-1];
+RECORDED_INFO_TYPE pipeline_compute_track [0:MATRIX_MAX_CYCLES-1];
 
 logic result_waddr_ready;
 
@@ -107,9 +107,8 @@ logic [ADDR_WIDTH-1:0] recorded_m_waddr;
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
 
-        for (int i = 0; i < MAX_PIPELINE_STAGE; i++) begin
-            pipeline_compute_track[i].waddr <= 'b0;
-            pipeline_compute_track[i].mop   <= STALL_M;
+        for (int i = 0; i < MATRIX_MAX_CYCLES; i++) begin
+            pipeline_compute_track[i] <= '{waddr: 'b0, mop: STALL_M};
         end
 
         offset_addr_out <= 'b0;
@@ -150,7 +149,7 @@ always_ff @(posedge clk or negedge rst) begin
             pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
         end
 
-        for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
+        for (int i = 0; i < MATRIX_MAX_CYCLES - 1; i++) begin
             pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
         end
 

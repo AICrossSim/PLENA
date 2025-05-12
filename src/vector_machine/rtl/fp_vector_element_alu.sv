@@ -82,12 +82,12 @@ fp_cp_mult #(
 );
 
 
-fp_cp_exp #(
-    .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH)
-) exp (
-    .data_in(data_a),
-    .data_out(data_out_exp)
-);
+// fp_cp_exp #(
+//     .EXP_WIDTH(EXP_WIDTH),
+//     .MANT_WIDTH(MANT_WIDTH)
+// ) exp (
+//     .data_in(data_a),
+//     .data_out(data_out_exp)
+// );
 
 endmodule

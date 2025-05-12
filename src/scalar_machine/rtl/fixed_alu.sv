@@ -35,6 +35,8 @@ module fixed_alu #(
                 result = operand_a / operand_b; // Division
             LUI_FIX:
                 result = { {(BITWIDTH - IMM_WIDTH - IMM_SHIFT_AMOUNT){1'b0}}, imm_value, {IMM_SHIFT_AMOUNT{1'b0}}};     // Load upper immediate
+            MV_FIX:
+                result = operand_a; // Move
             default: result = '0;
         endcase
     end
