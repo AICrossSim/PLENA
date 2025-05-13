@@ -49,7 +49,7 @@ module scalar_machine #(
 
     // Fixed Value input
     input   logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in,
-    input   logic [FIXED_DATA_WIDTH - 1 : 0] imm_in,
+    input   logic [IMM_WIDTH - 1 : 0] imm_in,
 
     output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1,
     output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2,
@@ -149,7 +149,7 @@ module scalar_machine #(
     ) fixed_alu (
         .operand_a  (fixed_reg_1),
         .operand_b  (fixed_reg_2),
-        .imm_value  (imm_in),
+        .imm_value  ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, imm_in}),
         .operation  (fixed_control),
         .result     (fixed_alu_out)
     );

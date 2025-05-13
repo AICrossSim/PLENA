@@ -18,7 +18,8 @@ module data_flow_control import precision_pkg::*; #(
     parameter   MLEN                    = 8,
     parameter   Parallel_Rd_Dim         = 4,       // Number of inputs per cycle
     localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim,
-    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION)
+    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION),
+    localparam BLOCK_NUM = VLEN / BLOCK_DIM
 ) (
 
     input       logic clk,
@@ -77,16 +78,16 @@ module data_flow_control import precision_pkg::*; #(
     output      logic s_sram_req_a,
     output      logic s_sram_wen_a,
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_a,
-    output      logic [VLEN-1:0]                    s_sram_mask_a,
+    output      logic [BLOCK_NUM-1:0]               s_sram_mask_a,
     output      logic select_write_data_a,          
 
     output      logic s_sram_req_b,
     output      logic s_sram_wen_b,
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_b,
-    output      logic [VLEN-1:0]                    s_sram_mask_b,
+    output      logic [BLOCK_NUM-1:0]               s_sram_mask_b,
 
     // Interface with HBM
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr,
+    // output      logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr,
     input       logic dma_m_ready,
     input       logic dma_v_ready,
     output      logic continuous_prefetch_m_en,
@@ -98,10 +99,13 @@ module data_flow_control import precision_pkg::*; #(
 
 localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 
-
 always_ff @(posedge clk or negedge rst ) begin
     exe_op_bundle          <= assigned_op_bundle;
 end
+
+// TODO: Currently, we assume all the data written to the SRAM are in the same dim of VLEN.
+assign s_sram_mask_a = {BLOCK_NUM{1'b1}};
+assign s_sram_mask_b = {BLOCK_NUM{1'b1}};
 
 
 // Stall Request
@@ -225,12 +229,14 @@ end
 
 // Vector SRAM Control
 // Assuming the read cycle is 1 cycle for both ports.
-// Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
-// Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
+// Port A ->  R: Matrix Multiplicand Vector or Vector Operand (RS1)               W: Vector Result from either Matrix or Vector Machine, 
+// Port B ->  R: Matrix Offest Vector or Vector Operand (RS2) or HBM Write Data   W: Vector Prefetch
 
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
 logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
+logic v_v_a_load, v_v_b_load;
+
 
 always_comb begin
     // Port A Addr Mangement
@@ -272,28 +278,34 @@ always_ff @(posedge clk or negedge rst) begin
         recorded_v_write_addr <= 'b0;
         m_v_valid       <= 1'b0;
         m_v_load        <= 1'b0;
+        v_v_a_load     <= 1'b0;
+        v_v_b_load     <= 1'b0;
     end else begin
 
+        v_v_a_valid         <= v_v_a_load;
+        v_v_b_valid         <= v_v_b_load;
         //Port A
         if(assigned_op_bundle.m_op != STALL_M && m_v_ready) begin
             // Read Vector from SRAM
             m_v_load        <= 1'b1;
+            v_v_a_load      <= 1'b0;
             s_sram_req_a    <= 1'b1;
             s_sram_wen_a    <= 1'b0;
         end else if (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
             m_v_load        <= 1'b0;
-            v_v_a_valid     <= 1'b1;
+            v_v_a_load      <= 1'b1;
             s_sram_req_a    <= 1'b1;
             s_sram_wen_a    <= 1'b0;
         end else if (assigned_op_bundle.mem_write.w_s_sram_port_a_en == 1'b1) begin
             // Write the result from matrix machine to the s_sram
             m_v_load        <= 1'b0;
+            v_v_a_load      <= 1'b0;
             s_sram_req_a    <= 1'b1;
             s_sram_wen_a    <= 1'b1;
         end else begin
             // No Scratchpad SRAM access request.
             m_v_load        <= 1'b0;
-            v_v_a_valid     <= 1'b0;
+            v_v_a_load      <= 1'b0;
             s_sram_req_a    <= 1'b0;
             s_sram_wen_a    <= 1'b0;
         end
@@ -316,17 +328,18 @@ always_ff @(posedge clk or negedge rst) begin
         //Port B
         if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
             // Read Port activated
-            v_v_b_valid     <= 1'b1;
+            v_v_b_load      <= 1'b1;
             s_sram_req_b    <= 1'b1;
             s_sram_wen_b    <= 1'b0;
         end else if (assigned_op_bundle.mem_write.w_s_sram_port_b_en && dma_v_ready) begin
             // HBM Fetch to the scratchpad sram
+            v_v_b_load      <= 1'b0;
             s_sram_wen_b    <= 1'b1;
             s_sram_req_b    <= 1'b1;
         end else begin
             // No SRAM access
             s_sram_wen_b    <= 1'b0;
-            v_v_b_valid     <= 1'b0;
+            v_v_b_load      <= 1'b0;
             s_sram_req_b    <= 1'b0;
         end
         

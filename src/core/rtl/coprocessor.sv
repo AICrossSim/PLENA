@@ -137,9 +137,8 @@ module coprocessor (
     logic s_sram_req_a, s_sram_req_b;
     logic s_sram_wen_a, s_sram_wen_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] s_sram_addr_a, s_sram_addr_b;
-    logic [VLEN-1:0] s_sram_mask_a, s_sram_mask_b;
+    logic [BLOCK_NUM-1:0] s_sram_mask_a, s_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr;
 
     localparam MATRIX_LOAD_ITERATION = MLEN / Matrix_Parallel_Rd_Dim;
     localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
@@ -195,7 +194,6 @@ module coprocessor (
         .s_sram_wen_b           (s_sram_wen_b),
         .s_sram_addr_b          (s_sram_addr_b),
         .s_sram_mask_b          (s_sram_mask_b),
-        .hbm_offset_addr        (hbm_offset_addr),
         .dma_m_ready            (hbm_m_prefetch_complete),
         .dma_v_ready            (hbm_v_prefetch_complete),
         .continuous_prefetch_m_en(continuous_prefetch_m_en),
@@ -511,7 +509,7 @@ module coprocessor (
 
         // Address Register
         .set_addr_reg_en    (assigned_op_bundle.c_op == SET_ADDR_REG),
-        .hbm_offset_addr    (hbm_offset_addr),
+        // .hbm_offset_addr    (hbm_offset_addr),
         .addr_in_a          (fixed_out_1),
         .addr_in_b          (fixed_out_2),
         // Address Register Index

@@ -33,7 +33,7 @@ module scratch_sram #(
     input   logic [AddrLen-1:0] sram_addr_a,
     input   logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      element_in_a,
     input   logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_in_a,
-    input   logic [VLEN - 1 : 0]   mask_in_a,
+    input   logic [BLOCK_NUM - 1 : 0]                                               mask_in_a,
     output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      element_out_a,
     output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_out_a,
 
@@ -42,7 +42,7 @@ module scratch_sram #(
     input   logic [AddrLen-1:0] sram_addr_b,
     input   logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      element_in_b,
     input   logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_in_b,
-    input   logic [VLEN - 1 : 0]   mask_in_b,
+    input   logic [BLOCK_NUM - 1 : 0]                                               mask_in_b,
     output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      element_out_b,
     output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_out_b
 
@@ -54,7 +54,7 @@ module scratch_sram #(
 prim_generic_ram_2p #(
     .Width((MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * VLEN),
     .Depth(SRAM_DEPTH),
-    .DataBitsPerMask((MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1)),   // Write mask is able to control the single element
+    .DataBitsPerMask((MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * BLOCK_DIM),   // Write mask is able to control the single element
     .MemInitFile("")
 ) element_storage (
     .clk_a_i(clk),

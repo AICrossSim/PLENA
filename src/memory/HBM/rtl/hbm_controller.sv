@@ -46,7 +46,6 @@ module hbm_controller #(
 
     // HBM addr mapping
     input   logic   set_addr_reg_en,
-    input   logic   [ADDR_WIDTH - 1 : 0]            hbm_offset_addr,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
     input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_b,
     input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_write_operand,
@@ -134,9 +133,9 @@ module hbm_controller #(
         .rst(rst),
         .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
         .set_addr_en    (set_addr_reg_en),
-        .addr_offset     (addr_for_prefetched_data),
         .addr_in_a      (addr_in_a),
         .addr_in_b      (addr_in_b),
+        .addr_offset    (addr_in_a),
         .read_operand   (addr_reg_read_operand),
         .write_operand  (addr_reg_write_operand),
         .hbm_addr_out   (hbm_addr_out)

@@ -46,19 +46,22 @@ module regfile_2p1w #(
         end
     end
 
-    // Read logic with forwarding
-    always_comb begin
-        if (we && (raddr1 == waddr)) begin
-            rdata1 = wdata;  // Forwarding logic
-        end else begin
-            rdata1 = mem[raddr1];
-        end
+    // // Read logic with forwarding
 
-        if (we && (raddr2 == waddr)) begin
-            rdata2 = wdata;  // Forwarding logic
-        end else begin
-            rdata2 = mem[raddr2];
-        end
-    end
+    assign rdata1 = mem[raddr1];
+    assign rdata2 = mem[raddr2];
+    // always_comb begin
+    //     if (we && (raddr1 == waddr)) begin
+    //         rdata1 = wdata;  // Forwarding logic
+    //     end else begin
+    //         rdata1 = mem[raddr1];
+    //     end
+
+    //     if (we && (raddr2 == waddr)) begin
+    //         rdata2 = wdata;  // Forwarding logic
+    //     end else begin
+    //         rdata2 = mem[raddr2];
+    //     end
+    // end
 
 endmodule
