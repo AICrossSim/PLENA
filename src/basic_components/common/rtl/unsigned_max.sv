@@ -68,12 +68,16 @@ module unsigned_max #(
     assign p0_e_max = tree_max[tree_depth-1].p0_max[0];
 
     // Assign outputs.
-    if(flop_output) begin
-        always_ff @(posedge clk) begin
-            max_val <= p0_e_max;
-        end
-    end else begin
-        assign max_val = p0_e_max;
+    // if(flop_output) begin
+    //     always_ff @(posedge clk) begin
+    //         max_val <= p0_e_max;
+    //     end
+    // end else begin
+    //     assign max_val = p0_e_max;
+    // end
+
+    always_ff @(posedge clk) begin
+        max_val <= p0_e_max;
     end
 
 endmodule

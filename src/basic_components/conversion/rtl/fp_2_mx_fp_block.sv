@@ -4,8 +4,8 @@
 Module      : Convertion Units Floating Point with Configurable Precision to MX-FP
 Timing      : Sequential, Takes 2 cycle to compute the dot product
 Description : 
-            Pipeline Stage 1 : Extracting the maximum exponent from the input data
-            Pipeline Stage 2 : Normalizing the input data and converting it to MX-FP format
+                Pipeline Stage 1 : Extracting the maximum exponent from the input data
+                Pipeline Stage 2 : Normalizing the input data and converting it to MX-FP format
 Status      : Passed Simple Tests
 */
 
@@ -61,7 +61,7 @@ module fp_2_mx_fp_block #(
     
     logic unsigned [MXFP_SCALE_WIDTH - 1:0] p1_e_max;
     logic                               p1_fp_sgns [BLOCK_DIM];
-    logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1:0] p1_fp_exps;
+    logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1:0]  p1_fp_exps;
     logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH - 1:0] p1_fp_mans;
 
     // Setting the lower bound
@@ -75,15 +75,13 @@ module fp_2_mx_fp_block #(
 
 
     logic                               p2_fp_sgns [BLOCK_DIM];
-    logic [MXFP_SCALE_WIDTH - 1:0]     p2_e_max, p2_sh_exp;
-    logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1 :0] p2_m_shifts;
-    logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH     :0] p2_man_exts;
+    logic [MXFP_SCALE_WIDTH - 1:0]      p2_sh_exp;
+    logic unsigned [BLOCK_DIM-1:0][FP_EXP_WIDTH - 1 :0]     p2_m_shifts;
+    logic unsigned [BLOCK_DIM-1:0][FP_MANT_WIDTH     :0]    p2_man_exts;
     logic [BLOCK_DIM-1:0] element_in_ready;
-
     logic                               p2_data_valid;
     logic  [BLOCK_DIM-1:0]              element_conv_valid, element_conv_ready;
 
-    assign p2_e_max  = p1_e_max;
     assign p2_sh_exp = p1_e_max - FP_OFFSET;
 
     for (genvar i=0; i<BLOCK_DIM; i++) begin
@@ -96,10 +94,10 @@ module fp_2_mx_fp_block #(
     generate;
         for(genvar i=0; i<BLOCK_DIM; i++) begin : gen_mxfp_element
             fix_with_shift_2_fp # (
-                .FIXED_DATA_WIDTH(FP_MANT_WIDTH + 1),
-                .FP_EXP_WIDTH(MX_FP_EXP_WIDTH),
-                .FP_MANT_WIDTH(MX_FP_MANT_WIDTH),
-                .SHIFT_WIDTH(FP_EXP_WIDTH)
+                .FIXED_DATA_WIDTH   (FP_MANT_WIDTH + 1),
+                .FP_EXP_WIDTH       (MX_FP_EXP_WIDTH),
+                .FP_MANT_WIDTH      (MX_FP_MANT_WIDTH),
+                .SHIFT_WIDTH        (FP_EXP_WIDTH)
             ) mxfp_element_gen (
                 .data_in    (p2_man_exts[i]),
                 .shift_in   (p2_m_shifts[i]),
@@ -120,7 +118,9 @@ module fp_2_mx_fp_block #(
                 .data_out_ready(element_conv_ready[i])
             );
         end
+        
         assign data_in_ready = &element_in_ready;
+
         join_n #(
             .NUM_HANDSHAKES(BLOCK_DIM)
         ) join_data (
@@ -132,12 +132,10 @@ module fp_2_mx_fp_block #(
 
     endgenerate
 
-
-
-
+    
     always_ff @(posedge clk) begin
-        scale_data_out <=  p2_sh_exp + MXFP_SCALE_OFFSET;
-        p2_data_valid <= data_in_valid;
+        scale_data_out  <=  p2_sh_exp + MXFP_SCALE_OFFSET;
+        p2_data_valid   <=  data_in_valid;
     end
     
 endmodule

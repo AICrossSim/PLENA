@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue May 13 11:50:51 2025
+[*] Tue May 13 15:44:08 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Tue May 13 11:50:14 2025"
-[dumpfile_size] 26856881
+[dumpfile_mtime] "Tue May 13 15:39:07 2025"
+[dumpfile_size] 26854619
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
+[timestart] 441000
 [size] 3428 1359
 [pos] 65471 65471
-*-16.887817 600000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.887817 700000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
@@ -20,6 +20,8 @@
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.row_matrix_by_vec[0].dot_product_inst.
 [treeopen] SimTop.dut.scalar_machine.
 [treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
+[treeopen] SimTop.dut.vector_machine.genblk3[0].
+[treeopen] SimTop.dut.vector_machine.genblk3[0].fp_mxfp_conversion_unit.
 [sst_width] 446
 [signals_width] 347
 [sst_expanded] 1
@@ -44,18 +46,18 @@ SimTop.dut.vector_sram.req_a
 SimTop.dut.vector_sram.sram_addr_b[6:0]
 @28
 SimTop.dut.vector_sram.req_b
+SimTop.dut.vector_machine.compute_result_valid
+SimTop.dut.data_flow_init.v_write_request
 @22
-SimTop.dut.vector_sram.element_out_a[0][7:0]
-SimTop.dut.vector_sram.element_out_b[0][7:0]
-SimTop.dut.vector_sram.element_in_a[0][7:0]
-SimTop.dut.vector_sram.element_in_b[0][7:0]
-#{mask_in_a[3:0]} SimTop.dut.vector_sram.mask_in_a[0]
-#{mask_in_b[3:0]} SimTop.dut.vector_sram.mask_in_b[0]
-SimTop.dut.vector_machine.v_a_element[0][0][7:0]
+SimTop.dut.data_flow_init.recorded_v_write_addr[31:0]
 @28
-SimTop.dut.vector_machine.v_a_valid
-SimTop.dut.vector_machine.v_b_valid
-@23
-SimTop.dut.vector_machine.v_b_element[0][0][7:0]
+SimTop.dut.data_flow_init.s_sram_req_a
+SimTop.dut.data_flow_init.s_sram_wen_a
+@22
+SimTop.dut.vector_sram.element_in_a[0][7:0]
+SimTop.dut.vector_sram.element_in_a[1][7:0]
+SimTop.dut.vector_sram.element_in_a[2][7:0]
+@29
+SimTop.dut.vector_machine.v_out_valid
 [pattern_trace] 1
 [pattern_trace] 0

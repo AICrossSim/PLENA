@@ -33,13 +33,15 @@ async def random_fp_test(dut):
     
     cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
     
-    await Timer(5, units="ns")
+    await Timer(4, units="ns")
     cocotb.log.info("Starting fp addition test")
     # Apply Reset
     dut.rst.value = 0
-    await Timer(5, units="ns")  # Hold reset for 5ns
+    await Timer(2, units="ns")  # Hold reset for 5ns
     dut.rst.value = 1
-    await Timer(5, units="ns")  # Allow some settling time
+    await Timer(4, units="ns")  # Allow some settling time
+    dut.rst.value = 0
+    await Timer(2, units="ns")  # Hold reset for 5ns
 
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
@@ -56,18 +58,12 @@ async def random_fp_test(dut):
         cocotb.log.info(f" Testing Data : Values: {fp_values}, ")
         cocotb.log.info(f" Input Data : Binary: {dut.data_in.value}, ")
         
-        await Timer(4, units="ns")
+        await Timer(8, units="ns")
 
         cocotb.log.info("<-------  INTERNAL DATA --------->")
         cocotb.log.info(f"exp_max Data : Binary: {dut.exp_max.value} FP_OFFSET {bin(dut.FP_OFFSET.value)} ")
         cocotb.log.info(f"p2_sh_exp Data : Binary: {dut.p2_sh_exp.value} ")
         cocotb.log.info(f"p2_m_shifts Data : Binary: {dut.p2_m_shifts.value} ")
-
-        cocotb.log.info("<-------  Single Conv Unit --------->")
-        cocotb.log.info(f"mx_fp_data_out data_in : {dut.gen_mxfp_element[0].mxfp_element_gen.data_in.value} ")
-        cocotb.log.info(f"mx_fp_data_out shift_in : {dut.gen_mxfp_element[0].mxfp_element_gen.shift_in.value} ")
-        cocotb.log.info(f"mx_fp_data_out exp_out : {dut.gen_mxfp_element[0].mxfp_element_gen.exp_out.value} ")
-        cocotb.log.info(f"mx_fp_data_out mant_out : {dut.gen_mxfp_element[0].mxfp_element_gen.mant_out.value} ")
 
         cocotb.log.info("<-------  OUTPUT DATA --------->")
         cocotb.log.info(f"Output Scale {dut.scale_data_out.value}, Element Data {dut.element_data_out.value}")

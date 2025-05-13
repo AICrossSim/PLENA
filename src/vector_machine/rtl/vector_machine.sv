@@ -145,10 +145,8 @@ always_ff @(posedge clk or negedge rst) begin
         end 
 
         // Shift the pipeline
-        for (int i = VECTOR_MAX_CYCLES-1; i > 0; i--) begin
-            pipeline_compute_track[i].waddr     <= pipeline_compute_track[i-1].waddr;
-            pipeline_compute_track[i].ele_op    <= pipeline_compute_track[i-1].ele_op;
-            pipeline_compute_track[i].red_op    <= pipeline_compute_track[i-1].red_op;
+        for (int i = 0; i < VECTOR_MAX_CYCLES - 1; i++) begin
+            pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
         end
 
     end
@@ -265,13 +263,11 @@ fp_elementwise_compute_unit #(
     .v_in_b_valid(element_v_in_b_valid),
     .v_in_b_ready(element_v_in_b_ready),
 
-    .operation(element_v_control),
+    .operation(pipeline_compute_track[2].ele_op),
     .v_out(element_v_out),
     .v_out_valid(element_v_out_valid),
     .v_out_ready(element_v_out_ready)
-
 );
-
 
 // Reduction Compute Unit
 logic red_v_in_valid, red_v_in_ready;
@@ -288,7 +284,7 @@ fp_reduction_compute_unit #(
     .v_in({prepared_v_a, prepared_v_b}),
     .v_in_valid(red_v_in_valid),
     .v_in_ready(red_v_in_ready),
-    .operation(reduct_v_control),
+    .operation(pipeline_compute_track[2].red_op),
     .v_out(red_v_out),
     .v_out_valid(red_v_out_valid),
     .v_out_ready(red_v_out_ready)
@@ -304,29 +300,33 @@ logic [ADDR_WIDTH-1:0] stored_result_waddr;
 assign element_v_out_ready = compute_result_ready;
 always_comb begin
     if (
-        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_ADD_VV ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_ADD_VF ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_SUB_VV ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_SUB_VF ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_MUL_VV ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES].ele_op == V_MUL_VF
+        pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == ADD_V_ELEMENT ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == SUB_V_ELEMENT ||
+        pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == MUL_V_ELEMENT
     ) begin
-        result_v_out = element_v_out;
-        compute_result_valid = element_v_out_valid;
-        stored_result_waddr = pipeline_compute_track[VECTOR_BASIC_CYCLES].waddr;
-    end 
+        result_v_out            = element_v_out;
+        compute_result_valid    = element_v_out_valid;
+        stored_result_waddr     = pipeline_compute_track[VECTOR_BASIC_CYCLES-1].waddr;
+    end else begin
+        result_v_out            = 'b0;
+        compute_result_valid    = 1'b0;
+        stored_result_waddr     = 'b0;
+    end
     // TODO add other non linear function stalled cycles.
     
 end
 
-always_ff @(posedge clk or negedge rst) begin
+always_comb begin
     if (rst) begin
-        v_wreq <= 1'b0;
+        v_wreq      = 1'b0;
     end else begin
         if (compute_result_valid)begin
-            v_wreq <= 1'b1;
-            v_waddr <= stored_result_waddr;
-        end 
+            v_wreq  = 1'b1;
+            v_waddr = stored_result_waddr;
+        end else begin
+            v_wreq  = 1'b0;
+            v_waddr = 'b0;
+        end
     end
 end
 
@@ -340,14 +340,13 @@ logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0] mx_fp_scale;
 
 generate;
     split_n #(
-        .N(2)
+        .N(BLOCK_NUM)
     ) v_split_i (
         .data_in_valid (compute_result_valid),
         .data_in_ready (compute_result_ready),
-        .data_out_valid({stored_v_in_ele_valid, stored_v_in_scale_valid}),
-        .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
+        .data_out_valid(fp_mxfp_in_valid),
+        .data_out_ready(fp_mxfp_in_ready)
     );
-    
     
     for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
         fp_2_mx_fp_block #(
@@ -360,14 +359,13 @@ generate;
         ) fp_mxfp_conversion_unit (
             .clk(clk),
             .rst(rst),
-            .data_in(result_v_out[i]),
-            .data_in_valid(fp_mxfp_in_valid[i]),
-            .data_in_ready(fp_mxfp_in_ready[i]),
-
-            .element_data_out(mx_fp_element[i]),
-            .scale_data_out(mx_fp_scale[i]),
-            .mx_fp_data_out_valid(fp_mxfp_out_valid[i]),
-            .mx_fp_data_out_ready(fp_mxfp_out_ready[i])
+            .data_in                (result_v_out[i]),
+            .data_in_valid          (fp_mxfp_in_valid[i]),
+            .data_in_ready          (fp_mxfp_in_ready[i]),
+            .element_data_out       (mx_fp_element[i]),
+            .scale_data_out         (mx_fp_scale[i]),
+            .mx_fp_data_out_valid   (fp_mxfp_out_valid[i]),
+            .mx_fp_data_out_ready   (fp_mxfp_out_ready[i])
         );
     end
 
@@ -379,12 +377,9 @@ generate;
         .data_out_valid(v_out_valid),
         .data_out_ready(v_out_ready)
     );
-
-
 endgenerate
 
-assign v_out_element = mx_fp_element;
-assign v_out_scale = mx_fp_scale;
-
+assign v_out_element    = mx_fp_element;
+assign v_out_scale      = mx_fp_scale;
 
 endmodule

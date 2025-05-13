@@ -87,7 +87,6 @@ module data_flow_control import precision_pkg::*; #(
     output      logic [BLOCK_NUM-1:0]               s_sram_mask_b,
 
     // Interface with HBM
-    // output      logic [FIXED_DATA_WIDTH - 1 : 0] hbm_offset_addr,
     input       logic dma_m_ready,
     input       logic dma_v_ready,
     output      logic continuous_prefetch_m_en,
