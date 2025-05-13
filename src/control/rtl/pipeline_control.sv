@@ -68,7 +68,7 @@ import pipeline_pkg::*;
             if (!pipeline_stall && decode_instr_valid && (decode_instr_info.opcode == H_PREFETCH_M || decode_instr_info.opcode == H_PREFETCH_V)) begin
                 prefetch_stage_1_in_progress <= 1'b1;
                 prefetch_stage_1_counter <= 'b0;
-            end else if (prefetch_stage_1_counter == PREFETCH_STAGE_1_CYCLES - 1) begin
+            end else if (prefetch_stage_1_counter == PREFETCH_STAGE_1_CYCLES-1) begin
                 prefetch_stage_1_in_progress <= 1'b0;
                 prefetch_stage_1_counter <= 'b0;
             end else if (prefetch_stage_1_in_progress) begin
@@ -95,6 +95,7 @@ import pipeline_pkg::*;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;            
         end else if (rd_operand_ready == 1'b0 & (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_MUL_VV)) begin
+            // Vector Instructions that requires three operands.
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
             pipeline_stall   = 1'b1;
@@ -104,6 +105,11 @@ import pipeline_pkg::*;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;
         end else if (prefetch_in_progress & (decode_instr_info.opcode == H_PREFETCH_M || decode_instr_info.opcode == H_PREFETCH_V)) begin
+            // Release until the prefetching is done.
+            m_update_waddr   = 1'b0;
+            v_update_waddr   = 1'b0;
+            pipeline_stall   = 1'b1;            
+        end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1)& ( decode_instr_info.instruction_type == V)) begin
             // Release until the prefetching is done.
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;

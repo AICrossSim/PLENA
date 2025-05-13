@@ -99,16 +99,12 @@ typedef struct {
 RECORDED_INFO_TYPE pipeline_compute_track [0:VECTOR_MAX_CYCLES-1];
 
 // Vector Machine Control
-V_ELEMENT_OP recorded_ele_control;
-V_REDUCT_OP recorded_red_control;
 logic result_waddr_ready;
 logic recorded_broadcast_en;
 logic [ADDR_WIDTH-1:0] recorded_v_waddr;
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
-        recorded_ele_control    <= STALL_V_ELEMENT;
-        recorded_red_control     <= STALL_V_REDUCT;
         for (int i = 0; i < VECTOR_MAX_CYCLES; i++) begin
             pipeline_compute_track[i] <= '{
                 waddr  : '0,

@@ -68,7 +68,8 @@ module hbm_arbiter #(
     input    H_OP                                   h_op, 
     input    logic                                  continuous_prefetch_m_en, // For matrix prefetch, it requires multiple cycles to prefetch the MLEN * MLEN data to the matrix sram.
     output   logic                                  hbm_m_prefetch_complete, // For matrix prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
-    output   logic                                  hbm_v_prefetch_complete  // For vector prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
+    output   logic                                  hbm_v_prefetch_complete,  // For vector prefetch, indicates that this data is already fetched from HBM and can be extracted directly.
+    output   logic                                  hbm_arbiter_busy
 );
 
 // Matrix SRAM, as the load data dimension matches the HBM data dimension, just need to assign the data directly. We also don't need to read from Matrix SRAM for HBM write.
@@ -94,6 +95,8 @@ logic [MATRIX_READ_ITERATIONS - 1 : 0][SCALE_WIDTH - 1 : 0]     hbm_m_scale;
 logic [MATRIX_READ_ITERATIONS - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
 
 logic tag_m_valid, tag_v_valid;
+
+assign hbm_arbiter_busy = (hbm_state != IDLE) ? 1'b1 : 1'b0;
 // Storting the prefetch data
 always_ff @(posedge clk or posedge rst) begin
     if (rst) begin

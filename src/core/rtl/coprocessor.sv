@@ -314,7 +314,7 @@ module coprocessor (
             .s_out                  (fp_s_out),
             .s_out_valid            (v_s_out_valid),
             .s_out_ready            (v_s_out_ready),
-            .result_waddr           (fixed_out_1),
+            .result_waddr           (fixed_out_2),
             .result_waddr_update    (v_update_waddr),
             .v_out_element          (v_out_element),
             .v_out_scale            (v_out_scale),
@@ -485,7 +485,8 @@ module coprocessor (
         .h_op(assigned_op_bundle.h_op),
         .continuous_prefetch_m_en (continuous_prefetch_m_en),
         .hbm_m_prefetch_complete (hbm_m_prefetch_complete),
-        .hbm_v_prefetch_complete (hbm_v_prefetch_complete)
+        .hbm_v_prefetch_complete (hbm_v_prefetch_complete),
+        .hbm_arbiter_busy         (hbm_in_used)
     );
 
     hbm_controller #(
@@ -534,7 +535,7 @@ module coprocessor (
         .hbm_write_element  (hbm_element_in),
         .hbm_write_scale    (hbm_scale_in),
         .hbm_prefetch_content_exist(hbm_m_prefetch_complete || hbm_v_prefetch_complete),
-        .track_prefetch_status (hbm_in_used),
+        .track_prefetch_status (), // TODO
 
         // HBM Interface
         `TL_CONNECT_HOST_PORT(host_element, element),

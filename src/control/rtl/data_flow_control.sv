@@ -325,7 +325,7 @@ always_ff @(posedge clk or negedge rst) begin
             s_sram_req_b    <= 1'b1;
         end else begin
             // No SRAM access
-            s_sram_req_b    <= 1'b0;
+            s_sram_wen_b    <= 1'b0;
             v_v_b_valid     <= 1'b0;
             s_sram_req_b    <= 1'b0;
         end
