@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
-
+`include "configuration.svh"
 /*
 Module      : Scalar Machine Module
 Timing      : Sequential, all the operations completed in 1 cycle
@@ -56,17 +56,75 @@ module scalar_machine #(
 
     // FP Value input
     input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_in,
-    output   logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out
+    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out,
+
+    // Stall Detection
+    output  logic fp_stall_req
 );
-
+    import pipeline_pkg::*;
     // FP UNit
+    // Keep Operation in Pipe
+    typedef struct {
+        logic [FP_OPERAND_WIDTH-1:0]        target_fp;
+        S_FP_OP                             fp_op;
+    } TRACK_FP;
+    TRACK_FP fp_track [SCALAR_FP_MAX_CYCLES - 1 : 0];
 
+    // Tracing Register for Stall Detection
+    logic tracing_fpreg_in_process [2 << FP_OPERAND_WIDTH - 1 : 0];
     logic fp_reg_we;
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_wtarget;
+    // Check if the fp rd is already in process
+    assign fp_stall_req = (fp_control == STALL_S_FP) ? 1'b0 : (tracing_fpreg_in_process[fp_rd]) ? 1'b1 : 1'b0;
 
-    assign fp_reg_we    = (fp_control != STALL_S_FP && fp_control !=LD_OUT_FP && fp_control != ST_REG_FP) ? 1'b1 : 1'b0;
-    assign fp_reg_wdata = (fp_control == ST_IN_FP)  ? fp_in : 
-                          (fp_control == LD_REG_FP) ? fp_ld_from_sram : fp_alu_out;
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            for (int i = 0; i < 2 << FP_OPERAND_WIDTH; i++) begin
+                tracing_fpreg_in_process[i] <= 1'b0;
+            end
+
+            for (int i = 0; i < SCALAR_FP_MAX_CYCLES; i++) begin
+                fp_track[i] <= '{
+                    target_fp  :'b0,
+                    fp_op      :STALL_S_FP
+                };
+            end
+        end else begin
+            // Note: Here involving write to the same variable from the two conditions
+            if (fp_reg_we) begin
+                tracing_fpreg_in_process[fp_wtarget] <= 1'b0;
+            end
+
+            if (fp_stall_req == 1'b0 & (fp_wtarget != fp_rd)) begin
+                // Check if the fp rd is already in process
+                fp_track[0] <= '{
+                    target_fp  :fp_rd,
+                    fp_op      :fp_control
+                };
+                tracing_fpreg_in_process[fp_rd] <= 1'b1;
+            end
+
+            for (int i = 0; i < SCALAR_FP_MAX_CYCLES - 1; i++) begin
+                fp_track[i+1] <= fp_track[i];
+            end
+        end
+    end
+
+    always_comb begin
+        if (fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP && fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd) begin
+            fp_reg_we = 1'b1;
+            fp_reg_wdata = fp_alu_out;
+        end else begin
+            fp_reg_we = 1'b0;
+            fp_reg_wdata = 'b0;
+        end
+    end
+
+    // assign fp_reg_we    = (fp_control != STALL_S_FP && fp_control !=LD_OUT_FP && fp_control != ST_REG_FP) ? 1'b1 : 1'b0;
+    // assign fp_reg_wdata = (fp_control == ST_IN_FP)  ? fp_in : 
+    //                       (fp_control == LD_REG_FP) ? fp_ld_from_sram : fp_alu_out;
 
     fp_alu #(
         .EXP_WIDTH(FP_EXP_WIDTH),
@@ -84,7 +142,7 @@ module scalar_machine #(
     ) fp_reg_file (
         .clk        (clk),
         .we         (fp_reg_we),
-        .waddr      (fp_rd),
+        .waddr      (),
         .wdata      (fp_reg_wdata),
         .raddr1     (fp_rs1),
         .raddr2     (fp_rs2),
@@ -100,7 +158,7 @@ module scalar_machine #(
         end
     end
 
-
+    // SRAM for FP
     prim_generic_ram_1p #(
         .Width(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
         .Depth(FP_SRAM_DEPTH),
@@ -115,8 +173,6 @@ module scalar_machine #(
         .wmask_i(1'b1),
         .rdata_o(fp_ld_from_sram)
     );
-
-
 
     // Fixed Unit
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram;

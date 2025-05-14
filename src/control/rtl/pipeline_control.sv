@@ -28,6 +28,8 @@ module pipeline_control #(
     input       MEM_WREQ_INFO   mem_write_req,
     input       logic           hbm_in_used,   // Activated when we need to prefetch data from HBM through TL.
     input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
+    input       logic           fp_stall_req,
+    input       logic           mem_vwrite_stall_req,
 
     // Current control operation
     output      logic           pipeline_stall,
@@ -114,6 +116,16 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;            
+        end else if (fp_stall_req & (decode_instr_info.instruction_type == S_FP)) begin
+            // Release until the prefetching is done.
+            m_update_waddr   = 1'b0;
+            v_update_waddr   = 1'b0;
+            pipeline_stall   = 1'b1;            
+        end else if (mem_vwrite_stall_req) begin
+            // Unconditionally stall the overall pipeline.
+            m_update_waddr   = 1'b0;
+            v_update_waddr   = 1'b0;
+            pipeline_stall   = 1'b1;                
         end else begin
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
@@ -231,7 +243,7 @@ import pipeline_pkg::*;
                     end
                 end
 
-                S: begin
+                S_FIX, S_FP: begin
                     assigned_op_bundle.m_op            <= STALL_M;
                     assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                     assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
@@ -339,8 +351,6 @@ import pipeline_pkg::*;
                                                 (decode_instr_info.opcode == H_PREFETCH_V)    ? PREFETCH_V :
                                                 (decode_instr_info.opcode == H_STORE_V)       ? STORE_V : STALL_H;
 
-
-
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
@@ -371,24 +381,8 @@ import pipeline_pkg::*;
         end    
     end
 
-    // Trace Registers in execution and decide on the pipeline stalls.
+    // Trace Register in execution and decide on the pipeline stalls for FP Scalar operations.
 
-
-    // typedef struct packed {
-    //     logic [FIXED_OPERAND_WIDTH - 1 : 0] operand_idx;
-    //     logic valid;
-    // } write_reg_tracked_content;
-    
-    
-    // logic [FIXED_OPERAND_WIDTH - 1 : 0] tracked_write_fixed_reg [MAX_PIPELINE_STAGE - 1: 0];
-    
-    // always_ff @(posedge clk) begin
-    //     if (!pipeline_stall) begin
-    //         for (int i = 0; i < MAX_PIPELINE_STAGE; i++) begin
-    //             tracked_write_fixed_reg[i] <= tracked_write_fixed_reg[i];
-    //         end
-    //     end 
-    // end
-
+    // Trace Address, for deciding the pipeline stalls for vector / matrix operations.
 
 endmodule

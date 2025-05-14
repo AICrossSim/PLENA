@@ -161,12 +161,13 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
 
 
 typedef enum logic [2:0] { 
-    M = 0,
-    V = 1,
-    S = 2,
-    C = 3,
-    H = 4,
-    INVALID_TYPE = 5
+    M       = 0,
+    V       = 1,
+    S_FIX   = 2,
+    S_FP    = 3,
+    C       = 4,
+    H       = 5,
+    INVALID_TYPE = 6
  } CUSTOM_ISA_TYPE;
 
 typedef struct {
@@ -188,11 +189,7 @@ typedef struct {
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
-    MEM_WEN_INFO  mem_write;
+    MEM_WEN_INFO    mem_write;
 } OP_BUNDLE;
-
-
-
-
 
 `endif

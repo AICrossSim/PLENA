@@ -87,9 +87,14 @@ always_comb begin
             decode_instruction_type = V;
         end
 
-        // Scalar Operations
-        S_ADD_FP, S_SUB_FP, S_MAX_FP, S_MUL_FP, S_EXP_FP, S_RECI_FP, S_SQRT_FP, S_LD_REG_FP, S_ST_REG_FP, S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX : begin
-            decode_instruction_type = S;
+        // Scalar FIX Operations
+        S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX: begin
+            decode_instruction_type = S_FIX;
+        end
+
+        // Scalar FP Operations
+        S_ADD_FP, S_SUB_FP, S_MAX_FP, S_MUL_FP, S_EXP_FP, S_RECI_FP, S_SQRT_FP, S_LD_REG_FP, S_ST_REG_FP: begin
+            decode_instruction_type = S_FP;
         end
 
         // Memory Operations

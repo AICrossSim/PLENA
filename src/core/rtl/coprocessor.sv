@@ -66,7 +66,8 @@ module coprocessor (
     
     // Status Tracking
     logic       hbm_in_used;
-    
+    logic stall_req_from_mem;
+    logic stall_req_from_fp;
     // Frontend
     decoder #(
         .INSTRUCTION_LENGTH         (INSTRUCTION_LENGTH),
@@ -102,6 +103,8 @@ module coprocessor (
         .mem_write_req          (mem_write_req),
         .hbm_in_used            (hbm_in_used),
         .continuous_m_prefetch  (continuous_prefetch_m_en),
+        .fp_stall_req           (stall_req_from_fp),
+        .mem_vwrite_stall_req   (stall_req_from_mem),
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
         .v_update_waddr         (v_update_waddr),
@@ -140,6 +143,7 @@ module coprocessor (
     logic [BLOCK_NUM-1:0] s_sram_mask_a, s_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
+
     localparam MATRIX_LOAD_ITERATION = MLEN / Matrix_Parallel_Rd_Dim;
     localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
     logic [MATRIX_COUNTER_WIDTH - 1 : 0] m_sram_continuous_prefetch_counter;
@@ -159,6 +163,13 @@ module coprocessor (
         .fixed_addr_2           (fixed_out_2),
         .m_offset_addr          (m_offset_addr),
         .write_req              (mem_write_req),
+
+        .stall_req              (stall_req_from_mem),
+        .load_m_waddr_en        (m_update_waddr),
+        .load_m_waddr           (m_waddr),
+        .load_v_waddr_en        (v_update_waddr),
+        .load_v_waddr           (v_waddr),
+
         .m_m_ready              (m_m_ready),
         .m_m_valid              (m_m_valid),
         .m_v_valid              (m_v_valid),
@@ -346,7 +357,8 @@ module coprocessor (
             .fixed_out_1        (fixed_out_1),
             .fixed_out_2        (fixed_out_2),
             .fp_in              (fp_s_out),
-            .fp_out             (fp_s_in)
+            .fp_out             (fp_s_in),
+            .fp_stall_req       (stall_req_from_fp)
         );
 
     endgenerate
