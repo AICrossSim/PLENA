@@ -11,7 +11,7 @@ module prim_generic_ram_1p import prim_ram_1p_pkg::*; #(
   parameter  int Width           = 32, // bit
   parameter  int Depth           = 128,
   parameter  int DataBitsPerMask = 1, // Number of data bits per bit of write mask
-  parameter  string MemInitFile     = "", // VMEM file to initialize the memory with
+  parameter  string MemInitFile  = "", // VMEM file to initialize the memory with
 
   localparam int Aw              = $clog2(Depth)  // derived parameter
 ) (
@@ -83,7 +83,7 @@ module prim_generic_ram_1p import prim_ram_1p_pkg::*; #(
       string filename;
       $sformat(filename, "%s", MemInitFile);
       $display("Loading memory from: %s", filename);
-      $readmemh(filename, memory);
+      $readmemh(filename, mem);
   end
 
   `include "prim_util_memload.svh"

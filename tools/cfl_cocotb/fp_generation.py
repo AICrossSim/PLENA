@@ -151,21 +151,11 @@ class FpGenerator:
 
 if __name__ == "__main__":
     import math
-    vect_dim = 4
-    exp_width = 5
+    exp_width = 4
     mant_width = 3
     # TEMP
     # intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
     generator = FpGenerator(exp_width, mant_width)
-    # # generator.generate_fp_input(10)
-    # binary_str = "0_10110_111"
-    # binary_str = "0_10111_010"
-
-#     exp = 0b010111 + (1 << (exp_width - 1)) - 1
-#     0_1111
-#     1_0100
-#    11_0011 
-
-
-    # results =    "0 0000 001 0010 0000 0000 0000 0000 0000 0000 0000"
-    print(generator.custom_fp_to_float(int(binary_str, 2)))
+    _, vals = generator.generate_fp_input(10)
+    for val in vals:
+        print(hex(val))

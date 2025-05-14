@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed May 14 19:43:31 2025
+[*] Wed May 14 22:39:43 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed May 14 19:31:19 2025"
-[dumpfile_size] 27062999
+[dumpfile_mtime] "Wed May 14 22:36:34 2025"
+[dumpfile_size] 27405343
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
@@ -13,7 +13,6 @@
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
-[treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.
 [treeopen] SimTop.dut.data_flow_init.assigned_op_bundle.
 [treeopen] SimTop.dut.decoder_init.
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.genblk2[0].
@@ -30,37 +29,13 @@
 @28
 SimTop.dut.clk
 SimTop.dut.rst
-SimTop.dut.decoder_init.instruction_valid
 @22
 SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
-SimTop.dut.pipeline_control_init.decode_instr_info.imm[6:0]
 @28
 SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.pipeline_control_init.prefetch_in_progress
 @22
 SimTop.dut.scalar_machine.fixed_control[3:0]
-SimTop.dut.vector_sram.sram_addr_a[6:0]
-@28
-SimTop.dut.vector_sram.write_en_a
-SimTop.dut.vector_sram.req_a
-@22
-SimTop.dut.vector_sram.sram_addr_b[6:0]
-@28
-SimTop.dut.vector_sram.req_b
-SimTop.dut.vector_machine.compute_result_valid
-SimTop.dut.data_flow_init.v_write_request
-@22
-SimTop.dut.data_flow_init.recorded_v_write_addr[31:0]
-@28
-SimTop.dut.data_flow_init.s_sram_req_a
-SimTop.dut.data_flow_init.s_sram_wen_a
-SimTop.dut.vector_machine.v_out_valid
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].activate
-@22
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
-@28
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[1].activate
-@22
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
+@23
+SimTop.dut.scalar_machine.fp_control[3:0]
 [pattern_trace] 1
 [pattern_trace] 0

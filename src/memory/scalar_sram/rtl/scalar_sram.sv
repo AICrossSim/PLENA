@@ -14,7 +14,7 @@ module scalar_sram #(
     parameter DEPTH      = 32,         // Address Space for the SRAM
     parameter DataBitsPerMask = 1,
     parameter string MemInitFile = "",
-    localparam int Aw              = $clog2(Depth)
+    localparam int Aw              = $clog2(DEPTH)
 )(
     input   logic clk,
     input   logic rst,

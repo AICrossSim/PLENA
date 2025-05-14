@@ -78,7 +78,6 @@ module scalar_machine #(
     // Check if the fp rd is already in process
     assign fp_stall_req = (fp_control == STALL_S_FP) ? 1'b0 : (tracing_fpreg_in_process[fp_rd]) ? 1'b1 : 1'b0;
 
-
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             for (int i = 0; i < 2 << FP_OPERAND_WIDTH; i++) begin
@@ -158,7 +157,8 @@ module scalar_machine #(
     // SRAM for FP
     scalar_sram #(
         .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
-        .DEPTH(FP_SRAM_DEPTH)
+        .DEPTH(FP_SRAM_DEPTH),
+        .MemInitFile("/home/george/Coprocessor_for_Llama/src/system/test/workload/fp.mem")
     ) fp_scalar_sram (
         .clk(clk),
         .rst(rst),

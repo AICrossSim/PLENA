@@ -131,8 +131,8 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_EXP_FP        = 6'h12,
     S_RECI_FP       = 6'h13,
     S_SQRT_FP       = 6'h14,
-    S_LD_REG_FP     = 6'h15,
-    S_ST_REG_FP     = 6'h16,
+    S_LD_FP         = 6'h15,
+    S_ST_FP         = 6'h16,
 
     // Scalar Operation (Fixed-Point)
     S_ADD_FIX       = 6'h17,
