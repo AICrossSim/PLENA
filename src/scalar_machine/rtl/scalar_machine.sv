@@ -122,9 +122,6 @@ module scalar_machine #(
         end
     end
 
-    // assign fp_reg_we    = (fp_control != STALL_S_FP && fp_control !=LD_OUT_FP && fp_control != ST_REG_FP) ? 1'b1 : 1'b0;
-    // assign fp_reg_wdata = (fp_control == ST_IN_FP)  ? fp_in : 
-    //                       (fp_control == LD_REG_FP) ? fp_ld_from_sram : fp_alu_out;
 
     fp_alu #(
         .EXP_WIDTH(FP_EXP_WIDTH),
@@ -159,19 +156,17 @@ module scalar_machine #(
     end
 
     // SRAM for FP
-    prim_generic_ram_1p #(
-        .Width(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
-        .Depth(FP_SRAM_DEPTH),
-        .DataBitsPerMask(FP_EXP_WIDTH + FP_MANT_WIDTH + 1) // Do not need write mask
+    scalar_sram #(
+        .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
+        .DEPTH(FP_SRAM_DEPTH)
     ) fp_scalar_sram (
-        .clk_i(clk),
-        .rst_ni(!rst),
-        .req_i((fp_control == LD_REG_FP) || (fp_control == ST_REG_FP)),
-        .write_i((fp_control == ST_REG_FP)),
-        .addr_i(fixed_reg_1),
-        .wdata_i(fp_reg_2),
-        .wmask_i(1'b1),
-        .rdata_o(fp_ld_from_sram)
+        .clk(clk),
+        .rst(rst),
+        .req((fp_control == LD_REG_FP) || (fp_control == ST_REG_FP)),
+        .write_en((fp_control == ST_REG_FP)),
+        .sram_addr(fp_reg_1),
+        .sram_data_in(fp_reg_2),
+        .sram_data_out(fp_ld_from_sram)
     );
 
     // Fixed Unit
@@ -181,16 +176,6 @@ module scalar_machine #(
     assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != COMP_ADDR &&fixed_control != COMP_ADDR_2 && fixed_control != ST_FIX) ? 1'b1 : 1'b0;
     assign fixed_reg_wdata = (fixed_control == LD_FIX) ? fixed_ld_from_sram : fixed_alu_out;
 
-    // always_ff @(posedge clk or posedge rst) begin
-    //     if (rst) begin
-    //         fixed_out_1 <= 'b0;
-    //         fixed_out_2 <= 'b0;
-    //     end else begin
-    //         fixed_out_1 <= (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_1 : 'b0;
-    //         fixed_out_2 <= (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_2 : 'b0;
-    //     end
-    // end
-    
     assign fixed_out_1 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_1 : 'b0;
     assign fixed_out_2 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_2 : 'b0;
 
@@ -210,7 +195,6 @@ module scalar_machine #(
         .result     (fixed_alu_out)
     );
 
-
     regfile_2p1w #(
         .BITWIDTH(FIXED_DATA_WIDTH),
         .DEPTH(2 << FIXED_OPERAND_WIDTH)
@@ -225,21 +209,17 @@ module scalar_machine #(
         .rdata2     (fixed_reg_2)
     );
 
-
-    prim_generic_ram_1p #(
-        .Width(FIXED_DATA_WIDTH),
-        .Depth(FIXED_SRAM_DEPTH),
-        .DataBitsPerMask(FIXED_DATA_WIDTH)
+    scalar_sram #(
+        .DATA_WIDTH(FIXED_DATA_WIDTH),
+        .DEPTH(FIXED_SRAM_DEPTH)
     ) fixed_scalar_sram (
-        .clk_i(clk),
-        .rst_ni(!rst),
-
-        .req_i((fp_control == LD_FIX) || (fp_control == ST_FIX)),
-        .write_i((fp_control == ST_FIX)),
-        .addr_i(fixed_reg_1),
-        .wdata_i(fixed_reg_2),
-        .wmask_i(1'b1),
-        .rdata_o(fixed_ld_from_sram)
+        .clk(clk),
+        .rst(rst),
+        .req            ((fixed_control == LD_FIX) || (fixed_control == ST_FIX)),
+        .write_en       ((fixed_control == ST_FIX)),
+        .sram_addr      (fixed_reg_1),
+        .sram_data_in   (fixed_reg_2),
+        .sram_data_out  (fixed_ld_from_sram)
     );
 
 endmodule

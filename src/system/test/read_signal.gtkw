@@ -1,18 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed May 14 14:06:34 2025
+[*] Wed May 14 19:43:31 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed May 14 14:04:09 2025"
-[dumpfile_size] 26859750
+[dumpfile_mtime] "Wed May 14 19:31:19 2025"
+[dumpfile_size] 27062999
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 376700
+[timestart] 0
 [size] 3428 1359
 [pos] 98207 98207
-*-16.887817 700000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.887817 440000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
+[treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.
 [treeopen] SimTop.dut.data_flow_init.assigned_op_bundle.
 [treeopen] SimTop.dut.decoder_init.
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.genblk2[0].
@@ -53,16 +54,13 @@ SimTop.dut.data_flow_init.recorded_v_write_addr[31:0]
 @28
 SimTop.dut.data_flow_init.s_sram_req_a
 SimTop.dut.data_flow_init.s_sram_wen_a
-@22
-SimTop.dut.vector_sram.element_in_a[0][7:0]
-SimTop.dut.vector_sram.element_in_a[1][7:0]
-SimTop.dut.vector_sram.element_in_a[2][7:0]
-@28
 SimTop.dut.vector_machine.v_out_valid
+SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].activate
 @22
-SimTop.dut.data_flow_init.v_write_addr_track[0].track_addr[31:0]
-SimTop.dut.data_flow_init.v_write_addr_track[1].track_addr[31:0]
-@23
-SimTop.dut.data_flow_init.v_write_addr_track[2].track_addr[31:0]
+SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
+@28
+SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[1].activate
+@22
+SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

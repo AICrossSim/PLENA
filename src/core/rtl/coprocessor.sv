@@ -166,9 +166,7 @@ module coprocessor (
 
         .stall_req              (stall_req_from_mem),
         .load_m_waddr_en        (m_update_waddr),
-        .load_m_waddr           (m_waddr),
         .load_v_waddr_en        (v_update_waddr),
-        .load_v_waddr           (v_waddr),
 
         .m_m_ready              (m_m_ready),
         .m_m_valid              (m_m_valid),

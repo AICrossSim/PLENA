@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
 `include "precision.svh"
-// `include "configuration.svh"
+`include "configuration.svh"
 
 /*
 Module      : Data Flow Control
@@ -37,9 +37,7 @@ module data_flow_control import precision_pkg::*; #(
 
     // Monitor Prefetch Addr for deciding whether to stall or not.
     input       logic load_m_waddr_en,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] load_m_waddr,
     input       logic load_v_waddr_en,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] load_v_waddr,
 
     // Interface with Matrix Machine
     input       logic m_m_ready,
@@ -102,94 +100,49 @@ module data_flow_control import precision_pkg::*; #(
     // Execution Control
     output      OP_BUNDLE          exe_op_bundle
 );
-
     import pipeline_pkg::MAX_PIPELINE_STAGE;
+    
+    
     localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 
     always_ff @(posedge clk or negedge rst ) begin
         exe_op_bundle          <= assigned_op_bundle;
     end
 
+    // Address Monitor and Stall Decision
+    addr_monitor #(
+        .ADDR_WIDTH(FIXED_DATA_WIDTH),
+        .PIPELINE_STAGES(MAX_PIPELINE_STAGE)
+    ) addr_monitor_inst (
+        .clk(clk),
+        .rst(rst),
+
+        .assigned_op_bundle(assigned_op_bundle),
+
+        // ----------- Monitor Operand Write Signals -----------
+        .load_m_waddr(fixed_addr_1),
+        .load_m_waddr_en(load_m_waddr_en),
+        .load_v_waddr(fixed_addr_2),
+        .load_v_waddr_en(load_v_waddr_en),
+
+        // ---------- Monitor Operand Read Signals -----------
+        .fixed_addr_1(fixed_addr_1),
+        .fixed_addr_2(fixed_addr_2),
+
+        // ---------- Monitor SRAM Write Signals -----------
+        .s_sram_addr_a(s_sram_addr_a),
+        .s_sram_addr_b(s_sram_addr_b),
+        .s_sram_wen_a(s_sram_wen_a),
+        .s_sram_wen_b(s_sram_wen_b),
+
+        // Stall Decision
+        .stall_req(stall_req)
+    );
+
+
     // TODO: Currently, we assume all the data written to the SRAM are in the same dim of VLEN.
     assign s_sram_mask_a = {BLOCK_NUM{1'b1}};
     assign s_sram_mask_b = {BLOCK_NUM{1'b1}};
-
-
-    // Track Write V Address
-
-    typedef struct {
-        logic [FIXED_DATA_WIDTH-1:0]        track_addr;
-        logic                               valid;
-    } TRACK_ADDR;
-
-    TRACK_ADDR v_write_addr_track [MAX_PIPELINE_STAGE - 1 : 0];
-    logic [MAX_PIPELINE_STAGE - 1 : 0] addr_collide_flag;
-
-    always_comb begin
-        // Checking Process
-        if (assigned_op_bundle.h_op == PREFETCH_V || assigned_op_bundle.m_op != STALL_M || assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) begin        
-            for (int i = 0; i < MAX_PIPELINE_STAGE; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_1) || (v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].track_addr == 1'b1)) begin
-                    addr_collide_flag[i] = 1'b1;
-                end else begin
-                    addr_collide_flag[i] = 1'b0;
-                end
-            end
-            stall_req = |addr_collide_flag;
-        end else begin
-            stall_req = 1'b0;
-        end 
-    end
-
-
-    always_ff @(posedge clk or negedge rst) begin
-        // Update Process
-        if (rst) begin
-            for (int i = 0; i < MAX_PIPELINE_STAGE; i++) begin
-                v_write_addr_track[i] <= '{
-                    track_addr : 'b0,
-                    valid      : 1'b0
-                };
-            end
-        end else begin
-            if (stall_req == 1'b0) begin
-                if (assigned_op_bundle.h_op == PREFETCH_V) begin        
-                    for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
-                        if(v_write_addr_track[i].valid == 1'b1) begin
-                            v_write_addr_track[i].track_addr <= fixed_addr_1;
-                        end
-                    end
-                end else if (load_m_waddr_en) begin 
-                    for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
-                        if(v_write_addr_track[i].valid == 1'b1) begin
-                            v_write_addr_track[i].track_addr <= load_m_waddr;
-                        end
-                    end
-                end else if (load_v_waddr_en) begin
-                    for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
-                        if(v_write_addr_track[i].valid == 1'b1) begin
-                            v_write_addr_track[i].track_addr <= load_v_waddr;
-                        end
-                    end
-                end
-            end
-            // Remove the record
-            if (s_sram_wen_a) begin
-                for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
-                    if (v_write_addr_track[i].track_addr == s_sram_addr_a) begin
-                        v_write_addr_track[i].valid <= 1'b0;
-                    end
-                end
-            end else if (s_sram_wen_b) begin
-                for (int i = 0; i < MAX_PIPELINE_STAGE - 1; i++) begin
-                    if (v_write_addr_track[i].track_addr == s_sram_addr_b) begin
-                        v_write_addr_track[i].valid <= 1'b0;
-                    end
-                end
-            end
-        end
-    end
-
 
     // Stall Request
     logic previous_dma_m_ready;
@@ -209,7 +162,6 @@ module data_flow_control import precision_pkg::*; #(
         write_req.wreq_m_sram        = ((dma_m_ready == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
         write_req.wreq_s_sram_port_a = ((m_write_request == 1'b1) || (v_write_request == 1'b1)) ? 1'b1 : 1'b0;
         write_req.wreq_s_sram_port_b = ((dma_v_ready == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
-        write_req.wreq_s_reg         = 1'b0; // TODO
     end
 
 

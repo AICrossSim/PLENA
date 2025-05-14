@@ -239,8 +239,6 @@ skid_buffer #(
     .data_out_ready(element_v_in_b_ready)
 );
 
-
-
 // Elementwise Compute Unit
 logic element_v_in_a_valid, element_v_in_a_ready;
 logic element_v_in_b_valid, element_v_in_b_ready;
@@ -296,6 +294,7 @@ fp_reduction_compute_unit #(
     The pipeline control unit will in charge of removing possible data dependency by inserting stall cycles.
     It does not require to wait for the vector operations assigned before it to finish.
 */
+
 logic [ADDR_WIDTH-1:0] stored_result_waddr;
 assign element_v_out_ready = compute_result_ready;
 always_comb begin
