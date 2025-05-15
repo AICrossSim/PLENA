@@ -1,29 +1,27 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu May 15 08:06:54 2025
+[*] Thu May 15 17:12:30 2025
 [*]
 [dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Thu May 15 08:05:55 2025"
-[dumpfile_size] 27405780
+[dumpfile_mtime] "Thu May 15 13:29:49 2025"
+[dumpfile_size] 27514297
 [savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
-[size] 1920 1080
-[pos] 94844 96325
-*-15.887817 140300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 466300
+[size] 1512 945
+[pos] 85782 92179
+*-16.887817 800700 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.data_flow_init.assigned_op_bundle.
-[treeopen] SimTop.dut.decoder_init.
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.genblk2[0].
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.row_matrix_by_vec[0].dot_product_inst.
-[treeopen] SimTop.dut.scalar_machine.
 [treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
 [treeopen] SimTop.dut.vector_machine.genblk3[0].fp_mxfp_conversion_unit.
 [sst_width] 446
 [signals_width] 347
 [sst_expanded] 1
-[sst_vpaned_height] 784
+[sst_vpaned_height] 672
 @28
 SimTop.dut.clk
 SimTop.dut.rst
@@ -31,18 +29,17 @@ SimTop.dut.rst
 SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
 @28
 SimTop.dut.pipeline_control_init.pipeline_stall
+SimTop.dut.data_flow_init.assigned_op_bundle.m_op[1:0]
+SimTop.dut.matrix_machine.set_offset_addr
 @22
-SimTop.dut.scalar_machine.fixed_control[3:0]
-SimTop.dut.scalar_machine.fp_control[3:0]
-SimTop.dut.scalar_machine.fp_scalar_sram.sram_addr[4:0]
-SimTop.dut.scalar_machine.fp_scalar_sram.sram_data_in[7:0]
-SimTop.dut.scalar_machine.fp_scalar_sram.sram_data_out[7:0]
+SimTop.dut.matrix_machine.offset_addr[31:0]
 @28
-SimTop.dut.scalar_machine.fp_scalar_sram.write_en
-SimTop.dut.scalar_machine.fp_scalar_sram.req
-@22
-SimTop.dut.scalar_machine.fp_alu_out[7:0]
-@23
-SimTop.dut.scalar_machine.fixed_alu_out[31:0]
+SimTop.dut.pipeline_control_init.assigned_op_bundle.c_op[1:0]
+SimTop.dut.matrix_machine.stored_o_in_ele_valid
+SimTop.dut.matrix_machine.stored_o_valid
+SimTop.dut.matrix_machine.stored_o_scale_valid
+SimTop.dut.matrix_machine.collect_m_valid
+@29
+SimTop.dut.matrix_machine.m_load_in_process
 [pattern_trace] 1
 [pattern_trace] 0

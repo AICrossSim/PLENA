@@ -345,15 +345,21 @@ import pipeline_pkg::*;
                     assigned_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                     assigned_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                     assigned_op_bundle.s_fp_op         <= STALL_S_FP;
-                    assigned_op_bundle.s_fixed_op      <= PASS_ADDR;
+                    
                     assigned_op_bundle.h_op            <= STALL_H;
-
-                    if (decode_instr_info.opcode == C_SET_ADDR_REG) begin
-                        assigned_op_bundle.c_op <= SET_ADDR_REG;
+                    if(decode_instr_info.opcode == C_SET_ADDR_REG) begin
+                        assigned_op_bundle.s_fixed_op      <= PASS_ADDR;
+                        assigned_op_bundle.c_op            <= SET_ADDR_REG;
+                    end else if (decode_instr_info.opcode == C_SET_M_OFFSET) begin
+                        assigned_op_bundle.s_fixed_op      <= PASS_ADDR_2;
+                        assigned_op_bundle.c_op            <= SET_M_OFFSET;
+                    end else if (decode_instr_info.opcode == C_SET_LUT) begin
+                        assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
+                        assigned_op_bundle.c_op            <= SET_LUT; // TODO: Left for Cano
+                    end else begin
+                        assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
+                        assigned_op_bundle.c_op            <= STALL_C;
                     end
-                    assigned_op_bundle.c_op <=  (decode_instr_info.opcode == C_SET_ADDR_REG)    ? SET_ADDR_REG :
-                                                (decode_instr_info.opcode == C_SET_M_OFFSET)    ? SET_M_OFFSET :
-                                                (decode_instr_info.opcode == C_SET_LUT)         ? SET_LUT : STALL_C; 
 
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];

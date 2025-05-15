@@ -305,14 +305,16 @@ module data_flow_control import precision_pkg::*; #(
         if (rst) begin
             v_v_a_valid     <= 1'b0;
             v_v_b_valid     <= 1'b0;
-            recorded_v_load_addr_1 <= 'b0;
-            recorded_v_load_addr_2 <= 'b0;
-            recorded_m_write_addr <= 'b0;
-            recorded_v_write_addr <= 'b0;
+            recorded_v_load_addr_1  <= 'b0;
+            recorded_v_load_addr_2  <= 'b0;
+            recorded_m_write_addr   <= 'b0;
+            recorded_v_write_addr   <= 'b0;
             m_v_valid       <= 1'b0;
+            m_o_valid       <= 1'b0;
             m_v_load        <= 1'b0;
-            v_v_a_load     <= 1'b0;
-            v_v_b_load     <= 1'b0;
+            m_o_load        <= 1'b0;
+            v_v_a_load      <= 1'b0;
+            v_v_b_load      <= 1'b0;
         end else begin
 
             v_v_a_valid         <= v_v_a_load;
@@ -359,19 +361,22 @@ module data_flow_control import precision_pkg::*; #(
             end
 
             //Port B
-            if (assigned_op_bundle.m_op == MV_O || ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
+            if ((assigned_op_bundle.m_op == MV_O & m_o_ready)|| ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
                 // Read Port activated
                 v_v_b_load      <= 1'b1;
+                m_o_load        <= 1'b1;
                 s_sram_req_b    <= 1'b1;
                 s_sram_wen_b    <= 1'b0;
             end else if (assigned_op_bundle.mem_write.w_s_sram_port_b_en && dma_v_ready) begin
                 // HBM Fetch to the scratchpad sram
                 v_v_b_load      <= 1'b0;
+                m_o_load        <= 1'b0;
                 s_sram_wen_b    <= 1'b1;
                 s_sram_req_b    <= 1'b1;
             end else begin
                 // No SRAM access
                 s_sram_wen_b    <= 1'b0;
+                m_o_load        <= 1'b0;
                 v_v_b_load      <= 1'b0;
                 s_sram_req_b    <= 1'b0;
             end
@@ -391,6 +396,7 @@ module data_flow_control import precision_pkg::*; #(
                 recorded_v_write_addr <= recorded_v_write_addr;
             end
             m_v_valid <= m_v_load;
+            m_o_valid <= m_o_load;
         end
 
     end

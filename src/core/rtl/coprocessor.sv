@@ -266,7 +266,7 @@ module coprocessor #(
             .clk(clk),
             .rst(rst),
             .matrix_opcode          (assigned_op_bundle.m_op),
-            .set_offset_addr        ((assigned_op_bundle.h_op == SET_ADDR_REG)),
+            .set_offset_addr        ((assigned_op_bundle.c_op == SET_M_OFFSET)),
             .offset_addr            (fixed_out_1),
             .offset_addr_out        (m_offset_addr),
             .m_element              (fetched_m_element),
