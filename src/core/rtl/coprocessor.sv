@@ -4,6 +4,7 @@
 `include "precision.svh"
 `include "configuration.svh"
 `include "tl_util.svh"
+`include "Global_Define.vh"
 
 
 /*
@@ -14,7 +15,13 @@ Description : This module serves as the top level of the coprocessor,
               It currently only supports single batch execution.
 */
 
-module coprocessor (
+module coprocessor #(
+    `ifdef SIMULATION
+        // Simulation Purpose
+        parameter string FP_MEM_INIT_FILE = " ",
+        parameter string FIXED_MEM_INIT_FILE = " "
+    `endif
+)(
     input   logic clk,
     input   logic rst,
     // For testing, incoporate PCIe interface later
@@ -25,7 +32,6 @@ module coprocessor (
     // HBM Interface TileLink
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_scale)
-
 );
 
     import precision_pkg::*;
@@ -339,6 +345,11 @@ module coprocessor (
             .FP_EXP_WIDTH(FP_EXP_WIDTH),
             .FP_MANT_WIDTH(FP_MANT_WIDTH),
             .FIXED_DATA_WIDTH(FIXED_DATA_WIDTH)
+            `ifdef SIMULATION
+                ,
+                .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
+                .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+            `endif
         ) scalar_machine (
             .clk(clk),
             .rst(rst),

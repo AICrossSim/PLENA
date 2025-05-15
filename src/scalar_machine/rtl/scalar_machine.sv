@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
 `include "configuration.svh"
+`include "Global_Define.vh"
 /*
 Module      : Scalar Machine Module
 Timing      : Sequential, all the operations completed in 1 cycle
@@ -26,9 +27,13 @@ module scalar_machine #(
 
     // Memory Storage
     parameter  FP_SRAM_DEPTH = 32,
-    parameter  FIXED_SRAM_DEPTH = 32
+    parameter  FIXED_SRAM_DEPTH = 32,
 
-    // Dimensions
+    // Simulation Purpose
+    parameter string FP_MEM_INIT_FILE = "",
+    parameter string FIXED_MEM_INIT_FILE = ""
+
+
 ) (
     input   logic clk,
     input   logic rst,
@@ -138,7 +143,7 @@ module scalar_machine #(
     ) fp_reg_file (
         .clk        (clk),
         .we         (fp_reg_we),
-        .waddr      (),
+        .waddr      (fp_rd),
         .wdata      (fp_reg_wdata),
         .raddr1     (fp_rs1),
         .raddr2     (fp_rs2),
@@ -158,13 +163,13 @@ module scalar_machine #(
     scalar_sram #(
         .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
         .DEPTH(FP_SRAM_DEPTH),
-        .MemInitFile("/home/george/Coprocessor_for_Llama/src/system/test/workload/fp.mem")
+        .MemInitFile(FP_MEM_INIT_FILE)
     ) fp_scalar_sram (
         .clk(clk),
         .rst(rst),
         .req((fp_control == LD_REG_FP) || (fp_control == ST_REG_FP)),
         .write_en((fp_control == ST_REG_FP)),
-        .sram_addr(fp_reg_1),
+        .sram_addr(fixed_alu_out),
         .sram_data_in(fp_reg_2),
         .sram_data_out(fp_ld_from_sram)
     );
@@ -173,16 +178,16 @@ module scalar_machine #(
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram;
     logic fix_we;
 
-    assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != COMP_ADDR &&fixed_control != COMP_ADDR_2 && fixed_control != ST_FIX) ? 1'b1 : 1'b0;
+    assign fix_we = (fixed_control != STALL_S_FIXED && fixed_control != PASS_ADDR &&fixed_control != PASS_ADDR_2 && fixed_control != ST_FIX) ? 1'b1 : 1'b0;
     assign fixed_reg_wdata = (fixed_control == LD_FIX) ? fixed_ld_from_sram : fixed_alu_out;
 
-    assign fixed_out_1 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_1 : 'b0;
-    assign fixed_out_2 = (fixed_control == COMP_ADDR || fixed_control == COMP_ADDR_2) ? fixed_reg_2 : 'b0;
+    assign fixed_out_1 = (fixed_control == PASS_ADDR || fixed_control == PASS_ADDR_2) ? fixed_reg_1 : 'b0;
+    assign fixed_out_2 = (fixed_control == PASS_ADDR || fixed_control == PASS_ADDR_2) ? fixed_reg_2 : 'b0;
 
 
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     assign fixed_reg_addr_1 = rs1;
-    assign fixed_reg_addr_2 = (fixed_control == COMP_ADDR_2) ? rd : rs2;
+    assign fixed_reg_addr_2 = (fixed_control == PASS_ADDR_2) ? rd : rs2;
 
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH),
@@ -211,7 +216,8 @@ module scalar_machine #(
 
     scalar_sram #(
         .DATA_WIDTH(FIXED_DATA_WIDTH),
-        .DEPTH(FIXED_SRAM_DEPTH)
+        .DEPTH(FIXED_SRAM_DEPTH),
+        .MemInitFile(FIXED_MEM_INIT_FILE)
     ) fixed_scalar_sram (
         .clk(clk),
         .rst(rst),

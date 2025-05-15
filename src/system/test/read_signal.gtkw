@@ -1,31 +1,29 @@
 [*]
-[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed May 14 22:39:43 2025
+[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
+[*] Thu May 15 08:06:54 2025
 [*]
-[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed May 14 22:36:34 2025"
-[dumpfile_size] 27405343
-[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Thu May 15 08:05:55 2025"
+[dumpfile_size] 27405780
+[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
-[size] 3428 1359
-[pos] 98207 98207
-*-15.887817 440000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[size] 1920 1080
+[pos] 94844 96325
+*-15.887817 140300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.data_flow_init.assigned_op_bundle.
 [treeopen] SimTop.dut.decoder_init.
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.genblk2[0].
-[treeopen] SimTop.dut.matrix_machine.mx_fp_mv.row_matrix_by_vec[0].
 [treeopen] SimTop.dut.matrix_machine.mx_fp_mv.row_matrix_by_vec[0].dot_product_inst.
 [treeopen] SimTop.dut.scalar_machine.
 [treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
-[treeopen] SimTop.dut.vector_machine.genblk3[0].
 [treeopen] SimTop.dut.vector_machine.genblk3[0].fp_mxfp_conversion_unit.
 [sst_width] 446
 [signals_width] 347
 [sst_expanded] 1
-[sst_vpaned_height] 753
+[sst_vpaned_height] 784
 @28
 SimTop.dut.clk
 SimTop.dut.rst
@@ -35,7 +33,16 @@ SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
 SimTop.dut.pipeline_control_init.pipeline_stall
 @22
 SimTop.dut.scalar_machine.fixed_control[3:0]
-@23
 SimTop.dut.scalar_machine.fp_control[3:0]
+SimTop.dut.scalar_machine.fp_scalar_sram.sram_addr[4:0]
+SimTop.dut.scalar_machine.fp_scalar_sram.sram_data_in[7:0]
+SimTop.dut.scalar_machine.fp_scalar_sram.sram_data_out[7:0]
+@28
+SimTop.dut.scalar_machine.fp_scalar_sram.write_en
+SimTop.dut.scalar_machine.fp_scalar_sram.req
+@22
+SimTop.dut.scalar_machine.fp_alu_out[7:0]
+@23
+SimTop.dut.scalar_machine.fixed_alu_out[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

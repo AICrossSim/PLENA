@@ -13,8 +13,10 @@ Module      : Sim Top Module
 
 module SimTop#(
     parameter   INSTRUCTION_LENGTH = 32,
-    parameter string  FAKE_HBM_ELEMENT_INIT_FILE    = "",
-    parameter string  FAKE_HBM_SCALE_INIT_FILE      = ""
+    parameter string    FAKE_HBM_ELEMENT_INIT_FILE    = "",
+    parameter string    FAKE_HBM_SCALE_INIT_FILE      = "",
+    parameter string    FP_MEM_INIT_FILE              = "",
+    parameter string    FIXED_MEM_INIT_FILE           = ""
 ) (
     input logic clk,
     input logic rst,
@@ -28,7 +30,10 @@ module SimTop#(
 `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale_link);
 
 // Processor
-coprocessor  dut (
+coprocessor #(
+    .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
+    .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+) dut (
     .clk(clk),
     .rst(rst),
     .instruction(instruction),

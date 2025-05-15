@@ -75,7 +75,7 @@ Status      : Discarded
 //                 element_opcode = STALL_V_ELEMENT;
 //                 reduce_opcode  = STALL_V_REDUCT;
 //                 fp_opcode      = STALL_S_FP;
-//                 fixed_opcode   = COMP_ADDR;
+//                 fixed_opcode   = PASS_ADDR;
 //                 fps1 = {FP_OPERAND_WIDTH{1'b0}};
 //                 fps2 = {FP_OPERAND_WIDTH{1'b0}};
 //                 fpd  = {FP_OPERAND_WIDTH{1'b0}};
@@ -95,7 +95,7 @@ Status      : Discarded
 //                 reduce_opcode  = (current_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
 //                                  (current_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                 
-//                 fixed_opcode   = COMP_ADDR;
+//                 fixed_opcode   = PASS_ADDR;
 
 //                 if (current_instr_info.opcode == V_ADD_VF || current_instr_info.opcode == V_SUB_VF || current_instr_info.opcode == V_MUL_VF) begin
 //                     fp_opcode       = LD_OUT_FP;
@@ -174,7 +174,7 @@ Status      : Discarded
 //                 element_opcode  = STALL_V_ELEMENT;
 //                 reduce_opcode   = STALL_V_REDUCT;
 //                 fp_opcode       = STALL_S_FP;
-//                 fixed_opcode   = COMP_ADDR;
+//                 fixed_opcode   = PASS_ADDR;
 
 //                 rs1             = current_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
 //                 rs2             = current_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];

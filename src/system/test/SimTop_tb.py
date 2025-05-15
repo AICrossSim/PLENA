@@ -37,6 +37,8 @@ testcase_name = "fp"
 instr_file = f"{current_path}/benchmarks/{testcase_name}.mem"
 hbm_element_file = f"{current_path}/workload/hbm_ele.mem"
 hbm_scale_file = f"{current_path}/workload/hbm_scale.mem"
+fp_mem_file = f"{current_path}/workload/fp.mem"
+fixed_mem_file = f"{current_path}/workload/fixed.mem"
 INSTRUCTION_LENGTH = 16
 
 
@@ -117,7 +119,9 @@ def SimToP_test():
             {
                 "INSTRUCTION_LENGTH": INSTRUCTION_LENGTH,
                 "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{hbm_element_file}\"",
-                "FAKE_HBM_SCALE_INIT_FILE": f"\"{hbm_scale_file}\""
+                "FAKE_HBM_SCALE_INIT_FILE": f"\"{hbm_scale_file}\"",
+                "FP_MEM_INIT_FILE": f"\"{fp_mem_file}\"",
+                "FIXED_MEM_INIT_FILE": f"\"{fixed_mem_file}\""
             }
         ],
         trace = True,

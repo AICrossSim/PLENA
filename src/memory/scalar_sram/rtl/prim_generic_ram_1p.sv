@@ -79,12 +79,26 @@ module prim_generic_ram_1p import prim_ram_1p_pkg::*; #(
   end
 
 // Load memory from file
-  initial begin
+generate;
+  if (MemInitFile != "") begin
+    initial begin
       string filename;
       $sformat(filename, "%s", MemInitFile);
       $display("Loading memory from: %s", filename);
       $readmemh(filename, mem);
+    end
+  end else begin
+    initial begin
+      rdata_o = '0;
+    end
   end
+endgenerate
+  // initial begin
+  //     string filename;
+  //     $sformat(filename, "%s", MemInitFile);
+  //     $display("Loading memory from: %s", filename);
+  //     $readmemh(filename, mem);
+  // end
 
   `include "prim_util_memload.svh"
 `endif
