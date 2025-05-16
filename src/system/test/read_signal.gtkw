@@ -1,20 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri May 16 16:20:44 2025
+[*] Fri May 16 23:39:11 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri May 16 16:00:54 2025"
-[dumpfile_size] 27529088
+[dumpfile_mtime] "Fri May 16 23:36:49 2025"
+[dumpfile_size] 27471938
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 129600
+[timestart] 235300
 [size] 3428 1359
 [pos] 85207 92025
-*-16.887817 1200000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.887817 640000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
+[treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.
 [treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.
 [treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
+[treeopen] SimTop.dut.vector_machine.
 [treeopen] SimTop.dut.vector_machine.genblk3[0].fp_mxfp_conversion_unit.
 [sst_width] 390
 [signals_width] 347
@@ -46,23 +48,18 @@ SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.m_op[1:0]
 SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.c_op[1:0]
 SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.h_op[1:0]
 SimTop.dut.data_flow_init.addr_monitor_inst.stall_req
-@29
 SimTop.dut.data_flow_init.addr_monitor_inst.stall_in_process
-@28
-SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_a
-SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_b
+SimTop.dut.data_flow_init.stall_req
+SimTop.dut.data_flow_init.s_sram_wen_a
 @22
-SimTop.dut.data_flow_init.addr_monitor_inst.matched_track_entry_idx[4:0]
+SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_addr_a[31:0]
 @28
-SimTop.dut.hbm_write_ready
-SimTop.dut.hbm_arbiter_init.hbm_state[1:0]
-@22
-SimTop.dut.vector_sram.element_out_b[0][7:0]
-@28
-SimTop.dut.vector_sram.req_b
-SimTop.dut.hbm_controller_init.hbm_write_en
-@22
-SimTop.dut.vector_sram.sram_addr_b[6:0]
-SimTop.dut.data_flow_init.hbm_waddr[31:0]
+SimTop.dut.data_flow_init.v_write_request
+SimTop.dut.vector_machine.compute_result_valid
+SimTop.dut.vector_machine.element_v_out_valid
+SimTop.dut.vector_machine.pipeline_compute_track[4].ele_op[2:0]
+SimTop.dut.vector_machine.pipeline_compute_track[3].ele_op[2:0]
+@29
+SimTop.dut.vector_machine.pipeline_compute_track[2].ele_op[2:0]
 [pattern_trace] 1
 [pattern_trace] 0

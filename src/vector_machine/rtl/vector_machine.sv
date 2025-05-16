@@ -101,7 +101,9 @@ RECORDED_INFO_TYPE pipeline_compute_track [0:VECTOR_MAX_CYCLES-1];
 // Vector Machine Control
 logic result_waddr_ready;
 logic recorded_broadcast_en;
-logic [ADDR_WIDTH-1:0] recorded_v_waddr;
+V_ELEMENT_OP recorded_element_v_control;
+V_REDUCT_OP  recorded_reduct_v_control;
+logic v_prepare_en;
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
@@ -113,44 +115,35 @@ always_ff @(posedge clk or negedge rst) begin
             };
         end
         recorded_broadcast_en <= 1'b0;
+        v_prepare_en <= 1'b0;
     end else begin
         // Set result waddr
         result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
-        
-        if (result_waddr_ready)begin
-            recorded_v_waddr <= result_waddr;
-        end
 
-        if (element_v_control != STALL_V_ELEMENT) begin
+        if(!v_prepare_en && (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
+            v_prepare_en <= 1'b1;
+            recorded_element_v_control  <= element_v_control;
+            recorded_reduct_v_control   <= reduct_v_control;
+            recorded_broadcast_en       <= broadcast_fp2;
+        end else if (v_prepare_en && result_waddr_ready) begin
+            v_prepare_en <= 1'b0;
             pipeline_compute_track[0] <= '{
                 waddr  : result_waddr,
-                ele_op : element_v_control,
-                red_op : STALL_V_REDUCT
+                ele_op : recorded_element_v_control,
+                red_op : recorded_reduct_v_control
             };
-            recorded_broadcast_en <= broadcast_fp2;
-        end else if (reduct_v_control != STALL_V_REDUCT) begin
-            pipeline_compute_track[0] <= '{
-                waddr  : result_waddr,
-                ele_op : STALL_V_ELEMENT,
-                red_op : reduct_v_control
-            };
-            recorded_broadcast_en <= 1'b0;
         end else begin
             pipeline_compute_track[0] <= '{
-                waddr  : result_waddr,
+                waddr  : 'b0,
                 ele_op : STALL_V_ELEMENT,
                 red_op : STALL_V_REDUCT
             };
-            recorded_broadcast_en <= 1'b0;
-        end 
-
+        end
         // Shift the pipeline
         for (int i = 0; i < VECTOR_MAX_CYCLES - 1; i++) begin
             pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
         end
-
     end
-
 end
 
 
@@ -229,7 +222,7 @@ skid_buffer #(
     .rst(rst),
 
     // Input
-    .data_in(broadcast_fp2 ? unpacked_v_s : converted_v_b ),
+    .data_in(recorded_broadcast_en ? unpacked_v_s : converted_v_b ),
     .data_in_valid(v_b_valid),
     .data_in_ready(v_b_ready),
 
