@@ -66,7 +66,7 @@ module coprocessor #(
 
     INSTR_INFO  decode_instr_info;
     logic       read_next_instr, decode_instr_valid;
-    OP_BUNDLE   assigned_op_bundle, exe_op_bundle;
+    OP_BUNDLE   assigned_op_bundle;
     logic       m_update_waddr, v_update_waddr;
     logic       m_write_request, v_write_request;
     
@@ -213,8 +213,7 @@ module coprocessor #(
         .dma_m_ready            (hbm_m_prefetch_complete),
         .dma_v_ready            (hbm_v_prefetch_complete),
         .continuous_prefetch_m_en(continuous_prefetch_m_en),
-        .m_sram_continuous_prefetch_counter(m_sram_continuous_prefetch_counter),
-        .exe_op_bundle          (exe_op_bundle)
+        .m_sram_continuous_prefetch_counter(m_sram_continuous_prefetch_counter)
     );
 
     // -----------------------------

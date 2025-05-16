@@ -19,10 +19,8 @@ module addr_monitor#(
     input   OP_BUNDLE assigned_op_bundle,  
 
     // ----------- Monitor Operand Write Signals -----------
-    input   logic [ADDR_WIDTH - 1 : 0] load_m_waddr,
-    input   logic load_m_waddr_en,
-    input   logic [ADDR_WIDTH - 1 : 0] load_v_waddr,
-    input   logic load_v_waddr_en,
+    input   logic m_waddr_ready,
+    input   logic v_waddr_ready,
 
     // ---------- Monitor Operand Read Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
@@ -35,7 +33,8 @@ module addr_monitor#(
     input   logic s_sram_wen_b,
 
     // Stall Decision
-    output  logic stall_req
+    output  logic stall_req,
+    output  OP_BUNDLE  permit_rd_op_bundle
 );
 
     // Track Write V Address
@@ -43,9 +42,10 @@ module addr_monitor#(
         logic [ADDR_WIDTH-1:0]          track_addr;
         logic                           activate;
     } TRACK_ADDR;
-
+    localparam TRACK_ADDR_WIDTH = $clog2(PIPELINE_STAGES) + 1;
     TRACK_ADDR v_write_addr_track [PIPELINE_STAGES - 1 : 0];
-    logic [$clog2(PIPELINE_STAGES) : 0]     free_track_entry_idx;    
+    logic [TRACK_ADDR_WIDTH - 1 : 0]     free_track_entry_idx, locked_entry_idx_1, locked_entry_idx_2;
+    logic lock_entry_1_valid, lock_entry_2_valid;    
     logic                                   found_invalid;
     logic                                   pipe_full;
 
@@ -64,12 +64,26 @@ module addr_monitor#(
 
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
+    logic stall_in_process;
+
     always_comb begin
-        if ((assigned_op_bundle.m_op != STALL_M) ||((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!assigned_op_bundle.v_broadcast_en)) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
+        if (stall_in_process) begin
+            if ((v_write_addr_track[locked_entry_idx_1].activate & lock_entry_1_valid) || (v_write_addr_track[locked_entry_idx_2].activate & lock_entry_2_valid)) begin
+                stall_req = 1'b1;
+            end else begin
+                stall_req = 1'b0;
+            end
+        end else if ((assigned_op_bundle.m_op != STALL_M) ||((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!assigned_op_bundle.v_broadcast_en)) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_1) || (v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if ((v_write_addr_track[i].track_addr == fixed_addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
+                    locked_entry_idx_1 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    lock_entry_1_valid = 1'b1;
+                end else if ((v_write_addr_track[i].track_addr == fixed_addr_2) & (v_write_addr_track[i].activate == 1'b1)) begin
+                    addr_collide_flag[i] = 1'b1;
+                    locked_entry_idx_2 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
                 end
@@ -80,6 +94,20 @@ module addr_monitor#(
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
+                    locked_entry_idx_1 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    lock_entry_1_valid = 1'b1;
+                end else begin
+                    addr_collide_flag[i] = 1'b0;
+                end
+            end
+            stall_req = |addr_collide_flag;
+        end else if (assigned_op_bundle.h_op == STORE_V) begin
+            // One port of address to monitor
+            for (int i = 0; i < PIPELINE_STAGES; i++) begin
+                if (((v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                    addr_collide_flag[i] = 1'b1;
+                    locked_entry_idx_2 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
                 end
@@ -87,28 +115,48 @@ module addr_monitor#(
             stall_req = |addr_collide_flag;
         end else begin
             stall_req = 1'b0;
+            lock_entry_1_valid = 1'b0;
+            lock_entry_2_valid = 1'b0;
+            locked_entry_idx_1 = '0;
+            locked_entry_idx_2 = '0;
         end 
     end
 
 
     // Update Process
-    logic [ADDR_WIDTH - 1 : 0] insert_addr;
+    logic   [ADDR_WIDTH - 1 : 0] insert_addr;
     logic   insert_valid;
+
+    logic   matched_waddr;
+    logic   [TRACK_ADDR_WIDTH-1:0] matched_track_entry_idx;
+    logic   match_waddr_valid;
+
 
     always_comb begin
         // Decide which source is providing the address this cycle
         if (assigned_op_bundle.h_op == PREFETCH_V) begin
             insert_addr  = fixed_addr_1;
             insert_valid = 1'b1;
-        end else if (load_m_waddr_en) begin
+        end else if (m_waddr_ready) begin
             insert_addr  = fixed_addr_2;
             insert_valid = 1'b1;
-        end else if (load_v_waddr_en) begin
+        end else if (v_waddr_ready) begin
             insert_addr  = fixed_addr_2;
             insert_valid = 1'b1;
         end else begin
             insert_addr  = {ADDR_WIDTH{1'b0}};
             insert_valid = 1'b0;
+        end
+
+        // Check if the address is already in the pipeline
+        matched_waddr                 = 1'b0;
+        matched_track_entry_idx     = '0; // default value, in case all are valid
+        for (int i = 0; i < PIPELINE_STAGES; i++) begin
+            if (((s_sram_wen_a && v_write_addr_track[i].track_addr == s_sram_addr_a) ||
+                    (s_sram_wen_b && v_write_addr_track[i].track_addr == s_sram_addr_b)) & !matched_waddr) begin
+                matched_track_entry_idx     = i;
+                matched_waddr                 = 1'b1;
+            end
         end
     end
 
@@ -120,7 +168,9 @@ module addr_monitor#(
                     activate   : 1'b0
                 };
             end
+            stall_in_process <= 1'b0;
         end else begin
+            stall_in_process <= stall_req;
             // Try inserting into the first available empty slot
             if (pipe_full == 1'b0 & insert_valid) begin
                 v_write_addr_track[free_track_entry_idx] <= '{
@@ -130,14 +180,58 @@ module addr_monitor#(
             end
 
             // Clear track entry if corresponding write to s_sram occurs
-            for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if ((s_sram_wen_a && v_write_addr_track[i].track_addr == s_sram_addr_a) ||
-                    (s_sram_wen_b && v_write_addr_track[i].track_addr == s_sram_addr_b)) begin
-                    v_write_addr_track[i].activate <= 1'b0;
-                end
+            if (matched_waddr) begin
+                v_write_addr_track[matched_track_entry_idx] <= '{
+                    track_addr : {ADDR_WIDTH{1'b0}},
+                    activate   : 1'b0
+                };
             end
         end
     end
 
+    OP_BUNDLE          stalled_op_bundle;
+    OP_BUNDLE          invalid_op_bundle;
+    
+    assign invalid_op_bundle = '{
+        m_op            : STALL_M,
+        v_ele_op        : STALL_V_ELEMENT,
+        v_reduct_op     : STALL_V_REDUCT,
+        s_fp_op         : STALL_S_FP,
+        s_fixed_op      : STALL_S_FIXED,
+        c_op            : STALL_C,
+        h_op            : STALL_H,
+        m_transposed_read: 1'b0,
+        v_broadcast_en  : 1'b0,
+        mem_write       : '{
+            w_m_sram_en : 1'b0,
+            w_s_sram_port_a_en : 1'b0,
+            w_s_sram_port_b_en : 1'b0
+        }
+    };
+
+    // Bundle Decision
+    always_comb begin
+        if (stall_in_process & !stall_req) begin
+            permit_rd_op_bundle = stalled_op_bundle;
+        end else if (!stall_in_process & stall_req) begin
+            permit_rd_op_bundle = invalid_op_bundle;
+        end else if (stall_in_process & stall_req) begin
+            permit_rd_op_bundle = invalid_op_bundle;
+        end else begin
+            permit_rd_op_bundle = assigned_op_bundle;
+        end
+    end
+
+    always_ff @(posedge clk or negedge rst) begin
+        if (rst) begin
+            stalled_op_bundle <= invalid_op_bundle;
+        end else if (!stall_in_process & stall_req) begin
+            stalled_op_bundle <= assigned_op_bundle;
+        end else if (stall_in_process & !stall_req) begin
+            stalled_op_bundle <= invalid_op_bundle;
+        end else begin
+            stalled_op_bundle <= stalled_op_bundle;
+        end
+    end
 
 endmodule

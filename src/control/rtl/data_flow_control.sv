@@ -95,50 +95,43 @@ module data_flow_control import precision_pkg::*; #(
     input       logic dma_m_ready,
     input       logic dma_v_ready,
     output      logic continuous_prefetch_m_en,
-    output      logic [MATRIX_COUNTER_WIDTH - 1: 0] m_sram_continuous_prefetch_counter,
+    output      logic [MATRIX_COUNTER_WIDTH - 1: 0] m_sram_continuous_prefetch_counter
 
-    // Execution Control
-    output      OP_BUNDLE          exe_op_bundle
+
 );
+    // Memory Execution Control and Dependency Monitor
     import pipeline_pkg::MAX_PIPELINE_STAGE;
-    
-    
     localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 
-    always_ff @(posedge clk or negedge rst ) begin
-        exe_op_bundle          <= assigned_op_bundle;
-    end
+    OP_BUNDLE       permit_rd_op_bundle, exe_op_bundle;
+    logic           recovered_from_stall;
+    logic           m_waddr_ready, v_waddr_ready;
 
-    // Address Monitor and Stall Decision
     addr_monitor #(
         .ADDR_WIDTH(FIXED_DATA_WIDTH),
         .PIPELINE_STAGES(MAX_PIPELINE_STAGE)
     ) addr_monitor_inst (
         .clk(clk),
         .rst(rst),
-
         .assigned_op_bundle(assigned_op_bundle),
-
-        // ----------- Monitor Operand Write Signals -----------
-        .load_m_waddr(fixed_addr_1),
-        .load_m_waddr_en(load_m_waddr_en),
-        .load_v_waddr(fixed_addr_2),
-        .load_v_waddr_en(load_v_waddr_en),
-
-        // ---------- Monitor Operand Read Signals -----------
+        .m_waddr_ready(m_waddr_ready),
+        .v_waddr_ready(v_waddr_ready),
         .fixed_addr_1(fixed_addr_1),
         .fixed_addr_2(fixed_addr_2),
-
-        // ---------- Monitor SRAM Write Signals -----------
         .s_sram_addr_a(s_sram_addr_a),
         .s_sram_addr_b(s_sram_addr_b),
         .s_sram_wen_a(s_sram_wen_a),
         .s_sram_wen_b(s_sram_wen_b),
-
-        // Stall Decision
-        .stall_req(stall_req)
+        .stall_req(stall_req),
+        .permit_rd_op_bundle(permit_rd_op_bundle)
     );
 
+
+    always_ff @(posedge clk or negedge rst ) begin
+        exe_op_bundle          <= assigned_op_bundle;
+        m_waddr_ready          <= load_m_waddr_en;
+        v_waddr_ready          <= load_v_waddr_en;
+    end
 
     // TODO: Currently, we assume all the data written to the SRAM are in the same dim of VLEN.
     assign s_sram_mask_a = {BLOCK_NUM{1'b1}};
@@ -216,12 +209,12 @@ module data_flow_control import precision_pkg::*; #(
             m_out_ready <= 1'b1;
 
             // Loading Process (NOTE: Assuming the load process and the prefetch process do not overlap, controlled by the pipeline control unit)
-            if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
+            if (permit_rd_op_bundle.m_op == MV || permit_rd_op_bundle.m_op == MV_O) begin
                 // Fetching the data from the Matrix Sram to the Matrix Machine
                 m_sram_req      <= 1'b1;
                 m_m_load        <= 1'b1;
                 m_sram_wen      <= 1'b0;
-                m_sram_transposed_read <= assigned_op_bundle.m_transposed_read;
+                m_sram_transposed_read <= permit_rd_op_bundle.m_transposed_read;
                 m_sram_prefetch_counter <= 'b0;
                 m_sram_load_counter <= 'b0;
                 continuous_load_m_en <= 1'b1;
@@ -320,13 +313,13 @@ module data_flow_control import precision_pkg::*; #(
             v_v_a_valid         <= v_v_a_load;
             v_v_b_valid         <= v_v_b_load;
             //Port A
-            if(assigned_op_bundle.m_op != STALL_M && m_v_ready) begin
+            if(permit_rd_op_bundle.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM
                 m_v_load        <= 1'b1;
                 v_v_a_load      <= 1'b0;
                 s_sram_req_a    <= 1'b1;
                 s_sram_wen_a    <= 1'b0;
-            end else if (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
+            end else if (permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT || permit_rd_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b1;
                 s_sram_req_a    <= 1'b1;
@@ -361,7 +354,7 @@ module data_flow_control import precision_pkg::*; #(
             end
 
             //Port B
-            if ((assigned_op_bundle.m_op == MV_O & m_o_ready)|| ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en)) begin
+            if ((permit_rd_op_bundle.m_op == MV_O & m_o_ready)|| ((permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT) && !permit_rd_op_bundle.v_broadcast_en)) begin
                 // Read Port activated
                 v_v_b_load      <= 1'b1;
                 m_o_load        <= 1'b1;
