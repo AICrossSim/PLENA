@@ -95,15 +95,16 @@ module data_flow_control import precision_pkg::*; #(
     input       logic dma_m_ready,
     input       logic dma_v_ready,
     output      logic continuous_prefetch_m_en,
+    output      logic hbm_ready_to_write,
     output      logic [MATRIX_COUNTER_WIDTH - 1: 0] m_sram_continuous_prefetch_counter
-
-
 );
+
+
     // Memory Execution Control and Dependency Monitor
     import pipeline_pkg::MAX_PIPELINE_STAGE;
     localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 
-    OP_BUNDLE       permit_rd_op_bundle, exe_op_bundle;
+    OP_BUNDLE       permit_rd_op_bundle, exe_op_bundle, permit_rd_exe_op_bundle;
     logic           recovered_from_stall;
     logic           m_waddr_ready, v_waddr_ready;
 
@@ -113,22 +114,23 @@ module data_flow_control import precision_pkg::*; #(
     ) addr_monitor_inst (
         .clk(clk),
         .rst(rst),
-        .assigned_op_bundle(assigned_op_bundle),
-        .m_waddr_ready(m_waddr_ready),
-        .v_waddr_ready(v_waddr_ready),
-        .fixed_addr_1(fixed_addr_1),
-        .fixed_addr_2(fixed_addr_2),
-        .s_sram_addr_a(s_sram_addr_a),
-        .s_sram_addr_b(s_sram_addr_b),
-        .s_sram_wen_a(s_sram_wen_a),
-        .s_sram_wen_b(s_sram_wen_b),
-        .stall_req(stall_req),
-        .permit_rd_op_bundle(permit_rd_op_bundle)
+        .assigned_op_bundle     (assigned_op_bundle),
+        .m_waddr_ready          (m_waddr_ready),
+        .v_waddr_ready          (v_waddr_ready),
+        .fixed_addr_1           (fixed_addr_1),
+        .fixed_addr_2           (fixed_addr_2),
+        .s_sram_addr_a          (s_sram_addr_a),
+        .s_sram_addr_b          (s_sram_addr_b),
+        .s_sram_wen_a           (s_sram_wen_a),
+        .s_sram_wen_b           (s_sram_wen_b),
+        .stall_req              (stall_req),
+        .permit_rd_op_bundle    (permit_rd_op_bundle)
     );
 
 
     always_ff @(posedge clk or negedge rst ) begin
         exe_op_bundle          <= assigned_op_bundle;
+        permit_rd_exe_op_bundle <= permit_rd_op_bundle;
         m_waddr_ready          <= load_m_waddr_en;
         v_waddr_ready          <= load_v_waddr_en;
     end
@@ -166,6 +168,7 @@ module data_flow_control import precision_pkg::*; #(
     logic continuous_load_m_en;
     logic [MATRIX_COUNTER_WIDTH : 0] m_sram_load_counter;
     logic m_m_load, m_v_load, m_o_load;
+    logic hbm_write_load_en;
 
 
     // Update addr only when the exe operation is MV or MV_O
@@ -262,6 +265,7 @@ module data_flow_control import precision_pkg::*; #(
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
+    logic [FIXED_DATA_WIDTH - 1 : 0] hbm_waddr;
     logic v_v_a_load, v_v_b_load;
 
 
@@ -280,6 +284,8 @@ module data_flow_control import precision_pkg::*; #(
             s_sram_addr_b = m_offset_addr;
         end else if (exe_op_bundle.mem_write.w_s_sram_port_b_en == 1'b1 && dma_v_ready) begin
             s_sram_addr_b = recorded_v_prefetch_addr;
+        end else if (permit_rd_exe_op_bundle.h_op == STORE_V) begin
+            s_sram_addr_b = hbm_waddr;
         end else begin
             s_sram_addr_b = recorded_v_load_addr_2;
         end
@@ -287,17 +293,19 @@ module data_flow_control import precision_pkg::*; #(
         // Prefetch Record
         if (rst) begin
             recorded_v_prefetch_addr = 'b0;
+            hbm_waddr = 'b0;
         end else if (assigned_op_bundle.h_op == PREFETCH_V) begin
             recorded_v_prefetch_addr = fixed_addr_1;
+        end else if (assigned_op_bundle.h_op == STORE_V) begin
+            hbm_waddr = fixed_addr_2;
         end
     end
-
-    logic s_sram_load_failed;
 
     always_ff @(posedge clk or negedge rst) begin
         if (rst) begin
             v_v_a_valid     <= 1'b0;
             v_v_b_valid     <= 1'b0;
+            hbm_ready_to_write    <= 1'b0;
             recorded_v_load_addr_1  <= 'b0;
             recorded_v_load_addr_2  <= 'b0;
             recorded_m_write_addr   <= 'b0;
@@ -312,6 +320,7 @@ module data_flow_control import precision_pkg::*; #(
 
             v_v_a_valid         <= v_v_a_load;
             v_v_b_valid         <= v_v_b_load;
+            hbm_ready_to_write        <= hbm_write_load_en;
             //Port A
             if(permit_rd_op_bundle.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM
@@ -354,24 +363,39 @@ module data_flow_control import precision_pkg::*; #(
             end
 
             //Port B
-            if ((permit_rd_op_bundle.m_op == MV_O & m_o_ready)|| ((permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT) && !permit_rd_op_bundle.v_broadcast_en)) begin
+            if ((permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT) && !permit_rd_op_bundle.v_broadcast_en) begin
                 // Read Port activated
-                v_v_b_load      <= 1'b1;
-                m_o_load        <= 1'b1;
-                s_sram_req_b    <= 1'b1;
-                s_sram_wen_b    <= 1'b0;
+                v_v_b_load          <= 1'b1;
+                m_o_load            <= 1'b0;
+                hbm_write_load_en   <= 1'b0;
+                s_sram_req_b        <= 1'b1;
+                s_sram_wen_b        <= 1'b0;
+            end else if (permit_rd_op_bundle.m_op == MV_O & m_o_ready) begin
+                v_v_b_load          <= 1'b0;
+                m_o_load            <= 1'b1;
+                hbm_write_load_en   <= 1'b0;
+                s_sram_req_b        <= 1'b1;
+                s_sram_wen_b        <= 1'b0;
+            end else if (permit_rd_op_bundle.h_op == STORE_V) begin
+                v_v_b_load      <= 1'b0;
+                m_o_load        <= 1'b0;
+                hbm_write_load_en   <= 1'b1;
+                s_sram_req_b        <= 1'b1;
+                s_sram_wen_b        <= 1'b0;
             end else if (assigned_op_bundle.mem_write.w_s_sram_port_b_en && dma_v_ready) begin
                 // HBM Fetch to the scratchpad sram
-                v_v_b_load      <= 1'b0;
-                m_o_load        <= 1'b0;
-                s_sram_wen_b    <= 1'b1;
-                s_sram_req_b    <= 1'b1;
+                v_v_b_load          <= 1'b0;
+                m_o_load            <= 1'b0;
+                hbm_write_load_en   <= 1'b0;
+                s_sram_wen_b        <= 1'b1;
+                s_sram_req_b        <= 1'b1;
             end else begin
                 // No SRAM access
-                s_sram_wen_b    <= 1'b0;
-                m_o_load        <= 1'b0;
-                v_v_b_load      <= 1'b0;
-                s_sram_req_b    <= 1'b0;
+                s_sram_wen_b        <= 1'b0;
+                m_o_load            <= 1'b0;
+                hbm_write_load_en   <= 1'b0;
+                v_v_b_load          <= 1'b0;
+                s_sram_req_b        <= 1'b0;
             end
             
             recorded_v_load_addr_1 <= fixed_addr_1;

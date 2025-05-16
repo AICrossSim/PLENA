@@ -150,6 +150,8 @@ module coprocessor #(
     logic [BLOCK_NUM-1:0] s_sram_mask_a, s_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
+    logic hbm_ready_to_write;
+
 
     localparam MATRIX_LOAD_ITERATION = MLEN / Matrix_Parallel_Rd_Dim;
     localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
@@ -213,6 +215,7 @@ module coprocessor #(
         .dma_m_ready            (hbm_m_prefetch_complete),
         .dma_v_ready            (hbm_v_prefetch_complete),
         .continuous_prefetch_m_en(continuous_prefetch_m_en),
+        .hbm_ready_to_write           (hbm_ready_to_write),
         .m_sram_continuous_prefetch_counter(m_sram_continuous_prefetch_counter)
     );
 
@@ -500,7 +503,7 @@ module coprocessor #(
         // Read from Vector SRAM
         .v_out_element          (v_element_port_b_out),
         .v_out_scale            (v_scale_port_b_out),
-        .v_out_data_wen         (), // Left for store vector into HBM
+        .v_out_data_wen         (hbm_ready_to_write), // Left for store vector into HBM
 
         // HBM Operation
         .h_op(assigned_op_bundle.h_op),
@@ -556,7 +559,6 @@ module coprocessor #(
         .hbm_write_element  (hbm_element_in),
         .hbm_write_scale    (hbm_scale_in),
         .hbm_prefetch_content_exist(hbm_m_prefetch_complete || hbm_v_prefetch_complete),
-        .track_prefetch_status (), // TODO
 
         // HBM Interface
         `TL_CONNECT_HOST_PORT(host_element, element),

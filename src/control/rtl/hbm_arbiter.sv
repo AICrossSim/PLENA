@@ -60,8 +60,8 @@ module hbm_arbiter #(
     output   logic   [V_ELE_WIDTH- 1 : 0]           prefetch_v_element,
     output   logic   [V_SCALE_WIDTH- 1 : 0]         prefetch_v_scale,
 
-    input    logic   [ELE_WIDTH - 1 : 0]            v_out_element,
-    input    logic   [SCALE_WIDTH - 1 : 0]          v_out_scale,
+    input    logic   [V_ELE_WIDTH - 1 : 0]            v_out_element,
+    input    logic   [V_SCALE_WIDTH - 1 : 0]          v_out_scale,
     input    logic                                  v_out_data_wen,
 
     // Control signals
@@ -193,8 +193,8 @@ always_comb  begin
             if (v_out_data_wen & hbm_write_ready) begin
                 next_hbm_state = IDLE;
                 hbm_write_en = 1'b1;
-                hbm_write_element   = v_out_element;
-                hbm_write_scale     = v_out_scale;
+                hbm_write_element   = {{ELE_WIDTH - V_ELE_WIDTH{1'b0}}, v_out_element};
+                hbm_write_scale     = {{SCALE_WIDTH - V_SCALE_WIDTH{1'b0}}, v_out_scale};
                 hbm_write_valid     = 1'b1;
             end else begin
                 next_hbm_state = HBM_STORE_V;

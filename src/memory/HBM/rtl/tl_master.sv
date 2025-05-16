@@ -26,6 +26,7 @@ module tl_master #(
 
   input  logic write_en,
   input  logic [AddrWidth-1:0] write_addr,
+  input  logic [MASK_WIDTH-1:0] write_mask,
   input  logic [DataWidth-1:0] write_data,
 
   // Status Indicators
@@ -97,7 +98,7 @@ module tl_master #(
       end
 
       host_d_ready  = fetch_in_progress;
-      host_a.mask    = {MASK_WIDTH{1'b1}};
+      host_a.mask    = write_mask;
       // next_state = state;
       case (state)
         IDLE: begin

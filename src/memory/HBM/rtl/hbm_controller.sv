@@ -23,6 +23,7 @@ module hbm_controller #(
 
     parameter   ADR_OPERAND_WIDTH   = 5,
     localparam  M_BLOCK_NUM         = MLEN / BLOCK_DIM,
+    localparam  V_BLOCK_NUM         = VLEN / BLOCK_DIM,
 
     // HBM Config and TL settings
     parameter   HBM_ADDR_WIDTH          = 64,
@@ -81,6 +82,13 @@ module hbm_controller #(
 );
 
     localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
+    localparam int V_ELE_WIDTH      = VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1);
+    localparam int V_SCALE_WIDTH    = V_BLOCK_NUM * MXFP_SCALE_WIDTH;
+    localparam int ELE_MASK_WIDTH = ELE_WIDTH / 8;
+    localparam int SCALE_MASK_WIDTH = SCALE_WIDTH / 8;
+    localparam int V_ELE_MASIK_WIDTH = V_ELE_WIDTH / 8;
+    localparam int V_SCALE_MASK_WIDTH = V_SCALE_WIDTH / 8;
+
     initial begin
         assert (MLEN == VLEN) else $fatal("MLEN and VLEN should be equal for hbm controller");
     end
@@ -89,6 +97,10 @@ module hbm_controller #(
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
     logic ready_for_prefetch;
     logic delayed_continuous_prefetch_m_en;
+
+
+    logic [ELE_MASK_WIDTH - 1 : 0] hbm_ele_write_mask = {{ELE_MASK_WIDTH - V_ELE_MASIK_WIDTH {1'b0}}, {V_ELE_MASIK_WIDTH{1'b1}}};
+    logic [SCALE_MASK_WIDTH - 1 : 0] hbm_scale_write_mask = {{SCALE_MASK_WIDTH - V_SCALE_MASK_WIDTH {1'b0}}, {V_SCALE_MASK_WIDTH{1'b1}}};
     
 
     always_ff @(posedge clk) begin
@@ -98,11 +110,12 @@ module hbm_controller #(
             addr_to_prefetch            <= 'b0;
             addr_for_prefetched_data    <= 'b0;
             delayed_continuous_prefetch_m_en <= 1'b0;
+            hbm_write_ready             <= 1'b0;
         end else begin
+            hbm_write_ready             <= 1'b1;                        // Force ready for writing
             delayed_continuous_prefetch_m_en <= continuous_prefetch_m_en;
             addr_to_prefetch    <= delayed_continuous_prefetch_m_en ? addr_for_prefetched_data + m_sram_continuous_prefetch_counter * BYTES_PER_ROW : hbm_addr_out;
             ready_for_prefetch  <= hbm_prefetch_en;
-
             if(ready_for_prefetch && !hbm_prefetch_content_exist) begin
                 addr_for_prefetched_data <= addr_to_prefetch;
                 start_prefetch <= 1'b1;
@@ -156,12 +169,12 @@ module hbm_controller #(
         .rst(rst),
         // Control signals
         .req_en(start_prefetch),
-        .write_en(write_en),
+        .write_en(hbm_write_en),
         .fetch_addr(hbm_addr_out),
         .fetch_data(prefetch_element),
         .write_data(hbm_write_element),
+        .write_mask(hbm_ele_write_mask),
         .fetch_data_valid(prefetch_data_valid),
-
         `TL_CONNECT_HOST_PORT(host, tl_element)
     );
 
@@ -200,10 +213,11 @@ module hbm_controller #(
 
         // Control signals
         .req_en(hbm_prefetch_en),
-        .write_en(write_en),
+        .write_en(hbm_write_en),
         .fetch_addr(addr_for_prefetched_data + SCALE_DATA_OFFSET),
         .fetch_data(prefetch_scale),
         .write_data(hbm_write_scale),
+        .write_mask(hbm_scale_write_mask),
         `TL_CONNECT_HOST_PORT(host, tl_scale)
     );
 
