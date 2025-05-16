@@ -45,6 +45,7 @@ module matrix_machine #(
 
     // Execution Control
     input   M_OP    matrix_opcode,
+    output logic    m_load_in_process,
 
     // Offset Addressing
     input  logic                              set_offset_addr,
@@ -89,7 +90,6 @@ end
 
 // Fetch Control
 logic clear_m;  // TODO
-logic m_load_in_process;
 
 typedef struct {
     logic [ADDR_WIDTH-1:0]             waddr;
@@ -373,7 +373,7 @@ mx_fp_mv #(
     .OUTPUT_FP_ROUND_EN(ROUND_FP_EN),
     .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
     .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
-) mx_fp_mv (
+) mx_fp_mv_init (
     .clk(clk),
     .rst(rst),
 
@@ -397,35 +397,44 @@ mx_fp_mv #(
 );
 
 // offset addition
+logic prod_for_acc_ready, prod_for_acc_valid;
+logic offset_for_acc_ready, offset_for_acc_valid;
+
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     acc_element;
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
-logic acc_in_valid, acc_in_ready;
-logic acc_out_valid, acc_out_ready;
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     result_element;
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     result_scale;
 
 // Assuming there is no case that MV is followed by MV_O, where both might write to the sram at the same time.
 always_comb begin
-    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-1].mop == MV_O) begin
-        // With Offset
-        result_element = acc_element;
-        result_scale   = acc_scale;
-        out_valid   = acc_out_valid;
-        acc_in_valid    = prod_valid;
-    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV) begin
-        // Without Offset
-        result_element     = prod_element;
-        result_scale       = prod_scale;
-        out_valid       = prod_valid;
-        acc_in_valid    = 1'b0;
+    if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV) begin
+        // At the cycle where the mv operation is completed
+        result_element          = prod_element;
+        result_scale            = prod_scale;
+        out_valid               = prod_valid;
+        prod_for_acc_valid      = 1'b0;
+    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV_O) begin
+        // At the cycle where the mv operation is completed
+        result_element          = {MLEN{1'b0}};
+        result_scale            = {BLOCK_NUM{1'b0}};
+        out_valid               = 1'b0;
+        prod_for_acc_valid      = 1'b1;
+        offset_for_acc_valid    = stored_o_valid;
+        stored_o_ready          = offset_for_acc_ready;
+
+    end else if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-1].mop == MV_O) begin
+        // At the cycle where the accumulation operation is completed
+        result_element          = acc_element;
+        result_scale            = acc_scale;
+        out_valid               = result_from_acc_valid;
     end else begin
-        result_element = {MLEN{1'b0}};
-        result_scale   = {BLOCK_NUM{1'b0}};
-        out_valid   = 1'b0;
+        result_element          = {MLEN{1'b0}};
+        result_scale            = {BLOCK_NUM{1'b0}};
+        out_valid               = 1'b0;
     end
 
-    prod_ready      = out_ready;
-    acc_out_ready   = out_ready;
+    prod_ready              = out_ready;
+    result_from_acc_ready   = out_ready;
 
     // One cycle ahead, informing the dataflow centre to prepare writing to the scratchpad sram.
     if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-2].mop == MV_O) begin
@@ -440,6 +449,7 @@ always_comb begin
     end
 end
 
+// Note The reason here is because it need one more cycle to send write request to the arbiter to permit the write to the sram.
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
         out_scale   <= 'b0;
@@ -456,39 +466,72 @@ always_ff @(posedge clk or negedge rst) begin
 end
 
 generate;
+
+    logic [BLOCK_NUM - 1 : 0] offset_in_valid, offset_in_ready;
+    logic [BLOCK_NUM - 1 : 0] acc_in_valid, acc_in_ready;
+    logic [BLOCK_NUM - 1 : 0] acc_out_valid, acc_out_ready;
+    logic result_from_acc_valid, result_from_acc_ready;
+
+    split_n #(
+        .N (BLOCK_NUM)
+    ) split_product_handshake (
+        .data_in_valid(prod_for_acc_valid),
+        .data_in_ready(prod_for_acc_ready),
+        .data_out_valid(acc_in_valid),
+        .data_out_ready(acc_in_ready)
+    );
+
+    split_n #(
+        .N (BLOCK_NUM)
+    ) split_offset_handshake (
+        .data_in_valid(offset_for_acc_valid),
+        .data_in_ready(offset_for_acc_ready),
+        .data_out_valid(offset_in_valid),
+        .data_out_ready(offset_in_ready)
+    );
+
     for(genvar i=0; i < BLOCK_NUM; i++)begin
         mx_fp_blockwise_adder #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
             .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-
             .BLOCK_DIM(BLOCK_DIM),
-
             .EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
             .EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH)
-        ) mx_fp_blockwise_adder (
+        ) blockwise_adder_init (
             .clk(clk),
             .rst(rst),
 
             // Port A
-            .a_element_data_in(prod_element[i]),
-            .a_scale_data_in(prod_scale[i]),
-            .a_data_in_valid(acc_in_valid),
-            .a_data_in_ready(acc_in_ready),
+            .a_element_data_in  (prod_element[i]),
+            .a_scale_data_in    (prod_scale[i]),
+            .a_data_in_valid    (acc_in_valid[i]),
+            .a_data_in_ready    (acc_in_ready[i]),
 
             // Port B
-            .b_element_data_in(stored_o_element[i]),
-            .b_scale_data_in(stored_o_scale[i]),
-            .b_data_in_valid(stored_o_valid),
-            .b_data_in_ready(stored_o_ready),
+            .b_element_data_in  (stored_o_element[i]),
+            .b_scale_data_in    (stored_o_scale[i]),
+            .b_data_in_valid    (offset_in_valid[i]),
+            .b_data_in_ready    (offset_in_ready[i]),
 
             // Output
-            .element_data_out(acc_element[i]),
-            .scale_data_out(acc_scale[i]),
-            .data_out_valid(acc_out_valid),
-            .data_out_ready(acc_out_ready)
+            .element_data_out   (acc_element[i]),
+            .scale_data_out     (acc_scale[i]),
+            .data_out_valid     (acc_out_valid[i]),
+            .data_out_ready     (acc_out_ready[i])
         );
     end
+
+    join_n #(
+        .NUM_HANDSHAKES (BLOCK_NUM)
+    ) join_acc_result (
+        .data_in_valid  (acc_out_valid),
+        .data_in_ready  (acc_out_ready),
+        .data_out_valid (result_from_acc_valid),
+        .data_out_ready (result_from_acc_ready)
+    );
+
+
 endgenerate
 
 

@@ -107,6 +107,7 @@ module coprocessor #(
         .decode_instr_valid     (decode_instr_valid),
         .fetch_next_instr       (read_next_instr),
         .mem_write_req          (mem_write_req),
+        .m_load_in_process      (m_load_in_process),
         .hbm_in_used            (hbm_in_used),
         .continuous_m_prefetch  (continuous_prefetch_m_en),
         .fp_stall_req           (stall_req_from_fp),
@@ -227,6 +228,7 @@ module coprocessor #(
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 m_out_element;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 m_out_scale;
+    logic m_load_in_process;
 
     // Vector
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_a_out;
@@ -266,8 +268,9 @@ module coprocessor #(
             .clk(clk),
             .rst(rst),
             .matrix_opcode          (assigned_op_bundle.m_op),
+            .m_load_in_process      (m_load_in_process),
             .set_offset_addr        ((assigned_op_bundle.c_op == SET_M_OFFSET)),
-            .offset_addr            (fixed_out_1),
+            .offset_addr            (fixed_out_2),
             .offset_addr_out        (m_offset_addr),
             .m_element              (fetched_m_element),
             .m_scale                (fetched_m_scale),

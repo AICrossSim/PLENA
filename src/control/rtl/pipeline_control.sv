@@ -30,6 +30,7 @@ module pipeline_control #(
     input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
     input       logic           fp_stall_req,
     input       logic           mem_vwrite_stall_req,
+    input       logic           m_load_in_process,
 
     // Current control operation
     output      logic           pipeline_stall,
@@ -91,7 +92,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b1;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;
-        end else if (prefetch_in_progress & (decode_instr_info.instruction_type == M)) begin
+        end else if ((prefetch_in_progress || m_load_in_process) & (decode_instr_info.instruction_type == M)) begin
             // Note: Any M type instruction involves interaction with the matrix sram, hence need to stall when its prefetching.
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;

@@ -67,26 +67,15 @@ module mx_fp_mv #(
         end
     end
 
-
-    // -----
-    // Wires
-    // -----
-
-    logic [BLOCK_NUM -1 : 0] convert_in_ready;
-    logic dot_prod_out_ready;
-    logic inputs_valid, inputs_ready;
-
-    logic [COMPUTE_DIM-1:0] dot_product_valid;
-    logic [COMPUTE_DIM-1:0] sync_ready;
-
-    logic [COMPUTE_DIM - 1 : 0][ACC_EXP_WIDTH + ACC_MANT_WIDTH:0] fp_dot_out;
-
     // -----
     // Logic
     // -----
 
+    logic inputs_valid, inputs_ready;
+    logic [COMPUTE_DIM - 1 : 0][ACC_EXP_WIDTH + ACC_MANT_WIDTH:0] fp_dot_out;
+
+
     // Need to synchronise x & y inputs
-    assign inputs_ready = sync_ready[0];
     join2 sync_handshake (
         .data_in_valid ({m_valid, v_valid}),
         .data_in_ready ({m_ready, v_ready}),
@@ -95,6 +84,19 @@ module mx_fp_mv #(
     );
 
     generate;
+        logic dot_prod_ready, dot_prod_valid;
+        logic [COMPUTE_DIM - 1 : 0] dot_prod_in_ready, dot_prod_in_valid;
+        logic [COMPUTE_DIM - 1 : 0] dot_prod_out_ready, dot_prod_out_valid;
+        
+        split_n #(
+            .N (COMPUTE_DIM)
+        ) split_dot (
+            .data_in_valid(inputs_valid),
+            .data_in_ready(inputs_ready),
+            .data_out_valid(dot_prod_in_valid),
+            .data_out_ready(dot_prod_in_ready)
+        );
+
         // Instantiate COMPUTE_DIM number of dot products
         for (genvar i = 0; i < COMPUTE_DIM; i++) begin : row_matrix_by_vec
             mx_fp_dot_product_fp_out #(
@@ -117,21 +119,43 @@ module mx_fp_mv #(
                 .rst                  (rst),
                 .element_a_in         (m_element[((i+1)*COMPUTE_DIM)-1 : i*COMPUTE_DIM]),
                 .scale_a_in           (m_scale[((i+1)*BLOCK_NUM)-1 : i*BLOCK_NUM]),
-                .data_a_in_valid      (inputs_valid),
-                .data_a_in_ready      (sync_ready[i]),
+                .data_a_in_valid      (dot_prod_in_valid[i]),
+                .data_a_in_ready      (dot_prod_in_ready[i]),
                 .element_b_in         (v_element),
                 .scale_b_in           (v_scale),
-                .data_b_in_valid      (inputs_valid),
+                .data_b_in_valid      (dot_prod_in_valid[i]),
                 .data_b_in_ready      (), // same as data_a_in_ready
                 .data_out             (fp_dot_out[i]),
-                .data_out_valid       (dot_product_valid[i]),
-                .data_out_ready       (dot_prod_out_ready)
+                .data_out_valid       (dot_prod_out_valid[i]),
+                .data_out_ready       (dot_prod_out_ready[i])
             );
         end
-        assign dot_prod_out_ready = &convert_in_ready;
+
+
+        join_n #(
+            .NUM_HANDSHAKES (COMPUTE_DIM)
+        ) join_dot (
+            .data_in_valid(dot_prod_out_valid),
+            .data_in_ready(dot_prod_out_ready),
+            .data_out_valid(dot_prod_valid),
+            .data_out_ready(dot_prod_ready)
+        );
+
     endgenerate
         
     generate;
+        logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_in_ready, mxfp_fp_convert_in_valid;
+        logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_out_ready, mxfp_fp_convert_out_valid;
+
+        split_n #(
+            .N (BLOCK_NUM)
+        ) split_conv (
+            .data_in_valid(dot_prod_valid),
+            .data_in_ready(dot_prod_ready),
+            .data_out_valid(mxfp_fp_convert_in_valid),
+            .data_out_ready(mxfp_fp_convert_in_ready)
+        );
+
 
         for (genvar j = 0; j < BLOCK_NUM; j++) begin
             fp_2_mx_fp_block #(
@@ -145,15 +169,24 @@ module mx_fp_mv #(
                 .clk(clk),
                 .rst(rst),
                 .data_in(fp_dot_out[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
-                .data_in_valid(dot_product_valid[0]),
-                .data_in_ready(convert_in_ready[i]),
-                .element_data_out(out_element[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
+                .data_in_valid(mxfp_fp_convert_in_valid[j]),
+                .data_in_ready(mxfp_fp_convert_in_ready[j]),
+                .element_data_out(out_element[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
                 .scale_data_out(out_scale[j]),
-                .mx_fp_data_out_valid(out_valid),
-                .mx_fp_data_out_ready(out_ready)
+                .mx_fp_data_out_valid(mxfp_fp_convert_out_valid[j]),
+                .mx_fp_data_out_ready(mxfp_fp_convert_out_ready[j])
             );
 
         end
+
+        join_n #(
+            .NUM_HANDSHAKES (BLOCK_NUM)
+        ) join_conv (
+            .data_in_valid(mxfp_fp_convert_out_valid),
+            .data_in_ready(mxfp_fp_convert_out_ready),
+            .data_out_valid(out_valid),
+            .data_out_ready(out_ready)
+        );
     endgenerate
 
 endmodule
