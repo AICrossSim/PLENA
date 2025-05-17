@@ -205,14 +205,14 @@ skid_buffer #(
     .rst(rst),
 
     // Input
-    .data_in(converted_v_a),
-    .data_in_valid(v_a_valid),
-    .data_in_ready(v_a_ready),
+    .data_in        (converted_v_a),
+    .data_in_valid  (v_a_valid),
+    .data_in_ready  (v_a_ready),
 
     // Output
-    .data_out(prepared_v_a),
-    .data_out_valid(element_v_in_a_valid),
-    .data_out_ready(element_v_in_a_ready)
+    .data_out       (prepared_v_a),
+    .data_out_valid (element_v_in_a_valid),
+    .data_out_ready (element_v_in_a_ready)
 );
 
 skid_buffer #(
@@ -222,14 +222,14 @@ skid_buffer #(
     .rst(rst),
 
     // Input
-    .data_in(recorded_broadcast_en ? unpacked_v_s : converted_v_b ),
-    .data_in_valid(v_b_valid),
-    .data_in_ready(v_b_ready),
+    .data_in        (recorded_broadcast_en ? unpacked_v_s : converted_v_b ),
+    .data_in_valid  (recorded_broadcast_en ? s_in_valid : v_b_valid),
+    .data_in_ready  (v_b_ready),
 
     // Output
-    .data_out(prepared_v_b),
-    .data_out_valid(element_v_in_b_valid),
-    .data_out_ready(element_v_in_b_ready)
+    .data_out       (prepared_v_b),
+    .data_out_valid (element_v_in_b_valid),
+    .data_out_ready (element_v_in_b_ready)
 );
 
 // Elementwise Compute Unit
@@ -237,7 +237,6 @@ logic element_v_in_a_valid, element_v_in_a_ready;
 logic element_v_in_b_valid, element_v_in_b_ready;
 logic element_v_out_valid, element_v_out_ready;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] element_v_out;
-
 
 fp_elementwise_compute_unit #(
     .EXP_WIDTH(FP_EXP_WIDTH),

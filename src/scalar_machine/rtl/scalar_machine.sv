@@ -75,13 +75,20 @@ module scalar_machine #(
     } TRACK_FP;
     TRACK_FP fp_track [SCALAR_FP_MAX_CYCLES - 1 : 0];
 
-    // Tracing Register for Stall Detection
+    // ------------------- Tracing Register for Stall Detection -------------------
     logic tracing_fpreg_in_process [2 << FP_OPERAND_WIDTH - 1 : 0];
-    logic fp_reg_we;
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_reg_wdata, fp_ld_from_sram;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_wtarget;
-    // Check if the fp rd is already in process
-    assign fp_stall_req = (fp_control == STALL_S_FP) ? 1'b0 : (tracing_fpreg_in_process[fp_rd]) ? 1'b1 : 1'b0;
+
+    // Dependency Detection
+    always_comb begin
+        if (fp_control == ADD_FP || fp_control == SUB_FP || fp_control == MAX_FP || fp_control == MUL_FP) begin
+            // Two read ports
+            fp_stall_req = (tracing_fpreg_in_process[fp_rs1] || tracing_fpreg_in_process[fp_rs2]) ? 1'b1 : 1'b0;
+        end else if (fp_control == EXP_FP || fp_control == RECI_FP || fp_control == SQRT_FP ) begin
+            // One read port
+            fp_stall_req = (tracing_fpreg_in_process[fp_rs1]) ? 1'b1 : 1'b0;
+        end
+    end
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -116,10 +123,22 @@ module scalar_machine #(
         end
     end
 
+
+    /*
+    Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
+    */
+    logic fp_reg_we;
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_reg_wdata, fp_ld_from_sram;
+
     always_comb begin
-        if (fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP && fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd) begin
+        if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
             fp_reg_we = 1'b1;
             fp_reg_wdata = fp_alu_out;
+            fp_wtarget = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
+        end else if (fp_track[0].fp_op ==  LD_REG_FP) begin
+            fp_reg_we = 1'b1;
+            fp_reg_wdata = fp_ld_from_sram;
+            fp_wtarget = fp_track[0].target_fp;
         end else begin
             fp_reg_we = 1'b0;
             fp_reg_wdata = 'b0;
@@ -143,7 +162,7 @@ module scalar_machine #(
     ) fp_reg_file (
         .clk        (clk),
         .we         (fp_reg_we),
-        .waddr      (fp_rd),
+        .waddr      (fp_wtarget),
         .wdata      (fp_reg_wdata),
         .raddr1     (fp_rs1),
         .raddr2     (fp_rs2),
@@ -155,9 +174,19 @@ module scalar_machine #(
         if (rst) begin
             fp_out <= 'b0;
         end else begin
-            fp_out <= (fp_control == LD_OUT_FP) ? fp_reg_1 : 'b0;
+            if (fp_control == LD_OUT_FP) begin
+                if (fp_rs2 == fp_wtarget) begin
+                    fp_out <= fp_reg_wdata;
+                end else begin
+                    fp_out <= fp_reg_2;
+                end
+            end else if (fp_control == ST_REG_FP) begin
+                fp_out <= 'b0;
+            end 
         end
     end
+
+
 
     // SRAM for FP
     scalar_sram #(
