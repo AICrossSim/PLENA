@@ -50,7 +50,6 @@ module vector_machine #(
     input   logic broadcast_fp2,
     input   V_ELEMENT_OP element_v_control,
     input   V_REDUCT_OP  reduct_v_control,
-    
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
@@ -68,15 +67,12 @@ module vector_machine #(
     input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] s_in,
     input   logic                   s_in_valid,
     output  logic                   s_in_ready,
-
-    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] s_out,
-    output  logic                   s_out_valid,
-    input   logic                   s_out_ready,
+    input   logic [FP_OPERAND_WIDTH - 1 : 0]        s_wtarget,
 
 
     // Output
     input   logic [ADDR_WIDTH - 1 : 0] result_waddr,
-    input  logic result_waddr_update,
+    input   logic result_waddr_update,
 
     output  logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     v_out_element,
     output  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     v_out_scale,
@@ -84,7 +80,12 @@ module vector_machine #(
     input   logic                                                                   v_out_ready,
 
     output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
-    output  logic                                                                   v_wreq
+    output  logic                                                                   v_wreq,
+
+    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] s_out,
+    output  logic                   s_out_valid,
+    input   logic                   s_out_ready,
+    output  logic                   s_out_rd
     
 );
 
@@ -103,7 +104,8 @@ logic result_waddr_ready;
 logic recorded_broadcast_en;
 V_ELEMENT_OP recorded_element_v_control;
 V_REDUCT_OP  recorded_reduct_v_control;
-logic v_prepare_en;
+logic [FP_OPERAND_WIDTH - 1:0] recorded_s_wtarget;
+logic prepare_flag;
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
@@ -115,23 +117,33 @@ always_ff @(posedge clk or negedge rst) begin
             };
         end
         recorded_broadcast_en <= 1'b0;
-        v_prepare_en <= 1'b0;
+        prepare_flag <= 1'b0;
     end else begin
         // Set result waddr
         result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
 
-        if(!v_prepare_en && (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
-            v_prepare_en <= 1'b1;
+        if(!prepare_flag && (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
+            prepare_flag <= 1'b1;
             recorded_element_v_control  <= element_v_control;
             recorded_reduct_v_control   <= reduct_v_control;
             recorded_broadcast_en       <= broadcast_fp2;
-        end else if (v_prepare_en && result_waddr_ready) begin
-            v_prepare_en <= 1'b0;
-            pipeline_compute_track[0] <= '{
-                waddr  : result_waddr,
-                ele_op : recorded_element_v_control,
-                red_op : recorded_reduct_v_control
-            };
+            recorded_s_wtarget          <= s_wtarget;
+        end else if (prepare_flag && result_waddr_ready) begin
+            if ((recorded_element_v_control != STALL_V_ELEMENT) & element_v_in_a_valid & element_v_in_b_valid) begin
+                prepare_flag <= 1'b0;
+                pipeline_compute_track[0] <= '{
+                    waddr  : result_waddr,
+                    ele_op : recorded_element_v_control,
+                    red_op : recorded_reduct_v_control
+                };
+            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & element_v_in_a_valid & element_v_in_b_valid & s_acc_in_valid) begin
+                prepare_flag <= 1'b0;
+                pipeline_compute_track[0] <= '{
+                    waddr  : {{(ADDR_WIDTH - FP_OPERAND_WIDTH){1'b0}} , recorded_s_wtarget},
+                    ele_op : recorded_element_v_control,
+                    red_op : recorded_reduct_v_control
+                };    
+            end
         end else begin
             pipeline_compute_track[0] <= '{
                 waddr  : 'b0,
@@ -154,9 +166,7 @@ logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_a;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_b;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] unpacked_v_s;
 
-// TODO : Not sure if this is correct
 assign s_in_ready = v_b_ready;
-
 generate;
     for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
         mx_fp_2_fp_block #(
@@ -198,6 +208,7 @@ generate;
 
 endgenerate
 
+// Vector Port A Storage
 skid_buffer #(
     .DATA_WIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
 ) v_a_buffer (
@@ -215,6 +226,7 @@ skid_buffer #(
     .data_out_ready (element_v_in_a_ready)
 );
 
+// Vector Port B Storage
 skid_buffer #(
     .DATA_WIDTH(VLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
 ) v_b_buffer (
@@ -232,7 +244,28 @@ skid_buffer #(
     .data_out_ready (element_v_in_b_ready)
 );
 
+// Scalar Port Storage (Solely used for Reduction Operation)
+skid_buffer #(
+    .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1)
+) s_in_buffer (
+    .clk(clk),
+    .rst(rst),
+
+    // Input
+    .data_in        (s_in),
+    .data_in_valid  (recorded_reduct_v_control != STALL_V_REDUCT ? s_in_valid : 1'b0),
+    .data_in_ready  (), // Not used
+
+    // Output
+    .data_out       (s_acc_in),
+    .data_out_valid (s_acc_in_valid),
+    .data_out_ready (s_acc_in_ready)
+);
+ 
+//----------------------------//
 // Elementwise Compute Unit
+//----------------------------//
+
 logic element_v_in_a_valid, element_v_in_a_ready;
 logic element_v_in_b_valid, element_v_in_b_ready;
 logic element_v_out_valid, element_v_out_ready;
@@ -259,32 +292,13 @@ fp_elementwise_compute_unit #(
     .v_out_ready(element_v_out_ready)
 );
 
-// Reduction Compute Unit
-logic red_v_in_valid, red_v_in_ready;
-logic red_v_out_valid, red_v_out_ready;
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
 
-fp_reduction_compute_unit #(
-    .EXP_WIDTH(FP_EXP_WIDTH),
-    .MANT_WIDTH(FP_MANT_WIDTH),
-    .VLEN(VLEN)
-) reduction_unit (
-    .clk(clk),
-    .rst(rst),
-    .v_in({prepared_v_a, prepared_v_b}),
-    .v_in_valid(red_v_in_valid),
-    .v_in_ready(red_v_in_ready),
-    .operation(pipeline_compute_track[2].red_op),
-    .v_out(red_v_out),
-    .v_out_valid(red_v_out_valid),
-    .v_out_ready(red_v_out_ready)
-);
-
-/*  Result Selection
+/*  Elementwise Result Selection
     Note: Different vector operations can end and trigger write to the memory at different cycles,
     Here we assume all the vector operations on flight does not have data dependency and can be directly write to memory once it is completed.
     The pipeline control unit will in charge of removing possible data dependency by inserting stall cycles.
     It does not require to wait for the vector operations assigned before it to finish.
+    TODO: add other non linear function result selection here.
 */
 
 logic [ADDR_WIDTH-1:0] stored_result_waddr;
@@ -303,7 +317,7 @@ always_comb begin
         compute_result_valid    = 1'b0;
         stored_result_waddr     = 'b0;
     end
-    // TODO add other non linear function stalled cycles.
+
     
 end
 
@@ -372,5 +386,44 @@ endgenerate
 
 assign v_out_element    = mx_fp_element;
 assign v_out_scale      = mx_fp_scale;
+
+//----------------------------//
+// Reduction Compute Unit
+//----------------------------//
+
+logic red_v_in_valid, red_v_in_ready;
+logic red_v_out_valid, red_v_out_ready;
+logic s_acc_in_valid, s_acc_in_ready;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] s_acc_in;
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
+
+assign s_acc_in_ready = red_v_in_ready;
+
+join_n #(
+    .NUM_HANDSHAKES (3)
+) join_reduction (
+    .data_in_valid({element_v_in_a_valid, element_v_in_b_valid, s_acc_in_valid}),
+    .data_in_ready(),
+    .data_out_valid(red_v_in_valid),
+    .data_out_ready(red_v_in_ready)
+);
+
+fp_reduction_compute_unit #(
+    .EXP_WIDTH(FP_EXP_WIDTH),
+    .MANT_WIDTH(FP_MANT_WIDTH),
+    .VLEN(VLEN + 1)
+) reduction_unit (
+    .clk(clk),
+    .rst(rst),
+    .v_in({prepared_v_a, prepared_v_b, s_acc_in}),
+    .v_in_valid(red_v_in_valid),
+    .v_in_ready(red_v_in_ready),
+    .operation(pipeline_compute_track[2].red_op),
+    .v_out(s_out),
+    .v_out_valid(s_out_valid),
+    .v_out_ready(s_out_ready)
+);
+
+assign s_out_rd = pipeline_compute_track[VECTOR_REDUCT_CYCLES-1].red_op != STALL_V_REDUCT ? pipeline_compute_track[VECTOR_REDUCT_CYCLES-1].waddr[FP_OPERAND_WIDTH -1:0] : 'b0;
 
 endmodule

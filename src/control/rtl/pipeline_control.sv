@@ -97,7 +97,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;            
-        end else if (rd_operand_ready == 1'b0 & ((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT))) begin
+        end else if (rd_operand_ready == 1'b0 & (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT)) begin
             // Vector Instructions that requires three operands.
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b1;
@@ -215,13 +215,13 @@ import pipeline_pkg::*;
 
                 V: begin
                     assigned_op_bundle.m_op <= STALL_M;
-                    assigned_op_bundle.v_ele_op <= (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
-                                            (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
-                                            (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
-                                            (decode_instr_info.opcode == V_EXP_VV)    ? EXP_V_ELEMENT : STALL_V_ELEMENT;
+                    assigned_op_bundle.v_ele_op <=  (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
+                                                    (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
+                                                    (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
+                                                    (decode_instr_info.opcode == V_EXP_VV)    ? EXP_V_ELEMENT : STALL_V_ELEMENT;
 
-                    assigned_op_bundle.v_reduct_op <=  (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
-                                                (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
+                    assigned_op_bundle.v_reduct_op <=   (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
+                                                        (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                     
                     assigned_op_bundle.s_fixed_op   <= PASS_ADDR;
                     assigned_op_bundle.c_op            <= STALL_C;
@@ -233,6 +233,15 @@ import pipeline_pkg::*;
                         rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                         fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                         fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                        fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                        imm             <= {IMM_WIDTH{1'b0}};
+                    end else if (decode_instr_info.opcode == V_RED_SUM || decode_instr_info.opcode == V_RED_MAX) begin
+                        assigned_op_bundle.s_fp_op     <= LD_OUT_FP;
+                        rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rd              <= {FP_OPERAND_WIDTH{1'b0}};
+                        fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                        fps2            <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                         fpd             <= {FP_OPERAND_WIDTH{1'b0}};
                         imm             <= {IMM_WIDTH{1'b0}};
                     end else begin

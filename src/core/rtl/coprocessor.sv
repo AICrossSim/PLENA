@@ -199,8 +199,6 @@ module coprocessor #(
         .v_v_out_ready          (v_v_out_ready),
         .v_s_in_valid           (v_s_in_valid),
         .v_s_in_ready           (v_s_in_ready),
-        .v_s_out_valid          (v_s_out_valid),
-        .v_s_out_ready          (v_s_out_ready),
         .v_write_request        (v_write_request),
         .v_write_addr           (v_waddr),
         .s_sram_req_a           (s_sram_req_a),
@@ -248,6 +246,7 @@ module coprocessor #(
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
     logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr;
+    logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
 
                 
     generate;
@@ -270,7 +269,7 @@ module coprocessor #(
             .clk(clk),
             .rst(rst),
             .matrix_opcode          (assigned_op_bundle.m_op),
-            .m_load_in_process      (m_load_in_process),
+            .prepare_flag           (m_load_in_process),
             .set_offset_addr        ((assigned_op_bundle.c_op == SET_M_OFFSET)),
             .offset_addr            (fixed_out_2),
             .offset_addr_out        (m_offset_addr),
@@ -329,9 +328,6 @@ module coprocessor #(
             .s_in                   (fp_s_in),
             .s_in_valid             (v_s_in_valid),
             .s_in_ready             (v_s_in_ready),
-            .s_out                  (fp_s_out),
-            .s_out_valid            (v_s_out_valid),
-            .s_out_ready            (v_s_out_ready),
             .result_waddr           (fixed_out_2),
             .result_waddr_update    (v_update_waddr),
             .v_out_element          (v_out_element),
@@ -339,7 +335,11 @@ module coprocessor #(
             .v_out_valid            (v_v_out_valid),
             .v_out_ready            (v_v_out_ready),
             .v_waddr                (v_waddr),
-            .v_wreq                 (v_write_request)
+            .v_wreq                 (v_write_request),
+            .s_out                  (fp_s_out),
+            .s_out_valid            (v_s_out_valid),
+            .s_out_ready            (v_s_out_ready),
+            .s_out_rd               (s_wtarget_from_v)
         );
 
         // Scalar Compute Unit
@@ -358,21 +358,24 @@ module coprocessor #(
         ) scalar_machine (
             .clk(clk),
             .rst(rst),
-            .fp_control         (assigned_op_bundle.s_fp_op),
-            .fixed_control      (assigned_op_bundle.s_fixed_op),
-            .rs1                (s_rs1),
-            .rs2                (s_rs2),
-            .rd                 (s_rd),
-            .fp_rs1             (s_fps1),
-            .fp_rs2             (s_fps2),
-            .fp_rd              (s_fpd),
-            .fixed_in           (fixed_in),
-            .imm_in             (s_imm),
-            .fixed_out_1        (fixed_out_1),
-            .fixed_out_2        (fixed_out_2),
-            .fp_in              (fp_s_out),
-            .fp_out             (fp_s_in),
-            .fp_stall_req       (stall_req_from_fp)
+            .fp_control             (assigned_op_bundle.s_fp_op),
+            .fixed_control          (assigned_op_bundle.s_fixed_op),
+            .rs1                    (s_rs1),
+            .rs2                    (s_rs2),
+            .rd                     (s_rd),
+            .fp_rs1                 (s_fps1),
+            .fp_rs2                 (s_fps2),
+            .fp_rd                  (s_fpd),
+            .fixed_in               (fixed_in),
+            .imm_in                 (s_imm),
+            .fixed_out_1            (fixed_out_1),
+            .fixed_out_2            (fixed_out_2),
+            .external_fp_in         (fp_s_out),
+            .external_fp_in_valid   (v_s_out_valid),
+            .external_fp_in_ready   (v_s_out_ready),
+            .external_fp_wtarget    (s_wtarget_from_v),
+            .fp_out                 (fp_s_in),
+            .fp_stall_req           (stall_req_from_fp)
         );
 
     endgenerate
@@ -457,8 +460,6 @@ module coprocessor #(
     logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_in;
     logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_in;
     logic hbm_write_valid, hbm_write_ready;
-
-    // TODO WMask Impelmentation
 
     hbm_arbiter #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),

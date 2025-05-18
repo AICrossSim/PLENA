@@ -73,8 +73,6 @@ module data_flow_control import precision_pkg::*; #(
 
     output      logic v_s_in_valid,
     input       logic v_s_in_ready,
-    input       logic v_s_out_valid,
-    output      logic v_s_out_ready,
 
     input       logic v_write_request,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] v_write_addr,
@@ -363,7 +361,7 @@ module data_flow_control import precision_pkg::*; #(
             end
 
             //Port B
-            if ((permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT) && !permit_rd_op_bundle.v_broadcast_en) begin
+            if (((permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT) && !permit_rd_op_bundle.v_broadcast_en) || (permit_rd_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
                 // Read Port activated
                 v_v_b_load          <= 1'b1;
                 m_o_load            <= 1'b0;
@@ -423,10 +421,8 @@ module data_flow_control import precision_pkg::*; #(
     always_ff @(posedge clk or negedge rst) begin
         if (rst) begin
             v_s_in_valid <= 1'b0;
-            v_s_out_ready <= 1'b0;
         end else begin
-            v_s_out_ready <= 1'b1;
-            if ((permit_rd_op_bundle.v_broadcast_en == 1'b1) & v_s_in_ready & (permit_rd_op_bundle.v_ele_op != STALL_V_ELEMENT)) begin
+            if ((((assigned_op_bundle.v_broadcast_en == 1'b1)  & (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT)) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
                 v_s_in_valid <= 1'b1;
             end else begin
                 v_s_in_valid <= 1'b0;

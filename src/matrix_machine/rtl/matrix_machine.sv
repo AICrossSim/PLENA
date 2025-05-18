@@ -45,7 +45,7 @@ module matrix_machine #(
 
     // Execution Control
     input   M_OP    matrix_opcode,
-    output logic    m_load_in_process,
+    output logic    prepare_flag,
 
     // Offset Addressing
     input  logic                              set_offset_addr,
@@ -113,7 +113,7 @@ always_ff @(posedge clk or negedge rst) begin
 
         offset_addr_out <= 'b0;
         result_waddr_ready <= 1'b0;
-        m_load_in_process <= 1'b0;
+        prepare_flag <= 1'b0;
         recorded_m_op <= STALL_M;
         recorded_m_waddr <= 'b0;
     end else begin
@@ -129,23 +129,23 @@ always_ff @(posedge clk or negedge rst) begin
             offset_addr_out <= offset_addr;
         end
         // Store Operation
-        if (!m_load_in_process && matrix_opcode != STALL_M) begin
+        if (!prepare_flag && matrix_opcode != STALL_M) begin
             recorded_m_op     <= matrix_opcode;
-            m_load_in_process <= 1'b1;
+            prepare_flag <= 1'b1;
 
-        end else if (m_load_in_process) begin
+        end else if (prepare_flag) begin
             if ((recorded_m_op == MV && collect_m_valid && stored_v_valid) ||
                 (recorded_m_op == MV_O && collect_m_valid && stored_v_valid && stored_o_valid)) begin
 
-                m_load_in_process <= 1'b0;
+                prepare_flag <= 1'b0;
                 pipeline_compute_track[0] <= '{waddr: recorded_m_waddr, mop: recorded_m_op};
 
             end else begin
-                m_load_in_process <= 1'b1;
+                prepare_flag <= 1'b1;
                 pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
             end
         end else begin
-            m_load_in_process <= 1'b0;
+            prepare_flag <= 1'b0;
             pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
         end
 

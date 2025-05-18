@@ -60,7 +60,11 @@ module scalar_machine #(
     output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2,
 
     // FP Value input
-    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_in,
+    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] external_fp_in,
+    input   logic external_fp_in_valid,
+    output  logic external_fp_in_ready,
+    input   logic [FP_OPERAND_WIDTH - 1 : 0] external_fp_wtarget,
+    
     output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out,
 
     // Stall Detection
@@ -129,21 +133,33 @@ module scalar_machine #(
     */
     logic fp_reg_we;
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic write_data_from_external_fp;
 
     always_comb begin
         if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
             fp_reg_we = 1'b1;
             fp_reg_wdata = fp_alu_out;
             fp_wtarget = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
+            write_data_from_external_fp = 1'b0;
         end else if (fp_track[0].fp_op ==  LD_REG_FP) begin
             fp_reg_we = 1'b1;
             fp_reg_wdata = fp_ld_from_sram;
             fp_wtarget = fp_track[0].target_fp;
+            write_data_from_external_fp = 1'b0;
+        end else if (external_fp_in_valid) begin
+            fp_reg_we = 1'b1;
+            fp_reg_wdata = external_fp_in;
+            fp_wtarget = external_fp_wtarget;
+            write_data_from_external_fp = 1'b1;
         end else begin
             fp_reg_we = 1'b0;
             fp_reg_wdata = 'b0;
+            write_data_from_external_fp = 1'b0;
         end
     end
+
+    // Decide external_fp_in_ready. If the external_fp is ready to write (external_fp_in_valid == 1'b1 ) but fp_sram is busy, then the external_fp_in_ready should be 0.
+    assign external_fp_in_ready = (external_fp_in_valid || write_data_from_external_fp);
 
 
     fp_alu #(
