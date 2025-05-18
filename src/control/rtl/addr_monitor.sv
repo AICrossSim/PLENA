@@ -50,7 +50,7 @@ module addr_monitor#(
     logic                                   pipe_full;
     logic                                   stall;
 
-    assign stall_req = stall || stall_in_process;
+    assign stall_req = stall || stall_in_process_p1 || stall_in_process_p2;
 
     always_comb begin
         found_invalid           = 1'b0;
@@ -67,10 +67,10 @@ module addr_monitor#(
 
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
-    logic stall_in_process;
+    logic stall_in_process_p1, stall_in_process_p2;
 
     always_comb begin
-        if (stall_in_process) begin
+        if (stall_in_process_p1) begin
             if ((v_write_addr_track[locked_entry_idx_1].activate & lock_entry_1_valid) || (v_write_addr_track[locked_entry_idx_2].activate & lock_entry_2_valid)) begin
                 stall = 1'b1;
             end else begin
@@ -171,9 +171,11 @@ module addr_monitor#(
                     activate   : 1'b0
                 };
             end
-            stall_in_process <= 1'b0;
+            stall_in_process_p1 <= 1'b0;
+            stall_in_process_p2 <= 1'b0;
         end else begin
-            stall_in_process <= stall;
+            stall_in_process_p1 <= stall;
+            stall_in_process_p2 <= stall_in_process_p1;
             // Try inserting into the first available empty slot
             if (pipe_full == 1'b0 & insert_valid) begin
                 v_write_addr_track[free_track_entry_idx] <= '{
@@ -214,11 +216,13 @@ module addr_monitor#(
 
     // Bundle Decision
     always_comb begin
-        if (stall_in_process & !stall) begin
+        if (stall_in_process_p1 & !stall) begin
             permit_rd_op_bundle = stalled_op_bundle;
-        end else if (!stall_in_process & stall) begin
+        end else if (!stall_in_process_p1 & stall) begin
             permit_rd_op_bundle = invalid_op_bundle;
-        end else if (stall_in_process & stall) begin
+        end else if (stall_in_process_p1 & stall) begin
+            permit_rd_op_bundle = invalid_op_bundle;
+        end else if (stall_in_process_p2 & !stall) begin
             permit_rd_op_bundle = invalid_op_bundle;
         end else begin
             permit_rd_op_bundle = assigned_op_bundle;
@@ -228,9 +232,9 @@ module addr_monitor#(
     always_ff @(posedge clk or negedge rst) begin
         if (rst) begin
             stalled_op_bundle <= invalid_op_bundle;
-        end else if (!stall_in_process & stall) begin
+        end else if (!stall_in_process_p1 & stall) begin
             stalled_op_bundle <= assigned_op_bundle;
-        end else if (stall_in_process & !stall) begin
+        end else if (stall_in_process_p1 & !stall) begin
             stalled_op_bundle <= invalid_op_bundle;
         end else begin
             stalled_op_bundle <= stalled_op_bundle;

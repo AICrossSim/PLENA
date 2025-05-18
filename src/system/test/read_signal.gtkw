@@ -1,21 +1,23 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun May 18 16:39:12 2025
+[*] Sun May 18 17:44:18 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sun May 18 16:20:13 2025"
-[dumpfile_size] 27907517
+[dumpfile_mtime] "Sun May 18 17:43:22 2025"
+[dumpfile_size] 27916636
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 230400
+[timestart] 237700
 [size] 3428 1359
 [pos] 85207 92025
-*-15.887817 580000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.887817 820000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.
 [treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.
 [treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.permit_rd_op_bundle.
+[treeopen] SimTop.dut.pipeline_control_init.
+[treeopen] SimTop.dut.scalar_machine.
 [treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
 [treeopen] SimTop.dut.scalar_machine.fp_reg_file.
 [treeopen] SimTop.dut.vector_machine.
@@ -26,59 +28,42 @@
 [sst_vpaned_height] 1017
 @28
 SimTop.dut.clk
-SimTop.dut.rst
 @22
 SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
 @28
 SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.vector_machine.element_v_in_a_valid
-SimTop.dut.vector_machine.element_v_out_valid
-SimTop.dut.vector_machine.element_v_in_a_valid
 SimTop.dut.vector_machine.v_a_valid
+SimTop.dut.data_flow_init.stall_req
+SimTop.dut.data_flow_init.addr_monitor_inst.permit_rd_op_bundle.v_ele_op[2:0]
+SimTop.dut.vector_machine.v_port_a_valid
+SimTop.dut.vector_machine.v_port_a_ready
 SimTop.dut.vector_machine.v_b_valid
-SimTop.dut.vector_machine.s_in_valid
-SimTop.dut.data_flow_init.addr_monitor_inst.stall_req
-@22
-SimTop.dut.data_flow_init.addr_monitor_inst.fixed_addr_1[31:0]
-SimTop.dut.data_flow_init.addr_monitor_inst.fixed_addr_2[31:0]
-@28
-SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.v_ele_op[2:0]
-@22
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
-@28
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].activate
+SimTop.dut.vector_machine.v_port_b_valid
+SimTop.dut.vector_machine.v_port_b_ready
+SimTop.dut.vector_machine.recorded_element_v_control[2:0]
+SimTop.dut.vector_machine.recorded_reduct_v_control[2:0]
+SimTop.dut.vector_machine.element_v_in_b_ready
+SimTop.dut.vector_machine.compute_result_ready
+SimTop.dut.vector_machine.recorded_broadcast_en
+SimTop.dut.vector_machine.element_v_out_valid
+SimTop.dut.vector_machine.element_unit.v_in_valid
+SimTop.dut.vector_machine.element_v_in_a_valid
+SimTop.dut.vector_machine.element_v_in_b_valid
+SimTop.dut.data_flow_init.addr_monitor_inst.stall_in_process_p2
+SimTop.dut.data_flow_init.addr_monitor_inst.stall_in_process_p1
+SimTop.dut.data_flow_init.addr_monitor_inst.stall
+SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_a
 @22
 SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_addr_a[31:0]
 @28
-SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_a
-SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_b
-SimTop.dut.data_flow_init.v_write_request
-SimTop.dut.vector_machine.recorded_element_v_control[2:0]
-SimTop.dut.vector_machine.result_waddr_ready
+SimTop.dut.vector_machine.v_wreq
 SimTop.dut.vector_machine.element_v_out_valid
-SimTop.dut.vector_machine.pipeline_compute_track[4].ele_op[2:0]
-SimTop.dut.vector_machine.pipeline_compute_track[2].ele_op[2:0]
-SimTop.dut.vector_machine.pipeline_compute_track[0].ele_op[2:0]
-SimTop.dut.vector_machine.compute_result_valid
-@22
-SimTop.dut.vector_machine.stored_result_waddr[31:0]
-SimTop.dut.vector_machine.pipeline_compute_track[0].waddr[31:0]
+SimTop.dut.vector_machine.element_v_in_a_valid
+@29
+SimTop.dut.vector_machine.v_port_a_valid
 @28
+SimTop.dut.vector_machine.v_port_b_valid
 SimTop.dut.vector_machine.recorded_element_v_control[2:0]
 SimTop.dut.vector_machine.recorded_reduct_v_control[2:0]
-@29
-SimTop.dut.vector_machine.prepare_flag
-@28
-SimTop.dut.vector_machine.v_a_valid
-SimTop.dut.vector_machine.v_b_valid
-SimTop.dut.vector_machine.s_acc_in_valid
-SimTop.dut.vector_machine.element_v_in_a_valid
-SimTop.dut.vector_machine.element_v_in_a_ready
-SimTop.dut.vector_machine.element_v_in_b_valid
-SimTop.dut.vector_machine.element_v_in_b_ready
-SimTop.dut.vector_machine.element_unit.v_in_ready
-SimTop.dut.vector_machine.element_unit.v_in_valid
-SimTop.dut.vector_machine.recorded_broadcast_en
-SimTop.dut.vector_machine.broadcast_fp2
 [pattern_trace] 1
 [pattern_trace] 0

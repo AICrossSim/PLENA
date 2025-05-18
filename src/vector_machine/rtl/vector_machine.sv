@@ -106,7 +106,6 @@ V_ELEMENT_OP recorded_element_v_control;
 V_REDUCT_OP  recorded_reduct_v_control;
 logic [FP_OPERAND_WIDTH - 1:0] recorded_s_wtarget;
 logic [ADDR_WIDTH - 1:0] recorded_result_waddr;
-logic prepare_flag;
 
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
@@ -118,43 +117,37 @@ always_ff @(posedge clk or negedge rst) begin
             };
         end
         recorded_broadcast_en <= 1'b0;
-        prepare_flag <= 1'b0;
     end else begin
         // Set result waddr
         result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
         if (result_waddr_ready) begin
             recorded_result_waddr <= result_waddr;
         end
-
-        if(!prepare_flag && (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
-            prepare_flag <= 1'b1;
+        if (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT) begin
             recorded_element_v_control  <= element_v_control;
             recorded_reduct_v_control   <= reduct_v_control;
             recorded_broadcast_en       <= broadcast_fp2;
             recorded_s_wtarget          <= s_wtarget;
-        end else if (prepare_flag) begin
-            if ((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) begin
-                prepare_flag <= 1'b0;
-                pipeline_compute_track[0] <= '{
-                    waddr  : recorded_result_waddr,
-                    ele_op : recorded_element_v_control,
-                    red_op : recorded_reduct_v_control
-                };
-            end else if ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid) begin
-                prepare_flag <= 1'b0;
-                pipeline_compute_track[0] <= '{
-                    waddr  : recorded_result_waddr,
-                    ele_op : recorded_element_v_control,
-                    red_op : recorded_reduct_v_control
-                };
-            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
-                prepare_flag <= 1'b0;
-                pipeline_compute_track[0] <= '{
-                    waddr  : {{(ADDR_WIDTH - FP_OPERAND_WIDTH){1'b0}} , recorded_s_wtarget},
-                    ele_op : recorded_element_v_control,
-                    red_op : recorded_reduct_v_control
-                };    
-            end
+        end
+
+        if ((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) begin
+            pipeline_compute_track[0] <= '{
+                waddr  : recorded_result_waddr,
+                ele_op : recorded_element_v_control,
+                red_op : recorded_reduct_v_control
+            };
+        end else if ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid) begin
+            pipeline_compute_track[0] <= '{
+                waddr  : recorded_result_waddr,
+                ele_op : recorded_element_v_control,
+                red_op : recorded_reduct_v_control
+            };
+        end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
+            pipeline_compute_track[0] <= '{
+                waddr  : {{(ADDR_WIDTH - FP_OPERAND_WIDTH){1'b0}} , recorded_s_wtarget},
+                ele_op : recorded_element_v_control,
+                red_op : recorded_reduct_v_control
+            };    
         end else begin
             pipeline_compute_track[0] <= '{
                 waddr  : 'b0,
@@ -302,12 +295,6 @@ always_comb begin
         v_port_b_ready       = 1'b1;
     end
 end
-
-
-
-
-
-
 
 //----------------------------//
 // Elementwise Compute Unit
