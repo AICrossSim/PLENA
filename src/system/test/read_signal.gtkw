@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun May 18 11:49:12 2025
+[*] Sun May 18 16:39:12 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sun May 18 08:36:09 2025"
-[dumpfile_size] 27479098
+[dumpfile_mtime] "Sun May 18 16:20:13 2025"
+[dumpfile_size] 27907517
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 235300
+[timestart] 230400
 [size] 3428 1359
 [pos] 85207 92025
-*-15.887817 740000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.887817 580000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
@@ -36,7 +36,49 @@ SimTop.dut.vector_machine.element_v_out_valid
 SimTop.dut.vector_machine.element_v_in_a_valid
 SimTop.dut.vector_machine.v_a_valid
 SimTop.dut.vector_machine.v_b_valid
-@29
 SimTop.dut.vector_machine.s_in_valid
+SimTop.dut.data_flow_init.addr_monitor_inst.stall_req
+@22
+SimTop.dut.data_flow_init.addr_monitor_inst.fixed_addr_1[31:0]
+SimTop.dut.data_flow_init.addr_monitor_inst.fixed_addr_2[31:0]
+@28
+SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.v_ele_op[2:0]
+@22
+SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
+@28
+SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].activate
+@22
+SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_addr_a[31:0]
+@28
+SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_a
+SimTop.dut.data_flow_init.addr_monitor_inst.s_sram_wen_b
+SimTop.dut.data_flow_init.v_write_request
+SimTop.dut.vector_machine.recorded_element_v_control[2:0]
+SimTop.dut.vector_machine.result_waddr_ready
+SimTop.dut.vector_machine.element_v_out_valid
+SimTop.dut.vector_machine.pipeline_compute_track[4].ele_op[2:0]
+SimTop.dut.vector_machine.pipeline_compute_track[2].ele_op[2:0]
+SimTop.dut.vector_machine.pipeline_compute_track[0].ele_op[2:0]
+SimTop.dut.vector_machine.compute_result_valid
+@22
+SimTop.dut.vector_machine.stored_result_waddr[31:0]
+SimTop.dut.vector_machine.pipeline_compute_track[0].waddr[31:0]
+@28
+SimTop.dut.vector_machine.recorded_element_v_control[2:0]
+SimTop.dut.vector_machine.recorded_reduct_v_control[2:0]
+@29
+SimTop.dut.vector_machine.prepare_flag
+@28
+SimTop.dut.vector_machine.v_a_valid
+SimTop.dut.vector_machine.v_b_valid
+SimTop.dut.vector_machine.s_acc_in_valid
+SimTop.dut.vector_machine.element_v_in_a_valid
+SimTop.dut.vector_machine.element_v_in_a_ready
+SimTop.dut.vector_machine.element_v_in_b_valid
+SimTop.dut.vector_machine.element_v_in_b_ready
+SimTop.dut.vector_machine.element_unit.v_in_ready
+SimTop.dut.vector_machine.element_unit.v_in_valid
+SimTop.dut.vector_machine.recorded_broadcast_en
+SimTop.dut.vector_machine.broadcast_fp2
 [pattern_trace] 1
 [pattern_trace] 0

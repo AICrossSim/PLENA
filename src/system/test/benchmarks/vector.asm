@@ -28,7 +28,7 @@ V_ADD_VV x1, x1, x4;
 S_LD_FP fp1, x0, 4;
 0100 000 001 010101
 
-V_MUL_VF x1, x4, fp1;
+V_MUL_VF x1, x1, fp1;
 0 001 001 001 001010 
 
 V_RED_SUM fp1, x4, x2;

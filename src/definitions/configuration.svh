@@ -28,7 +28,7 @@ package pipeline_pkg;
     parameter   MATRIX_W_OFFSET_CYCLES         = 8;
 
     parameter   VECTOR_MAX_CYCLES              = 6;
-    parameter   VECTOR_BASIC_CYCLES            = 3;
+    parameter   VECTOR_BASIC_CYCLES            = 1;
     parameter   VECTOR_EXP_CYCLES              = 6;
     parameter   VECTOR_REDUCT_CYCLES           = 6;
 

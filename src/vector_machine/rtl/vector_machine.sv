@@ -105,6 +105,7 @@ logic recorded_broadcast_en;
 V_ELEMENT_OP recorded_element_v_control;
 V_REDUCT_OP  recorded_reduct_v_control;
 logic [FP_OPERAND_WIDTH - 1:0] recorded_s_wtarget;
+logic [ADDR_WIDTH - 1:0] recorded_result_waddr;
 logic prepare_flag;
 
 always_ff @(posedge clk or negedge rst) begin
@@ -121,6 +122,9 @@ always_ff @(posedge clk or negedge rst) begin
     end else begin
         // Set result waddr
         result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
+        if (result_waddr_ready) begin
+            recorded_result_waddr <= result_waddr;
+        end
 
         if(!prepare_flag && (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
             prepare_flag <= 1'b1;
@@ -128,15 +132,22 @@ always_ff @(posedge clk or negedge rst) begin
             recorded_reduct_v_control   <= reduct_v_control;
             recorded_broadcast_en       <= broadcast_fp2;
             recorded_s_wtarget          <= s_wtarget;
-        end else if (prepare_flag && result_waddr_ready) begin
-            if ((recorded_element_v_control != STALL_V_ELEMENT) & element_v_in_a_valid & element_v_in_b_valid) begin
+        end else if (prepare_flag) begin
+            if ((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) begin
                 prepare_flag <= 1'b0;
                 pipeline_compute_track[0] <= '{
-                    waddr  : result_waddr,
+                    waddr  : recorded_result_waddr,
                     ele_op : recorded_element_v_control,
                     red_op : recorded_reduct_v_control
                 };
-            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & element_v_in_a_valid & element_v_in_b_valid & s_acc_in_valid) begin
+            end else if ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid) begin
+                prepare_flag <= 1'b0;
+                pipeline_compute_track[0] <= '{
+                    waddr  : recorded_result_waddr,
+                    ele_op : recorded_element_v_control,
+                    red_op : recorded_reduct_v_control
+                };
+            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
                 prepare_flag <= 1'b0;
                 pipeline_compute_track[0] <= '{
                     waddr  : {{(ADDR_WIDTH - FP_OPERAND_WIDTH){1'b0}} , recorded_s_wtarget},
@@ -222,8 +233,8 @@ skid_buffer #(
 
     // Output
     .data_out       (prepared_v_a),
-    .data_out_valid (element_v_in_a_valid),
-    .data_out_ready (element_v_in_a_ready)
+    .data_out_valid (v_port_a_valid),
+    .data_out_ready (v_port_a_ready)
 );
 
 // Vector Port B Storage
@@ -240,8 +251,8 @@ skid_buffer #(
 
     // Output
     .data_out       (prepared_v_b),
-    .data_out_valid (element_v_in_b_valid),
-    .data_out_ready (element_v_in_b_ready)
+    .data_out_valid (v_port_b_valid),
+    .data_out_ready (v_port_b_ready)
 );
 
 // Scalar Port Storage (Solely used for Reduction Operation)
@@ -262,6 +273,42 @@ skid_buffer #(
     .data_out_ready (s_acc_in_ready)
 );
  
+// Loaded Vector Control Flow
+logic v_port_a_valid, v_port_a_ready;
+logic v_port_b_valid, v_port_b_ready;
+
+// Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
+always_comb begin
+    if (recorded_element_v_control != STALL_V_ELEMENT) begin
+        element_v_in_a_valid = v_port_a_valid;
+        element_v_in_b_valid = v_port_b_valid;
+        red_v_in_a_valid     = 1'b0;
+        red_v_in_b_valid     = 1'b0;
+        v_port_a_ready       = element_v_in_a_ready;
+        v_port_b_ready       = element_v_in_b_ready;
+    end else if (recorded_reduct_v_control != STALL_V_REDUCT) begin
+        element_v_in_a_valid = 1'b0;
+        element_v_in_b_valid = 1'b0;
+        red_v_in_a_valid     = v_port_a_valid;
+        red_v_in_b_valid     = v_port_b_valid;        
+        v_port_a_ready       = red_v_in_a_ready;
+        v_port_b_ready       = red_v_in_b_ready;
+    end else begin
+        element_v_in_a_valid = 1'b0;
+        element_v_in_b_valid = 1'b0;
+        red_v_in_a_valid     = 1'b0;
+        red_v_in_b_valid     = 1'b0;
+        v_port_a_ready       = 1'b1;
+        v_port_b_ready       = 1'b1;
+    end
+end
+
+
+
+
+
+
+
 //----------------------------//
 // Elementwise Compute Unit
 //----------------------------//
@@ -286,7 +333,7 @@ fp_elementwise_compute_unit #(
     .v_in_b_valid(element_v_in_b_valid),
     .v_in_b_ready(element_v_in_b_ready),
 
-    .operation(pipeline_compute_track[2].ele_op),
+    .operation(recorded_element_v_control),
     .v_out(element_v_out),
     .v_out_valid(element_v_out_valid),
     .v_out_ready(element_v_out_ready)
@@ -391,19 +438,20 @@ assign v_out_scale      = mx_fp_scale;
 // Reduction Compute Unit
 //----------------------------//
 
+logic red_v_in_a_valid, red_v_in_a_ready;
+logic red_v_in_b_valid, red_v_in_b_ready;
 logic red_v_in_valid, red_v_in_ready;
 logic red_v_out_valid, red_v_out_ready;
 logic s_acc_in_valid, s_acc_in_ready;
 logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] s_acc_in;
 logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
 
-assign s_acc_in_ready = red_v_in_ready;
 
 join_n #(
     .NUM_HANDSHAKES (3)
 ) join_reduction (
-    .data_in_valid({element_v_in_a_valid, element_v_in_b_valid, s_acc_in_valid}),
-    .data_in_ready(),
+    .data_in_valid({red_v_in_a_valid, red_v_in_b_valid, s_acc_in_valid}),
+    .data_in_ready({red_v_in_a_ready, red_v_in_b_ready, s_acc_in_ready}),
     .data_out_valid(red_v_in_valid),
     .data_out_ready(red_v_in_ready)
 );
@@ -418,7 +466,7 @@ fp_reduction_compute_unit #(
     .v_in({prepared_v_a, prepared_v_b, s_acc_in}),
     .v_in_valid(red_v_in_valid),
     .v_in_ready(red_v_in_ready),
-    .operation(pipeline_compute_track[2].red_op),
+    .operation(recorded_reduct_v_control),
     .v_out(s_out),
     .v_out_valid(s_out_valid),
     .v_out_ready(s_out_ready)
