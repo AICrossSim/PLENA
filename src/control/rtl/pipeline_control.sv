@@ -26,9 +26,10 @@ module pipeline_control #(
 
     // Execution Monitor
     input       MEM_WREQ_INFO   mem_write_req,
-    input       logic           hbm_in_used,   // Activated when we need to prefetch data from HBM through TL.
+    input       logic           hbm_in_used,            // Activated when we need to prefetch data from HBM through TL.
     input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
     input       logic           fp_stall_req,
+    input       logic           fixed_stall_req,
     input       logic           mem_vwrite_stall_req,
     input       logic           m_load_in_process,
 
@@ -118,6 +119,11 @@ import pipeline_pkg::*;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;            
         end else if (fp_stall_req & (decode_instr_info.instruction_type == S_FP)) begin
+            // Release until the prefetching is done.
+            m_update_waddr   = 1'b0;
+            v_update_waddr   = 1'b0;
+            pipeline_stall   = 1'b1;            
+        end else if (fixed_stall_req & (decode_instr_info.instruction_type == S_FIX)) begin
             // Release until the prefetching is done.
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;

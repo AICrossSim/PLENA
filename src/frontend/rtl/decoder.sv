@@ -67,7 +67,10 @@ logic [IMM_WIDTH - 1 : 0]       loaded_imm;
 
 
 
-assign loaded_imm       = (loaded_opcode == S_ADDI_FIX) ? {{(IMM_WIDTH - IMM_2_WIDTH){1'b0}} , loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_2_WIDTH]} : loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_WIDTH];
+assign loaded_imm       = ((loaded_opcode == S_ADDI_FIX) || (loaded_opcode == S_LD_FP)  || (loaded_opcode == S_ST_FP)
+                                                         || (loaded_opcode == S_LD_FIX) || (loaded_opcode == S_ST_FIX) ) ? 
+                                                         {{(IMM_WIDTH - IMM_2_WIDTH){1'b0}} , loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_2_WIDTH]} :
+                                                         loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_WIDTH];
 assign loaded_rs2       = loaded_instr[INSTRUCTION_LENGTH - 2 -: OPERAND_WIDTH];
 assign loaded_rs1       = loaded_instr[(INSTRUCTION_LENGTH - OPERAND_WIDTH - 2) -: OPERAND_WIDTH];
 assign loaded_rd        = loaded_instr[(INSTRUCTION_LENGTH - 2 * OPERAND_WIDTH - 2) -: OPERAND_WIDTH];

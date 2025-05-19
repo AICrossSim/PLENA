@@ -35,7 +35,7 @@ module fixed_alu #(
                 result = operand_a / operand_b; // Division
             LUI_FIX:
                 result = { {(BITWIDTH - IMM_WIDTH - IMM_SHIFT_AMOUNT){1'b0}}, imm_value, {IMM_SHIFT_AMOUNT{1'b0}}};     // Load upper immediate
-            COMP_ADDR:
+            COMP_ADDR, LD_FIX, ST_FIX:
                 result = operand_a + imm_value; // Compute address with imm
             
             MV_FIX:

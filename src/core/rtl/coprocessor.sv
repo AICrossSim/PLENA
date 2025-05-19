@@ -72,8 +72,7 @@ module coprocessor #(
     
     // Status Tracking
     logic       hbm_in_used;
-    logic stall_req_from_mem;
-    logic stall_req_from_fp;
+    logic stall_req_from_mem, stall_req_from_fp, fixed_stall_req;
     // Frontend
     decoder #(
         .INSTRUCTION_LENGTH         (INSTRUCTION_LENGTH),
@@ -111,6 +110,7 @@ module coprocessor #(
         .hbm_in_used            (hbm_in_used),
         .continuous_m_prefetch  (continuous_prefetch_m_en),
         .fp_stall_req           (stall_req_from_fp),
+        .fixed_stall_req        (fixed_stall_req),
         .mem_vwrite_stall_req   (stall_req_from_mem),
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
@@ -376,7 +376,8 @@ module coprocessor #(
             .external_fp_in_ready   (v_s_out_ready),
             .external_fp_wtarget    (s_wtarget_from_v),
             .fp_out                 (fp_s_in),
-            .fp_stall_req           (stall_req_from_fp)
+            .fp_stall_req           (stall_req_from_fp),
+            .fixed_stall_req        (fixed_stall_req)
         );
 
     endgenerate

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon May 19 09:58:32 2025
+[*] Mon May 19 14:05:38 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Mon May 19 09:57:59 2025"
-[dumpfile_size] 27913933
+[dumpfile_mtime] "Mon May 19 14:04:17 2025"
+[dumpfile_size] 27824876
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 517900
+[timestart] 0
 [size] 3428 1359
 [pos] 85207 92025
-*-15.887817 900000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.887817 220000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.
@@ -18,8 +18,7 @@
 [treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.scalar_machine.
 [treeopen] SimTop.dut.scalar_machine.fixed_reg_file.
-[treeopen] SimTop.dut.scalar_machine.fp_reg_file.
-[treeopen] SimTop.dut.vector_machine.
+[treeopen] SimTop.dut.scalar_machine.fixed_scalar_sram.
 [treeopen] SimTop.dut.vector_machine.genblk3[0].fp_mxfp_conversion_unit.
 [treeopen] SimTop.dut.vector_machine.reduction_unit.
 [treeopen] SimTop.dut.vector_machine.reduction_unit.level[3].
@@ -30,53 +29,32 @@
 @28
 SimTop.dut.clk
 @22
-SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
+SimTop.dut.scalar_machine.fixed_control[3:0]
+SimTop.dut.scalar_machine.fixed_alu_out[31:0]
+SimTop.dut.scalar_machine.imm_in[6:0]
+SimTop.dut.scalar_machine.fixed_ld_from_sram[31:0]
+SimTop.dut.scalar_machine.fp_scalar_sram.sram_data_out[7:0]
+SimTop.dut.scalar_machine.fp_scalar_sram.sram_addr[4:0]
 @28
+SimTop.dut.scalar_machine.fixed_scalar_sram.req
+@22
+SimTop.dut.scalar_machine.fixed_scalar_sram.sram_addr[4:0]
+SimTop.dut.scalar_machine.fixed_scalar_sram.sram_data_out[31:0]
+@28
+SimTop.dut.scalar_machine.fixed_reg_waddr[2:0]
+@22
+SimTop.dut.scalar_machine.fixed_reg_wdata[31:0]
+@28
+SimTop.dut.scalar_machine.fixed_reg_wen
+SimTop.dut.scalar_machine.fixed_write_from_sram_req
+SimTop.dut.scalar_machine.fixed_stall_status
+SimTop.dut.scalar_machine.fixed_stall_req
 SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.vector_machine.v_a_valid
-SimTop.dut.data_flow_init.stall_req
-SimTop.dut.data_flow_init.addr_monitor_inst.permit_rd_op_bundle.v_ele_op[2:0]
-SimTop.dut.vector_machine.v_port_a_valid
-SimTop.dut.vector_machine.v_port_a_ready
-SimTop.dut.vector_machine.v_b_valid
-SimTop.dut.vector_machine.v_port_b_valid
-SimTop.dut.vector_machine.v_wreq
-SimTop.dut.vector_machine.recorded_reduct_v_control[2:0]
 @22
-SimTop.dut.vector_machine.s_acc_in[7:0]
-@28
-SimTop.dut.vector_machine.s_acc_in_valid
-@22
-SimTop.dut.vector_machine.s_in[6:0]
-@28
-SimTop.dut.pipeline_control_init.assigned_op_bundle.v_reduct_op[2:0]
-SimTop.dut.pipeline_control_init.assigned_op_bundle.v_ele_op[2:0]
-@22
-SimTop.dut.pipeline_control_init.assigned_op_bundle.s_fp_op[3:0]
-@28
-SimTop.dut.scalar_machine.fp_wtarget[2:0]
-SimTop.dut.scalar_machine.fp_stall_req
-SimTop.dut.scalar_machine.fp_rd[2:0]
-SimTop.dut.scalar_machine.fp_rs2[2:0]
-@22
-SimTop.dut.scalar_machine.fp_out[7:0]
-SimTop.dut.vector_machine.reduction_unit.v_in[0][7:0]
-SimTop.dut.vector_machine.reduction_unit.v_in[1][7:0]
-SimTop.dut.vector_machine.reduction_unit.v_in[2][7:0]
-SimTop.dut.vector_machine.reduction_unit.v_in[2][7:0]
-@28
-SimTop.dut.vector_machine.reduction_unit.v_in_valid
-@22
-SimTop.dut.vector_machine.reduction_unit.v_out[7:0]
-SimTop.dut.vector_machine.reduction_unit.data_storage[4][71:0]
-@28
-SimTop.dut.vector_machine.reduction_unit.v_out_valid
-@22
-SimTop.dut.vector_machine.s_out[6:0]
-@28
-SimTop.dut.vector_machine.s_out_ready
-SimTop.dut.vector_machine.s_out_valid
+SimTop.dut.scalar_machine.fixed_reg_file.mem[0][31:0]
+SimTop.dut.scalar_machine.fixed_reg_file.mem[1][31:0]
+SimTop.dut.scalar_machine.fixed_reg_file.mem[2][31:0]
 @23
-SimTop.dut.scalar_machine.fp_reg_file.mem[1][7:0]
+SimTop.dut.scalar_machine.fixed_reg_file.mem[3][31:0]
 [pattern_trace] 1
 [pattern_trace] 0
