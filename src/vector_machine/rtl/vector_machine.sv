@@ -82,10 +82,10 @@ module vector_machine #(
     output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
     output  logic                                                                   v_wreq,
 
-    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0] s_out,
-    output  logic                   s_out_valid,
-    input   logic                   s_out_ready,
-    output  logic                   s_out_rd
+    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH - 1 : 0]                            s_out,
+    output  logic                                                                   s_out_valid,
+    input   logic                                                                   s_out_ready,
+    output  logic  [FP_OPERAND_WIDTH - 1 : 0]                                       s_out_rd
     
 );
 
@@ -446,7 +446,7 @@ join_n #(
 fp_reduction_compute_unit #(
     .EXP_WIDTH(FP_EXP_WIDTH),
     .MANT_WIDTH(FP_MANT_WIDTH),
-    .VLEN(VLEN + 1)
+    .VLEN(VLEN)
 ) reduction_unit (
     .clk(clk),
     .rst(rst),

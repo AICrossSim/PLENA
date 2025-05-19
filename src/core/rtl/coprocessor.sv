@@ -328,6 +328,7 @@ module coprocessor #(
             .s_in                   (fp_s_in),
             .s_in_valid             (v_s_in_valid),
             .s_in_ready             (v_s_in_ready),
+            .s_wtarget              (s_fps2),
             .result_waddr           (fixed_out_2),
             .result_waddr_update    (v_update_waddr),
             .v_out_element          (v_out_element),

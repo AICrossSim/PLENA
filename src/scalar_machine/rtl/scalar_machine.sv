@@ -70,14 +70,17 @@ module scalar_machine #(
     // Stall Detection
     output  logic fp_stall_req
 );
+
     import pipeline_pkg::*;
-    // FP UNit
-    // Keep Operation in Pipe
-    typedef struct {
-        logic [FP_OPERAND_WIDTH-1:0]        target_fp;
-        S_FP_OP                             fp_op;
-    } TRACK_FP;
-    TRACK_FP fp_track [SCALAR_FP_MAX_CYCLES - 1 : 0];
+
+    //----------------------------//
+    // FP Unit
+    //----------------------------//
+
+    struct {
+        logic [FP_OPERAND_WIDTH-1:0] target_fp;
+        S_FP_OP                      fp_op;
+    } fp_track [SCALAR_FP_MAX_CYCLES];
 
     // ------------------- Tracing Register for Stall Detection -------------------
     logic tracing_fpreg_in_process [2 << FP_OPERAND_WIDTH - 1 : 0];
@@ -112,13 +115,14 @@ module scalar_machine #(
                 tracing_fpreg_in_process[fp_wtarget] <= 1'b0;
             end
 
-            if (fp_stall_req == 1'b0 & (fp_wtarget != fp_rd)) begin
+            if (fp_stall_req == 1'b0) begin
                 // Check if the fp rd is already in process
                 fp_track[0] <= '{
                     target_fp  :fp_rd,
                     fp_op      :fp_control
                 };
-                tracing_fpreg_in_process[fp_rd] <= 1'b1;
+                if (fp_rd != fp_wtarget)
+                    tracing_fpreg_in_process[fp_rd] <= 1'b1;
             end
 
             for (int i = 0; i < SCALAR_FP_MAX_CYCLES - 1; i++) begin
@@ -137,23 +141,24 @@ module scalar_machine #(
 
     always_comb begin
         if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
-            fp_reg_we = 1'b1;
-            fp_reg_wdata = fp_alu_out;
-            fp_wtarget = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
+            fp_reg_we       = 1'b1;
+            fp_reg_wdata    = fp_alu_out;
+            fp_wtarget      = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
             write_data_from_external_fp = 1'b0;
         end else if (fp_track[0].fp_op ==  LD_REG_FP) begin
-            fp_reg_we = 1'b1;
-            fp_reg_wdata = fp_ld_from_sram;
-            fp_wtarget = fp_track[0].target_fp;
+            fp_reg_we       = 1'b1;
+            fp_reg_wdata    = fp_ld_from_sram;
+            fp_wtarget      = fp_track[0].target_fp;
             write_data_from_external_fp = 1'b0;
         end else if (external_fp_in_valid) begin
-            fp_reg_we = 1'b1;
-            fp_reg_wdata = external_fp_in;
-            fp_wtarget = external_fp_wtarget;
+            fp_reg_we       = 1'b1;
+            fp_reg_wdata    = external_fp_in;
+            fp_wtarget      = external_fp_wtarget;
             write_data_from_external_fp = 1'b1;
         end else begin
-            fp_reg_we = 1'b0;
-            fp_reg_wdata = 'b0;
+            fp_reg_we       = 1'b0;
+            fp_reg_wdata    = 'b0;
+            fp_wtarget      = 'b0;
             write_data_from_external_fp = 1'b0;
         end
     end

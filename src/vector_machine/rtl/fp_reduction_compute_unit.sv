@@ -3,12 +3,12 @@
 
 /*
 Module      : Vector Reduction Computation Module
-Timing      : Sequential, Takes x cycles to compute the dot product
+Timing      : Sequential, Takes log2(VLEN) + 1 cycles
 Description : This module includes vector reduction computations
             : 1. SUM, 2. MAX
             : As we are targeting for high dim vector reduction, which need to be decomposed into a series of instructions, we maximally utilize the instruction and read port width of the sram by considering sources together.
 
-Status      : Under Development
+Status      : Passed Simple Tests
 */
 
 
@@ -19,7 +19,7 @@ module fp_reduction_compute_unit #(
 
     // Dimensions
     parameter VLEN      = 8,
-    localparam VEC_DIM   = VLEN * 2,
+    localparam VEC_DIM   = VLEN * 2 + 1, // 2 FP vector read + 1 FP from scalar machine for loop
     localparam LEVELS = $clog2(VEC_DIM),
 
     // Precision Control, for the vector core, currently focus solely on fixed data type width, left for future work.
@@ -36,28 +36,23 @@ module fp_reduction_compute_unit #(
     localparam OUT_WIDTH      = OUT_MAN_WIDTH + OUT_EXP_WIDTH + 1
 
 ) (
-    input logic clk,
-    input logic rst,
+    input   logic clk,
+    input   logic rst,
 
     // Input vector
 
-    input logic [VEC_DIM - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_in,
-    input logic v_in_valid,
-    output logic v_in_ready,
+    input   logic [VEC_DIM - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_in,
+    input   logic v_in_valid,
+    output  logic v_in_ready,
 
     // Control
-    input V_REDUCT_OP operation,
+    input   V_REDUCT_OP operation,
 
     // Output Vector
-    output logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_out,
-    output logic v_out_valid,
-    input logic v_out_ready
+    output  logic [MANT_WIDTH + EXP_WIDTH : 0] v_out,
+    output  logic v_out_valid,
+    input   logic v_out_ready
 );
-
-
-//   initial begin
-//     assert (VEC_DIM > 0);
-//   end
 
   generate
       logic [OUT_WIDTH*VEC_DIM-1:0] data_storage [LEVELS:0];  // TODO: Need to be optimized, memory inefficient
@@ -94,7 +89,7 @@ module fp_reduction_compute_unit #(
             .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),
-            .rst           (rst),                        // Inverted reset
+            .rst           (rst),                        
             .data_in       (sum[i]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),
@@ -105,7 +100,6 @@ module fp_reduction_compute_unit #(
       end
 
       assign data_storage[0]= v_in;
-
       assign valid[0] = v_in_valid;
       assign v_in_ready = ready[0];
 
@@ -114,7 +108,4 @@ module fp_reduction_compute_unit #(
       assign ready[LEVELS] = v_out_ready;
 
   endgenerate
-
-
-
 endmodule

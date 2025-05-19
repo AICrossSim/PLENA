@@ -30,7 +30,7 @@ package pipeline_pkg;
     parameter   VECTOR_MAX_CYCLES              = 6;
     parameter   VECTOR_BASIC_CYCLES            = 1;
     parameter   VECTOR_EXP_CYCLES              = 6;
-    parameter   VECTOR_REDUCT_CYCLES           = 6;
+    parameter   VECTOR_REDUCT_CYCLES           = 4;
 
     parameter   SCALAR_FP_MAX_CYCLES           = 4;
     parameter   SCALAR_FP_SQRT_CYCLES          = 2;
