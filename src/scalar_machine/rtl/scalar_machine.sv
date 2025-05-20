@@ -2,6 +2,8 @@
 `include "operation.svh"
 `include "configuration.svh"
 `include "Global_Define.vh"
+`include "precision.svh"
+
 /*
 Module      : Scalar Machine Module
 Timing      : Sequential, all the operations completed in 1 cycle
@@ -11,29 +13,10 @@ Description : This module contains two modules:
 Status      : Under Testing
 */
 
-module scalar_machine #(
-
-    // MX-FP Data Format
-    parameter   MXFP_MANT_WIDTH   = 8,
-    parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MXFP_SCALE_WIDTH = 8,
-
-    // FP Data Format
-    parameter   FP_EXP_WIDTH = 5,
-    parameter   FP_MANT_WIDTH = 10,
-
-    // Fixed Data Format
-    parameter   FIXED_DATA_WIDTH = 32,
-
-    // Memory Storage
-    parameter  FP_SRAM_DEPTH = 32,
-    parameter  FIXED_SRAM_DEPTH = 32,
-
+module scalar_machine import precision_pkg::*;  #(
     // Simulation Purpose
     parameter string FP_MEM_INIT_FILE = "",
     parameter string FIXED_MEM_INIT_FILE = ""
-
-
 ) (
     input   logic clk,
     input   logic rst,
@@ -73,6 +56,7 @@ module scalar_machine #(
 );
 
     import pipeline_pkg::*;
+    import configuration_pkg::*;
 
     //----------------------------//
     // FP Unit

@@ -1,44 +1,19 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
 `include "configuration.svh"
+`include "precision.svh"
 
 /*
 Module      : Matrix Machine Module
 Timing      : Sequential, Takes x cycles to compute the dot product
 Description : This module conducts the operation m(MLEN, MLEN) @ v(MLEN, 1) + o (MLEN, 1)
-Status      : Under Testing
+Status      : Passed Simple Tests
 */
 
 
-module matrix_machine #(
-    // MX-FP Data Format
-    parameter   MXFP_MANT_WIDTH   = 8,
-    parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MXFP_SCALE_WIDTH = 8,
-
-    // Dimensions
-    parameter   MLEN              = 8,
-    parameter   BLOCK_DIM         = 4,
-    localparam  BLOCK_NUM         = MLEN / BLOCK_DIM,
-
-    // Precision Control
-    parameter   PRODUCT_EXT_EXP_WIDTH   = 1,
-    parameter   PRODUCT_EXT_MANT_WIDTH  = 0,
-    parameter   BLOCK_ADD_EXT_EXP_WIDTH       = 1,  // Note: this param control precision for both blockwise addition within adder tree and the blockwise adder
-    parameter   BLOCK_ADD_EXT_MANT_WIDTH      = 0,
-    parameter   FP_ADD_EXT_EXP_WIDTH       = 1,
-    parameter   FP_ADD_EXT_MANT_WIDTH      = 0,
-
-    // Intermediate FP Control
-    parameter   ROUND_FP_EN            = 0,
-    parameter   ROUND_FP_EXP_WIDTH     = 4,
-    parameter   ROUND_FP_MANT_WIDTH    = 3, 
-
-    // Memory Dimensions
-    parameter   Matrix_Parallel_Rd_Dim = 2,
-
-    // Offset Management
-    parameter   ADDR_WIDTH = 32
+module matrix_machine import precision_pkg::*; import configuration_pkg::*; #(
+    localparam  BLOCK_NUM       = MLEN / BLOCK_DIM,
+    localparam  ADDR_WIDTH      = ON_CHIP_ADDR_WIDTH
 ) (
     input   logic   clk,
     input   logic   rst,

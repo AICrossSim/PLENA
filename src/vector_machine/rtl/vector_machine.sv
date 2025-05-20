@@ -1,47 +1,19 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
 `include "configuration.svh"
+`include "precision.svh"
 
 /*
 Module      : Vector Machine Module
 Timing      : Sequential, Takes 4 cycles to compute every vector operation
 Description : This module is the first version of the vector machine based on FP data type.
-Status      : Under Testing
+Status      : Passed Simple Tests
 */
 
 
-module vector_machine #(
-    // MX-FP Data Format
-    parameter   MXFP_MANT_WIDTH   = 8,
-    parameter   MXFP_EXP_WIDTH    = 4,
-    parameter   MXFP_SCALE_WIDTH = 8,
-
-    // FP Data Format
-    parameter   FP_EXP_WIDTH = 5,
-    parameter   FP_MANT_WIDTH = 10,
-
-    // Dimensions
-    parameter   VLEN              = 8,
-    parameter   BLOCK_DIM         = 4,
-    localparam  BLOCK_NUM         = VLEN / BLOCK_DIM,
-
-    // Precision Control
-    parameter   VE_EXT_EXP_WIDTH   = 0,     // Extensions for vector elementwise compute unit. 
-    parameter   VE_EXT_MANT_WIDTH  = 0,
-    parameter   VR_EXT_EXP_WIDTH   = 0,     // Extensions for vector reduction compute unit.
-    parameter   VR_EXT_MANT_WIDTH  = 0,
-
-    // Addr
-    parameter   ADDR_WIDTH  = 32,    // Vector write address
-
-    // Pipeline Control
-    parameter   VECTOR_PIPLINE_DEPTH = 2,   // Pipeline depth for the vector machine
-
-    // Intermediate FP Control
-    parameter   ROUND_FP_EN            = 0,
-    parameter   ROUND_FP_EXP_WIDTH     = 4,
-    parameter   ROUND_FP_MANT_WIDTH    = 3
-    
+module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
+    localparam  BLOCK_NUM       = VLEN / BLOCK_DIM,
+    localparam   ADDR_WIDTH     = ON_CHIP_ADDR_WIDTH    // Vector write address
 ) (
     input   logic clk,
     input   logic rst,
