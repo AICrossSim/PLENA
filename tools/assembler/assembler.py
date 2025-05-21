@@ -48,13 +48,13 @@ class Assembler:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_MV_FIX"]:
+        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["C_SET_M_OFFSET"]:
+        elif instruction.opcode in ["C_SET_M_OFFSET", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
             binary_instruction = (
                 (rd << opw) +
                 opcode
@@ -68,7 +68,6 @@ class Assembler:
             )
 
         # Print in hex with fixed 16-bit width
-        print(f"{binary_instruction:04X}")
         return binary_instruction
     
     def write_binary_to_file(self, binary_instructions, output_file: str):

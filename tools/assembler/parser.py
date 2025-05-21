@@ -119,9 +119,6 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 rd = None
             if len(operands) > 1:
                 operand_1 = operands[1]
-                print(operands)
-                print(operand_1)
-                print("hihi")
                 if operand_1[-1] == ';':
                     operand_1 = operand_1[:-1]
                 if operand_1.startswith('x'):

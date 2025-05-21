@@ -278,7 +278,7 @@ import pipeline_pkg::*;
                     if (decode_instr_info.opcode == S_ADDI_FIX ) begin
                         // S_ADDI_FIX
                         rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                        rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                        rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
                         rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                         fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                         fps2            <= {FP_OPERAND_WIDTH{1'b0}};

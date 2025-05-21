@@ -14,7 +14,10 @@ S_MUL_FIX x3, x3, x3;
 H_PREFETCH_V x1, x1, x0;
 V_MUL_VV x3, x1, x1;
 S_MV_FIX x2, x3;
+
+; Bug here
 S_ADDI_FIX x1, x1, 4;
+; 1000 001 001 011001
 
 S_ADDI_FIX x3, x3, 4;
 H_PREFETCH_V x1, x1, x0;

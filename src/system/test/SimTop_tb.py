@@ -33,12 +33,12 @@ logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
-testcase_name = "fixed"
-instr_file = f"{current_path}/benchmarks/{testcase_name}.mem"
-hbm_element_file = f"{current_path}/workload/hbm_ele.mem"
-hbm_scale_file = f"{current_path}/workload/hbm_scale.mem"
-fp_mem_file = f"{current_path}/workload/fp.mem"
-fixed_mem_file = f"{current_path}/workload/fixed.mem"
+testcase_name       = "rms"
+instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
+hbm_element_file    = f"{current_path}/workload/hbm_ele.mem"
+hbm_scale_file      = f"{current_path}/workload/hbm_scale.mem"
+fp_mem_file         = f"{current_path}/workload/fp.mem"
+fixed_mem_file      = f"{current_path}/workload/fixed.mem"
 INSTRUCTION_LENGTH = 16
 
 

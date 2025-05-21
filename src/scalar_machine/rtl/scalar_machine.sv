@@ -270,8 +270,7 @@ module scalar_machine import precision_pkg::*;  #(
     assign fixed_reg_addr_2 = ((fixed_control == PASS_ADDR_2) || (fixed_control == ST_FIX)) ? rd : rs2;
 
     fixed_alu #(
-        .BITWIDTH(FIXED_DATA_WIDTH),
-        .IMM_WIDTH(IMM_WIDTH)
+        .BITWIDTH(FIXED_DATA_WIDTH)
     ) fixed_alu (
         .operand_a  (fixed_alu_operand_a),
         .operand_b  (fixed_alu_operand_b),
