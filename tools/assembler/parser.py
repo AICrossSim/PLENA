@@ -97,23 +97,56 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
 
             # Split the opcode and operands
             parts = line.split()
-            if len(parts) < 2:
+            if len(parts) < 2 or ';' in parts[0]:
                 continue  # Invalid line
-            print(parts)
             opcode = parts[0]
             operands = [part.strip() for part in ' '.join(parts[1:]).split(',')]
             # Decode based on number of operands
-            rd  = int(operands[0][1:], 16) if len(operands) > 0 else None
-            rs1 = int(operands[1][1:], 16) if len(operands) > 1 else None
+            if len(operands) > 0:
+                operand_0 = operands[0]
+                if operand_0[-1] == ';':
+                    operand_0 = operand_0[:-1]
+                if operand_0.startswith('x'):
+                    rd = int(operand_0[1:], 16)
+                elif operand_0.startswith('fp'):
+                    rd = int(operand_0[2:], 16)
+                else:
+                    try:
+                        rd = int(operand_0)
+                    except ValueError:
+                        rd = None
+            else:
+                rd = None
+            if len(operands) > 1:
+                operand_1 = operands[1]
+                print(operands)
+                print(operand_1)
+                print("hihi")
+                if operand_1[-1] == ';':
+                    operand_1 = operand_1[:-1]
+                if operand_1.startswith('x'):
+                    rs1 = int(operand_1[1:], 16)
+                elif operand_1.startswith('fp'):
+                    rs1 = int(operand_1[2:], 16)
+                else:
+                    try:
+                        rs1 = int(operand_1)
+                    except ValueError:
+                        rs1 = None
             rs2 = None
             imm = None
 
             if len(operands) == 3:
-                if operands[2].startswith('x'):
-                    rs2 = int(operands[2][1:], 16)
+                operand_2 = operands[2]
+                if operand_2[-1] == ';':
+                    operand_2 = operand_2[:-1]
+                if operand_2.startswith('x'):
+                    rs2 = int(operand_2[1:], 16)
+                elif operand_2.startswith('fp'):
+                    rs2 = int(operand_2[2:], 16)
                 else:
                     try:
-                        imm = int(operands[2])
+                        imm = int(operand_2)
                     except ValueError:
                         pass
 

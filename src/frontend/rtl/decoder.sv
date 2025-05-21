@@ -96,7 +96,7 @@ always_comb begin
         end
 
         // Scalar FP Operations
-        S_ADD_FP, S_SUB_FP, S_MAX_FP, S_MUL_FP, S_EXP_FP, S_RECI_FP, S_SQRT_FP, S_LD_FP, S_ST_FP: begin
+        S_ADD_FP, S_SUB_FP, S_MAX_FP, S_MUL_FP, S_EXP_FP, S_RECI_FP, S_SQRT_FP, S_LD_FP, S_ST_FP, S_MV_FP: begin
             decode_instruction_type = S_FP;
         end
 

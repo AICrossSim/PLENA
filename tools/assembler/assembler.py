@@ -95,7 +95,7 @@ class Assembler:
 
 if __name__ == "__main__":
     isa_file_path = '/home/george/Coprocessor_for_Llama/src/definitions/operation.svh'
-    asm_file_path = '/home/george/Coprocessor_for_Llama/src/system/test/benchmarks/fp.asm'
-    output_file_path = '/home/george/Coprocessor_for_Llama/src/system/test/benchmarks/fp.mem'
+    asm_file_path = '/home/george/Coprocessor_for_Llama/test/Layerwise_Benchmark/rms.asm'
+    output_file_path = '/home/george/Coprocessor_for_Llama/test/Layerwise_Benchmark/rms.mem'
     assembler = Assembler(isa_file_path)
     assembler.generate_binary(asm_file_path, output_file_path)

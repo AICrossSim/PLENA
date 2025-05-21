@@ -307,6 +307,7 @@ import pipeline_pkg::*;
                                                             (decode_instr_info.opcode == S_EXP_FP )   ? EXP_FP    :
                                                             (decode_instr_info.opcode == S_RECI_FP)   ? RECI_FP   :
                                                             (decode_instr_info.opcode == S_SQRT_FP)   ? SQRT_FP   :
+                                                            (decode_instr_info.opcode == S_MV_FP)     ? MV_FP     :
                                                             (decode_instr_info.opcode == S_LD_FP)     ? LD_REG_FP :
                                                             (decode_instr_info.opcode == S_ST_FP)     ? ST_REG_FP : STALL_S_FP;
                     
@@ -322,7 +323,7 @@ import pipeline_pkg::*;
                         fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
                         fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                         imm             <= {IMM_WIDTH{1'b0}};
-                    end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_RECI_FP || decode_instr_info.opcode == S_SQRT_FP) begin
+                    end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_RECI_FP || decode_instr_info.opcode == S_SQRT_FP || decode_instr_info.opcode == S_MV_FP) begin
                         // Single FP source operand and single FP destination operand
                         assigned_op_bundle.s_fixed_op      <= STALL_S_FIXED;
                         rs1             <= {FIXED_OPERAND_WIDTH{1'b0}};

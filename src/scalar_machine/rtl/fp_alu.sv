@@ -56,6 +56,11 @@ always_comb begin
             data_out = fp_exp_out;
         end
 
+        MV_FP: begin
+            negated_en = 1'b0;
+            data_out = data_a;
+        end
+
         default: begin
             negated_en = 1'b0;
             data_out = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
