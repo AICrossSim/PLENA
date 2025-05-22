@@ -22,6 +22,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     input   logic broadcast_fp2,
     input   V_ELEMENT_OP element_v_control,
     input   V_REDUCT_OP  reduct_v_control,
+    output  logic in_preparation_stage,
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
@@ -79,6 +80,11 @@ V_REDUCT_OP  recorded_reduct_v_control;
 logic [FP_OPERAND_WIDTH - 1:0] recorded_s_wtarget;
 logic [ADDR_WIDTH - 1:0] recorded_result_waddr;
 
+
+// Data Preparation Stage
+logic complete_element_prepare, complete_reduct_prepare;
+logic next_preparation_stage;
+
 always_ff @(posedge clk or negedge rst) begin
     if (rst) begin
         for (int i = 0; i < VECTOR_MAX_CYCLES; i++) begin
@@ -89,32 +95,29 @@ always_ff @(posedge clk or negedge rst) begin
             };
         end
         recorded_broadcast_en <= 1'b0;
+        in_preparation_stage  <= 1'b0;
     end else begin
         // Set result waddr
         result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
+        
         if (result_waddr_ready) begin
             recorded_result_waddr <= result_waddr;
         end
-        if (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT) begin
+
+        if (!in_preparation_stage & (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
             recorded_element_v_control  <= element_v_control;
             recorded_reduct_v_control   <= reduct_v_control;
             recorded_broadcast_en       <= broadcast_fp2;
             recorded_s_wtarget          <= s_wtarget;
         end
 
-        if ((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) begin
+        if ((recorded_element_v_control != STALL_V_ELEMENT) & complete_element_prepare) begin
             pipeline_compute_track[0] <= '{
                 waddr  : recorded_result_waddr,
                 ele_op : recorded_element_v_control,
                 red_op : recorded_reduct_v_control
             };
-        end else if ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid) begin
-            pipeline_compute_track[0] <= '{
-                waddr  : recorded_result_waddr,
-                ele_op : recorded_element_v_control,
-                red_op : recorded_reduct_v_control
-            };
-        end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
+        end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & complete_reduct_prepare) begin
             pipeline_compute_track[0] <= '{
                 waddr  : {{(ADDR_WIDTH - FP_OPERAND_WIDTH){1'b0}} , recorded_s_wtarget},
                 ele_op : recorded_element_v_control,
@@ -127,12 +130,44 @@ always_ff @(posedge clk or negedge rst) begin
                 red_op : STALL_V_REDUCT
             };
         end
+
         // Shift the pipeline
         for (int i = 0; i < VECTOR_MAX_CYCLES - 1; i++) begin
             pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
         end
+
+        in_preparation_stage <= next_preparation_stage;
+
     end
 end
+
+always_comb begin
+    if (rst) begin
+        next_preparation_stage = 1'b0;
+        complete_element_prepare = 1'b0;
+        complete_reduct_prepare = 1'b0;
+    end else begin
+        if (!in_preparation_stage & (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
+            next_preparation_stage = 1'b1;
+        end else if (complete_element_prepare || complete_reduct_prepare) begin
+            next_preparation_stage = 1'b0;
+        end else if (in_preparation_stage) begin
+            next_preparation_stage = 1'b1;
+        end
+
+        if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
+            complete_element_prepare    = 1'b1;
+            complete_reduct_prepare     = 1'b0;
+        end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
+            complete_element_prepare    = 1'b0;
+            complete_reduct_prepare     = 1'b1;
+        end else begin
+            complete_element_prepare    = 1'b0;
+            complete_reduct_prepare     = 1'b0;
+        end
+    end
+end
+
 
 
 // MXFP to FP Conversion

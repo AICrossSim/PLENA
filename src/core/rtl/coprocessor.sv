@@ -47,8 +47,9 @@ module coprocessor #(
     OP_BUNDLE   assigned_op_bundle;
 
     // Status Tracking
-    logic       hbm_in_used;
+    logic hbm_in_used;
     logic stall_req_from_mem, stall_req_from_fp, fixed_stall_req;
+    logic v_in_prep, m_in_prep;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -114,12 +115,13 @@ module coprocessor #(
         .decode_instr_valid     (decode_instr_valid),
         .fetch_next_instr       (read_next_instr),
         .mem_write_req          (mem_write_req),
-        .m_load_in_process      (m_load_in_process),
         .hbm_in_used            (hbm_in_used),
         .continuous_m_prefetch  (continuous_prefetch_m_en),
         .fp_stall_req           (stall_req_from_fp),
         .fixed_stall_req        (fixed_stall_req),
         .mem_vwrite_stall_req   (stall_req_from_mem),
+        .m_load_in_process      (m_in_prep),
+        .v_load_in_process      (v_in_prep),
         .assigned_op_bundle     (assigned_op_bundle),
         .m_update_waddr         (m_update_waddr),
         .v_update_waddr         (v_update_waddr),
@@ -209,8 +211,6 @@ module coprocessor #(
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 m_out_element;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 m_out_scale;
-    logic m_load_in_process;
-
     // Vector
     logic v_v_a_valid,      v_v_a_ready;
     logic v_v_b_valid,      v_v_b_ready;
@@ -249,7 +249,7 @@ module coprocessor #(
             .clk(clk),
             .rst(rst),
             .matrix_opcode          (assigned_op_bundle.m_op),
-            .prepare_flag           (m_load_in_process),
+            .prepare_flag           (m_in_prep),
             .set_offset_addr        ((assigned_op_bundle.c_op == SET_M_OFFSET)),
             .offset_addr            (fixed_out_2),
             .offset_addr_out        (m_offset_addr),
@@ -283,6 +283,7 @@ module coprocessor #(
             .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
             .element_v_control      (assigned_op_bundle.v_ele_op),
             .reduct_v_control       (assigned_op_bundle.v_reduct_op),
+            .in_preparation_stage   (v_in_prep),
             .v_a_element            (v_element_port_a_out),
             .v_a_scale              (v_scale_port_a_out),
             .v_a_valid              (v_v_a_valid),

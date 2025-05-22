@@ -71,6 +71,7 @@ module addr_monitor#(
 
     always_comb begin
         if (stall_in_process_p1) begin
+            // To Check if the tracked address has been written.
             if ((v_write_addr_track[locked_entry_idx_1].activate & lock_entry_1_valid) || (v_write_addr_track[locked_entry_idx_2].activate & lock_entry_2_valid)) begin
                 stall = 1'b1;
             end else begin
@@ -217,14 +218,19 @@ module addr_monitor#(
     // Bundle Decision
     always_comb begin
         if (stall_in_process_p1 & !stall) begin
+            // End of Stall Recover
             permit_rd_op_bundle = stalled_op_bundle;
         end else if (!stall_in_process_p1 & stall) begin
+            // Start to Stall
             permit_rd_op_bundle = invalid_op_bundle;
         end else if (stall_in_process_p1 & stall) begin
+            // In the process of stalling
             permit_rd_op_bundle = invalid_op_bundle;
         end else if (stall_in_process_p2 & !stall) begin
+            // End of stalling
             permit_rd_op_bundle = invalid_op_bundle;
         end else begin
+            // Normal Operation
             permit_rd_op_bundle = assigned_op_bundle;
         end
     end
@@ -233,6 +239,7 @@ module addr_monitor#(
         if (rst) begin
             stalled_op_bundle <= invalid_op_bundle;
         end else if (!stall_in_process_p1 & stall) begin
+            // At the start of Stall, record the current operation bundle
             stalled_op_bundle <= assigned_op_bundle;
         end else if (stall_in_process_p1 & !stall) begin
             stalled_op_bundle <= invalid_op_bundle;

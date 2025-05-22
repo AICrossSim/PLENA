@@ -293,20 +293,20 @@ module scalar_machine import precision_pkg::*;  #(
         .rdata2     (fixed_reg_2)
     );
 
-    // Forwarding Logic
-    always_comb begin
-        if (fixed_reg_waddr == fixed_reg_addr_1 && fixed_reg_wen) begin
-            fixed_alu_operand_a = fixed_reg_wdata;
-        end else begin
-            fixed_alu_operand_a = fixed_reg_1;
-        end
+    // Forwarding Logic (This will lead to infinite loop, not handled correctly)
+    // always_comb begin
+    //     if (fixed_reg_waddr == fixed_reg_addr_1 && fixed_reg_wen) begin
+    //         fixed_alu_operand_a = fixed_reg_wdata;
+    //     end else begin
+    //         fixed_alu_operand_a = fixed_reg_1;
+    //     end
 
-        if (fixed_reg_waddr == fixed_reg_addr_2 && fixed_reg_wen) begin
-            fixed_alu_operand_b = fixed_reg_wdata;
-        end else begin
-            fixed_alu_operand_b = fixed_reg_2;
-        end
-    end
+    //     if (fixed_reg_waddr == fixed_reg_addr_2 && fixed_reg_wen) begin
+    //         fixed_alu_operand_b = fixed_reg_wdata;
+    //     end else begin
+    //         fixed_alu_operand_b = fixed_reg_2;
+    //     end
+    // end
 
     scalar_sram #(
         .DATA_WIDTH(FIXED_DATA_WIDTH),

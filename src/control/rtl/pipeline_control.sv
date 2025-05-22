@@ -32,6 +32,7 @@ module pipeline_control #(
     input       logic           fixed_stall_req,
     input       logic           mem_vwrite_stall_req,
     input       logic           m_load_in_process,
+    input       logic           v_load_in_process,
 
     // Current control operation
     output      logic           pipeline_stall,
@@ -113,7 +114,7 @@ import pipeline_pkg::*;
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
             pipeline_stall   = 1'b1;            
-        end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1) & ( decode_instr_info.instruction_type == V)) begin
+        end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( decode_instr_info.instruction_type == V)) begin
             // Release until the prefetching is done.
             m_update_waddr   = 1'b0;
             v_update_waddr   = 1'b0;
