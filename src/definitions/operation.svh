@@ -1,6 +1,7 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
+// TODO Remove this parameter definitions
 parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = 3;
@@ -8,6 +9,7 @@ parameter OPCODE_WIDTH = 6;
 parameter IMM_WIDTH = 7;
 parameter IMM_2_WIDTH = 4;
 parameter INSTRUCTION_LENGTH = 16;
+parameter ON_CHIP_ADDR_WIDTH = 32;
 
 typedef struct {
     logic w_m_sram_en;
@@ -193,8 +195,10 @@ typedef struct {
     logic [FP_OPERAND_WIDTH - 1:0]      fps1;
     logic [FP_OPERAND_WIDTH - 1:0]      fps2;
     logic [FP_OPERAND_WIDTH - 1:0]      fpd;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   addr_1;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   addr_2;
+    logic [ON_CHIP_ADDR_WIDTH - 1:0]   addr_1;
+    logic [ON_CHIP_ADDR_WIDTH - 1:0]   addr_2;
+    logic update_m_waddr;
+    logic update_v_waddr;
 } OP_BUNDLE;
 
 `endif

@@ -9,7 +9,7 @@ package configuration_pkg;
     parameter   VLEN                            = 4;
     parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
     parameter   INST_BUFF_DEPTH                 = 8;
-    parameter   ON_CHIP_ADDR_WIDTH               = 32;
+    parameter   ON_CHIP_ADDR_WIDTH              = 32;
     parameter   HBM_ADDR_WIDTH                  = 64;
     parameter   ADR_OPERAND_WIDTH               = 3;
     parameter   HBM_ADDR_REG_NUM                = 8;

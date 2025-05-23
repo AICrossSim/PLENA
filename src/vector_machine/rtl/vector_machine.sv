@@ -73,7 +73,6 @@ typedef struct {
 RECORDED_INFO_TYPE pipeline_compute_track [0:VECTOR_MAX_CYCLES-1];
 
 // Vector Machine Control
-logic result_waddr_ready;
 logic recorded_broadcast_en;
 V_ELEMENT_OP recorded_element_v_control;
 V_REDUCT_OP  recorded_reduct_v_control;
@@ -98,9 +97,8 @@ always_ff @(posedge clk or negedge rst) begin
         in_preparation_stage  <= 1'b0;
     end else begin
         // Set result waddr
-        result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
-        
-        if (result_waddr_ready) begin
+
+        if (result_waddr_update) begin
             recorded_result_waddr <= result_waddr;
         end
 

@@ -27,8 +27,6 @@ module pipeline_control #(
     input       OP_BUNDLE       decoded_op_bundle,
 
     // Address
-    input       logic load_m_waddr_en,
-    input       logic load_v_waddr_en, 
     input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_1,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_2,
 
@@ -121,12 +119,6 @@ import pipeline_pkg::*;
 
     // Memory Monitor
     logic           mem_vwrite_stall_req;
-    logic           m_waddr_ready, v_waddr_ready;
-
-    always_ff @(posedge clk or negedge rst ) begin
-        m_waddr_ready          <= load_m_waddr_en;
-        v_waddr_ready          <= load_v_waddr_en;
-    end
 
     addr_monitor #(
         .ADDR_WIDTH(FIXED_DATA_WIDTH),
@@ -134,9 +126,8 @@ import pipeline_pkg::*;
     ) addr_monitor_inst (
         .clk(clk),
         .rst(rst),
-        .decoded_op_bundle     (decoded_op_bundle),
-        .m_waddr_ready          (m_waddr_ready),
-        .v_waddr_ready          (v_waddr_ready),
+        .assigned_op_bundle     (assigned_op_bundle),
+        .decoded_op_bundle      (decoded_op_bundle),
         .fixed_addr_1           (fixed_addr_1),
         .fixed_addr_2           (fixed_addr_2),
         .s_sram_addr_a          (s_sram_addr_a),
@@ -175,6 +166,8 @@ import pipeline_pkg::*;
         current_decoded_op_bundle.fpd             = decoded_op_bundle.fpd;
         current_decoded_op_bundle.addr_1          = fixed_addr_1;
         current_decoded_op_bundle.addr_2          = fixed_addr_2; 
+        current_decoded_op_bundle.update_m_waddr  = decoded_op_bundle.update_m_waddr;
+        current_decoded_op_bundle.update_v_waddr  = decoded_op_bundle.update_v_waddr;
     end
     
     assign invalid_op_bundle = '{
@@ -190,7 +183,9 @@ import pipeline_pkg::*;
         fps2                : '0,
         fpd                 : '0,
         addr_1              : '0,
-        addr_2              : '0
+        addr_2              : '0,
+        update_m_waddr      : 1'b0,
+        update_v_waddr      : 1'b0
     };
 
     always_ff @(posedge clk or negedge rst) begin

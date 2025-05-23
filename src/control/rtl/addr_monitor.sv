@@ -17,10 +17,7 @@ module addr_monitor#(
 
     // Execution Operation
     input   OP_BUNDLE decoded_op_bundle,  
-
-    // ----------- Monitor Operand Write Signals -----------
-    input   logic m_waddr_ready,
-    input   logic v_waddr_ready,
+    input   OP_BUNDLE assigned_op_bundle,  
 
     // ---------- Monitor Operand Read Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
@@ -138,11 +135,11 @@ module addr_monitor#(
         if (decoded_op_bundle.h_op == PREFETCH_V) begin
             insert_addr  = fixed_addr_1;
             insert_valid = 1'b1;
-        end else if (m_waddr_ready) begin
-            insert_addr  = fixed_addr_2;
+        end else if (assigned_op_bundle.update_m_waddr) begin
+            insert_addr  = assigned_op_bundle.addr_2;
             insert_valid = 1'b1;
-        end else if (v_waddr_ready) begin
-            insert_addr  = fixed_addr_2;
+        end else if (assigned_op_bundle.update_v_waddr) begin
+            insert_addr  = assigned_op_bundle.addr_2;
             insert_valid = 1'b1;
         end else begin
             insert_addr  = {ADDR_WIDTH{1'b0}};

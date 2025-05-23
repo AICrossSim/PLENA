@@ -74,7 +74,6 @@ module coprocessor #(
     logic [IMM_WIDTH - 1 : 0] s_imm;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
 
-    logic       m_update_waddr, v_update_waddr;
     logic       m_write_request, v_write_request;
     
 
@@ -98,8 +97,6 @@ module coprocessor #(
         .instruction_ready      (instruction_ready),
         .decoded_op_bundle      (decoded_op_bundle),
         .exe_fixed_op           (exe_fixed_op),
-        .m_update_waddr         (m_update_waddr),
-        .v_update_waddr         (v_update_waddr),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
         .rd                     (s_rd),
@@ -116,8 +113,6 @@ module coprocessor #(
         .clk(clk),
         .rst(rst),
         .decoded_op_bundle     (decoded_op_bundle),
-        .load_m_waddr_en       (m_update_waddr),
-        .load_v_waddr_en       (v_update_waddr),
         .fixed_addr_1          (fixed_out_1),
         .fixed_addr_2          (fixed_out_2),
         .s_sram_wen_a          (s_sram_wen_a),
@@ -263,7 +258,7 @@ module coprocessor #(
             .o_scale                (v_scale_port_b_out),
             .o_valid                (m_o_valid),
             .o_ready                (m_o_ready),
-            .result_waddr_update    (m_update_waddr),
+            .result_waddr_update    (assigned_op_bundle.update_m_waddr),
             .out_element            (m_out_element),
             .out_scale              (m_out_scale),
             .out_valid              (m_out_valid),
@@ -294,7 +289,7 @@ module coprocessor #(
             .s_in_ready             (v_s_in_ready),
             .s_wtarget              (s_fps2),
             .result_waddr           (assigned_op_bundle.addr_2),
-            .result_waddr_update    (v_update_waddr),
+            .result_waddr_update    (assigned_op_bundle.update_v_waddr),
             .v_out_element          (v_out_element),
             .v_out_scale            (v_out_scale),
             .v_out_valid            (v_v_out_valid),

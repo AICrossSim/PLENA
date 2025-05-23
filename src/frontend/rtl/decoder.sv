@@ -32,8 +32,6 @@ module decoder #(
     // Decoded Instruction
     output      OP_BUNDLE       decoded_op_bundle,
     output      S_FIXED_OP      exe_fixed_op,
-    output      logic           m_update_waddr,
-    output      logic           v_update_waddr,
 
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
     output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
@@ -128,6 +126,7 @@ assign decode_instr_info = decode_instr_valid ? '{opcode: loaded_opcode, rs1: lo
 logic [FIXED_OPERAND_WIDTH - 1 : 0] extra_rd_to_load;
 // Decoding
 logic rd_operand_ready; // The stall is for loading the third operand from the register files.
+logic m_update_waddr, v_update_waddr;
 always_comb begin
     // Instructions that requires three operands.
     if (rd_operand_ready == 1'b0 & (decoded_op_bundle.m_op != STALL_M)) begin
@@ -157,19 +156,24 @@ always_ff @(posedge clk) begin
         exe_fixed_op                      <= PASS_ADDR_2;
         decoded_op_bundle.c_op            <= STALL_C;
         decoded_op_bundle.h_op            <= STALL_H;
+        decoded_op_bundle.m_transposed_read   <= 1'b0;
         decoded_op_bundle.v_broadcast_en  <= 1'b0;
         decoded_op_bundle.fps1            <= 'b0;
         decoded_op_bundle.fps2            <= 'b0;
         decoded_op_bundle.fpd             <= 'b0;
+        decoded_op_bundle.update_m_waddr  <= m_update_waddr;
+        decoded_op_bundle.update_v_waddr  <= v_update_waddr;
+        
         rs1                               <= 'b0;
         rs2                               <= 'b0;
         rd                                <= extra_rd_to_load;
         imm                               <= 'b0;
     end else if (!pipeline_stall) begin
         rd_operand_ready <= 1'b0;
-        decoded_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
-        decoded_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
-        
+        decoded_op_bundle.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
+        decoded_op_bundle.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
+        decoded_op_bundle.update_m_waddr        <= 1'b0;
+        decoded_op_bundle.update_v_waddr        <= 1'b0;
         case(decode_instr_info.instruction_type)
             M: begin
                 decoded_op_bundle.m_op          <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
