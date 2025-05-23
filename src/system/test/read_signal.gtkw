@@ -1,68 +1,50 @@
 [*]
-[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu May 22 14:53:48 2025
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri May 23 18:45:23 2025
 [*]
-[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Thu May 22 14:47:43 2025"
-[dumpfile_size] 27893235
-[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 453200
-[size] 1512 945
-[pos] 78911 88477
-*-16.887817 700000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Fri May 23 18:44:42 2025"
+[dumpfile_size] 27876967
+[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[timestart] 0
+[size] 3428 1359
+[pos] 78336 88323
+*-16.887817 440000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
-[treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.
-[treeopen] SimTop.dut.data_flow_init.addr_monitor_inst.permit_rd_op_bundle.
+[treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.pipeline_control_init.assigned_op_bundle.
-[treeopen] SimTop.dut.vector_machine_init.
+[treeopen] SimTop.dut.scalar_machine_init.
 [sst_width] 390
-[signals_width] 218
+[signals_width] 349
 [sst_expanded] 1
-[sst_vpaned_height] 669
+[sst_vpaned_height] 1017
 @28
 SimTop.dut.clk
-SimTop.dut.pipeline_control_init.pipeline_stall
 @22
-SimTop.dut.pipeline_control_init.decode_instr_info.opcode[5:0]
-SimTop.dut.pipeline_control_init.assigned_op_bundle.s_fp_op[3:0]
+SimTop.dut.decoder_init.loaded_opcode[5:0]
+SimTop.dut.decoder_init.exe_fixed_op[3:0]
+SimTop.dut.scalar_machine_init.fixed_alu_out[31:0]
 @28
+SimTop.dut.scalar_machine_init.fixed_reg_wen
+@22
+SimTop.dut.scalar_machine_init.fixed_reg_wdata[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.stall_in_process
+SimTop.dut.pipeline_control_init.addr_monitor_inst.stall_req
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].activate
+SimTop.dut.pipeline_control_init.prefetch_in_progress
 SimTop.dut.pipeline_control_init.mem_vwrite_stall_req
-SimTop.dut.vector_machine_init.v_a_valid
-SimTop.dut.vector_machine_init.v_b_valid
-SimTop.dut.vector_machine_init.s_in_valid
-SimTop.dut.vector_machine_init.red_v_out_valid
-SimTop.dut.vector_machine_init.red_v_in_valid
-SimTop.dut.vector_machine_init.red_v_in_ready
-SimTop.dut.vector_machine_init.s_out_valid
-SimTop.dut.data_flow_init.addr_monitor_inst.stall_req
-SimTop.dut.data_flow_init.addr_monitor_inst.stall
-@22
-SimTop.dut.data_flow_init.addr_monitor_inst.locked_entry_idx_1[4:0]
-SimTop.dut.data_flow_init.addr_monitor_inst.locked_entry_idx_2[4:0]
-@28
-SimTop.dut.data_flow_init.addr_monitor_inst.lock_entry_1_valid
-SimTop.dut.data_flow_init.addr_monitor_inst.lock_entry_2_valid
-@22
-SimTop.dut.data_flow_init.addr_monitor_inst.fixed_addr_2[31:0]
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
-@28
-SimTop.dut.data_flow_init.addr_monitor_inst.v_write_addr_track[0].activate
-SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.v_reduct_op[2:0]
-SimTop.dut.data_flow_init.addr_monitor_inst.assigned_op_bundle.v_ele_op[2:0]
-SimTop.dut.pipeline_control_init.v_update_waddr
-SimTop.dut.vector_machine_init.result_waddr_ready
-@22
-SimTop.dut.vector_machine_init.result_waddr[31:0]
-@28
-SimTop.dut.data_flow_init.permit_rd_op_bundle.v_ele_op[2:0]
-SimTop.dut.data_flow_init.permit_rd_op_bundle.v_reduct_op[2:0]
-SimTop.dut.vector_machine_init.element_v_control[2:0]
-SimTop.dut.vector_machine_init.reduct_v_control[2:0]
-SimTop.dut.vector_machine_init.in_preparation_stage
-SimTop.dut.pipeline_control_init.v_load_in_process
+SimTop.dut.pipeline_control_init.pipeline_stall
 @29
-SimTop.dut.v_in_prep
+SimTop.dut.pipeline_control_init.assigned_op_bundle.v_ele_op[2:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -58,6 +58,8 @@ module scalar_machine import precision_pkg::*;  #(
     //----------------------------//
     S_FP_OP fp_control;
     assign fp_control = exe_op_bundle.s_fp_op;
+    logic general_fp_operation;
+    assign general_fp_alu_en = (fp_control == ADD_FP || fp_control == SUB_FP || fp_control == MAX_FP || fp_control == MUL_FP || fp_control == MV_FP);
 
     struct {
         logic [FP_OPERAND_WIDTH-1:0] target_fp;
@@ -122,7 +124,14 @@ module scalar_machine import precision_pkg::*;  #(
     logic write_data_from_external_fp;
 
     always_comb begin
-        if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
+        if (general_fp_alu_en) begin
+            // From ALU
+            fp_reg_we       = 1'b1;
+            fp_reg_wdata    = fp_alu_out; 
+            fp_wtarget      = fp_rd;
+            write_data_from_external_fp = 1'b0;
+        end else if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
+            // From SFU
             fp_reg_we       = 1'b1;
             fp_reg_wdata    = fp_alu_out;
             fp_wtarget      = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
@@ -279,8 +288,8 @@ module scalar_machine import precision_pkg::*;  #(
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH)
     ) fixed_alu (
-        .operand_a  (fixed_alu_operand_a),
-        .operand_b  (fixed_alu_operand_b),
+        .operand_a  (fixed_reg_1),
+        .operand_b  (fixed_reg_2),
         .imm_value  ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, imm_in}),
         .operation  (exe_fixed_op),
         .result     (fixed_alu_out)
@@ -300,20 +309,6 @@ module scalar_machine import precision_pkg::*;  #(
         .rdata2     (fixed_reg_2)
     );
 
-    // Forwarding Logic (This will lead to infinite loop, not handled correctly)
-    // always_comb begin
-    //     if (fixed_reg_waddr == fixed_reg_addr_1 && fixed_reg_wen) begin
-    //         fixed_alu_operand_a = fixed_reg_wdata;
-    //     end else begin
-    //         fixed_alu_operand_a = fixed_reg_1;
-    //     end
-
-    //     if (fixed_reg_waddr == fixed_reg_addr_2 && fixed_reg_wen) begin
-    //         fixed_alu_operand_b = fixed_reg_wdata;
-    //     end else begin
-    //         fixed_alu_operand_b = fixed_reg_2;
-    //     end
-    // end
 
     scalar_sram #(
         .DATA_WIDTH(FIXED_DATA_WIDTH),

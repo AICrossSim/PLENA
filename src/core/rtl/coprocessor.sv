@@ -118,8 +118,8 @@ module coprocessor #(
         .decoded_op_bundle     (decoded_op_bundle),
         .load_m_waddr_en       (m_update_waddr),
         .load_v_waddr_en       (v_update_waddr),
-        .fixed_addr_1          (fixed_addr_1),
-        .fixed_addr_2          (fixed_addr_2),
+        .fixed_addr_1          (fixed_out_1),
+        .fixed_addr_2          (fixed_out_2),
         .s_sram_wen_a          (s_sram_wen_a),
         .s_sram_addr_a         (s_sram_addr_a),
         .s_sram_wen_b          (s_sram_wen_b),
@@ -131,9 +131,9 @@ module coprocessor #(
         .fixed_stall_req        (fixed_stall_req),
         .m_load_in_process      (m_in_prep),
         .v_load_in_process      (v_in_prep),
-        .pipeline_stall         (pipeline_stall),
+        .pipeline_stall_req     (pipeline_stall),
         .assigned_op_bundle     (assigned_op_bundle),
-        .mem_write_control     (mem_write_control)
+        .mem_write_control      (mem_write_control)
     );
 
 
@@ -147,6 +147,7 @@ module coprocessor #(
         .clk(clk),
         .rst(rst),
         .assigned_op_bundle     (assigned_op_bundle),
+        .mem_write_control      (mem_write_control),
         .m_offset_addr          (m_offset_addr),
         .write_req              (mem_write_req),
         .m_m_ready              (m_m_ready),

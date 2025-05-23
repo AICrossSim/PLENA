@@ -2,13 +2,17 @@
 `include "operation.svh"
 
 /*
-Module      : Scalar FP ALU
+Module      : Scalar FP Special Function Unit
 Timing      : Combinatorial Logic
 Description : This module is used for all the FP operations
-            : 1. FP Add, 2. FP Subtract, 3. FP Multiply, 
+            : 1. FP Reciprocal 2. FP Sqrt 6. FP Exp
+Note        : In this version of the FP_SFU, since we assume that if there are continous FP related 
+              Instructions, they are very likely to be data dependent. Therefore, only when the single operation
+              is completed, the next operation will be started. (Can be optimized in the future)
 */
 
-module fp_alu #(
+
+module fp_sfu #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10
 )(
@@ -29,24 +33,20 @@ logic in_compute;
 always_comb begin
     negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
     case (recorded_operation)
-        ADD_FP: begin
+
+        RECI_FP: begin
             negated_en = 1'b0;
-            data_out = fp_add_out;
+            data_out = fp_reciprocal_out;
         end
 
-        SUB_FP: begin
-            negated_en = 1'b1;
-            data_out = fp_sub_out;
+        SQRT_FP: begin
+            negated_en = 1'b0;
+            data_out = fp_sqrt_out;
         end
 
-        MUL_FP: begin
+        EXP_FP: begin
             negated_en = 1'b0;
-            data_out = fp_mul_out;
-        end
-
-        MV_FP: begin
-            negated_en = 1'b0;
-            data_out = data_a;
+            data_out = fp_exp_out;
         end
 
         default: begin
@@ -57,25 +57,24 @@ always_comb begin
 end
 
 
-fp_cp_mult #(
-    .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH)
-) fp_multiplier (
-    .data_a(data_a),
-    .data_b(negated_en ? negated_data_b : data_b),
-    .data_out(fp_mul_out)
-);
 
 
-// Do not consider extension
-fp_cp_adder #(
+fp_cp_reciprocal #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH)
-) fp_adder (
-    .data_a(data_a),
-    .data_b(data_b),
-    .data_out(fp_add_out)
+) fp_reciprocal (
+    .data_in(data_a),
+    .data_out(fp_reciprocal_out)
 );
+
+fp_cp_sqrt #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
+) fp_sqrt (
+    .data_in(data_a),
+    .data_out(fp_sqrt_out)
+);
+
 
 
 endmodule

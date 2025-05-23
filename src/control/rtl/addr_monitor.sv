@@ -48,9 +48,6 @@ module addr_monitor#(
     logic lock_entry_1_valid, lock_entry_2_valid;    
     logic                                   found_invalid;
     logic                                   pipe_full;
-    logic                                   stall;
-
-    assign stall_req = stall || stall_in_process_p1 || stall_in_process_p2;
 
     always_comb begin
         found_invalid           = 1'b0;
@@ -67,15 +64,15 @@ module addr_monitor#(
 
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
-    logic stall_in_process_p1, stall_in_process_p2;
+    logic stall_in_process;
 
     always_comb begin
-        if (stall_in_process_p1) begin
+        if (stall_in_process) begin
             // To Check if the tracked address has been written.
             if ((v_write_addr_track[locked_entry_idx_1].activate & lock_entry_1_valid) || (v_write_addr_track[locked_entry_idx_2].activate & lock_entry_2_valid)) begin
-                stall = 1'b1;
+                stall_req = 1'b1;
             end else begin
-                stall = 1'b0;
+                stall_req = 1'b0;
             end
         end else if ((decoded_op_bundle.m_op != STALL_M) ||((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!decoded_op_bundle.v_broadcast_en)) || (decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
@@ -92,7 +89,7 @@ module addr_monitor#(
                     addr_collide_flag[i] = 1'b0;
                 end
             end
-            stall = |addr_collide_flag;
+            stall_req = |addr_collide_flag;
         end else if (((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (decoded_op_bundle.v_broadcast_en))) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
@@ -104,7 +101,7 @@ module addr_monitor#(
                     addr_collide_flag[i] = 1'b0;
                 end
             end
-            stall = |addr_collide_flag;
+            stall_req = |addr_collide_flag;
         end else if (decoded_op_bundle.h_op == STORE_V) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
@@ -116,9 +113,9 @@ module addr_monitor#(
                     addr_collide_flag[i] = 1'b0;
                 end
             end
-            stall = |addr_collide_flag;
+            stall_req = |addr_collide_flag;
         end else begin
-            stall = 1'b0;
+            stall_req = 1'b0;
             lock_entry_1_valid = 1'b0;
             lock_entry_2_valid = 1'b0;
             locked_entry_idx_1 = '0;
@@ -172,11 +169,9 @@ module addr_monitor#(
                     activate   : 1'b0
                 };
             end
-            stall_in_process_p1 <= 1'b0;
-            stall_in_process_p2 <= 1'b0;
+            stall_in_process <= 1'b0;
         end else begin
-            stall_in_process_p1 <= stall;
-            stall_in_process_p2 <= stall_in_process_p1;
+            stall_in_process <= stall_req;
             // Try inserting into the first available empty slot
             if (pipe_full == 1'b0 & insert_valid) begin
                 v_write_addr_track[free_track_entry_idx] <= '{

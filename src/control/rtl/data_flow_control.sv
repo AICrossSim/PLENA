@@ -130,8 +130,11 @@ module data_flow_control import precision_pkg::*; #(
 
 
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr, recorded_m_load_addr;
+    
+    // -----------------------------
+    // Matrix SRAM
+    // -----------------------------
 
-    // Matrix SRAM Control
     logic [MATRIX_COUNTER_WIDTH : 0]    m_sram_prefetch_counter;
     assign m_sram_continuous_prefetch_counter = m_sram_prefetch_counter;
     logic continuous_load_m_en;
@@ -226,7 +229,10 @@ module data_flow_control import precision_pkg::*; #(
         m_m_valid <= m_m_load;
     end
 
-    // Vector SRAM Control
+    // -----------------------------
+    // Vector SRAM
+    // -----------------------------
+
     // Assuming the read cycle is 1 cycle for both ports.
     // Port A ->  R: Matrix Multiplicand Vector or Vector Operand (RS1)               W: Vector Result from either Matrix or Vector Machine, 
     // Port B ->  R: Matrix Offest Vector or Vector Operand (RS2) or HBM Write Data   W: Vector Prefetch
@@ -286,10 +292,9 @@ module data_flow_control import precision_pkg::*; #(
             v_v_a_load      <= 1'b0;
             v_v_b_load      <= 1'b0;
         end else begin
-
-            v_v_a_valid         <= v_v_a_load;
-            v_v_b_valid         <= v_v_b_load;
-            hbm_ready_to_write        <= hbm_write_load_en;
+            v_v_a_valid                 <= v_v_a_load;
+            v_v_b_valid                 <= v_v_b_load;
+            hbm_ready_to_write          <= hbm_write_load_en;
             //Port A
             if(assigned_op_bundle.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM

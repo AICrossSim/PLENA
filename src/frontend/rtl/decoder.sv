@@ -42,11 +42,11 @@ module decoder #(
 );
 
 
-logic stall_for_read_rd;
+logic   stall_for_read_rd;
 logic [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
-logic read_instr_from_fifo, decode_instr_valid;
-assign read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid;
-
+logic   read_instr_from_fifo, decode_instr_valid;
+assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid;
+OP_BUNDLE       recorded_op_bundle;
 // Note: When the buffer is empty, there is one last instruction in the buffer
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
@@ -125,6 +125,7 @@ end
 
 assign decode_instr_info = decode_instr_valid ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
 
+logic [FIXED_OPERAND_WIDTH - 1 : 0] extra_rd_to_load;
 // Decoding
 logic rd_operand_ready; // The stall is for loading the third operand from the register files.
 always_comb begin
@@ -144,7 +145,8 @@ always_comb begin
     end
 end
 
-always_ff @(posedge clk) begin  
+
+always_ff @(posedge clk) begin
     if (stall_for_read_rd) begin
         // Stall Condition 1: When the three oprands both pointer for addresses, need 2 cycles to obtain the address for the two port regfile.
         rd_operand_ready <= 1'b1;
@@ -161,28 +163,29 @@ always_ff @(posedge clk) begin
         decoded_op_bundle.fpd             <= 'b0;
         rs1                               <= 'b0;
         rs2                               <= 'b0;
-        rd                                <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+        rd                                <= extra_rd_to_load;
         imm                               <= 'b0;
-    end else begin
+    end else if (!pipeline_stall) begin
         rd_operand_ready <= 1'b0;
         decoded_op_bundle.m_transposed_read   <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
         decoded_op_bundle.v_broadcast_en      <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
         
         case(decode_instr_info.instruction_type)
             M: begin
-                decoded_op_bundle.m_op        <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
-                decoded_op_bundle.v_ele_op    <= STALL_V_ELEMENT;
-                decoded_op_bundle.v_reduct_op <= STALL_V_REDUCT;
-                decoded_op_bundle.s_fp_op     <= STALL_S_FP;
-                exe_fixed_op                  <= PASS_ADDR;
-                decoded_op_bundle.c_op            <= STALL_C;
-                decoded_op_bundle.h_op            <= STALL_H;
-                decoded_op_bundle.fps1            <= 'b0;
-                decoded_op_bundle.fps2            <= 'b0;
-                decoded_op_bundle.fpd             <= 'b0;
-                rs1     <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2     <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd      <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                decoded_op_bundle.m_op          <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
+                decoded_op_bundle.v_ele_op      <= STALL_V_ELEMENT;
+                decoded_op_bundle.v_reduct_op   <= STALL_V_REDUCT;
+                decoded_op_bundle.s_fp_op       <= STALL_S_FP;
+                exe_fixed_op                    <= PASS_ADDR;
+                decoded_op_bundle.c_op          <= STALL_C;
+                decoded_op_bundle.h_op          <= STALL_H;
+                decoded_op_bundle.fps1          <= 'b0;
+                decoded_op_bundle.fps2          <= 'b0;
+                decoded_op_bundle.fpd           <= 'b0;
+                rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                rs2                             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                rd                              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                extra_rd_to_load                <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                 imm     <= 'b0;
             end
 
@@ -200,32 +203,35 @@ always_ff @(posedge clk) begin
                 decoded_op_bundle.c_op            <= STALL_C;
                 decoded_op_bundle.h_op            <= STALL_H;
                 if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
-                    decoded_op_bundle.s_fp_op     <= LD_OUT_FP;
-                    decoded_op_bundle.fps1            <= 'b0;
-                    decoded_op_bundle.fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
-                    decoded_op_bundle.fpd             <= 'b0;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    imm             <= {IMM_WIDTH{1'b0}};
+                    decoded_op_bundle.s_fp_op           <= LD_OUT_FP;
+                    decoded_op_bundle.fps1              <= 'b0;
+                    decoded_op_bundle.fps2              <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                    decoded_op_bundle.fpd               <= 'b0;
+                    rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    extra_rd_to_load                    <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    imm                                 <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == V_RED_SUM || decode_instr_info.opcode == V_RED_MAX) begin
                     decoded_op_bundle.s_fp_op           <= LD_OUT_FP;
                     decoded_op_bundle.fps1              <= 'b0;
                     decoded_op_bundle.fps2              <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                     decoded_op_bundle.fpd               <= 'b0;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= {FP_OPERAND_WIDTH{1'b0}};
-                    imm             <= {IMM_WIDTH{1'b0}};
+                    rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd                                  <= {FP_OPERAND_WIDTH{1'b0}};
+                    extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    imm                                 <= {IMM_WIDTH{1'b0}};
                 end else begin
-                    decoded_op_bundle.s_fp_op    <= STALL_S_FP;
-                    decoded_op_bundle.fps1            <= 'b0;
-                    decoded_op_bundle.fps2            <= 'b0;
-                    decoded_op_bundle.fpd             <= 'b0;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    imm             <= {IMM_WIDTH{1'b0}};
+                    decoded_op_bundle.s_fp_op           <= STALL_S_FP;
+                    decoded_op_bundle.fps1              <= 'b0;
+                    decoded_op_bundle.fps2              <= 'b0;
+                    decoded_op_bundle.fpd               <= 'b0;
+                    rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    extra_rd_to_load                    <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    imm                                 <= {IMM_WIDTH{1'b0}};
                 end
             end
 
@@ -245,6 +251,7 @@ always_ff @(posedge clk) begin
                                                         (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    : STALL_S_FIXED;
                 decoded_op_bundle.c_op            <= STALL_C;
                 decoded_op_bundle.h_op            <= STALL_H;
+                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
                 if (decode_instr_info.opcode == S_ADDI_FIX ) begin
                     // S_ADDI_FIX
                     decoded_op_bundle.fps1            <= 'b0;
@@ -281,8 +288,9 @@ always_ff @(posedge clk) begin
                                                         (decode_instr_info.opcode == S_LD_FP)     ? LD_REG_FP :
                                                         (decode_instr_info.opcode == S_ST_FP)     ? ST_REG_FP : STALL_S_FP;
                 
-                decoded_op_bundle.c_op            <= STALL_C;
-                decoded_op_bundle.h_op            <= STALL_H;
+                decoded_op_bundle.c_op              <= STALL_C;
+                decoded_op_bundle.h_op              <= STALL_H;
+                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
                 if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MAX_FP || decode_instr_info.opcode == S_MUL_FP) begin
                     // Two FP source operands and one FP destination operand
                     exe_fixed_op                    <= STALL_S_FIXED;
@@ -355,6 +363,7 @@ always_ff @(posedge clk) begin
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
+                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
             end
 
             H : begin
@@ -362,7 +371,7 @@ always_ff @(posedge clk) begin
                 decoded_op_bundle.v_ele_op        <= STALL_V_ELEMENT;
                 decoded_op_bundle.v_reduct_op     <= STALL_V_REDUCT;
                 decoded_op_bundle.s_fp_op         <= STALL_S_FP;
-                exe_fixed_op      <= PASS_ADDR_2;
+                exe_fixed_op                      <= PASS_ADDR_2;
                 decoded_op_bundle.c_op            <= STALL_C;
                 decoded_op_bundle.h_op <=   (decode_instr_info.opcode == H_PREFETCH_M)      ? PREFETCH_M    :
                                             (decode_instr_info.opcode == H_PREFETCH_V)      ? PREFETCH_V    :
@@ -374,6 +383,7 @@ always_ff @(posedge clk) begin
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
+                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
             end
 
             default: begin
@@ -392,9 +402,10 @@ always_ff @(posedge clk) begin
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
+                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
             end
         endcase
-    end    
+    end 
 end
 
 endmodule

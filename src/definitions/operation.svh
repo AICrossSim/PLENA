@@ -79,7 +79,7 @@ typedef enum logic [3:0] {
     LD_FIX        = 8,
     ST_FIX        = 9,
     PASS_ADDR     = 10,
-    PASS_ADDR_2   = 11, // outputs rd adress.
+    PASS_ADDR_2   = 11, // addr_port_2: rd and addr_port_1: rs1 adress.
     COMP_ADDR     = 12,
     STALL_S_FIXED = 0
 } S_FIXED_OP;
