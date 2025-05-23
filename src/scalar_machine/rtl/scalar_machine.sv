@@ -22,18 +22,13 @@ module scalar_machine import precision_pkg::*;  #(
     input   logic rst,
 
     // Control
-    input   S_FP_OP fp_control,
-    input   S_FIXED_OP fixed_control,
+    input   OP_BUNDLE  exe_op_bundle,
+    input   S_FIXED_OP exe_fixed_op,
 
     // Fixed Register Control
     input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
     input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
     input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
-
-    // FP Register Control
-    input   logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1,
-    input   logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2,
-    input   logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd,
 
     // Fixed Value input
     input   logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in,
@@ -61,6 +56,8 @@ module scalar_machine import precision_pkg::*;  #(
     //----------------------------//
     // FP Unit
     //----------------------------//
+    S_FP_OP fp_control;
+    assign fp_control = exe_op_bundle.s_fp_op;
 
     struct {
         logic [FP_OPERAND_WIDTH-1:0] target_fp;
@@ -152,6 +149,15 @@ module scalar_machine import precision_pkg::*;  #(
     assign external_fp_in_ready = (external_fp_in_valid & write_data_from_external_fp);
 
 
+    // FP Register Control
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd;
+
+    assign fp_rs1 = exe_op_bundle.fps1;
+    assign fp_rs2 = exe_op_bundle.fps2;
+    assign fp_rd  = exe_op_bundle.fpd;
+
     fp_alu #(
         .EXP_WIDTH(FP_EXP_WIDTH),
         .MANT_WIDTH(FP_MANT_WIDTH)
@@ -204,7 +210,7 @@ module scalar_machine import precision_pkg::*;  #(
         .rst(rst),
         .req((fp_control == LD_REG_FP) || (fp_control == ST_REG_FP)),
         .write_en((fp_control == ST_REG_FP)),
-        .sram_addr(fixed_alu_out),
+        .sram_addr(exe_op_bundle.addr_1),
         .sram_data_in(fp_reg_2),
         .sram_data_out(fp_ld_from_sram)
     );
@@ -225,17 +231,17 @@ module scalar_machine import precision_pkg::*;  #(
             fixed_reg_wdata = fixed_ld_from_sram;
             fixed_reg_wen   = 1'b1;
             // When the write port is required from two different sources, the stall signal should be set to 1
-            fixed_stall_req = (fixed_control != STALL_S_FIXED) && (fixed_control != PASS_ADDR) && (fixed_control != PASS_ADDR_2) && (fixed_control != ST_FIX) && (fixed_control != LD_FIX);
+            fixed_stall_req = (exe_fixed_op != STALL_S_FIXED) && (exe_fixed_op != PASS_ADDR) && (exe_fixed_op != PASS_ADDR_2) && (exe_fixed_op != ST_FIX) && (exe_fixed_op != LD_FIX);
         end else if (fixed_stall_status) begin
             fixed_reg_waddr = recorded_fixed_reg_waddr;
             fixed_reg_wdata = recorded_alu_out;
             fixed_reg_wen   = 1'b1;
             // When the write port is required from two different sources, the stall signal should be set to 1
-            fixed_stall_req = (fixed_control != STALL_S_FIXED) && (fixed_control != PASS_ADDR) && (fixed_control != PASS_ADDR_2) && (fixed_control != ST_FIX) && (fixed_control != LD_FIX);
+            fixed_stall_req = (exe_fixed_op != STALL_S_FIXED) && (exe_fixed_op != PASS_ADDR) && (exe_fixed_op != PASS_ADDR_2) && (exe_fixed_op != ST_FIX) && (exe_fixed_op != LD_FIX);
         end else begin
             fixed_reg_waddr = rd;
             fixed_reg_wdata = fixed_alu_out;
-            fixed_reg_wen   = (fixed_control != STALL_S_FIXED) && (fixed_control != PASS_ADDR) && (fixed_control != PASS_ADDR_2) && (fixed_control != ST_FIX) && (fixed_control != LD_FIX);
+            fixed_reg_wen   = (exe_fixed_op != STALL_S_FIXED) && (exe_fixed_op != PASS_ADDR) && (exe_fixed_op != PASS_ADDR_2) && (exe_fixed_op != ST_FIX) && (exe_fixed_op != LD_FIX);
         end
     end
 
@@ -246,7 +252,7 @@ module scalar_machine import precision_pkg::*;  #(
             fixed_write_from_sram_req   <= 1'b0;
             fixed_stall_status          <= 1'b0;
         end else begin
-            if (fixed_control == LD_FIX) begin
+            if (exe_fixed_op == LD_FIX) begin
                 recorded_fixed_reg_waddr    <= rd;
                 fixed_write_from_sram_req   <= 1'b1;
                 fixed_stall_status          <= 1'b0;
@@ -262,12 +268,13 @@ module scalar_machine import precision_pkg::*;  #(
         end
     end
 
-    assign fixed_out_1 = (fixed_control == PASS_ADDR || fixed_control == PASS_ADDR_2) ? fixed_reg_1 : 'b0;
-    assign fixed_out_2 = (fixed_control == PASS_ADDR || fixed_control == PASS_ADDR_2) ? fixed_reg_2 : 'b0;
+    assign fixed_out_1 =    (exe_fixed_op == PASS_ADDR || exe_fixed_op == PASS_ADDR_2) ? fixed_reg_1    :
+                            (exe_fixed_op == COMP_ADDR)                                ? fixed_alu_out  : 'b0;
+    assign fixed_out_2 =    (exe_fixed_op == PASS_ADDR || exe_fixed_op == PASS_ADDR_2) ? fixed_reg_2    : 'b0;
 
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     assign fixed_reg_addr_1 = rs1;
-    assign fixed_reg_addr_2 = ((fixed_control == PASS_ADDR_2) || (fixed_control == ST_FIX)) ? rd : rs2;
+    assign fixed_reg_addr_2 = ((exe_fixed_op == PASS_ADDR_2) || (exe_fixed_op == ST_FIX)) ? rd : rs2;
 
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH)
@@ -275,7 +282,7 @@ module scalar_machine import precision_pkg::*;  #(
         .operand_a  (fixed_alu_operand_a),
         .operand_b  (fixed_alu_operand_b),
         .imm_value  ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, imm_in}),
-        .operation  (fixed_control),
+        .operation  (exe_fixed_op),
         .result     (fixed_alu_out)
     );
 
@@ -315,8 +322,8 @@ module scalar_machine import precision_pkg::*;  #(
     ) fixed_scalar_sram (
         .clk(clk),
         .rst(rst),
-        .req            ((fixed_control == LD_FIX) || (fixed_control == ST_FIX)),
-        .write_en       ((fixed_control == ST_FIX)),
+        .req            ((exe_fixed_op == LD_FIX) || (exe_fixed_op == ST_FIX)),
+        .write_en       ((exe_fixed_op == ST_FIX)),
         .sram_addr      (fixed_alu_out),
         .sram_data_in   (fixed_alu_operand_b),
         .sram_data_out  (fixed_ld_from_sram)

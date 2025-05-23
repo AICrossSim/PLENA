@@ -186,12 +186,15 @@ typedef struct {
     V_ELEMENT_OP    v_ele_op;
     V_REDUCT_OP     v_reduct_op;
     S_FP_OP         s_fp_op;
-    S_FIXED_OP      s_fixed_op;
     C_OP            c_op;
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
-    MEM_WEN_INFO    mem_write;
+    logic [FP_OPERAND_WIDTH - 1:0]      fps1;
+    logic [FP_OPERAND_WIDTH - 1:0]      fps2;
+    logic [FP_OPERAND_WIDTH - 1:0]      fpd;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   addr_1;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   addr_2;
 } OP_BUNDLE;
 
 `endif

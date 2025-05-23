@@ -16,7 +16,7 @@ module addr_monitor#(
     input   logic rst,
 
     // Execution Operation
-    input   OP_BUNDLE assigned_op_bundle,  
+    input   OP_BUNDLE decoded_op_bundle,  
 
     // ----------- Monitor Operand Write Signals -----------
     input   logic m_waddr_ready,
@@ -33,8 +33,7 @@ module addr_monitor#(
     input   logic s_sram_wen_b,
 
     // Stall Decision
-    output  logic stall_req,
-    output  OP_BUNDLE  permit_rd_op_bundle
+    output  logic stall_req
 );
 
     // Track Write V Address
@@ -42,6 +41,7 @@ module addr_monitor#(
         logic [ADDR_WIDTH-1:0]          track_addr;
         logic                           activate;
     } TRACK_ADDR;
+
     localparam TRACK_ADDR_WIDTH = $clog2(PIPELINE_STAGES) + 1;
     TRACK_ADDR v_write_addr_track [PIPELINE_STAGES - 1 : 0];
     logic [TRACK_ADDR_WIDTH - 1 : 0]     free_track_entry_idx, locked_entry_idx_1, locked_entry_idx_2;
@@ -77,7 +77,7 @@ module addr_monitor#(
             end else begin
                 stall = 1'b0;
             end
-        end else if ((assigned_op_bundle.m_op != STALL_M) ||((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!assigned_op_bundle.v_broadcast_en)) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
+        end else if ((decoded_op_bundle.m_op != STALL_M) ||((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!decoded_op_bundle.v_broadcast_en)) || (decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if ((v_write_addr_track[i].track_addr == fixed_addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -93,7 +93,7 @@ module addr_monitor#(
                 end
             end
             stall = |addr_collide_flag;
-        end else if (((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) & (assigned_op_bundle.v_broadcast_en))) begin
+        end else if (((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (decoded_op_bundle.v_broadcast_en))) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -105,7 +105,7 @@ module addr_monitor#(
                 end
             end
             stall = |addr_collide_flag;
-        end else if (assigned_op_bundle.h_op == STORE_V) begin
+        end else if (decoded_op_bundle.h_op == STORE_V) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -138,7 +138,7 @@ module addr_monitor#(
 
     always_comb begin
         // Decide which source is providing the address this cycle
-        if (assigned_op_bundle.h_op == PREFETCH_V) begin
+        if (decoded_op_bundle.h_op == PREFETCH_V) begin
             insert_addr  = fixed_addr_1;
             insert_valid = 1'b1;
         end else if (m_waddr_ready) begin
@@ -195,57 +195,6 @@ module addr_monitor#(
         end
     end
 
-    OP_BUNDLE          stalled_op_bundle;
-    OP_BUNDLE          invalid_op_bundle;
-    
-    assign invalid_op_bundle = '{
-        m_op            : STALL_M,
-        v_ele_op        : STALL_V_ELEMENT,
-        v_reduct_op     : STALL_V_REDUCT,
-        s_fp_op         : STALL_S_FP,
-        s_fixed_op      : STALL_S_FIXED,
-        c_op            : STALL_C,
-        h_op            : STALL_H,
-        m_transposed_read: 1'b0,
-        v_broadcast_en  : 1'b0,
-        mem_write       : '{
-            w_m_sram_en : 1'b0,
-            w_s_sram_port_a_en : 1'b0,
-            w_s_sram_port_b_en : 1'b0
-        }
-    };
 
-    // Bundle Decision
-    always_comb begin
-        if (stall_in_process_p1 & !stall) begin
-            // End of Stall Recover
-            permit_rd_op_bundle = stalled_op_bundle;
-        end else if (!stall_in_process_p1 & stall) begin
-            // Start to Stall
-            permit_rd_op_bundle = invalid_op_bundle;
-        end else if (stall_in_process_p1 & stall) begin
-            // In the process of stalling
-            permit_rd_op_bundle = invalid_op_bundle;
-        end else if (stall_in_process_p2 & !stall) begin
-            // End of stalling
-            permit_rd_op_bundle = invalid_op_bundle;
-        end else begin
-            // Normal Operation
-            permit_rd_op_bundle = assigned_op_bundle;
-        end
-    end
-
-    always_ff @(posedge clk or negedge rst) begin
-        if (rst) begin
-            stalled_op_bundle <= invalid_op_bundle;
-        end else if (!stall_in_process_p1 & stall) begin
-            // At the start of Stall, record the current operation bundle
-            stalled_op_bundle <= assigned_op_bundle;
-        end else if (stall_in_process_p1 & !stall) begin
-            stalled_op_bundle <= invalid_op_bundle;
-        end else begin
-            stalled_op_bundle <= stalled_op_bundle;
-        end
-    end
 
 endmodule

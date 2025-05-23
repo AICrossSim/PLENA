@@ -24,7 +24,7 @@ module matrix_machine import precision_pkg::*; import configuration_pkg::*; #(
 
     // Offset Addressing
     input  logic                              set_offset_addr,
-    input  logic [ADDR_WIDTH-1:0]             offset_addr,
+    input  logic [ADDR_WIDTH-1:0]             addr_in,
     output logic [ADDR_WIDTH-1:0]             offset_addr_out,
 
     // Matix - row-major order
@@ -46,7 +46,6 @@ module matrix_machine import precision_pkg::*; import configuration_pkg::*; #(
     output logic                    o_ready,
 
     // Output
-    input  logic [ADDR_WIDTH-1:0]             result_waddr,
     input  logic result_waddr_update,
     
     output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_element,
@@ -96,12 +95,12 @@ always_ff @(posedge clk or negedge rst) begin
         result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
         
         if (result_waddr_ready)begin
-            recorded_m_waddr <= result_waddr;
+            recorded_m_waddr <= addr_in;
         end
         
         // Set offset address
         if (set_offset_addr) begin
-            offset_addr_out <= offset_addr;
+            offset_addr_out <= addr_in;
         end
         // Store Operation
         if (!prepare_flag && matrix_opcode != STALL_M) begin

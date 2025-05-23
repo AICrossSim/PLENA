@@ -42,13 +42,14 @@ module coprocessor #(
     localparam BLOCK_NUM = MLEN / BLOCK_DIM;
     
     // Execution Control
-    INSTR_INFO  decode_instr_info;
-    logic       read_next_instr, decode_instr_valid;
-    OP_BUNDLE   assigned_op_bundle;
+    OP_BUNDLE   decoded_op_bundle, assigned_op_bundle;
+    S_FIXED_OP  exe_fixed_op;
+    logic pipeline_stall;
+    MEM_WEN_INFO mem_write_control;
 
     // Status Tracking
     logic hbm_in_used;
-    logic stall_req_from_mem, stall_req_from_fp, fixed_stall_req;
+    logic stall_req_from_fp, fixed_stall_req;
     logic v_in_prep, m_in_prep;
 
     // Memory Control Signals Declaration
@@ -72,7 +73,6 @@ module coprocessor #(
     // Scalar Machine Control
     logic [IMM_WIDTH - 1 : 0] s_imm;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
-    logic [FP_OPERAND_WIDTH - 1 : 0]    s_fps1, s_fps2, s_fpd;
 
     logic       m_update_waddr, v_update_waddr;
     logic       m_write_request, v_write_request;
@@ -92,13 +92,18 @@ module coprocessor #(
     ) decoder_init (
         .clk(clk),
         .rst(rst),
+        .pipeline_stall         (pipeline_stall),
         .instruction            (instruction),
         .instruction_valid      (instruction_valid),
         .instruction_ready      (instruction_ready),
-        .instr_buffer_full      (instr_buffer_full),
-        .decode_instr_info      (decode_instr_info),
-        .read_next_instr        (read_next_instr),
-        .decode_instr_valid     (decode_instr_valid)
+        .decoded_op_bundle      (decoded_op_bundle),
+        .exe_fixed_op           (exe_fixed_op),
+        .m_update_waddr         (m_update_waddr),
+        .v_update_waddr         (v_update_waddr),
+        .rs1                    (s_rs1),
+        .rs2                    (s_rs2),
+        .rd                     (s_rd),
+        .imm                    (s_imm)
     );
 
     pipeline_control #(
@@ -110,28 +115,25 @@ module coprocessor #(
     ) pipeline_control_init (
         .clk(clk),
         .rst(rst),
-        // Instruction
-        .decode_instr_info      (decode_instr_info),
-        .decode_instr_valid     (decode_instr_valid),
-        .fetch_next_instr       (read_next_instr),
+        .decoded_op_bundle     (decoded_op_bundle),
+        .load_m_waddr_en       (m_update_waddr),
+        .load_v_waddr_en       (v_update_waddr),
+        .fixed_addr_1          (fixed_addr_1),
+        .fixed_addr_2          (fixed_addr_2),
+        .s_sram_wen_a          (s_sram_wen_a),
+        .s_sram_addr_a         (s_sram_addr_a),
+        .s_sram_wen_b          (s_sram_wen_b),
+        .s_sram_addr_b         (s_sram_addr_b),
         .mem_write_req          (mem_write_req),
         .hbm_in_used            (hbm_in_used),
         .continuous_m_prefetch  (continuous_prefetch_m_en),
         .fp_stall_req           (stall_req_from_fp),
         .fixed_stall_req        (fixed_stall_req),
-        .mem_vwrite_stall_req   (stall_req_from_mem),
         .m_load_in_process      (m_in_prep),
         .v_load_in_process      (v_in_prep),
+        .pipeline_stall         (pipeline_stall),
         .assigned_op_bundle     (assigned_op_bundle),
-        .m_update_waddr         (m_update_waddr),
-        .v_update_waddr         (v_update_waddr),
-        .rs1                    (s_rs1),
-        .rs2                    (s_rs2),
-        .rd                     (s_rd),
-        .fps1                   (s_fps1),
-        .fps2                   (s_fps2),
-        .fpd                    (s_fpd),
-        .imm                    (s_imm)
+        .mem_write_control     (mem_write_control)
     );
 
 
@@ -145,13 +147,8 @@ module coprocessor #(
         .clk(clk),
         .rst(rst),
         .assigned_op_bundle     (assigned_op_bundle),
-        .fixed_addr_1           (fixed_out_1),
-        .fixed_addr_2           (fixed_out_2),
         .m_offset_addr          (m_offset_addr),
         .write_req              (mem_write_req),
-        .stall_req              (stall_req_from_mem),
-        .load_m_waddr_en        (m_update_waddr),
-        .load_v_waddr_en        (v_update_waddr),
         .m_m_ready              (m_m_ready),
         .m_m_valid              (m_m_valid),
         .m_v_valid              (m_v_valid),
@@ -251,7 +248,7 @@ module coprocessor #(
             .matrix_opcode          (assigned_op_bundle.m_op),
             .prepare_flag           (m_in_prep),
             .set_offset_addr        ((assigned_op_bundle.c_op == SET_M_OFFSET)),
-            .offset_addr            (fixed_out_2),
+            .addr_in                (assigned_op_bundle.addr_2),
             .offset_addr_out        (m_offset_addr),
             .m_element              (fetched_m_element),
             .m_scale                (fetched_m_scale),
@@ -265,7 +262,6 @@ module coprocessor #(
             .o_scale                (v_scale_port_b_out),
             .o_valid                (m_o_valid),
             .o_ready                (m_o_ready),
-            .result_waddr           (fixed_out_2),
             .result_waddr_update    (m_update_waddr),
             .out_element            (m_out_element),
             .out_scale              (m_out_scale),
@@ -296,7 +292,7 @@ module coprocessor #(
             .s_in_valid             (v_s_in_valid),
             .s_in_ready             (v_s_in_ready),
             .s_wtarget              (s_fps2),
-            .result_waddr           (fixed_out_2),
+            .result_waddr           (assigned_op_bundle.addr_2),
             .result_waddr_update    (v_update_waddr),
             .v_out_element          (v_out_element),
             .v_out_scale            (v_out_scale),
@@ -317,14 +313,11 @@ module coprocessor #(
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),
-            .fp_control             (assigned_op_bundle.s_fp_op),
-            .fixed_control          (assigned_op_bundle.s_fixed_op),
+            .exe_op_bundle          (assigned_op_bundle),
+            .exe_fixed_op          (exe_fixed_op),
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
             .rd                     (s_rd),
-            .fp_rs1                 (s_fps1),
-            .fp_rs2                 (s_fps2),
-            .fp_rd                  (s_fpd),
             .fixed_in               (fixed_in),
             .imm_in                 (s_imm),
             .fixed_out_1            (fixed_out_1),
