@@ -1,6 +1,6 @@
 import random
 import math
-
+import torch
 
 def split_bitstream_equal(bitstream_val, chunk_width):
 
@@ -37,6 +37,68 @@ def extract_bitfields(value: int, bitwidth: int, vec_dim: int):
         field = (value >> shift_amount) & mask
         result.append(field)
     return result
+
+
+from quant.quantizer.minifloat import _minifloat_ieee_quantize
+
+class TorchFpGenerator:
+    def __init__(self, exp_width, mant_width):
+        self.exp_width = exp_width
+        self.mant_width = mant_width
+        self.min_val, self.max_val = get_fp_range(exp_width, mant_width)
+        self.config = {"exp_width": exp_width, "man_width": mant_width}
+
+    def generate_fp_input(self, amount):
+        original_fp_value = torch.rand(amount) * (self.max_val - self.min_val) + self.min_val
+        minifloat_fp_value = _minifloat_ieee_quantize(original_fp_value, self.exp_width + self.mant_width + 1, self.exp_width)
+        fp_values = minifloat_fp_value.tolist()
+
+        bin_values = []
+        for value in fp_values:
+            bin_values.append(self.fp2bin(value))
+
+        return fp_values, bin_values
+
+    def fp2bin(self, val: float):
+        """Convert Python float to custom binary FP format: {sign, exp, mant}"""
+        if val == 0.0:
+            return 0
+
+        # Get sign
+        sign = 0 if val >= 0 else 1
+        val = abs(val)
+
+        # Get raw exponent and mantissa
+        exponent = int(math.floor(math.log2(val)))
+        mantissa_val = val / (2 ** exponent) - 1.0  # remove leading 1
+
+        # Bias the exponent
+        bias = (1 << (self.exp_width - 1)) - 1
+        exponent_bits = exponent + bias
+        if exponent_bits < 0 or exponent_bits >= (1 << self.exp_width):
+            raise ValueError("Exponent out of range!")
+
+        # Mantissa
+        mantissa_bits = int(mantissa_val * (1 << self.mant_width))
+
+        # Pack into integer: {sign, exp, mant}
+        result = (sign << (self.exp_width + self.mant_width)) | (exponent_bits << self.mant_width) | mantissa_bits
+        return result
+
+    def bin2fp(self, bits: int):
+        """Convert from bits to Python float"""
+        total_width = 1 + self.exp_width + self.mant_width
+        sign = (bits >> (self.exp_width + self.mant_width)) & 0x1
+        exponent_bits = (bits >> self.mant_width) & ((1 << self.exp_width) - 1)
+        mantissa_bits = bits & ((1 << self.mant_width) - 1)
+
+        # Bias and reconstruct
+        bias = (1 << (self.exp_width - 1)) - 1
+        exponent = exponent_bits - bias
+        mantissa_val = 1.0 + (mantissa_bits / (1 << self.mant_width))
+
+        val = mantissa_val * (2 ** exponent)
+        return -val if sign == 1 else val
 
 
 class FpGenerator:
