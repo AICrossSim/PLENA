@@ -54,31 +54,39 @@ module pipeline_control #(
 import pipeline_pkg::*;
     // Pipeline Control
     logic pipeline_stall;
+    logic stall_for_prefetch;
     // Decision for pipeline stall
     always_comb begin
-        // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
-        if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
-            // Note: Any M type instruction involves interaction with the matrix sram, hence need to stall when its prefetching.
-            pipeline_stall   = 1'b1;            
-        end else if ((mem_write_req.wreq_m_sram == 1'b1 || mem_write_req.wreq_s_sram_port_b == 1'b1) & (decoded_op_bundle.m_op != STALL_M) ) begin
-            // In prefetching mode
-            pipeline_stall   = 1'b1;
-        end else if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || assigned_op_bundle.h_op == PREFETCH_V)) begin
-            // Release until the prefetching is done.
-            pipeline_stall   = 1'b1;            
-        end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
-            // Release until the prefetching is done.
-            pipeline_stall   = 1'b1;            
-        end else if (fp_stall_req & (decoded_op_bundle.s_fp_op != STALL_S_FP)) begin
-            // Release until the prefetching is done.
-            pipeline_stall   = 1'b1;            
-        end else if (mem_vwrite_stall_req) begin
-            // Unconditionally stall the overall pipeline.
-            pipeline_stall   = 1'b1;                
+        if(stall_in_process) begin
+            if(prefetch_in_progress & (recorded_op_bundle.h_op == PREFETCH_M || recorded_op_bundle.h_op == PREFETCH_V )) begin
+                pipeline_stall = 1'b1;
+            end else begin
+                pipeline_stall = 1'b0;
+            end
         end else begin
-            pipeline_stall   = 1'b0;
+            // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
+            if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
+                // Note: Any M type instruction involves interaction with the matrix sram, hence need to stall when its prefetching.
+                pipeline_stall   = 1'b1;            
+            end else if ((mem_write_req.wreq_m_sram == 1'b1 || mem_write_req.wreq_s_sram_port_b == 1'b1) & (decoded_op_bundle.m_op != STALL_M) ) begin
+                // In prefetching mode
+                pipeline_stall   = 1'b1;
+            end else if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
+                // Prefetching another data while the previous prefetching is not done yet.
+                pipeline_stall   = 1'b1;            
+            end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+                // Trying to access the two ports of the vector sram while it is being written to.
+                pipeline_stall   = 1'b1;            
+            end else if (fp_stall_req & (decoded_op_bundle.s_fp_op != STALL_S_FP)) begin
+                // Release until the prefetching is done.
+                pipeline_stall   = 1'b1;            
+            end else if (mem_vwrite_stall_req) begin
+                // Unconditionally stall the overall pipeline.
+                pipeline_stall   = 1'b1;                
+            end else begin
+                pipeline_stall   = 1'b0;
+            end
         end
-
     end
 
     assign pipeline_stall_req = pipeline_stall || stall_in_process; // Extra stall cycle in order to execute the previously unexecuted operation.

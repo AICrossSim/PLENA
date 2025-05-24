@@ -168,7 +168,7 @@ always_ff @(posedge clk) begin
         rs2                               <= 'b0;
         rd                                <= extra_rd_to_load;
         imm                               <= 'b0;
-    end else if (!pipeline_stall) begin
+    end else begin
         rd_operand_ready <= 1'b0;
         decoded_op_bundle.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
         decoded_op_bundle.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;

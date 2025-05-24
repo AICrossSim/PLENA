@@ -1,23 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri May 23 22:44:46 2025
+[*] Sat May 24 15:27:08 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri May 23 22:33:09 2025"
-[dumpfile_size] 27901988
+[dumpfile_mtime] "Sat May 24 15:25:34 2025"
+[dumpfile_size] 27861192
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] 78336 88323
-*-16.887817 860000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.887817 320000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
-[treeopen] SimTop.dut.decoder_init.
+[treeopen] SimTop.dut.hbm_controller_init.
+[treeopen] SimTop.dut.hbm_controller_init.address_mapper_inst.
 [treeopen] SimTop.dut.pipeline_control_init.
-[treeopen] SimTop.dut.pipeline_control_init.addr_monitor_inst.
 [treeopen] SimTop.dut.pipeline_control_init.assigned_op_bundle.
-[treeopen] SimTop.dut.scalar_machine_init.
 [sst_width] 390
 [signals_width] 349
 [sst_expanded] 1
@@ -26,44 +25,12 @@
 SimTop.dut.clk
 @22
 SimTop.dut.decoder_init.decode_instr_info.opcode[5:0]
-SimTop.dut.decoder_init.exe_fixed_op[3:0]
-SimTop.dut.scalar_machine_init.fixed_alu_out[31:0]
 @28
-SimTop.dut.scalar_machine_init.fixed_reg_wen
-@22
-SimTop.dut.scalar_machine_init.fixed_reg_wdata[31:0]
-@28
-SimTop.dut.pipeline_control_init.addr_monitor_inst.stall_in_process
-SimTop.dut.pipeline_control_init.addr_monitor_inst.stall_req
-@22
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_addr_a[31:0]
-@28
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_wen_a
-@22
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_addr_b[31:0]
-@28
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_wen_b
-SimTop.dut.pipeline_control_init.decoded_op_bundle.h_op[1:0]
-SimTop.dut.pipeline_control_init.decoded_op_bundle.update_v_waddr
-SimTop.dut.pipeline_control_init.decoded_op_bundle.v_ele_op[2:0]
-SimTop.dut.pipeline_control_init.pipeline_stall_req
-@22
-SimTop.dut.pipeline_control_init.fixed_addr_1[31:0]
-SimTop.dut.pipeline_control_init.fixed_addr_2[31:0]
-SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
-SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
-@28
-SimTop.dut.pipeline_control_init.addr_monitor_inst.decoded_op_bundle.h_op[1:0]
-SimTop.dut.pipeline_control_init.addr_monitor_inst.decoded_op_bundle.update_v_waddr
-SimTop.dut.pipeline_control_init.addr_monitor_inst.insert_valid
-@22
-SimTop.dut.pipeline_control_init.addr_monitor_inst.insert_addr[31:0]
-@28
-SimTop.dut.decoder_init.stall_for_read_rd
 SimTop.dut.decoder_init.pipeline_stall
-SimTop.dut.decoder_init.read_instr_from_fifo
-SimTop.dut.decoder_init.decode_instr_valid
-@22
-SimTop.dut.decoder_init.loaded_instr[15:0]
+SimTop.dut.pipeline_control_init.stall_in_process
+SimTop.dut.pipeline_control_init.pipeline_stall
+SimTop.dut.vector_sram.write_en_b
+@29
+SimTop.dut.matrix_sram.write_en
 [pattern_trace] 1
 [pattern_trace] 0

@@ -117,6 +117,9 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         rd = None
             else:
                 rd = None
+            rs1 = None
+            rs2 = None
+            imm = None
             if len(operands) > 1:
                 operand_1 = operands[1]
                 if operand_1[-1] == ';':
@@ -127,11 +130,10 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                     rs1 = int(operand_1[2:], 16)
                 else:
                     try:
-                        rs1 = int(operand_1)
+                        imm = int(operand_1)
                     except ValueError:
-                        rs1 = None
-            rs2 = None
-            imm = None
+                        imm = None
+
 
             if len(operands) == 3:
                 operand_2 = operands[2]
