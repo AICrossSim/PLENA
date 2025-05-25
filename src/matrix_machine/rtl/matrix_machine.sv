@@ -72,7 +72,6 @@ typedef struct {
 
 RECORDED_INFO_TYPE pipeline_compute_track [0:MATRIX_MAX_CYCLES-1];
 
-logic result_waddr_ready;
 
 M_OP    recorded_m_op;
 logic [ADDR_WIDTH-1:0] recorded_m_waddr;
@@ -86,15 +85,13 @@ always_ff @(posedge clk or negedge rst) begin
         end
 
         offset_addr_out <= 'b0;
-        result_waddr_ready <= 1'b0;
         prepare_flag <= 1'b0;
         recorded_m_op <= STALL_M;
         recorded_m_waddr <= 'b0;
     end else begin
         // Set result waddr
-        result_waddr_ready <= result_waddr_update; // The waddr is ready to be accessed in the next cycle after the result_waddr_update is activated.
         
-        if (result_waddr_ready)begin
+        if (result_waddr_update)begin
             recorded_m_waddr <= addr_in;
         end
         

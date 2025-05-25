@@ -121,26 +121,62 @@ always_comb begin
     endcase
 end
 
-assign decode_instr_info = decode_instr_valid ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
+assign decode_instr_info = read_instr_from_fifo ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
 
 logic [FIXED_OPERAND_WIDTH - 1 : 0] extra_rd_to_load;
 // Decoding
 logic rd_operand_ready; // The stall is for loading the third operand from the register files.
 logic m_update_waddr, v_update_waddr;
-always_comb begin
-    // Instructions that requires three operands.
-    if (rd_operand_ready == 1'b0 & (decoded_op_bundle.m_op != STALL_M)) begin
-        m_update_waddr      = 1'b1;
-        v_update_waddr      = 1'b0;
-        stall_for_read_rd   = 1'b1;
-    end else if (rd_operand_ready == 1'b0 & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT)) begin
-        m_update_waddr      = 1'b0;
-        v_update_waddr      = 1'b1;
-        stall_for_read_rd   = 1'b1;
+logic recorded_m_update_waddr, recorded_v_update_waddr;
+logic pass_m_update_waddr, pass_v_update_waddr;
+
+logic stall_for_read_rd_flag;
+logic recorded_stall_for_read_rd_flag;
+
+always_ff @(posedge clk or posedge rst) begin
+    if (rst) begin
+        recorded_stall_for_read_rd_flag <= 1'b0;
+        recorded_m_update_waddr <= 1'b0;
+        recorded_v_update_waddr <= 1'b0;
     end else begin
-        m_update_waddr      = 1'b0;
-        v_update_waddr      = 1'b0;
-        stall_for_read_rd   = 1'b0;
+        recorded_stall_for_read_rd_flag <= stall_for_read_rd_flag;
+        recorded_m_update_waddr <= m_update_waddr;
+        recorded_v_update_waddr <= v_update_waddr;
+    end
+end
+
+always_comb begin
+    // Instructions that requires three operands. Insert additionally operation to load the third operand, the insertion takes place only when the pipeline is not stalled.
+    if (pipeline_stall & recorded_stall_for_read_rd_flag) begin
+        m_update_waddr      = m_update_waddr;
+        v_update_waddr      = v_update_waddr;
+        stall_for_read_rd   = 1'b1;
+    end else if (rd_operand_ready == 1'b0 & (decoded_op_bundle.m_op != STALL_M)) begin
+        m_update_waddr          = 1'b1;
+        v_update_waddr          = 1'b0;
+        stall_for_read_rd_flag  = 1'b1;
+    end else if (rd_operand_ready == 1'b0 & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT)) begin
+        m_update_waddr          = 1'b0;
+        v_update_waddr          = 1'b1;
+        stall_for_read_rd_flag  = 1'b1;
+    end else begin
+        m_update_waddr          = 1'b0;
+        v_update_waddr          = 1'b0;
+        stall_for_read_rd_flag  = 1'b0;
+    end
+
+    if (!pipeline_stall & !recorded_stall_for_read_rd_flag) begin
+        stall_for_read_rd = stall_for_read_rd_flag;
+        pass_m_update_waddr = m_update_waddr;
+        pass_v_update_waddr = v_update_waddr;
+    end else if (!pipeline_stall & recorded_stall_for_read_rd_flag) begin
+        stall_for_read_rd = 1'b1;
+        pass_m_update_waddr = recorded_m_update_waddr;
+        pass_v_update_waddr = recorded_v_update_waddr;
+    end else begin
+        stall_for_read_rd = 1'b0;
+        pass_m_update_waddr = 1'b0;
+        pass_v_update_waddr = 1'b0;
     end
 end
 
@@ -161,8 +197,8 @@ always_ff @(posedge clk) begin
         decoded_op_bundle.fps1            <= 'b0;
         decoded_op_bundle.fps2            <= 'b0;
         decoded_op_bundle.fpd             <= 'b0;
-        decoded_op_bundle.update_m_waddr  <= m_update_waddr;
-        decoded_op_bundle.update_v_waddr  <= v_update_waddr;
+        decoded_op_bundle.update_m_waddr  <= pass_m_update_waddr;
+        decoded_op_bundle.update_v_waddr  <= pass_v_update_waddr;
         
         rs1                               <= 'b0;
         rs2                               <= 'b0;

@@ -60,6 +60,8 @@ import pipeline_pkg::*;
         if(stall_in_process) begin
             if(prefetch_in_progress & (recorded_op_bundle.h_op == PREFETCH_M || recorded_op_bundle.h_op == PREFETCH_V )) begin
                 pipeline_stall = 1'b1;
+            end else if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
+                pipeline_stall = 1'b1;
             end else begin
                 pipeline_stall = 1'b0;
             end
