@@ -123,12 +123,15 @@ end
 
 assign decode_instr_info = read_instr_from_fifo ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
 
-logic [FIXED_OPERAND_WIDTH - 1 : 0] extra_rd_to_load;
+
 // Decoding
 logic rd_operand_ready; // The stall is for loading the third operand from the register files.
 logic m_update_waddr, v_update_waddr;
 logic recorded_m_update_waddr, recorded_v_update_waddr;
 logic pass_m_update_waddr, pass_v_update_waddr;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
 
 logic stall_for_read_rd_flag;
 logic recorded_stall_for_read_rd_flag;
@@ -138,10 +141,12 @@ always_ff @(posedge clk or posedge rst) begin
         recorded_stall_for_read_rd_flag <= 1'b0;
         recorded_m_update_waddr <= 1'b0;
         recorded_v_update_waddr <= 1'b0;
+        recorded_rd_to_load <= {FIXED_OPERAND_WIDTH{1'b0}};
     end else begin
         recorded_stall_for_read_rd_flag <= stall_for_read_rd_flag;
         recorded_m_update_waddr <= m_update_waddr;
         recorded_v_update_waddr <= v_update_waddr;
+        recorded_rd_to_load <= rd_to_load;
     end
 end
 
@@ -151,32 +156,39 @@ always_comb begin
         m_update_waddr      = m_update_waddr;
         v_update_waddr      = v_update_waddr;
         stall_for_read_rd   = 1'b1;
+        rd_to_load          = rd_to_load;
     end else if (rd_operand_ready == 1'b0 & (decoded_op_bundle.m_op != STALL_M)) begin
         m_update_waddr          = 1'b1;
         v_update_waddr          = 1'b0;
         stall_for_read_rd_flag  = 1'b1;
+        rd_to_load              = rd;
     end else if (rd_operand_ready == 1'b0 & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT)) begin
         m_update_waddr          = 1'b0;
         v_update_waddr          = 1'b1;
         stall_for_read_rd_flag  = 1'b1;
+        rd_to_load              = rd;
     end else begin
         m_update_waddr          = 1'b0;
         v_update_waddr          = 1'b0;
         stall_for_read_rd_flag  = 1'b0;
+        rd_to_load              = {FIXED_OPERAND_WIDTH{1'b0}};
     end
 
     if (!pipeline_stall & !recorded_stall_for_read_rd_flag) begin
         stall_for_read_rd = stall_for_read_rd_flag;
         pass_m_update_waddr = m_update_waddr;
         pass_v_update_waddr = v_update_waddr;
+        pass_rd_to_load = rd_to_load;
     end else if (!pipeline_stall & recorded_stall_for_read_rd_flag) begin
         stall_for_read_rd = 1'b1;
         pass_m_update_waddr = recorded_m_update_waddr;
         pass_v_update_waddr = recorded_v_update_waddr;
+        pass_rd_to_load = recorded_rd_to_load;
     end else begin
         stall_for_read_rd = 1'b0;
         pass_m_update_waddr = 1'b0;
         pass_v_update_waddr = 1'b0;
+        pass_rd_to_load = {FIXED_OPERAND_WIDTH{1'b0}};
     end
 end
 
@@ -202,7 +214,7 @@ always_ff @(posedge clk) begin
         
         rs1                               <= 'b0;
         rs2                               <= 'b0;
-        rd                                <= extra_rd_to_load;
+        rd                                <= pass_rd_to_load;
         imm                               <= 'b0;
     end else begin
         rd_operand_ready <= 1'b0;
@@ -210,6 +222,7 @@ always_ff @(posedge clk) begin
         decoded_op_bundle.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
         decoded_op_bundle.update_m_waddr        <= 1'b0;
         decoded_op_bundle.update_v_waddr        <= 1'b0;
+
         case(decode_instr_info.instruction_type)
             M: begin
                 decoded_op_bundle.m_op          <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
@@ -225,7 +238,6 @@ always_ff @(posedge clk) begin
                 rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                 rs2                             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd                              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                extra_rd_to_load                <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                 imm     <= 'b0;
             end
 
@@ -250,7 +262,6 @@ always_ff @(posedge clk) begin
                     rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2                                 <= {FIXED_OPERAND_WIDTH{1'b0}};
                     rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    extra_rd_to_load                    <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     imm                                 <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == V_RED_SUM || decode_instr_info.opcode == V_RED_MAX) begin
                     decoded_op_bundle.s_fp_op           <= LD_OUT_FP;
@@ -260,7 +271,6 @@ always_ff @(posedge clk) begin
                     rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2                                 <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd                                  <= {FP_OPERAND_WIDTH{1'b0}};
-                    extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
                     imm                                 <= {IMM_WIDTH{1'b0}};
                 end else begin
                     decoded_op_bundle.s_fp_op           <= STALL_S_FP;
@@ -270,7 +280,6 @@ always_ff @(posedge clk) begin
                     rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2                                 <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
-                    extra_rd_to_load                    <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     imm                                 <= {IMM_WIDTH{1'b0}};
                 end
             end
@@ -291,7 +300,6 @@ always_ff @(posedge clk) begin
                                                         (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    : STALL_S_FIXED;
                 decoded_op_bundle.c_op            <= STALL_C;
                 decoded_op_bundle.h_op            <= STALL_H;
-                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
                 if (decode_instr_info.opcode == S_ADDI_FIX ) begin
                     // S_ADDI_FIX
                     decoded_op_bundle.fps1            <= 'b0;
@@ -330,7 +338,6 @@ always_ff @(posedge clk) begin
                 
                 decoded_op_bundle.c_op              <= STALL_C;
                 decoded_op_bundle.h_op              <= STALL_H;
-                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
                 if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MAX_FP || decode_instr_info.opcode == S_MUL_FP) begin
                     // Two FP source operands and one FP destination operand
                     exe_fixed_op                    <= STALL_S_FIXED;
@@ -403,7 +410,6 @@ always_ff @(posedge clk) begin
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
-                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
             end
 
             H : begin
@@ -423,7 +429,6 @@ always_ff @(posedge clk) begin
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
-                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
             end
 
             default: begin
@@ -442,7 +447,6 @@ always_ff @(posedge clk) begin
                 rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
-                extra_rd_to_load                    <= {FIXED_OPERAND_WIDTH{1'b0}};
             end
         endcase
     end 

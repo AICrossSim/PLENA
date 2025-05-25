@@ -280,7 +280,7 @@ module data_flow_control import precision_pkg::*; #(
         if (rst) begin
             v_v_a_valid     <= 1'b0;
             v_v_b_valid     <= 1'b0;
-            hbm_ready_to_write    <= 1'b0;
+            hbm_ready_to_write      <= 1'b0;
             recorded_v_load_addr_1  <= 'b0;
             recorded_v_load_addr_2  <= 'b0;
             recorded_m_write_addr   <= 'b0;

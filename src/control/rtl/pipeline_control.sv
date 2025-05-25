@@ -60,8 +60,14 @@ import pipeline_pkg::*;
         if(stall_in_process) begin
             if(prefetch_in_progress & (recorded_op_bundle.h_op == PREFETCH_M || recorded_op_bundle.h_op == PREFETCH_V )) begin
                 pipeline_stall = 1'b1;
-            end else if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
+            end else if ((prefetch_in_progress || m_load_in_process) & (recorded_op_bundle.m_op != STALL_M)) begin
                 pipeline_stall = 1'b1;
+            end else if (mem_write_req.wreq_s_sram_port_a & (recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT || recorded_op_bundle.m_op != STALL_M)) begin
+                // Trying to access the vector sram port A while it is being written to.
+                pipeline_stall   = 1'b1;            
+            end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+                // Trying to access the two ports of the vector sram while it is being written to.
+                pipeline_stall   = 1'b1;            
             end else begin
                 pipeline_stall = 1'b0;
             end
@@ -75,6 +81,9 @@ import pipeline_pkg::*;
                 pipeline_stall   = 1'b1;
             end else if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
                 // Prefetching another data while the previous prefetching is not done yet.
+                pipeline_stall   = 1'b1;            
+            end else if (mem_write_req.wreq_s_sram_port_a & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT || decoded_op_bundle.m_op != STALL_M)) begin
+                // Trying to access the vector sram port A while it is being written to.
                 pipeline_stall   = 1'b1;            
             end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
                 // Trying to access the two ports of the vector sram while it is being written to.

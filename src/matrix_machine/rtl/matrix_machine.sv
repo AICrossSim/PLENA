@@ -103,7 +103,7 @@ always_ff @(posedge clk or negedge rst) begin
         if (!prepare_flag && matrix_opcode != STALL_M) begin
             recorded_m_op     <= matrix_opcode;
             prepare_flag <= 1'b1;
-
+            pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
         end else if (prepare_flag) begin
             if ((recorded_m_op == MV && collect_m_valid && stored_v_valid) ||
                 (recorded_m_op == MV_O && collect_m_valid && stored_v_valid && stored_o_valid)) begin
