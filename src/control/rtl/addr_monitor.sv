@@ -41,10 +41,11 @@ module addr_monitor#(
 
     localparam TRACK_ADDR_WIDTH = $clog2(PIPELINE_STAGES) + 1;
     TRACK_ADDR v_write_addr_track [PIPELINE_STAGES - 1 : 0];
-    logic [TRACK_ADDR_WIDTH - 1 : 0]     free_track_entry_idx, locked_entry_idx_1, locked_entry_idx_2;
+    logic [TRACK_ADDR_WIDTH - 1 : 0]     free_track_entry_idx;
+    logic [ADDR_WIDTH - 1 : 0] locked_entry_1, locked_entry_2;
     logic lock_entry_1_valid, lock_entry_2_valid;    
-    logic                                   found_invalid;
-    logic                                   pipe_full;
+    logic found_invalid;
+    logic pipe_full;
 
     always_comb begin
         found_invalid           = 1'b0;
@@ -66,21 +67,27 @@ module addr_monitor#(
     always_comb begin
         if (stall_in_process) begin
             // To Check if the tracked address has been written.
-            if ((v_write_addr_track[locked_entry_idx_1].activate & lock_entry_1_valid) || (v_write_addr_track[locked_entry_idx_2].activate & lock_entry_2_valid)) begin
-                stall_req = 1'b1;
-            end else begin
-                stall_req = 1'b0;
+            for (int i = 0; i < PIPELINE_STAGES; i++) begin
+                if (((v_write_addr_track[i].track_addr == locked_entry_1)) & (v_write_addr_track[i].activate == 1'b1) & lock_entry_1_valid) begin
+                    addr_collide_flag[i] = 1'b1;
+                end else if (((v_write_addr_track[i].track_addr == locked_entry_2)) & (v_write_addr_track[i].activate == 1'b1) & lock_entry_2_valid) begin
+                    addr_collide_flag[i] = 1'b1;
+                end else begin
+                    addr_collide_flag[i] = 1'b0;
+                end
             end
+            stall_req = |addr_collide_flag;
+
         end else if ((decoded_op_bundle.m_op != STALL_M) ||((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!decoded_op_bundle.v_broadcast_en)) || (decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if ((v_write_addr_track[i].track_addr == fixed_addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_1 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_1 = fixed_addr_1;
                     lock_entry_1_valid = 1'b1;
                 end else if ((v_write_addr_track[i].track_addr == fixed_addr_2) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_2 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_2 = fixed_addr_2;
                     lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
@@ -92,7 +99,7 @@ module addr_monitor#(
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_1 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_1 = fixed_addr_1;
                     lock_entry_1_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
@@ -104,7 +111,7 @@ module addr_monitor#(
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_2 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_2 = fixed_addr_2;
                     lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
@@ -115,8 +122,8 @@ module addr_monitor#(
             stall_req = 1'b0;
             lock_entry_1_valid = 1'b0;
             lock_entry_2_valid = 1'b0;
-            locked_entry_idx_1 = '0;
-            locked_entry_idx_2 = '0;
+            locked_entry_1 = '0;
+            locked_entry_2 = '0;
         end 
     end
 
@@ -133,7 +140,7 @@ module addr_monitor#(
     always_comb begin
         // Decide which source is providing the address this cycle
         if (decoded_op_bundle.h_op == PREFETCH_V) begin
-            insert_addr  = fixed_addr_1;
+            insert_addr  = fixed_addr_2;
             insert_valid = 1'b1;
         end else if (assigned_op_bundle.update_m_waddr) begin
             insert_addr  = assigned_op_bundle.addr_2;

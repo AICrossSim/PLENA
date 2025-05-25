@@ -1,21 +1,23 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun May 25 13:18:34 2025
+[*] Sun May 25 16:26:20 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sun May 25 13:14:12 2025"
-[dumpfile_size] 27930789
+[dumpfile_mtime] "Sun May 25 16:24:21 2025"
+[dumpfile_size] 27934640
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 787400
+[timestart] 367100
 [size] 3428 1359
 [pos] 111072 121059
-*-15.887817 1000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.887817 1220000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.hbm_controller_init.address_mapper_inst.
 [treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.pipeline_control_init.assigned_op_bundle.
+[treeopen] SimTop.dut.scalar_machine_init.
+[treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [sst_width] 390
 [signals_width] 349
 [sst_expanded] 1
@@ -26,29 +28,15 @@ SimTop.dut.clk
 SimTop.dut.decoder_init.decode_instr_info.opcode[5:0]
 @28
 SimTop.dut.decoder_init.pipeline_stall
-SimTop.dut.decoder_init.stall_for_read_rd
-SimTop.dut.data_flow_init.write_req.wreq_s_sram_port_a
-SimTop.dut.data_flow_init.m_write_request
-SimTop.dut.matrix_machine_init.matrix_opcode[1:0]
-SimTop.dut.matrix_machine_init.recorded_m_op[1:0]
-SimTop.dut.matrix_machine_init.pipeline_compute_track[0].mop[1:0]
-SimTop.dut.matrix_machine_init.collect_m_valid
-SimTop.dut.matrix_machine_init.stored_v_valid
-SimTop.dut.matrix_machine_init.pipeline_compute_track[0].mop[1:0]
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_wen_a
+SimTop.dut.pipeline_control_init.addr_monitor_inst.stall_req
 @22
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_addr_a[31:0]
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_addr_b[31:0]
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
 @28
-SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_wen_b
-SimTop.dut.data_flow_init.write_req.wreq_s_sram_port_b
-SimTop.dut.pipeline_control_init.mem_vwrite_stall_req
-SimTop.dut.pipeline_control_init.pipeline_stall_req
-SimTop.dut.pipeline_control_init.decoded_op_bundle.m_op[1:0]
-SimTop.dut.pipeline_control_init.decoded_op_bundle.v_ele_op[2:0]
-SimTop.dut.pipeline_control_init.decoded_op_bundle.v_reduct_op[2:0]
-SimTop.dut.pipeline_control_init.mem_write_req.wreq_s_sram_port_b
-SimTop.dut.pipeline_control_init.mem_vwrite_stall_req
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].activate
 @22
 SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_addr_a[31:0]
 @28
@@ -57,8 +45,22 @@ SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_wen_a
 SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_addr_b[31:0]
 @28
 SimTop.dut.pipeline_control_init.addr_monitor_inst.s_sram_wen_b
-SimTop.dut.matrix_machine_init.result_waddr_update
 @22
-SimTop.dut.matrix_machine_init.recorded_m_waddr[31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[1][31:0]
+SimTop.dut.pipeline_control_init.fixed_addr_1[31:0]
+SimTop.dut.pipeline_control_init.fixed_addr_2[31:0]
+SimTop.dut.pipeline_control_init.addr_monitor_inst.insert_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.insert_valid
+SimTop.dut.pipeline_control_init.addr_monitor_inst.decoded_op_bundle.h_op[1:0]
+@22
+SimTop.dut.scalar_machine_init.exe_fixed_op[3:0]
+SimTop.dut.data_flow_init.recorded_v_prefetch_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.decoded_op_bundle.h_op[1:0]
+SimTop.dut.data_flow_init.assigned_op_bundle.h_op[1:0]
+SimTop.dut.pipeline_control_init.assigned_op_bundle.h_op[1:0]
+@29
+SimTop.dut.hbm_controller_init.hbm_write_en
 [pattern_trace] 1
 [pattern_trace] 0

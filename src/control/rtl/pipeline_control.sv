@@ -59,37 +59,53 @@ import pipeline_pkg::*;
     always_comb begin
         if(stall_in_process) begin
             if(prefetch_in_progress & (recorded_op_bundle.h_op == PREFETCH_M || recorded_op_bundle.h_op == PREFETCH_V )) begin
+                // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
                 pipeline_stall = 1'b1;
             end else if ((prefetch_in_progress || m_load_in_process) & (recorded_op_bundle.m_op != STALL_M)) begin
+                // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
+                pipeline_stall = 1'b1;
+            end else if ((prefetch_in_progress || v_load_in_process) & ( recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+                // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
                 pipeline_stall = 1'b1;
             end else if (mem_write_req.wreq_s_sram_port_a & (recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT || recorded_op_bundle.m_op != STALL_M)) begin
-                // Trying to access the vector sram port A while it is being written to.
+                // Condition 4: Trying to access the vector sram port A while it is being written to.
                 pipeline_stall   = 1'b1;            
-            end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
-                // Trying to access the two ports of the vector sram while it is being written to.
+            end else if (mem_write_req.wreq_s_sram_port_b & ( recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.m_op != STALL_M)) begin
+                // Condition 5: Trying to access the vector sram port B while it is being written to.
                 pipeline_stall   = 1'b1;            
+            end else if ((mem_write_req.wreq_m_sram == 1'b1) & (recorded_op_bundle.m_op != STALL_M) ) begin
+                // Condition 6: Trying to access the matrix sram while it is being written to.
+                pipeline_stall   = 1'b1;
+            end else if (fp_stall_req & (recorded_op_bundle.s_fp_op != STALL_S_FP)) begin
+                // Condition 7: FP unit requests a stall, but the current operation is another FP operation.
+                pipeline_stall   = 1'b1;            
+            end else if (mem_vwrite_stall_req) begin
+                // Unconditionally stall the overall pipeline.
+                pipeline_stall   = 1'b1;                
             end else begin
                 pipeline_stall = 1'b0;
             end
         end else begin
-            // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
-            if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
-                // Note: Any M type instruction involves interaction with the matrix sram, hence need to stall when its prefetching.
+            if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
+                // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
                 pipeline_stall   = 1'b1;            
-            end else if ((mem_write_req.wreq_m_sram == 1'b1 || mem_write_req.wreq_s_sram_port_b == 1'b1) & (decoded_op_bundle.m_op != STALL_M) ) begin
-                // In prefetching mode
+            end else if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
+                // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
+                pipeline_stall   = 1'b1;            
+            end else if ((prefetch_in_progress || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+                // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
+                pipeline_stall   = 1'b1;            
+            end  else if (mem_write_req.wreq_s_sram_port_a & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT || decoded_op_bundle.m_op != STALL_M)) begin
+                // Condition 4: Trying to access the vector sram port A while it is being written to.
+                pipeline_stall   = 1'b1;            
+            end else if (mem_write_req.wreq_s_sram_port_b & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.m_op != STALL_M)) begin
+                // Condition 5: Trying to access the vector sram port B while it is being written to.
+                pipeline_stall   = 1'b1;            
+            end else if ((mem_write_req.wreq_m_sram == 1'b1) & (decoded_op_bundle.m_op != STALL_M) ) begin
+                // Condition 6: Trying to access the matrix sram while it is being written to.
                 pipeline_stall   = 1'b1;
-            end else if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
-                // Prefetching another data while the previous prefetching is not done yet.
-                pipeline_stall   = 1'b1;            
-            end else if (mem_write_req.wreq_s_sram_port_a & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT || decoded_op_bundle.m_op != STALL_M)) begin
-                // Trying to access the vector sram port A while it is being written to.
-                pipeline_stall   = 1'b1;            
-            end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
-                // Trying to access the two ports of the vector sram while it is being written to.
-                pipeline_stall   = 1'b1;            
             end else if (fp_stall_req & (decoded_op_bundle.s_fp_op != STALL_S_FP)) begin
-                // Release until the prefetching is done.
+                // Condition 7: FP unit requests a stall, but the current operation is another FP operation.
                 pipeline_stall   = 1'b1;            
             end else if (mem_vwrite_stall_req) begin
                 // Unconditionally stall the overall pipeline.

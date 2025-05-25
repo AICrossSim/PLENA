@@ -270,7 +270,7 @@ module data_flow_control import precision_pkg::*; #(
             recorded_v_prefetch_addr = 'b0;
             hbm_waddr = 'b0;
         end else if (assigned_op_bundle.h_op == PREFETCH_V) begin
-            recorded_v_prefetch_addr = assigned_op_bundle.addr_1;
+            recorded_v_prefetch_addr = assigned_op_bundle.addr_2;
         end else if (assigned_op_bundle.h_op == STORE_V) begin
             hbm_waddr = assigned_op_bundle.addr_2;
         end
