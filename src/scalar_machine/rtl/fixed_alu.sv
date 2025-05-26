@@ -5,7 +5,7 @@
 Module      : Scalar Fixed ALU
 Timing      : Combinatorial Logic
 Description : This module is mainly used for address manipulation
-Status      : Under Development
+Status      : Passed Simple Test
 */
 
 module fixed_alu #(

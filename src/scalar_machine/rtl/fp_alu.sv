@@ -18,40 +18,36 @@ module fp_alu #(
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 
-logic [EXP_WIDTH + MANT_WIDTH : 0] fp_add_out, fp_sub_out, fp_mul_out, fp_isqrt_out, fp_log_out, fp_exp_out;
+logic [EXP_WIDTH + MANT_WIDTH : 0] fp_add_out, fp_sub_out, fp_mul_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
 logic negated_en;
 
-// Status Tracking TODO
-S_FP_OP recorded_operation;
-logic in_compute;
-
 always_comb begin
     negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
-    case (recorded_operation)
+    case (operation)
         ADD_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_add_out;
+            negated_en  = 1'b0;
+            data_out    = fp_add_out;
         end
 
         SUB_FP: begin
-            negated_en = 1'b1;
-            data_out = fp_sub_out;
+            negated_en  = 1'b1;
+            data_out    = fp_sub_out;
         end
 
         MUL_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_mul_out;
+            negated_en  = 1'b0;
+            data_out    = fp_mul_out;
         end
 
         MV_FP: begin
-            negated_en = 1'b0;
-            data_out = data_a;
+            negated_en  = 1'b0;
+            data_out    = data_a;
         end
 
         default: begin
-            negated_en = 1'b0;
-            data_out = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
+            negated_en  = 1'b0;
+            data_out    = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
         end
     endcase
 end
