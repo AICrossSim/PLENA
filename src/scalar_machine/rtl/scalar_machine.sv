@@ -46,6 +46,7 @@ module scalar_machine import precision_pkg::*;  #(
     output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out,
 
     // Stall Detection
+    output  logic sfu_in_use,
     output  logic fp_stall_req,
     output  logic fixed_stall_req
 );
@@ -120,8 +121,10 @@ module scalar_machine import precision_pkg::*;  #(
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
     logic fp_reg_we;
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic sfu_out_valid, sfu_out_ready;
     logic write_data_from_external_fp;
+
 
     always_comb begin
         if (general_fp_alu_en) begin
@@ -132,10 +135,12 @@ module scalar_machine import precision_pkg::*;  #(
             write_data_from_external_fp = 1'b0;
         end else if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
             // From SFU
-            fp_reg_we       = 1'b1;
-            fp_reg_wdata    = fp_alu_out;
-            fp_wtarget      = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
-            write_data_from_external_fp = 1'b0;
+            if (sfu_out_valid) begin
+                fp_reg_we       = 1'b1;
+                fp_reg_wdata    = fp_sfu_out;
+                fp_wtarget      = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
+                write_data_from_external_fp = 1'b0;                
+            end
         end else if (fp_track[0].fp_op ==  LD_REG_FP) begin
             fp_reg_we       = 1'b1;
             fp_reg_wdata    = fp_ld_from_sram;
@@ -170,11 +175,25 @@ module scalar_machine import precision_pkg::*;  #(
     fp_alu #(
         .EXP_WIDTH(FP_EXP_WIDTH),
         .MANT_WIDTH(FP_MANT_WIDTH)
-    ) fp_alu (
+    ) fp_alu_init (
         .data_a(fp_reg_1),
         .data_b(fp_reg_2),
         .operation(fp_control),
         .data_out(fp_alu_out)
+    );
+
+    fp_sfu #(
+        .EXP_WIDTH(FP_EXP_WIDTH),
+        .MANT_WIDTH(FP_MANT_WIDTH)      
+    ) fp_sfu_init (
+        .clk(clk),
+        .rst(rst),
+        .data_in(fp_reg_1),
+        .sfu_in_use(sfu_in_use),
+        .operation(fp_control),
+        .data_out(fp_sfu_out),
+        .data_out_valid(sfu_out_valid),
+        .data_out_ready(sfu_out_ready)
     );
 
     regfile_2p1w #(
@@ -206,8 +225,6 @@ module scalar_machine import precision_pkg::*;  #(
             end 
         end
     end
-
-
 
     // SRAM for FP
     scalar_sram #(
@@ -308,7 +325,6 @@ module scalar_machine import precision_pkg::*;  #(
         .rdata1     (fixed_reg_1),
         .rdata2     (fixed_reg_2)
     );
-
 
     scalar_sram #(
         .DATA_WIDTH(FIXED_DATA_WIDTH),

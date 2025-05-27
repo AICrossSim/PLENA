@@ -61,6 +61,7 @@ class Assembler:
                 opcode
             )
         else:
+            print("opcode is ", instruction.opcode)
             binary_instruction = (
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +

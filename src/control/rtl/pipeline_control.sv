@@ -38,12 +38,13 @@ module pipeline_control #(
 
     // Execution Monitor
     input       MEM_WREQ_INFO   mem_write_req,
-    input       logic           hbm_in_used,            // Activated when we need to prefetch data from HBM through TL.
+    input       logic           hbm_in_used,            
     input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
     input       logic           fp_stall_req,
     input       logic           fixed_stall_req,
     input       logic           m_load_in_process,
     input       logic           v_load_in_process,
+    input       logic           sfu_in_use,
 
     // Current control operation
     output      logic           pipeline_stall_req,
@@ -79,6 +80,9 @@ import pipeline_pkg::*;
             end else if (fp_stall_req & (recorded_op_bundle.s_fp_op != STALL_S_FP)) begin
                 // Condition 7: FP unit requests a stall, but the current operation is another FP operation.
                 pipeline_stall   = 1'b1;            
+            end else if (sfu_in_use & (recorded_op_bundle.s_fp_op == SQRT_FP) || (recorded_op_bundle.s_fp_op == RECI_FP) || (recorded_op_bundle.s_fp_op == EXP_FP)) begin
+                // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
+                pipeline_stall = 1'b1;
             end else if (mem_vwrite_stall_req) begin
                 // Unconditionally stall the overall pipeline.
                 pipeline_stall   = 1'b1;                
@@ -107,6 +111,9 @@ import pipeline_pkg::*;
             end else if (fp_stall_req & (decoded_op_bundle.s_fp_op != STALL_S_FP)) begin
                 // Condition 7: FP unit requests a stall, but the current operation is another FP operation.
                 pipeline_stall   = 1'b1;            
+            end else if (sfu_in_use & (decoded_op_bundle.s_fp_op == SQRT_FP) || (decoded_op_bundle.s_fp_op == RECI_FP) || (decoded_op_bundle.s_fp_op == EXP_FP)) begin
+                // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
+                pipeline_stall = 1'b1;
             end else if (mem_vwrite_stall_req) begin
                 // Unconditionally stall the overall pipeline.
                 pipeline_stall   = 1'b1;                

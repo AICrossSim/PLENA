@@ -91,6 +91,8 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
     with open(file_path, 'r') as file:
         for line in file:
             # Remove comments and strip whitespace
+            if line.startswith('//') :
+                continue
             line = line.split('//')[0].strip().rstrip(';')
             if not line:
                 continue

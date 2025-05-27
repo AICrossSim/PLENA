@@ -19,9 +19,9 @@ module fp_sfu #(
 )(
     input   logic clk,
     input   logic rst,
-    input   logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  
-    input   logic sfu_in_use,         
+    input   logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,       
     input   S_FP_OP operation,       
+    output   logic sfu_in_use,    
     output  logic [EXP_WIDTH + MANT_WIDTH : 0] data_out,
     output  logic data_out_valid,   
     output  logic data_out_ready  

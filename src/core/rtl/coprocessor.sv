@@ -51,6 +51,7 @@ module coprocessor #(
     logic hbm_in_used;
     logic stall_req_from_fp, fixed_stall_req;
     logic v_in_prep, m_in_prep;
+    logic sfu_in_use;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -126,6 +127,7 @@ module coprocessor #(
         .fixed_stall_req        (fixed_stall_req),
         .m_load_in_process      (m_in_prep),
         .v_load_in_process      (v_in_prep),
+        .sfu_in_use             (sfu_in_use),
         .pipeline_stall_req     (pipeline_stall),
         .assigned_op_bundle     (assigned_op_bundle),
         .mem_write_control      (mem_write_control)
@@ -323,6 +325,7 @@ module coprocessor #(
             .external_fp_in_ready   (v_s_out_ready),
             .external_fp_wtarget    (s_wtarget_from_v),
             .fp_out                 (fp_s_in),
+            .sfu_in_use             (sfu_in_use),
             .fp_stall_req           (stall_req_from_fp),
             .fixed_stall_req        (fixed_stall_req)
         );
