@@ -12,3 +12,11 @@ build/
 .vscode
 
 *.gtkw
+
+*.str
+*.jou
+
+
+Coprocessor_Vivado_Prj/
+
+.Xil
