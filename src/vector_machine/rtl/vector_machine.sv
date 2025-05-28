@@ -156,6 +156,9 @@ always_comb begin
         if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
             complete_element_prepare    = 1'b1;
             complete_reduct_prepare     = 1'b0;
+        end else if (recorded_element_v_control == LD_V_ELEMENT & recorded_broadcast_en & v_port_b_valid) begin
+            complete_element_prepare    = 1'b1;
+            complete_reduct_prepare     = 1'b0;
         end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
             complete_element_prepare    = 1'b0;
             complete_reduct_prepare     = 1'b1;
@@ -277,7 +280,7 @@ logic v_port_b_valid, v_port_b_ready;
 
 // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
 always_comb begin
-    if (recorded_element_v_control != STALL_V_ELEMENT) begin
+    if (recorded_element_v_control != STALL_V_ELEMENT & recorded_element_v_control != LD_V_ELEMENT) begin
         element_v_in_a_valid = v_port_a_valid;
         element_v_in_b_valid = v_port_b_valid;
         red_v_in_a_valid     = 1'b0;
@@ -351,6 +354,10 @@ always_comb begin
         result_v_out            = element_v_out;
         compute_result_valid    = element_v_out_valid;
         stored_result_waddr     = pipeline_compute_track[VECTOR_BASIC_CYCLES-1].waddr;
+    end else if (pipeline_compute_track[0].ele_op == LD_V_ELEMENT) begin
+        result_v_out            = prepared_v_b;
+        compute_result_valid    = v_port_b_valid;
+        stored_result_waddr     = pipeline_compute_track[0].waddr;
     end else begin
         result_v_out            = 'b0;
         compute_result_valid    = 1'b0;

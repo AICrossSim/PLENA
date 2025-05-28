@@ -24,8 +24,8 @@ module scalar_machine import precision_pkg::*;  #(
     input   logic rst,
 
     // Control
-    input   OP_BUNDLE  exe_op_bundle,
-    input   S_FIXED_OP exe_fixed_op,
+    input   OP_BUNDLE  assigned_op_bundle,
+    input   S_FIXED_OP assigned_fixed_op,
 
     // Fixed Register Control
     input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
@@ -60,7 +60,7 @@ module scalar_machine import precision_pkg::*;  #(
     // FP Unit
     //----------------------------//
     S_FP_OP fp_control;
-    assign fp_control = exe_op_bundle.s_fp_op;
+    assign fp_control = assigned_op_bundle.s_fp_op;
     logic general_fp_operation;
     assign general_fp_alu_en = (fp_control == ADD_FP || fp_control == SUB_FP || fp_control == MAX_FP || fp_control == MUL_FP || fp_control == MV_FP);
 
@@ -170,9 +170,9 @@ module scalar_machine import precision_pkg::*;  #(
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd;
 
-    assign fp_rs1 = exe_op_bundle.fps1;
-    assign fp_rs2 = exe_op_bundle.fps2;
-    assign fp_rd  = exe_op_bundle.fpd;
+    assign fp_rs1 = assigned_op_bundle.fps1;
+    assign fp_rs2 = assigned_op_bundle.fps2;
+    assign fp_rd  = assigned_op_bundle.fpd;
 
     fp_alu #(
         .EXP_WIDTH(FP_EXP_WIDTH),
@@ -241,7 +241,7 @@ module scalar_machine import precision_pkg::*;  #(
         .rst(rst),
         .req((fp_control == LD_REG_FP) || (fp_control == ST_REG_FP)),
         .write_en((fp_control == ST_REG_FP)),
-        .sram_addr(exe_op_bundle.addr_1),
+        .sram_addr(assigned_op_bundle.addr_1),
         .sram_data_in(fp_reg_2),
         .sram_data_out(fp_ld_from_sram)
     );
@@ -255,6 +255,7 @@ module scalar_machine import precision_pkg::*;  #(
     logic fixed_reg_wen, fixed_write_from_sram_req, fixed_stall_status;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_waddr, recorded_fixed_reg_waddr;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_write_data;
+    S_FIXED_OP exe_fixed_op;
 
     always_comb begin
         if (fixed_write_from_sram_req) begin
@@ -282,7 +283,9 @@ module scalar_machine import precision_pkg::*;  #(
             recorded_write_data         <= 'b0;
             fixed_write_from_sram_req   <= 1'b0;
             fixed_stall_status          <= 1'b0;
+            exe_fixed_op                <= STALL_S_FIXED;
         end else begin
+            exe_fixed_op                <= assigned_fixed_op;
             if (exe_fixed_op == LD_FIX) begin
                 recorded_fixed_reg_waddr    <= rd;
                 fixed_write_from_sram_req   <= 1'b1;

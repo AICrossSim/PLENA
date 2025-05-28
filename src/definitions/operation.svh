@@ -45,6 +45,7 @@ typedef enum logic [2:0] {
     SUB_V_ELEMENT   = 2,
     MUL_V_ELEMENT   = 3,
     EXP_V_ELEMENT   = 4,
+    LD_V_ELEMENT    = 5,
     STALL_V_ELEMENT = 0
 } V_ELEMENT_OP;
 
@@ -124,43 +125,43 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_MUL_VV        = 6'h09,
     V_MUL_VF        = 6'h0A,
     V_EXP_VV        = 6'h0B,
-    V_RED_SUM       = 6'h0C,
-    V_RED_MAX       = 6'h0D,
+    V_LD_F          = 6'h0C,
+    V_RED_SUM       = 6'h0D,
+    V_RED_MAX       = 6'h0E,
 
     // Scalar Operation (Floating-Point)
-    S_ADD_FP        = 6'h0E,
-    S_SUB_FP        = 6'h0F,
-    S_MAX_FP        = 6'h10,
-    S_MUL_FP        = 6'h11,
-    S_EXP_FP        = 6'h12,
-    S_RECI_FP       = 6'h13,
-    S_SQRT_FP       = 6'h14,
-    S_MV_FP         = 6'h15,
-    S_LD_FP         = 6'h16,
-    S_ST_FP         = 6'h17,
+    S_ADD_FP        = 6'h0F,
+    S_SUB_FP        = 6'h10,
+    S_MAX_FP        = 6'h11,
+    S_MUL_FP        = 6'h12,
+    S_EXP_FP        = 6'h13,
+    S_RECI_FP       = 6'h14,
+    S_SQRT_FP       = 6'h15,
+    S_MV_FP         = 6'h16,
+    S_LD_FP         = 6'h17,
+    S_ST_FP         = 6'h18,
 
     // Scalar Operation (Fixed-Point)
-    S_ADD_FIX       = 6'h18,
-    S_ADDI_FIX      = 6'h19,
-    S_SUB_FIX       = 6'h1A,
-    S_MUL_FIX       = 6'h1B,
-    S_DIV_FIX       = 6'h1C,
-    S_LUI_FIX       = 6'h1D,
-    S_MV_FIX        = 6'h1E,
-    S_LD_FIX        = 6'h1F,
-    S_ST_FIX        = 6'h20,
+    S_ADD_FIX       = 6'h19,
+    S_ADDI_FIX      = 6'h1A,
+    S_SUB_FIX       = 6'h1B,
+    S_MUL_FIX       = 6'h1C,
+    S_DIV_FIX       = 6'h1D,
+    S_LUI_FIX       = 6'h1E,
+    S_MV_FIX        = 6'h1F,
+    S_LD_FIX        = 6'h20,
+    S_ST_FIX        = 6'h21,
 
     // Memory Operation
-    H_PREFETCH_M    = 6'h21,
-    H_PREFETCH_V    = 6'h22,
-    H_STORE_V       = 6'h23,
+    H_PREFETCH_M    = 6'h22,
+    H_PREFETCH_V    = 6'h23,
+    H_STORE_V       = 6'h24,
 
     // CSR Setting
-    C_SET_ADDR_REG  = 6'h24,
-    C_SET_M_OFFSET  = 6'h25,
-    C_SET_LUT       = 6'h26
+    C_SET_ADDR_REG  = 6'h25,
+    C_SET_M_OFFSET  = 6'h26,
+    C_SET_LUT       = 6'h27
 } CUSTOM_ISA_OPCODE;
-
 
 
 

@@ -314,8 +314,8 @@ module coprocessor #(
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),
-            .exe_op_bundle          (assigned_op_bundle),
-            .exe_fixed_op           (exe_fixed_op),
+            .assigned_op_bundle     (assigned_op_bundle),
+            .assigned_fixed_op      (exe_fixed_op),
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
             .rd                     (s_rd),

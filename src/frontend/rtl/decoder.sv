@@ -90,7 +90,7 @@ always_comb begin
         end
 
         // Vector Operations
-        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_VV, V_RED_SUM, V_RED_MAX : begin
+        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_VV, V_LD_F, V_RED_SUM, V_RED_MAX : begin
             decode_instruction_type = V;
         end
 
@@ -219,7 +219,7 @@ always_ff @(posedge clk) begin
     end else begin
         rd_operand_ready <= 1'b0;
         decoded_op_bundle.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
-        decoded_op_bundle.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
+        decoded_op_bundle.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_LD_F) ? 1'b1 : 1'b0;
         decoded_op_bundle.update_m_waddr        <= 1'b0;
         decoded_op_bundle.update_v_waddr        <= 1'b0;
 
@@ -246,7 +246,8 @@ always_ff @(posedge clk) begin
                 decoded_op_bundle.v_ele_op <=   (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
                                                 (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
                                                 (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_EXP_VV)    ? EXP_V_ELEMENT : STALL_V_ELEMENT;
+                                                (decode_instr_info.opcode == V_EXP_VV)                                         ? EXP_V_ELEMENT : 
+                                                (decode_instr_info.opcode == V_LD_F)                                           ? LD_V_ELEMENT  : STALL_V_ELEMENT;
 
                 decoded_op_bundle.v_reduct_op <=    (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                                     (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
@@ -260,6 +261,15 @@ always_ff @(posedge clk) begin
                     decoded_op_bundle.fps2              <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
                     decoded_op_bundle.fpd               <= 'b0;
                     rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    imm                                 <= {IMM_WIDTH{1'b0}};
+                end else if (decode_instr_info.opcode == V_LD_F) begin
+                    decoded_op_bundle.s_fp_op           <= LD_OUT_FP;
+                    decoded_op_bundle.fps1              <= 'b0;
+                    decoded_op_bundle.fps2              <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                    decoded_op_bundle.fpd               <= 'b0;
+                    rs1                                 <= {FIXED_OPERAND_WIDTH{1'b0}};
                     rs2                                 <= {FIXED_OPERAND_WIDTH{1'b0}};
                     rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     imm                                 <= {IMM_WIDTH{1'b0}};
