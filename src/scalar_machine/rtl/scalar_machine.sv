@@ -178,6 +178,7 @@ module scalar_machine import precision_pkg::*;  #(
         .EXP_WIDTH(FP_EXP_WIDTH),
         .MANT_WIDTH(FP_MANT_WIDTH)
     ) fp_alu_init (
+        .clk        (clk),
         .data_a(fp_reg_1),
         .data_b(fp_reg_2),
         .operation(fp_control),
