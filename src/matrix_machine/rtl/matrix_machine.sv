@@ -77,13 +77,11 @@ M_OP    recorded_m_op;
 logic [ADDR_WIDTH-1:0] recorded_m_waddr;
 
 // Preparation Units 
-always_ff @(posedge clk or negedge rst) begin
+always_ff @(posedge clk) begin
     if (rst) begin
-
         for (int i = 0; i < MATRIX_MAX_CYCLES; i++) begin
             pipeline_compute_track[i] <= '{waddr: 'b0, mop: STALL_M};
         end
-
         offset_addr_out <= 'b0;
         prepare_flag <= 1'b0;
         recorded_m_op <= STALL_M;
@@ -421,7 +419,7 @@ always_comb begin
 end
 
 // Note The reason here is because it need one more cycle to send write request to the arbiter to permit the write to the sram.
-always_ff @(posedge clk or negedge rst) begin
+always_ff @(posedge clk) begin
     if (rst) begin
         out_scale   <= 'b0;
         out_element <= 'b0;

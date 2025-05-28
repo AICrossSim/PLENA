@@ -184,7 +184,7 @@ import pipeline_pkg::*;
     // Operation Assignment
     OP_BUNDLE          invalid_op_bundle, recorded_op_bundle, current_decoded_op_bundle;
     logic stall_in_process;
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             stall_in_process <= 1'b0;
         end else if (pipeline_stall) begin
@@ -230,7 +230,7 @@ import pipeline_pkg::*;
         update_v_waddr      : 1'b0
     };
 
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             mem_write_control <= '{
                 w_m_sram_en:        1'b0,

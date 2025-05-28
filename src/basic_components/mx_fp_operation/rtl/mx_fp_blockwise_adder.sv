@@ -82,8 +82,8 @@ module mx_fp_blockwise_adder #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst) begin
-        if (!rst) begin
+    always_ff @(posedge clk) begin
+        if (rst) begin
             p1_max_scale_data_in <= 0;
             p2_max_scale_data_in <= 0;
         end else begin

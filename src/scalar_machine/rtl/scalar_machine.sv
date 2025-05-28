@@ -15,8 +15,10 @@ Status      : Under Testing
 
 module scalar_machine import precision_pkg::*;  #(
     // Simulation Purpose
-    parameter string FP_MEM_INIT_FILE = "",
-    parameter string FIXED_MEM_INIT_FILE = ""
+    `ifdef SIMULATION
+        parameter string FP_MEM_INIT_FILE = "",
+        parameter string FIXED_MEM_INIT_FILE = ""
+    `endif
 ) (
     input   logic clk,
     input   logic rst,
@@ -229,8 +231,11 @@ module scalar_machine import precision_pkg::*;  #(
     // SRAM for FP
     scalar_sram #(
         .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
-        .DEPTH(FP_SRAM_DEPTH),
-        .MemInitFile(FP_MEM_INIT_FILE)
+        .DEPTH(FP_SRAM_DEPTH)
+        `ifdef SIMULATION
+            ,
+            .MemInitFile(FP_MEM_INIT_FILE)
+        `endif
     ) fp_scalar_sram (
         .clk(clk),
         .rst(rst),
@@ -328,8 +333,11 @@ module scalar_machine import precision_pkg::*;  #(
 
     scalar_sram #(
         .DATA_WIDTH(FIXED_DATA_WIDTH),
-        .DEPTH(FIXED_SRAM_DEPTH),
-        .MemInitFile(FIXED_MEM_INIT_FILE)
+        .DEPTH(FIXED_SRAM_DEPTH)
+        `ifdef SIMULATION
+            ,
+            .MemInitFile(FIXED_MEM_INIT_FILE)
+        `endif
     ) fixed_scalar_sram (
         .clk(clk),
         .rst(rst),

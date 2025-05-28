@@ -99,7 +99,7 @@ module data_flow_control import precision_pkg::*; #(
     OP_BUNDLE  exe_op_bundle;
     MEM_WEN_INFO exe_mem_write_control;
 
-    always_ff @(posedge clk or negedge rst ) begin
+    always_ff @(posedge clk ) begin
         exe_op_bundle          <= assigned_op_bundle;
         exe_mem_write_control <= mem_write_control;
     end
@@ -111,7 +111,7 @@ module data_flow_control import precision_pkg::*; #(
     // Stall Request
     logic previous_dma_m_ready;
     logic previous_dma_v_ready;
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             previous_dma_m_ready <= 1'b0;
             previous_dma_v_ready <= 1'b0;
@@ -168,7 +168,7 @@ module data_flow_control import precision_pkg::*; #(
     end
 
 
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             m_sram_prefetch_counter <= 'b0;
             m_sram_req <= 1'b0;
@@ -276,7 +276,7 @@ module data_flow_control import precision_pkg::*; #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             v_v_a_valid     <= 1'b0;
             v_v_b_valid     <= 1'b0;
@@ -395,7 +395,7 @@ module data_flow_control import precision_pkg::*; #(
 
 
     // Scalar Data Forwarding to Vector Machine
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             v_s_in_valid <= 1'b0;
         end else begin

@@ -33,7 +33,7 @@ S_FP_OP recorded_operation;
 logic data_in_valid;
 logic data_in_ready;
 
-always_ff @(posedge clk or negedge rst) begin
+always_ff @(posedge clk) begin
     if (rst) begin
         recorded_operation <= STALL_S_FP;
         data_in_valid <= 1'b0;

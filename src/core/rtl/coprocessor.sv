@@ -6,7 +6,6 @@
 `include "tl_util.svh"
 `include "Global_Define.vh"
 
-
 /*
 Module      : Coprocessor Top Module
 Status      : Under Development
@@ -17,8 +16,10 @@ Description : This module serves as the top level of the coprocessor,
 
 module coprocessor #(
         // Simulation Purpose
-        parameter string FP_MEM_INIT_FILE = " ",
-        parameter string FIXED_MEM_INIT_FILE = " "
+        `ifdef SIMULATION
+            parameter string FP_MEM_INIT_FILE = " ",
+            parameter string FIXED_MEM_INIT_FILE = " "
+        `endif
 )(
     input   logic clk,
     input   logic rst,
@@ -306,8 +307,10 @@ module coprocessor #(
 
         // Scalar Compute Unit
         scalar_machine #(
-            .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-            .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+            `ifdef SIMULATION
+                .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
+                .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+            `endif
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),

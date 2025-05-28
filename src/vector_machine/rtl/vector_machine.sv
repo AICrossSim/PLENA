@@ -84,7 +84,7 @@ logic [ADDR_WIDTH - 1:0] recorded_result_waddr;
 logic complete_element_prepare, complete_reduct_prepare;
 logic next_preparation_stage;
 
-always_ff @(posedge clk or negedge rst) begin
+always_ff @(posedge clk) begin
     if (rst) begin
         for (int i = 0; i < VECTOR_MAX_CYCLES; i++) begin
             pipeline_compute_track[i] <= '{

@@ -165,7 +165,7 @@ module addr_monitor#(
         end
     end
 
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 v_write_addr_track[i] <= '{

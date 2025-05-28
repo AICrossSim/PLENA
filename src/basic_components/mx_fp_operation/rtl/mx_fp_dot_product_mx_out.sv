@@ -31,7 +31,7 @@ module mx_fp_dot_product_mx_out #(
     localparam  ADD_MAN_WIDTH = PRODUCT_MAN_WIDTH + ADD_EXT_MANT_WIDTH * $clog2(BLOCK_DIM),
     localparam  ADD_EXP_WIDTH = PRODUCT_EXP_WIDTH + ADD_EXT_EXP_WIDTH * $clog2(BLOCK_DIM),
 
-    localparam BLOCK_NUM        = COMP_DIM / BLOCK_DIM,
+    localparam BLOCK_NUM        = COMP_DIM / BLOCK_DIM
 
 ) (
     input clk,
