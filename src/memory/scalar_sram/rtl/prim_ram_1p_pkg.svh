@@ -1,3 +1,5 @@
+`ifndef PRIM_RAM_1P_PKG_SVH
+`define PRIM_RAM_1P_PKG_SVH
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
@@ -23,3 +25,5 @@ package prim_ram_1p_pkg;
   parameter ram_1p_cfg_t RAM_1P_CFG_DEFAULT = '0;
 
 endpackage // prim_ram_1p_pkg
+
+ `endif

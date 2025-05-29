@@ -22,3 +22,5 @@ Coprocessor_Vivado_Prj/
 .Xil
 
 *.log
+
+*.rpt

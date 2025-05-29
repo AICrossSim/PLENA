@@ -1,3 +1,5 @@
+`ifndef PRIM_UTIL_PKG_SVH
+`define PRIM_UTIL_PKG_SVH
 `timescale 1ns / 1ps
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
@@ -116,3 +118,4 @@ package prim_util_pkg;
 `endif
 
 endpackage
+`endif

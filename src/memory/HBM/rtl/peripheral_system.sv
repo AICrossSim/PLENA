@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
-`include "tl_pkg.sv"
+`include "tl_pkg.svh"
 
 /*
 Module      : Peripheral System (Testng Purpose)

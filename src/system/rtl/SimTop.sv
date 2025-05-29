@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
 `include "configuration.svh"
-`include "tl_pkg.sv"
+`include "tl_pkg.svh"
 
 
 import simulation_pkg::*;

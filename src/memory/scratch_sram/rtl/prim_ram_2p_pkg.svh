@@ -1,3 +1,5 @@
+`ifndef PRIM_RAM_2P_PKG_SVH
+`define PRIM_RAM_2P_PKG_SVH
 `timescale 1ns / 1ps
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
@@ -26,3 +28,5 @@ package prim_ram_2p_pkg;
   } ram_2p_cfg_rsp_t;
 
 endpackage // prim_ram_2p_pkg
+
+`endif

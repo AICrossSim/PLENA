@@ -1,3 +1,5 @@
+`ifndef TL_PKG_SVH
+`define TL_PKG_SVH
 `timescale 1ns / 1ps
 package tl_pkg;
 
@@ -58,3 +60,4 @@ parameter logic [2:0] BtoB = 4;
 parameter logic [2:0] NtoN = 5;
 
 endpackage
+`endif
