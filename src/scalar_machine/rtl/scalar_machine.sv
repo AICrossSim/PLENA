@@ -1,7 +1,6 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
 `include "configuration.svh"
-`include "Global_Define.vh"
 `include "precision.svh"
 
 /*

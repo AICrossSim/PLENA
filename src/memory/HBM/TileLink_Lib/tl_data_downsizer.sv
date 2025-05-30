@@ -18,6 +18,13 @@ module tl_data_downsizer import tl_pkg::*; import prim_util_pkg::*; #(
 );
 
   if (HostDataWidth <= DeviceDataWidth) $fatal(1, "Unexpected DataWidth");
+  initial begin
+      if (HostDataWidth > DeviceDataWidth) begin
+          $fatal(1, "HostDataWidth (%0d) must be less than or equal to DeviceDataWidth (%0d)",
+                  HostDataWidth, DeviceDataWidth);
+      end
+  end
+
 
   localparam int unsigned HostDataWidthInBytes = HostDataWidth / 8;
   localparam int unsigned HostNonBurstSize = $clog2(HostDataWidthInBytes);

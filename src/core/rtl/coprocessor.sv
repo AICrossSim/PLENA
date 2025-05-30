@@ -4,7 +4,7 @@
 `include "precision.svh"
 `include "configuration.svh"
 `include "tl_util.svh"
-`include "Global_Define.vh"
+`include "global_define.vh"
 
 /*
 Module      : Coprocessor Top Module
