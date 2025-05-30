@@ -24,3 +24,5 @@ Coprocessor_Vivado_Prj/
 *.log
 
 *.rpt
+
+.nfs*

@@ -63,6 +63,18 @@ module addr_monitor#(
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
     logic stall_in_process;
+    logic [ADDR_WIDTH - 1 : 0] fixed_addr_1_to_check;
+    logic [ADDR_WIDTH - 1 : 0] fixed_addr_2_to_check;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            fixed_addr_1_to_check <= {ADDR_WIDTH{1'b0}};
+            fixed_addr_2_to_check <= {ADDR_WIDTH{1'b0}};
+        end else begin
+            fixed_addr_1_to_check <= fixed_addr_1;
+            fixed_addr_2_to_check <= fixed_addr_2;
+        end
+    end
 
     always_comb begin
         if (stall_in_process) begin
@@ -81,13 +93,13 @@ module addr_monitor#(
         end else if ((decoded_op_bundle.m_op != STALL_M) ||((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!decoded_op_bundle.v_broadcast_en)) || (decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if ((v_write_addr_track[i].track_addr == fixed_addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if ((v_write_addr_track[i].track_addr == fixed_addr_1_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_1 = fixed_addr_1;
+                    locked_entry_1 = fixed_addr_1_to_check;
                     lock_entry_1_valid = 1'b1;
-                end else if ((v_write_addr_track[i].track_addr == fixed_addr_2) & (v_write_addr_track[i].activate == 1'b1)) begin
+                end else if ((v_write_addr_track[i].track_addr == fixed_addr_2_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_2 = fixed_addr_2;
+                    locked_entry_2 = fixed_addr_2_to_check;
                     lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
@@ -97,9 +109,9 @@ module addr_monitor#(
         end else if (((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (decoded_op_bundle.v_broadcast_en))) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if (((v_write_addr_track[i].track_addr == fixed_addr_1_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_1 = fixed_addr_1;
+                    locked_entry_1 = fixed_addr_1_to_check;
                     lock_entry_1_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
@@ -109,9 +121,9 @@ module addr_monitor#(
         end else if (decoded_op_bundle.h_op == STORE_V) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if (((v_write_addr_track[i].track_addr == fixed_addr_2_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_2 = fixed_addr_2;
+                    locked_entry_2 = fixed_addr_2_to_check;
                     lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
@@ -139,8 +151,8 @@ module addr_monitor#(
 
     always_comb begin
         // Decide which source is providing the address this cycle
-        if (decoded_op_bundle.h_op == PREFETCH_V) begin
-            insert_addr  = fixed_addr_2;
+        if (assigned_op_bundle.h_op == PREFETCH_V) begin
+            insert_addr  = fixed_addr_2_to_check;
             insert_valid = 1'b1;
         end else if (assigned_op_bundle.update_m_waddr) begin
             insert_addr  = assigned_op_bundle.addr_2;

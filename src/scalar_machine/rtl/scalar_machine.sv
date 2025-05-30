@@ -298,7 +298,8 @@ module scalar_machine import precision_pkg::*;  #(
             recorded_rs1                <= 'b0;
             recorded_rs2                <= 'b0;
             recorded_rd                 <= 'b0;
-
+            fixed_out_1                 <= 'b0;
+            fixed_out_2                 <= 'b0;
         end else begin
             exe_fixed_op                <= assigned_fixed_op;
             recorded_rs1                <= rs1;
@@ -317,12 +318,23 @@ module scalar_machine import precision_pkg::*;  #(
                 fixed_write_from_sram_req   <= 1'b0;
                 fixed_stall_status          <= 1'b0;
             end
+
+            if (assigned_fixed_op == PASS_ADDR || assigned_fixed_op == PASS_ADDR_2) begin
+                fixed_out_1                 <= fixed_reg_1;
+                fixed_out_2                 <= fixed_reg_2;
+            end else if (assigned_fixed_op == COMP_ADDR) begin
+                fixed_out_1                 <= fixed_alu_out;
+                fixed_out_2                 <= 'b0;
+            end else begin
+                fixed_out_1                 <= 'b0;
+                fixed_out_2                 <= 'b0;
+            end
         end
     end
 
-    assign fixed_out_1 =    (exe_fixed_op == PASS_ADDR || exe_fixed_op == PASS_ADDR_2) ? fixed_reg_1    :
-                            (exe_fixed_op == COMP_ADDR)                                ? fixed_alu_out  : 'b0;
-    assign fixed_out_2 =    (exe_fixed_op == PASS_ADDR || exe_fixed_op == PASS_ADDR_2) ? fixed_reg_2    : 'b0;
+    // assign fixed_out_1 =    (exe_fixed_op == PASS_ADDR || exe_fixed_op == PASS_ADDR_2) ? fixed_reg_1    :
+    //                         (exe_fixed_op == COMP_ADDR)                                ? fixed_alu_out  : 'b0;
+    // assign fixed_out_2 =    (exe_fixed_op == PASS_ADDR || exe_fixed_op == PASS_ADDR_2) ? fixed_reg_2    : 'b0;
 
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     assign fixed_reg_addr_1 = rs1;

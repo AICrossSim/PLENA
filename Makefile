@@ -18,4 +18,6 @@ shell:
         -v $(shell pwd):/workspace:z \
         coprocessor-llama /bin/bash
 
-#    	&& source .coprocessor_env/bin/activate
+
+clean:
+	@rm -rf *.log *.jou *.str

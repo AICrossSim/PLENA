@@ -34,8 +34,8 @@ module regfile_2p1w #(
 
     // Write logic
     always_ff @(posedge clk) begin
-        rdata1 <= mem[raddr1];
-        rdata2 <= mem[raddr2];
+        rdata1 <= (raddr1 == 0) ? '0 : mem[raddr1]; // Return zero for address 0
+        rdata2 <= (raddr2 == 0) ? '0 : mem[raddr2]; // Return zero for address 0
         if (we) begin
             // assert (waddr != 0) else $error("Attempting to write to address 0");
             if (waddr != 0) begin  // Avoid writing to address 0
@@ -43,5 +43,11 @@ module regfile_2p1w #(
             end
         end
     end
+
+    // Read logic
+    // always_comb begin
+    //     rdata1 = (raddr1 == 0) ? '0 : mem[raddr1]; // Return zero for address 0
+    //     rdata2 = (raddr2 == 0) ? '0 : mem[raddr2]; // Return zero for address 0
+    // end
 
 endmodule
