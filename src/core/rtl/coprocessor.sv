@@ -229,7 +229,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Scalar
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_in;
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_out;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
     logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr;
@@ -288,7 +287,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .s_in                   (fp_s_in),
             .s_in_valid             (v_s_in_valid),
             .s_in_ready             (v_s_in_ready),
-            .s_wtarget              (s_fps2),
+            .s_wtarget              (assigned_op_bundle.fps2),
             .result_waddr           (assigned_op_bundle.addr_2),
             .result_waddr_update    (assigned_op_bundle.update_v_waddr),
             .v_out_element          (v_out_element),
@@ -317,7 +316,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
             .rd                     (s_rd),
-            .fixed_in               (fixed_in),
             .imm_in                 (s_imm),
             .fixed_out_1            (fixed_out_1),
             .fixed_out_2            (fixed_out_2),

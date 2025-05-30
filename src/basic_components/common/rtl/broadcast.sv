@@ -7,8 +7,8 @@ Description : This module broadcast single element to an unpacked array
 */
 
 module broadcast #(
-    parameter DATA_WIDTH,
-    parameter BROADCAST_DIM
+    parameter DATA_WIDTH = 16,
+    parameter BROADCAST_DIM = 4
 ) (
     input logic [DATA_WIDTH-1:0] in_data,
     output logic [BROADCAST_DIM-1:0] [DATA_WIDTH - 1:0] out_data

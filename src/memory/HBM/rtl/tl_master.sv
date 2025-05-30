@@ -21,11 +21,10 @@ module tl_master #(
 
   // Control signals
   input  logic req_en,
-  input  logic [AddrWidth-1:0] fetch_addr,
+  input  logic [AddrWidth-1:0] addr,
   output logic [DataWidth-1:0] fetch_data,
 
   input  logic write_en,
-  input  logic [AddrWidth-1:0] write_addr,
   input  logic [MASK_WIDTH-1:0] write_mask,
   input  logic [DataWidth-1:0] write_data,
 
@@ -106,12 +105,12 @@ module tl_master #(
           if (req_en) begin
             if (write_en) begin
               next_a_opcode = PutFullData; // PutFullData
-              next_addr   = write_addr;
+              next_addr   = addr;
               next_wdata  = write_data;
               next_state  = SEND_REQ;
             end else begin
               next_a_opcode = Get; // Get
-              next_addr   = fetch_addr;
+              next_addr   = addr;
               next_state  = SEND_REQ;
             end
           end 

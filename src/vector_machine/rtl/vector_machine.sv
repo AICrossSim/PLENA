@@ -79,6 +79,10 @@ V_REDUCT_OP  recorded_reduct_v_control;
 logic [FP_OPERAND_WIDTH - 1:0] recorded_s_wtarget;
 logic [ADDR_WIDTH - 1:0] recorded_result_waddr;
 
+// Loaded Vector Control Flow
+logic v_port_a_valid, v_port_a_ready;
+logic v_port_b_valid, v_port_b_ready;
+
 
 // Data Preparation Stage
 logic complete_element_prepare, complete_reduct_prepare;
@@ -195,7 +199,7 @@ generate;
         );
     end
 
-    for (genvar j = 0; j < BLOCK_DIM; j = j + 1)begin
+    for (genvar j = 0; j < BLOCK_NUM; j = j + 1)begin
         mx_fp_2_fp_block #(
             .BLOCK_DIM(BLOCK_DIM),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
@@ -274,9 +278,7 @@ skid_buffer #(
     .data_out_ready (s_acc_in_ready)
 );
  
-// Loaded Vector Control Flow
-logic v_port_a_valid, v_port_a_ready;
-logic v_port_b_valid, v_port_b_ready;
+
 
 // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
 always_comb begin

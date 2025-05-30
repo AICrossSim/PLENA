@@ -32,7 +32,6 @@ module scalar_machine import precision_pkg::*;  #(
     input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
 
     // Fixed Value input
-    input   logic [FIXED_DATA_WIDTH - 1 : 0] fixed_in,
     input   logic [IMM_WIDTH - 1 : 0] imm_in,
 
     output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1,
@@ -72,7 +71,8 @@ module scalar_machine import precision_pkg::*;  #(
 
 
     // ------------------- Tracing Register for Stall Detection -------------------
-    logic tracing_fpreg_in_process [2 << FP_OPERAND_WIDTH - 1 : 0];
+    localparam int TRACE_SIZE = 2 << FP_OPERAND_WIDTH; // Number of FP registers
+    logic tracing_fpreg_in_process [TRACE_SIZE - 1 : 0];
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_wtarget;
 
     // Dependency Detection
@@ -88,7 +88,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-            for (int i = 0; i < 2 << FP_OPERAND_WIDTH; i++) begin
+            for (int i = 0; i < TRACE_SIZE; i++) begin
                 tracing_fpreg_in_process[i] <= 1'b0;
             end
 
