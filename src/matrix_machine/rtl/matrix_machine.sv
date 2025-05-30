@@ -75,6 +75,8 @@ RECORDED_INFO_TYPE pipeline_compute_track [0:MATRIX_MAX_CYCLES-1];
 
 M_OP    recorded_m_op;
 logic [ADDR_WIDTH-1:0] recorded_m_waddr;
+logic collect_m_valid, collect_m_ready;
+logic stored_v_valid, stored_v_ready;
 
 // Preparation Units 
 always_ff @(posedge clk) begin
@@ -134,7 +136,7 @@ logic collect_in_m_ele_ready,   collect_in_m_scale_ready;
 logic collect_in_m_ele_valid,   collect_in_m_scale_valid;
 logic collect_m_ele_ready,      collect_m_scale_ready;
 logic collect_m_ele_valid,      collect_m_scale_valid;
-logic collect_m_valid,          collect_m_ready;
+
 
 split_n #(
     .N(2)
@@ -202,7 +204,7 @@ logic stored_v_in_ele_ready, stored_v_in_scale_ready;
 logic stored_v_in_ele_valid, stored_v_in_scale_valid;
 logic stored_v_ele_ready, stored_v_scale_ready;
 logic stored_v_ele_valid, stored_v_scale_valid;
-logic stored_v_valid, stored_v_ready;
+
 
 split_n #(
     .N(2)
@@ -373,6 +375,7 @@ logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     acc_elem
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     result_element;
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     result_scale;
+logic result_from_acc_valid, result_from_acc_ready;
 
 // Assuming there is no case that MV is followed by MV_O, where both might write to the sram at the same time.
 always_comb begin
@@ -439,7 +442,7 @@ generate;
     logic [BLOCK_NUM - 1 : 0] offset_in_valid, offset_in_ready;
     logic [BLOCK_NUM - 1 : 0] acc_in_valid, acc_in_ready;
     logic [BLOCK_NUM - 1 : 0] acc_out_valid, acc_out_ready;
-    logic result_from_acc_valid, result_from_acc_ready;
+
 
 
     split_n #(
@@ -485,7 +488,7 @@ generate;
             .b_data_in_ready    (offset_in_ready[i]),
 
             // Output
-            .element_data_out   (acc_element[i]),
+            .element_data_out   (acc_element[i*BLOCK_DIM +: BLOCK_DIM]),
             .scale_data_out     (acc_scale[i]),
             .data_out_valid     (acc_out_valid[i]),
             .data_out_ready     (acc_out_ready[i])

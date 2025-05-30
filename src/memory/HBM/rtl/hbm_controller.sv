@@ -170,7 +170,7 @@ module hbm_controller #(
         // Control signals
         .req_en(start_prefetch),
         .write_en(hbm_write_en),
-        .fetch_addr(hbm_addr_out),
+        .addr(hbm_addr_out),
         .fetch_data(prefetch_element),
         .write_data(hbm_write_element),
         .write_mask(hbm_ele_write_mask),
@@ -214,7 +214,7 @@ module hbm_controller #(
         // Control signals
         .req_en(hbm_prefetch_en),
         .write_en(hbm_write_en),
-        .fetch_addr(addr_for_prefetched_data + SCALE_DATA_OFFSET),
+        .addr(addr_for_prefetched_data + SCALE_DATA_OFFSET),
         .fetch_data(prefetch_scale),
         .write_data(hbm_write_scale),
         .write_mask(hbm_scale_write_mask),

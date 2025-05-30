@@ -125,7 +125,7 @@ module mx_fp_blockwise_adder #(
         ) store_wo_shifted_element (
             .clk(clk),
             .rst(rst),
-            .data_in(elements_af_shift),
+            .data_in(elements_wo_shift),
             .data_in_valid(wo_shift_in_valid),
             .data_in_ready(wo_shift_in_ready),
             .data_out(elements_stored_wo_shift),
