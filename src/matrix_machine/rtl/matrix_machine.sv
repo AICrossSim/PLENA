@@ -477,19 +477,19 @@ generate;
 
             // Port A
             .a_element_data_in  (prod_element[i]),
-            .a_scale_data_in    (prod_scale[i]),
+            .a_scale_data_in    (prod_scale  [i]),
             .a_data_in_valid    (acc_in_valid[i]),
             .a_data_in_ready    (acc_in_ready[i]),
 
             // Port B
             .b_element_data_in  (stored_o_element[i]),
-            .b_scale_data_in    (stored_o_scale[i]),
-            .b_data_in_valid    (offset_in_valid[i]),
-            .b_data_in_ready    (offset_in_ready[i]),
+            .b_scale_data_in    (stored_o_scale  [i]),
+            .b_data_in_valid    (offset_in_valid [i]),
+            .b_data_in_ready    (offset_in_ready [i]),
 
             // Output
             .element_data_out   (acc_element[i*BLOCK_DIM +: BLOCK_DIM]),
-            .scale_data_out     (acc_scale[i]),
+            .scale_data_out     (acc_scale    [i]),
             .data_out_valid     (acc_out_valid[i]),
             .data_out_ready     (acc_out_ready[i])
         );
