@@ -441,6 +441,7 @@ generate;
     logic [BLOCK_NUM - 1 : 0] acc_out_valid, acc_out_ready;
     logic result_from_acc_valid, result_from_acc_ready;
 
+
     split_n #(
         .N (BLOCK_NUM)
     ) split_product_handshake (

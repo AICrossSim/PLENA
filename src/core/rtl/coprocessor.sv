@@ -14,7 +14,7 @@ Description : This module serves as the top level of the coprocessor,
               It currently only supports single batch execution.
 */
 
-module coprocessor #(
+module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         // Simulation Purpose
         `ifdef SIMULATION
             parameter string FP_MEM_INIT_FILE = " ",
@@ -34,9 +34,7 @@ module coprocessor #(
 );
     // Import Packages
     import precision_pkg::*;
-    import configuration_pkg::*;
-    import instruction_pkg::*;
-
+   
     // Parameter Def
     localparam MATRIX_LOAD_ITERATION = MLEN / Matrix_Parallel_Rd_Dim;
     localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION);

@@ -165,28 +165,83 @@ module mx_fp_mv #(
                 .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
                 .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
                 .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
-            ) fp_2_mx_convert(
+            ) fp_2_mx_convert_init(
                 .clk(clk),
                 .rst(rst),
                 .data_in(fp_dot_out[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
                 .data_in_valid(mxfp_fp_convert_in_valid[j]),
                 .data_in_ready(mxfp_fp_convert_in_ready[j]),
-                .element_data_out(out_element[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
-                .scale_data_out(out_scale[j]),
+                .element_data_out(converted_element[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
+                .scale_data_out(converted_scale[j]),
                 .mx_fp_data_out_valid(mxfp_fp_convert_out_valid[j]),
                 .mx_fp_data_out_ready(mxfp_fp_convert_out_ready[j])
             );
 
         end
 
+        logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] converted_element;
+        logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] converted_scale;
+        logic converted_element_valid, converted_element_ready;
+        logic converted_scale_valid, converted_scale_ready;
+        logic converted_valid, converted_ready;
+        logic result_element_valid, result_element_ready;
+        logic result_scale_valid, result_scale_ready;
+
+        assign converted_element_valid = converted_valid;
+        assign converted_scale_valid = converted_valid;
+        assign converted_ready = converted_scale_ready & converted_element_ready;
+
+
         join_n #(
             .NUM_HANDSHAKES (BLOCK_NUM)
         ) join_conv (
             .data_in_valid(mxfp_fp_convert_out_valid),
             .data_in_ready(mxfp_fp_convert_out_ready),
+            .data_out_valid(converted_valid),
+            .data_out_ready(converted_ready)
+        );
+
+        skid_buffer #(
+            .DATA_WIDTH(BLOCK_NUM * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
+        ) result_element_buffer (
+            .clk(clk),
+            .rst(rst),
+
+            // Input
+            .data_in(converted_element),
+            .data_in_valid(converted_element_valid),
+            .data_in_ready(converted_element_ready),
+
+            // Output
+            .data_out(out_element),
+            .data_out_valid(result_element_valid),
+            .data_out_ready(result_element_ready)
+        );
+
+        skid_buffer #(
+            .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+        ) result_scale_buffer (
+            .clk(clk),
+            .rst(rst),
+
+            // Input
+            .data_in(converted_scale),
+            .data_in_valid(converted_scale_valid),
+            .data_in_ready(converted_scale_ready),
+
+            // Output
+            .data_out(out_scale),
+            .data_out_valid(result_scale_valid),
+            .data_out_ready(result_scale_ready)
+        );
+
+        join2 result_join (
+            .data_in_valid({result_element_valid, result_scale_valid}),
+            .data_in_ready({result_element_ready, result_scale_ready}),
             .data_out_valid(out_valid),
             .data_out_ready(out_ready)
         );
+
     endgenerate
 
 endmodule
