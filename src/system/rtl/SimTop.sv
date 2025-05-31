@@ -1,15 +1,12 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "global_define.vh"
 `include "configuration.svh"
 `include "tl_pkg.svh"
-
-
-import simulation_pkg::*;
 
 /*
 Module      : Sim Top Module
 */
-
 
 module SimTop#(
     parameter   INSTRUCTION_LENGTH = 32,
@@ -25,6 +22,8 @@ module SimTop#(
     input   logic instruction_valid,
     output  logic instruction_ready
 );
+
+import simulation_pkg::*;
 
 `TL_DECLARE(HBM_ELE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element_link);
 `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale_link);
@@ -53,7 +52,6 @@ fake_hbm #(
 ) fake_hbm_element (
     .clk(clk),
     .rst(rst),
-
     `TL_CONNECT_DEVICE_PORT(host, element_link)
 );
 
@@ -68,7 +66,6 @@ fake_hbm #(
 ) fake_hbm_scale (
     .clk(clk),
     .rst(rst),
-
     `TL_CONNECT_DEVICE_PORT(host, scale_link)
 );
 

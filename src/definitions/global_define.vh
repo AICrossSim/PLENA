@@ -1,3 +1,3 @@
 `ifndef GLOBAL_DEFINE_VH
-    // `define SIMULATION
+    `define SIMULATION
 `endif
