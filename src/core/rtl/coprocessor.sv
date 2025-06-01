@@ -465,17 +465,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     );
 
     hbm_controller #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .BLOCK_DIM(BLOCK_DIM),
-        .ADDR_WIDTH(FIXED_DATA_WIDTH),
-        .MLEN(MLEN),
-        .VLEN(VLEN),
         .Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim),
-        .ADR_OPERAND_WIDTH(ADR_OPERAND_WIDTH),
-        .HBM_ADDR_WIDTH(HBM_ADDR_WIDTH),
-        .HBM_ADDR_REG_NUM(HBM_ADDR_REG_NUM),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
         .HBM_ELE_WIDTH(HBM_ELE_WIDTH),

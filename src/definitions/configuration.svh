@@ -6,6 +6,7 @@
         parameter   BATCH_SIZE                      = 1;
         parameter   MLEN                            = 4;
         parameter   Matrix_Parallel_Rd_Dim          = 2;
+        parameter   HBM_Parallel_Rd_Dim             = 4; // The number of MLEN that can be fetched from the HBM in single clk.
         parameter   MATRIX_SRAM_DEPTH               = 128;
         parameter   VLEN                            = 4;
         parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
@@ -31,7 +32,27 @@
         parameter   HBM_ADDR_WIDTH                  = 64;
         parameter   FAKE_HBM_ADDR_WIDTH             = 4;
     endpackage
-`else
+`elsif ASIC_ESTIMATION
+    package configuration_pkg;
+        parameter   BATCH_SIZE                      = 32;
+        parameter   MLEN                            = 32;
+        parameter   Matrix_Parallel_Rd_Dim          = 16;
+        parameter   MATRIX_SRAM_DEPTH               = 128;
+        parameter   VLEN                            = 32;
+        parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
+        parameter   INST_BUFF_DEPTH                 = 8;
+        parameter   ON_CHIP_ADDR_WIDTH              = 32;
+        parameter   HBM_ADDR_WIDTH                  = 64;
+        parameter   ADR_OPERAND_WIDTH               = 3;
+        parameter   HBM_ADDR_REG_NUM                = 8;
+        parameter   SourceWidth                     = 1;
+        parameter   SinkWidth                       = 1;
+        parameter   HBM_ELE_WIDTH                   = 8192;
+        parameter   HBM_SCALE_WIDTH                 = 4096;
+        parameter   FIXED_SRAM_DEPTH                = 32;
+        parameter   FP_SRAM_DEPTH                   = 32;
+    endpackage
+`elsif FPGA_ESTIMATION
     package configuration_pkg;
         parameter   BATCH_SIZE                      = 1;
         parameter   MLEN                            = 32;

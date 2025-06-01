@@ -11,22 +11,14 @@ Status      : Under Development
 */
 
 module hbm_arbiter #(
-    parameter   MXFP_EXP_WIDTH      = 4,
-    parameter   MXFP_MANT_WIDTH     = 3,
-    parameter   MXFP_SCALE_WIDTH    = 8,
-    parameter   BLOCK_DIM           = 4,
-    parameter   ADDR_WIDTH          = 32,
-    parameter   MLEN                = 8,
-    parameter   VLEN                = 8,
-    parameter   Parallel_Rd_Dim     = 4,
-    parameter   HBM_ADDR_WIDTH      = 64,
-
     localparam int M_BLOCK_NUM      = MLEN / BLOCK_DIM,
     localparam int V_BLOCK_NUM      = VLEN / BLOCK_DIM,
     localparam int HBM_ELE_WIDTH    = MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int HBM_SCALE_WIDTH  = MLEN * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
-    localparam int ELE_WIDTH        = Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
-    localparam int SCALE_WIDTH      = Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+    localparam int PREFETCH_ELE_WIDTH        = HBM_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int PREFETCH_SCALE_WIDTH      = HBM_Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+    localparam int M_ELE_WIDTH      = Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int M_SCALE_WIDTH    = Matrix_Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
     localparam int V_ELE_WIDTH      = VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int V_SCALE_WIDTH    = V_BLOCK_NUM * MXFP_SCALE_WIDTH
 

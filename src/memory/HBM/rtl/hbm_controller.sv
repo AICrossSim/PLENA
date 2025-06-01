@@ -1,6 +1,4 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
-`include "tl_util.svh"
 
 /*
 Module      : HBM - DMA - TL Controller
@@ -12,35 +10,16 @@ Status      : Under Development
 */
 
 module hbm_controller #(
-    parameter   MXFP_EXP_WIDTH      = 4,
-    parameter   MXFP_MANT_WIDTH     = 3,
-    parameter   MXFP_SCALE_WIDTH    = 8,
-    parameter   BLOCK_DIM           = 4,
-    parameter   ADDR_WIDTH          = 32,
-    parameter   MLEN                = 8,
-    parameter   VLEN                = 8,
-    parameter   Parallel_Rd_Dim     = 4,
 
-    parameter   ADR_OPERAND_WIDTH   = 5,
     localparam  M_BLOCK_NUM         = MLEN / BLOCK_DIM,
     localparam  V_BLOCK_NUM         = VLEN / BLOCK_DIM,
 
-    // HBM Config and TL settings
-    parameter   HBM_ADDR_WIDTH          = 64,
-    parameter   HBM_ADDR_REG_NUM        = 4,
-
-    parameter int unsigned SourceWidth  = 1,
-    parameter int unsigned SinkWidth    = 1,
-
-    localparam int ELE_WIDTH    =   MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
-    localparam int SCALE_WIDTH  =   MLEN * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+    localparam int ELE_WIDTH    =   HBM_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int SCALE_WIDTH  =   HBM_Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
 
     parameter int HBM_ELE_WIDTH = 128,
     parameter int HBM_SCALE_WIDTH = 128,
-    parameter SCALE_DATA_OFFSET = 32'h80000000,
-
-    localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim,
-    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION)
+    parameter SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
     input   logic rst,
