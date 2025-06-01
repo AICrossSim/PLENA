@@ -3,11 +3,11 @@
 
 package configuration_pkg;
     parameter   BATCH_SIZE                      = 1;
-    parameter   MLEN                            = 32;
+    parameter   MLEN                            = 128;
     parameter   Matrix_Parallel_Rd_Dim          = 16;
-    parameter   MATRIX_SRAM_DEPTH               = 128;
-    parameter   VLEN                            = 32;
-    parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
+    parameter   MATRIX_SRAM_DEPTH               = 2048;
+    parameter   VLEN                            = 128;
+    parameter   SCRATCHPAD_SRAM_DEPTH           = 4096;
     parameter   INST_BUFF_DEPTH                 = 8;
     parameter   ON_CHIP_ADDR_WIDTH              = 32;
     parameter   HBM_ADDR_WIDTH                  = 64;
@@ -15,8 +15,8 @@ package configuration_pkg;
     parameter   HBM_ADDR_REG_NUM                = 8;
     parameter   SourceWidth                     = 1;
     parameter   SinkWidth                       = 1;
-    parameter   HBM_ELE_WIDTH                   = 8192;
-    parameter   HBM_SCALE_WIDTH                 = 4096;
+    parameter   HBM_ELE_WIDTH                   = 131072;
+    parameter   HBM_SCALE_WIDTH                 = 65536;
     parameter   FIXED_SRAM_DEPTH                = 32;
     parameter   FP_SRAM_DEPTH                   = 32;
 endpackage

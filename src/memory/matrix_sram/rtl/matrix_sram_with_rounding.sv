@@ -89,7 +89,7 @@ biaccess_sram #(
 
 // element storage
 biaccess_sram #(
-    .DataWidth      (MXFP_SCALE_WIDTH),
+    .DataWidth      (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     .SRAM_DEPTH     (SRAM_DEPTH),
     .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)
