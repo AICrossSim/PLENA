@@ -20,27 +20,28 @@ module matrix_sram_with_rounding #(
     parameter FIXED_DATA_WIDTH  = 32,
 
     // Dimension
-    parameter   MLEN              = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.
-    parameter   BLOCK_DIM         = 4,                                
-    localparam  BLOCK_NUM         = MLEN / BLOCK_DIM,
+    parameter   MLEN            = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.
+    parameter   BLOCK_DIM       = 4,                                
+    localparam  BLOCK_NUM       = MLEN / BLOCK_DIM,
 
     // SRAM
-    parameter   SRAM_DEPTH        = 128,
-    localparam  AddrLen           = $clog2(SRAM_DEPTH),                 // Address Space for the SRAM
-    parameter   PARALLEL_DIM = 2                                        // The depth of the SRAM
+    parameter   SRAM_DEPTH      = 128,
+    localparam  AddrLen         = $clog2(SRAM_DEPTH),                 // Address Space for the SRAM
+    parameter   PARALLEL_DIM    = 2                                        // The depth of the SRAM
 
 ) (
     input   logic clk,
-
     input   logic rst,
+
     input   logic req,
     input   logic transposed_read,
-    input   logic write_en,
-    output  logic write_response,
-
-    input   logic [FIXED_DATA_WIDTH-1:0] sram_addr,   
+    input   logic [FIXED_DATA_WIDTH-1:0] sram_raddr,   
     input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
     input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in, 
+
+    input   logic wen,
+    output  logic write_response,
+    input   logic [FIXED_DATA_WIDTH-1:0] sram_waddr,
     output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
     output  logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out
 
@@ -48,16 +49,18 @@ module matrix_sram_with_rounding #(
 
 
 // Address Translation
+logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram;
 localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
-logic [AddrLen - 1 : 0] addr_for_sub_sram;
-assign addr_for_sub_sram = sram_addr >> $clog2(BITWIDTH_PER_ROW);
+assign waddr_for_sub_sram = sram_waddr >> $clog2(BITWIDTH_PER_ROW);
+assign raddr_for_sub_sram = sram_raddr >> $clog2(BITWIDTH_PER_ROW);
 
 
 // scale duplication
+logic scale_write_response, element_write_response;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] loaded_element_out;
-logic scale_write_response, element_write_response;
+
 
 assign write_response = scale_write_response & element_write_response;
 
@@ -80,9 +83,9 @@ biaccess_sram #(
     .clk(clk),
     .req(req),
     .transposed_read    (transposed_read),
-    .write_en           (write_en),
+    .wen                (wen),
     .write_response     (scale_write_response),
-    .sram_addr          (addr_for_sub_sram),
+    .sram_addr          (waddr_for_sub_sram),
     .write_data         (dumplicated_scale_in),
     .out_data           (loaded_scale_out)
 );
@@ -97,9 +100,9 @@ biaccess_sram #(
     .clk(clk),
     .req(req),
     .transposed_read    (transposed_read),
-    .write_en           (write_en),
+    .wen                (wen),
     .write_response     (element_write_response),
-    .sram_addr          (addr_for_sub_sram),
+    .sram_addr          (waddr_for_sub_sram),
     .write_data         (element_in),
     .out_data           (loaded_element_out)
 );

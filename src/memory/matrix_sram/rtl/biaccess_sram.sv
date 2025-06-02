@@ -16,24 +16,23 @@ Status      : Passed Simple Row/Col Read/Write Tests
 module biaccess_sram #(
     parameter   DataWidth = 4, 
     parameter   SRAM_DEPTH = 128,
-    parameter   MLEN = 8,                                       // The TileSize of the matrix.
+    parameter   MLEN = 8,  
     parameter   Parallel_Rd_Dim = 2,                            // The number of row/col read in parallel
-    localparam  AddrLen = $clog2(SRAM_DEPTH)                    // Address Space for the SRAM 
+    localparam  AddrLen = $clog2(SRAM_DEPTH) 
 ) (
     input  logic clk,
 
-    // input  logic rst,
     input  logic req,
     input  logic transposed_read,
-    input  logic write_en,
-    // input  logic last_write,
+    input  logic [AddrLen-1:0] sram_raddr,
+    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data,
+
+    input  logic wen,
     output logic write_response,
+    input  logic [AddrLen-1:0] sram_waddr,
+    input  logic [Parallel_Rd_Dim * MLEN * DataWidth - 1:0] write_data
 
-    input  logic [AddrLen-1:0] sram_addr,                                   // Indicates whether the read is stalled
-    input  logic [Parallel_Rd_Dim * MLEN * DataWidth - 1:0] write_data,     // Packed input vector
-    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data      // Unpacked output array
 );
-
 
 // -----
 // Params
@@ -41,12 +40,10 @@ module biaccess_sram #(
 localparam int SubTileWidth                 = DataWidth * (Parallel_Rd_Dim ** 2);       // The width of each element in the sub SRAM
 localparam int SubSRAM_Amount               = MLEN / Parallel_Rd_Dim;                   // The dimension of the sub SRAM, or the TileSize of the matrix.
 
-
 // -----
 // Wires
 // -----
 logic [SubSRAM_Amount - 1 : 0] [SubTileWidth - 1 : 0]   sub_sram_wdata, sub_sram_rdata ;
-
 logic [SubSRAM_Amount-1:0] individual_subs_sram_write_response ;
 logic [SubSRAM_Amount-1:0] individual_subs_sram_read_valid ;
 logic read_data_valid;
@@ -67,44 +64,45 @@ generate
             .SubSRAMIndex(sub_sram_index),
             .MLEN(MLEN),
             .PARALLEL_DIM(Parallel_Rd_Dim)
-        ) sub_sram_1 (
+        ) sub_sram_init (
             .clk(clk),
             .req(req),
-            .write_en(write_en),
+            .raddr(sram_raddr),  
             .transposed_read(transposed_read),
-            .addr(sram_addr),   
-            .wdata(sub_sram_wdata[sub_sram_index]),
-            .write_response(individual_subs_sram_write_response[sub_sram_index]),
+            .rdata(sub_sram_rdata[sub_sram_index]),
             .read_data_valid(individual_subs_sram_read_valid[sub_sram_index]),
-            .rdata(sub_sram_rdata[sub_sram_index])
+            .wen(wen),
+            .waddr(sram_waddr),
+            .wdata(sub_sram_wdata[sub_sram_index]),
+            .write_response(individual_subs_sram_write_response[sub_sram_index])
         );
     end
 endgenerate
 
 // Write Data Transformation
 wdata_transform #(
-    .DataWidth(DataWidth),
-    .SRAM_DEPTH(SRAM_DEPTH),
-    .MLEN(MLEN),
+    .DataWidth      (DataWidth),
+    .SRAM_DEPTH     (SRAM_DEPTH),
+    .MLEN           (MLEN),
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
 ) wdata_transform_init (
-    .clk(clk),
-    .in_data(write_data),
-    .addr(sram_addr),
-    .sub_sram_wdata(sub_sram_wdata)
+    .clk            (clk),
+    .in_data        (write_data),
+    .addr           (sram_waddr),
+    .sub_sram_wdata (sub_sram_wdata)
 );
 
 // Read Data Transformation
 rdata_transform #(
-    .DataWidth(DataWidth),
-    .SRAM_DEPTH(SRAM_DEPTH),
-    .MLEN(MLEN),
+    .DataWidth      (DataWidth),
+    .SRAM_DEPTH     (SRAM_DEPTH),
+    .MLEN           (MLEN),
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
-) rdata_transform_1_init (
-    .in_data(sub_sram_rdata),
-    .sram_addr(sram_addr),
+) rdata_transform_init (
+    .in_data        (sub_sram_rdata),
+    .sram_addr      (sram_raddr),
     .read_data_valid(read_data_valid),
-    .out_data(out_data)
+    .out_data       (out_data)
 );
 
 

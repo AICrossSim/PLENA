@@ -15,69 +15,72 @@ module subsram #(
   parameter  int MLEN                       = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
   parameter  int PARALLEL_DIM               = 2,                                // The number of row/col read in parallel
   localparam int AdrWidth                   = $clog2(SRAM_DEPTH),               // derived parameter
-  localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/PARALLEL_DIM),  // The width of the parallel read index
-  localparam int ElementWidth               = DataWidth * (PARALLEL_DIM ** 2),   // The width of each element in the sub SRAM
-  localparam int Element_Amount             = PARALLEL_DIM ** 2           // The number of data in a single element
+  localparam int Parallel_Rd_Index_Width    = $clog2(MLEN/PARALLEL_DIM),        // The width of the parallel read index
+  localparam int ElementWidth               = DataWidth * (PARALLEL_DIM ** 2),  // The width of each element in the sub SRAM
+  localparam int Element_Amount             = PARALLEL_DIM ** 2                 // The number of data in a single element
 ) (
-  input  logic                                  clk,
+    input  logic                                  clk,
 
-  input  logic                                  req,
-  input  logic                                  write_en,
-  input  logic                                  transposed_read,
+    // Read Port
+    input  logic                                  req,
+    input  logic [AdrWidth-1:0]                   raddr,
+    input  logic                                  transposed_read,
+    output logic [ElementWidth-1:0]               rdata,               // Read data. Data is returned one cycle after req_i is high.
+    output logic                                  read_data_valid,
   
-  input  logic [AdrWidth-1:0]                   addr,
-  input  logic [ElementWidth -1:0]              wdata,              // To be confirmed
-  output logic                                  write_response,
-  output logic                                  read_data_valid,
-  output logic [ElementWidth-1:0]               rdata               // Read data. Data is returned one cycle after req_i is high.
+    // Write Port
+    input  logic                                  wen,
+    input  logic [AdrWidth-1:0]                   waddr,
+    input  logic [ElementWidth -1:0]              wdata,              // To be confirmed
+    output logic                                  write_response
 );
 
 // -----
 // Wires
 // -----
 logic [ElementWidth-1:0]            mem [SRAM_DEPTH];
-logic [AdrWidth-1:0]                addr_for_sub_sram;
+logic [AdrWidth-1:0]                translated_raddr;
 logic [ElementWidth-1:0]            raw_rdata;
 logic transpose_rawdata;
 
 logic signed [Parallel_Rd_Index_Width-1:0]    sram_index, addr_offset;
 
 initial begin
-    // $dumpvars(0, subsram); // Dump all signals in my_design
-    // $dumpfile("dump.vcd");  // Save waveform to dump.vcd
     sram_index = SubSRAMIndex[Parallel_Rd_Index_Width-1:0];
 end
 
-// Address Translation
+// Read Address Translation
 always @(*) begin
 
     addr_offset = sram_index - addr[Parallel_Rd_Index_Width-1:0];
 
     if (transposed_read) begin
-        addr_for_sub_sram = { addr[AdrWidth - 1 : Parallel_Rd_Index_Width], addr_offset};
+        translated_raddr = { addr[AdrWidth - 1 : Parallel_Rd_Index_Width], addr_offset};
     end
     else begin
-        addr_for_sub_sram = addr;
+        translated_raddr = addr;
+    end
+end
+// Write
+always @(posedge clk) begin
+    if (wen) begin
+        mem[waddr]      <= wdata;
+        write_response  <= 1'b1;
+        read_data_valid <= 1'b0;
+    end else begin
+        write_response  <= 1'b0;
+        read_data_valid <= 1'b0;
     end
 end
 
 // Transposed Read
 always @(posedge clk) begin
     if (req) begin
-        if (write_en) begin
-            mem[addr_for_sub_sram] <= wdata;
-            write_response <= 1'b1;
-            read_data_valid <= 1'b0;
-        end 
-        else begin
-            write_response <= 1'b0;
-            raw_rdata <= mem[addr_for_sub_sram];
-            transpose_rawdata <= transposed_read;
-            read_data_valid <= 1'b1;
-        end
+        raw_rdata <= mem[translated_raddr];
+        transpose_rawdata <= transposed_read;
+        read_data_valid <= 1'b1;
     end
     else begin
-        write_response <= 1'b0;
         read_data_valid <= 1'b0;
     end
 end

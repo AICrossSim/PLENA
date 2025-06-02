@@ -50,7 +50,8 @@ module data_flow_control import precision_pkg::*; #(
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
 
     // Interface with Matrix SRAM
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_addr,
+    output      logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr,
+    output      logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_waddr,
     output      logic m_sram_wen,
     output      logic m_sram_req,
     output      logic m_sram_transposed_read,
@@ -146,9 +147,15 @@ module data_flow_control import precision_pkg::*; #(
     // Update addr only when the exe operation is MV or MV_O
     always_comb begin
         if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O || continuous_load_m_en) begin
-            m_sram_addr = recorded_m_load_addr + m_sram_load_counter * BYTES_PER_ROW;
-        end else if (exe_mem_write_control.w_m_sram_en == 1'b1 && dma_m_ready) begin
-            m_sram_addr = recorded_m_prefetch_addr + (m_sram_prefetch_counter - 1) * BYTES_PER_ROW;
+            m_sram_raddr = recorded_m_load_addr + m_sram_load_counter * BYTES_PER_ROW;
+        end else begin
+            m_sram_raddr = 'b0;
+        end
+        
+        if (exe_mem_write_control.w_m_sram_en == 1'b1 && dma_m_ready) begin
+            m_sram_waddr = recorded_m_prefetch_addr + (m_sram_prefetch_counter - 1) * BYTES_PER_ROW;
+        end else begin
+            m_sram_waddr = 'b0;
         end
 
         if (rst) begin
