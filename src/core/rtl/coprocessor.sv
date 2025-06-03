@@ -55,6 +55,16 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
 
+    // Matrix SRAM
+    logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
+    logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
+    logic m_m_ready,    m_m_valid;
+    logic m_v_valid,    m_v_ready;
+    logic m_o_valid,    m_o_ready;
+    logic m_out_valid,  m_out_ready;
+    logic m_sram_wen, m_sram_req, m_sram_transposed_read;
+    logic continuous_prefetch_m_en;
+
     // HBM Control
     logic hbm_m_prefetch_complete, hbm_m_prefetch_en;
     logic hbm_v_prefetch_complete, hbm_v_prefetch_en;
@@ -156,7 +166,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_out_ready            (m_out_ready),
         .m_write_request        (m_write_request),
         .m_write_addr           (m_waddr),
-        .m_sram_raddr            (m_sram_raddr),
+        .m_sram_raddr           (m_sram_raddr),
+        .m_sram_waddr           (m_sram_waddr),
         .m_sram_wen             (m_sram_wen),
         .m_sram_req             (m_sram_req),
         .m_sram_transposed_read (m_sram_transposed_read),
@@ -191,20 +202,12 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
  
     // Matrix
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
-    logic m_m_ready,    m_m_valid;
-    logic m_v_valid,    m_v_ready;
-    logic m_o_valid,    m_o_ready;
-    logic m_out_valid,  m_out_ready;
-    logic m_sram_wen, m_sram_req, m_sram_transposed_read;
-    logic continuous_prefetch_m_en;
-
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    fetched_m_element;
     logic [BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]               fetched_m_scale;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 m_out_element;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 m_out_scale;
+
     // Vector
     logic v_v_a_valid,      v_v_a_ready;
     logic v_v_b_valid,      v_v_b_ready;
@@ -393,6 +396,11 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .element_out_b      (v_element_port_b_out),
         .scale_out_b        (v_scale_port_b_out)
     );
+
+    // -----------------------------
+    // HBM Control & Interface
+    // -----------------------------
+
 
     
 

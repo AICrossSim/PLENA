@@ -62,10 +62,14 @@ import pipeline_pkg::*;
             if(prefetch_in_progress & (recorded_op_bundle.h_op == PREFETCH_M || recorded_op_bundle.h_op == PREFETCH_V )) begin
                 // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
                 pipeline_stall = 1'b1;
-            end else if ((prefetch_in_progress || m_load_in_process) & (recorded_op_bundle.m_op != STALL_M)) begin
-                // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
-                pipeline_stall = 1'b1;
-            end else if ((prefetch_in_progress || v_load_in_process) & ( recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+            end 
+            
+            // else if ((prefetch_in_progress || m_load_in_process) & (recorded_op_bundle.m_op != STALL_M)) begin
+            //     // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
+            //     pipeline_stall = 1'b1;
+            // end 
+            
+            else if ((prefetch_in_progress || v_load_in_process) & ( recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
                 // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
                 pipeline_stall = 1'b1;
             end else if (mem_write_req.wreq_s_sram_port_a & (recorded_op_bundle.v_ele_op != STALL_V_ELEMENT || recorded_op_bundle.v_reduct_op != STALL_V_REDUCT || recorded_op_bundle.m_op != STALL_M)) begin
@@ -93,10 +97,14 @@ import pipeline_pkg::*;
             if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
                 // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
                 pipeline_stall   = 1'b1;            
-            end else if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
-                // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
-                pipeline_stall   = 1'b1;            
-            end else if ((prefetch_in_progress || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+            end 
+                        
+            // else if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
+            //     // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
+            //     pipeline_stall   = 1'b1;            
+            // end 
+            
+            else if ((prefetch_in_progress || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
                 // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
                 pipeline_stall   = 1'b1;            
             end  else if (mem_write_req.wreq_s_sram_port_a & (decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT || decoded_op_bundle.m_op != STALL_M)) begin

@@ -6,7 +6,9 @@
         parameter   BATCH_SIZE                      = 1;
         parameter   MLEN                            = 4;
         parameter   Matrix_Parallel_Rd_Dim          = 2;
-        parameter   HBM_Parallel_Rd_Dim             = 4; // The number of MLEN that can be fetched from the HBM in single clk.
+        parameter   HBM_M_Prefetch_Amount           = 16;
+        parameter   HBM_V_Prefetch_Amount           = 128;
+        parameter   HBM_LD_Amount                   = 16;
         parameter   MATRIX_SRAM_DEPTH               = 128;
         parameter   VLEN                            = 4;
         parameter   SCRATCHPAD_SRAM_DEPTH           = 128;

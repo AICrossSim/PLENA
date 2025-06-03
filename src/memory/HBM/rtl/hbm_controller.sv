@@ -14,8 +14,8 @@ module hbm_controller #(
     localparam  M_BLOCK_NUM         = MLEN / BLOCK_DIM,
     localparam  V_BLOCK_NUM         = VLEN / BLOCK_DIM,
 
-    localparam int ELE_WIDTH    =   HBM_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
-    localparam int SCALE_WIDTH  =   HBM_Parallel_Rd_Dim * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+    localparam int ELE_WIDTH    =   HBM_LD_Amount * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int SCALE_WIDTH  =   HBM_LD_Amount * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
 
     parameter int HBM_ELE_WIDTH = 128,
     parameter int HBM_SCALE_WIDTH = 128,
@@ -63,7 +63,7 @@ module hbm_controller #(
     localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
     localparam int V_ELE_WIDTH      = VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1);
     localparam int V_SCALE_WIDTH    = V_BLOCK_NUM * MXFP_SCALE_WIDTH;
-    localparam int ELE_MASK_WIDTH = ELE_WIDTH / 8;
+    localparam int ELE_MASK_WIDTH   = ELE_WIDTH / 8;
     localparam int SCALE_MASK_WIDTH = SCALE_WIDTH / 8;
     localparam int V_ELE_MASIK_WIDTH = V_ELE_WIDTH / 8;
     localparam int V_SCALE_MASK_WIDTH = V_SCALE_WIDTH / 8;
@@ -116,10 +116,10 @@ module hbm_controller #(
 
     // Mapping inputted Addr to HBM address
     address_mapper #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .ADR_OPERAND_WIDTH(ADR_OPERAND_WIDTH),
-        .HBM_ADDR_WIDTH(HBM_ADDR_WIDTH),
-        .HBM_ADDR_REG_NUM(HBM_ADDR_REG_NUM)
+        .ADDR_WIDTH         (ADDR_WIDTH),
+        .ADR_OPERAND_WIDTH  (ADR_OPERAND_WIDTH),
+        .HBM_ADDR_WIDTH     (HBM_ADDR_WIDTH),
+        .HBM_ADDR_REG_NUM   (HBM_ADDR_REG_NUM)
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
@@ -173,7 +173,6 @@ module hbm_controller #(
         `TL_CONNECT_HOST_PORT(device, adapted_tl_element)
     );
 
-    
 
     // TL for scale
     `TL_DECLARE(SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);

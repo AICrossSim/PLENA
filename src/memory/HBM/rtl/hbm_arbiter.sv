@@ -64,8 +64,10 @@ module hbm_arbiter #(
     output   logic                                  hbm_arbiter_busy
 );
 
-// Matrix SRAM, as the load data dimension matches the HBM data dimension, just need to assign the data directly. We also don't need to read from Matrix SRAM for HBM write.
-// Scratchpad SRAM, Distributer is required.
+// Parameters
+localparam M_LD_AMOUNT = HBM_M_Prefetch_Amount / Matrix_Parallel_Rd_Dim;
+localparam V_LD_AMOUNT = HBM_V_Prefetch_Amount;
+
 localparam MATRIX_READ_ITERATIONS = MLEN / Parallel_Rd_Dim;
 
 typedef enum logic [1:0] {
