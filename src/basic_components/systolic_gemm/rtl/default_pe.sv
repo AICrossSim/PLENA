@@ -26,7 +26,7 @@ module default_pe #(
     input  logic in_top_valid,
     output logic in_top_ready,
     // Input from Left
-    input  logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_left,
+    input  logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_left_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input  logic in_left_valid,
     output logic in_left_ready,
@@ -42,7 +42,9 @@ module default_pe #(
     input  logic out_right_ready,
 
     // Output Result
-    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_result_element
+    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_result_element,
+    output logic out_result_valid,
+    input  logic out_result_ready
 );
 
     // ==============================================================================================
@@ -54,6 +56,8 @@ module default_pe #(
     logic [MXFP_SCALE_WIDTH - 1 : 0]                reg_top_scale;            
     logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0]    reg_left_element;
     logic [MXFP_SCALE_WIDTH - 1 : 0]                reg_left_scale;
+    logic stored_top_valid, stored_left_valid;
+    logic stored_top_ready, stored_left_ready;
 
     // ==============================================================================================
     // STAGE 1: Pass Data from Top and Left to the Bottom and Right
@@ -66,16 +70,34 @@ module default_pe #(
             reg_left_element <= {MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1{1'b0}};
             reg_left_scale   <= {MXFP_SCALE_WIDTH{1'b0}};
         end else begin
-            if (in_top_valid && in_top_ready) begin
+            if (in_top_valid) begin
                 reg_top_element <= in_top_element;
                 reg_top_scale   <= in_top_scale;
+                stored_top_valid <= 1'b1;
+            end else begin
+                stored_top_valid <= 1'b0;
             end
-            if (in_left_valid && in_left_ready) begin
-                reg_left_element <= in_left;
+
+            if (in_left_valid) begin
+                reg_left_element <= in_left_element;
                 reg_left_scale   <= in_left_scale;
+                stored_left_valid <= 1'b1;
+            end else begin
+                stored_left_valid <= 1'b0;
             end
         end
     end
+
+    assign in_top_ready  = out_bottom_ready & stored_left_ready;
+    assign in_left_ready = out_right_ready & stored_top_ready;
+
+    assign out_bottom_element = reg_top_element;
+    assign out_bottom_scale = reg_top_scale;
+    assign out_bottom_valid = stored_top_valid & out_bottom_ready;
+
+    assign out_right_element = reg_left_element;
+    assign out_right_scale = reg_left_scale;
+    assign out_right_valid = stored_left_valid & out_right_ready;
 
 
     // ==============================================================================================
@@ -83,16 +105,17 @@ module default_pe #(
     // ==============================================================================================
 
     logic [ACC_FP_EXP_WIDTH + ACC_FP_EXP_WIDTH : 0] mul_result, reg_mul_result;
-    logic reg_mul_result_valid, reg_mul_result_ready;
+    logic reg_mul_in_valid, reg_mul_in_ready;
+    logic reg_mul_out_valid, reg_mul_out_ready;
     logic [MXFP_SCALE_WIDTH - 1 : 0] reg_mul_scale;
     localparam EXT_MANT_WIDTH = ACC_FP_MANT_WIDTH - MXFP_MANT_WIDTH;
     localparam EXT_EXP_WIDTH = ACC_FP_EXP_WIDTH - MXFP_EXP_WIDTH;
 
     join2 #() join_mult (
-        .data_in_ready ({in_top_ready, in_left_ready}),
-        .data_in_valid ({in_top_valid, in_left_valid}),
-        .data_out_valid (reg_mul_result_valid),
-        .data_out_ready (reg_mul_result_ready)
+        .data_in_ready ({stored_top_ready, stored_left_ready}),
+        .data_in_valid ({stored_top_valid, stored_left_valid}),
+        .data_out_valid (reg_mul_in_valid),
+        .data_out_ready (reg_mul_in_ready)
     );
 
     fp_cp_mult #(
@@ -112,13 +135,18 @@ module default_pe #(
             reg_mul_result <= {ACC_FP_EXP_WIDTH + ACC_FP_EXP_WIDTH + 1{1'b0}};
             reg_mul_scale <= {MXFP_SCALE_WIDTH{1'b0}};
         end else begin
-            if (reg_mul_result_valid && reg_mul_result_ready) begin
+            if (reg_mul_in_valid & reg_mul_out_ready) begin
                 // Scale addition
                 reg_mul_scale <= reg_top_scale + reg_left_scale - SCALE_BIAS;
                 reg_mul_result <= mul_result;
+                reg_mul_out_valid <= 1'b1;
+            end else begin
+                reg_mul_out_valid <= 1'b0;
             end
         end
     end
+
+    assign reg_mul_in_ready = reg_mul_out_ready;
 
     // ==============================================================================================
     // STAGE 3: Shift the result according to the scale
@@ -145,8 +173,8 @@ module default_pe #(
         .clk           (clk),
         .rst           (rst),
         .data_in       (shifted_result),
-        .data_in_valid (reg_mul_result_valid),
-        .data_in_ready (reg_mul_result_ready),
+        .data_in_valid (reg_mul_out_valid),
+        .data_in_ready (reg_mul_out_ready),
         .data_out      (rescaled_result),
         .data_out_valid(shifted_result_valid),
         .data_out_ready(shifted_result_ready)
@@ -170,6 +198,20 @@ module default_pe #(
         .data_out (acc_result)
     );
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            stored_result <= {ACC_FP_EXP_WIDTH + ACC_FP_EXP_WIDTH + 1{1'b0}};
+        end else begin
+            if (shifted_result_valid) begin
+                stored_result <= acc_result;
+            end
+        end
+    end
+
+    // ==============================================================================================
+    // REG_ADD  -> OUT
+    // ==============================================================================================
+
     skid_buffer #(
         .DATA_WIDTH(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1)
     ) acc_buffer (
@@ -178,15 +220,9 @@ module default_pe #(
         .data_in       (acc_result),
         .data_in_valid (shifted_result_valid),
         .data_in_ready (shifted_result_ready),
-        .data_out      (stored_result),
-        .data_out_valid(out_bottom_valid),
-        .data_out_ready(out_bottom_ready)
+        .data_out      (out_result_element),
+        .data_out_valid(out_result_valid),
+        .data_out_ready(out_result_ready)
     );
-
-    // ==============================================================================================
-    // REG_ADD  -> OUT
-    // ==============================================================================================
-
-    assign out_result_element = stored_result;
 
 endmodule

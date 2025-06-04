@@ -32,10 +32,10 @@ async def simple_random_mxfp_test(dut):
     await Timer(4, units="ns")
     cocotb.log.info("Starting fp addition test")
     await Timer(4, units="ns")
-    dut.rst.value = 0
-    await Timer(4, units="ns")  # Hold reset for 5ns
     dut.rst.value = 1
-    await Timer(4, units="ns")  # Allow some settling time
+    await Timer(4, units="ns")
+    dut.rst.value = 0   
+    await Timer(4, units="ns")
 
     for i in range (TESTCASE_SIZE):
         # Generate random floating point values
@@ -50,6 +50,9 @@ async def simple_random_mxfp_test(dut):
         dut.in_left.value = mx_elems[0][1]
         dut.in_left_scale.value = mx_scale[0]
         dut.in_left_valid.value = 1
+        dut.out_right_ready.value = 1
+        dut.out_bottom_ready.value = 1
+        dut.out_result_ready.value = 1
 
         await Timer(200, units="ns")
 
