@@ -400,7 +400,13 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
     // HBM Control & Interface
     // -----------------------------
+    
+    // TL Declaration
+    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
+    `TL_BIND_HOST_PORT(out_element, element);
 
+    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
+    `TL_BIND_HOST_PORT(out_scale, scale);
 
     
 

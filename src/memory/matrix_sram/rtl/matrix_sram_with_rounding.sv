@@ -33,18 +33,19 @@ module matrix_sram_with_rounding #(
     input   logic clk,
     input   logic rst,
 
+    // Read Operation
     input   logic req,
     input   logic transposed_read,
     input   logic [FIXED_DATA_WIDTH-1:0] sram_raddr,   
-    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
-    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in, 
+    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
+    output  logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out,
 
+    // Write Operation
     input   logic wen,
     output  logic write_response,
     input   logic [FIXED_DATA_WIDTH-1:0] sram_waddr,
-    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_out,
-    output  logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_out
-
+    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
+    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in
 );
 
 

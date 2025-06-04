@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : HBM Sys
+Module      : HBM System
 Description : 
             : This module is the top level HBM system .
             : It contains the HBM controller, HBM arbiter, and the HBM interface.
@@ -36,25 +36,19 @@ module hbm_sys import precision_pkg::*; #(
     output  logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_v_element,
     output  logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetch_v_scale,
     
-    // TL Declaration
-    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
-    `TL_BIND_HOST_PORT(out_element, element);
 
-    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
-    `TL_BIND_HOST_PORT(out_scale, scale);
 
 );
 
 
 
-// HBM Control
-
-
+    // HBM Control Signal between Arbiter and Controller
+    // Prefetching Control
     logic [MLEN * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_out;
     logic [MLEN * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_out;
     logic hbm_prefetch_valid, hbm_prefetch_en;
     logic [HBM_ADDR_WIDTH - 1 : 0] addr_to_prefetch, addr_for_prefetched_data;
-
+    // Write Control
     logic hbm_write_en;
     logic [Matrix_Parallel_Rd_Dim * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] hbm_element_in;
     logic [Matrix_Parallel_Rd_Dim * BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] hbm_scale_in;

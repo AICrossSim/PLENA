@@ -85,12 +85,11 @@ logic [MLEN - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]    hbm_v_addr_tag;
 
 logic [MATRIX_READ_ITERATIONS - 1 : 0][ELE_WIDTH - 1 : 0]       hbm_m_element;
 logic [MATRIX_READ_ITERATIONS - 1 : 0][SCALE_WIDTH - 1 : 0]     hbm_m_scale;
-
 logic [MATRIX_READ_ITERATIONS - 1 : 0] [HBM_ADDR_WIDTH - 1 : 0]  hbm_m_addr_tag;
-
 logic tag_m_valid, tag_v_valid;
 
 assign hbm_arbiter_busy = (hbm_state != IDLE) ? 1'b1 : 1'b0;
+
 // Storting the prefetch data
 always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
