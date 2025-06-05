@@ -52,7 +52,7 @@ module first_row_pe #(
     input  logic out_right_ready,
 
     // Output Result
-    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_result_element,
+    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
     output logic out_result_valid,
     input  logic out_result_ready
 );
@@ -77,7 +77,7 @@ module first_row_pe #(
     logic [MXFP_SCALE_WIDTH - 1 : 0] pe_out_right_scale;
     logic pe_out_right_valid, pe_out_right_ready;
 
-    logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] pe_out_result_element;
+    logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] pe_out_fp;
     logic pe_out_result_valid, pe_out_result_ready;
 
     always_comb begin
@@ -104,7 +104,7 @@ module first_row_pe #(
             out_right_valid = pe_out_right_valid;
             pe_out_right_ready = out_right_ready;
             // Result
-            out_result_element  = pe_out_result_element;
+            out_fp  = pe_out_fp;
             out_result_valid    = pe_out_result_valid;
             pe_out_result_ready = out_result_ready;
         end else begin
@@ -124,7 +124,7 @@ module first_row_pe #(
             out_right_valid = 1'b0;
             pe_out_right_ready = 1'b1;
             // Result
-            out_result_element = pe_out_result_element;
+            out_fp = pe_out_fp;
             out_result_valid   = pe_out_result_valid;
             pe_out_result_ready  = out_result_ready;
         end
@@ -157,7 +157,7 @@ module first_row_pe #(
         .out_right_scale(pe_out_right_scale),
         .out_right_valid(pe_out_right_valid),
         .out_right_ready(pe_out_right_ready),
-        .out_result_element(pe_out_result_element),
+        .out_fp(pe_out_fp),
         .out_result_valid(pe_out_result_valid),
         .out_result_ready(pe_out_result_ready)
     );

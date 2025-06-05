@@ -43,10 +43,16 @@ module systolic_array #(
     input   logic in_top_v_valid,
     output  logic in_top_v_ready,
 
-    // Output Result
-    output  logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_result_element,
-    output  logic out_result_valid,
-    input   logic out_result_ready
+    // Output GEMM
+    output  logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] m_out_fp,
+    output  logic m_out_valid,
+    input   logic m_out_ready,
+
+    // Output GEMV
+    output  logic [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] v_out_fp,
+    output  logic v_out_valid,
+    input   logic v_out_ready
+    
 );
 
 
@@ -178,7 +184,7 @@ module systolic_array #(
                         .out_right_ready(rowwise_data_transfer_ready[i][j + 1]),
 
                         // Output Result
-                        .out_result_element(out_result_element[i][j]),
+                        .out_fp(m_out_fp[i][j]),
                         .out_result_valid(result_valid[i][j]),
                         .out_result_ready(result_ready[i][j])
                     );
@@ -218,7 +224,7 @@ module systolic_array #(
                         .out_right_ready(rowwise_data_transfer_ready[i][j + 1]),
 
                         // Output Result
-                        .out_result_element(out_result_element[i][j]),
+                        .out_fp(m_out_fp[i][j]),
                         .out_result_valid(result_valid[i][j]),
                         .out_result_ready(result_ready[i][j])
                     );
@@ -237,6 +243,10 @@ module systolic_array #(
         .data_out_ready(out_result_ready)
     );
 
+    assign m_out_valid = out_result_valid;
+    assign v_out_valid = out_result_valid;
+    assign v_out_fp = m_out_fp[0];
+    assign out_result_ready = control ? m_out_ready : v_out_ready;
 
 
 endmodule

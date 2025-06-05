@@ -42,7 +42,7 @@ module default_pe #(
     input  logic out_right_ready,
 
     // Output Result
-    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_result_element,
+    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
     output logic out_result_valid,
     input  logic out_result_ready
 );
@@ -220,7 +220,7 @@ module default_pe #(
         .data_in       (acc_result),
         .data_in_valid (shifted_result_valid),
         .data_in_ready (shifted_result_ready),
-        .data_out      (out_result_element),
+        .data_out      (out_fp),
         .data_out_valid(out_result_valid),
         .data_out_ready(out_result_ready)
     );
