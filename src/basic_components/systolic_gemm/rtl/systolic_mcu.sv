@@ -29,8 +29,7 @@ module systolic_mcu #(
 )(
     input   logic clk,
     input   logic rst,
-    // Control Signals
-    input   logic control,
+    input   logic control,      // 0 for GEMV, 1 for GEMM
     // Multiplicant Matrix 1
     input   logic [K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] v1_element,
     input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v1_scale,
@@ -59,7 +58,10 @@ module systolic_mcu #(
 
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_in_valid, v1_data_in_ready;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] v2_data_in_valid, v2_data_in_ready;
+    logic v2_for_mm_in_valid, v2_for_mm_in_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] v2_data_for_mm_in_valid, v2_data_for_mm_in_ready;
+    logic v2_for_mv_in_valid, v2_for_mv_in_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] v2_data_for_mv_in_valid, v2_data_for_mv_in_ready;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_top_in_valid, array_top_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
@@ -75,23 +77,42 @@ module systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_ready;
 
+    always_comb begin
+        if (control == 1'b0) begin
+            v2_in_ready = v2_for_mv_in_ready;
+            v2_for_mv_in_valid = v2_in_valid;
+        end else begin
+            v2_in_ready = v2_for_mm_in_ready;
+            v2_for_mm_in_valid = v2_in_valid;
+        end
+    end
+
     generate;
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
         ) v1_handshake (
-            .data_in_valid(v1_in_valid),
-            .data_in_ready(v1_in_ready),
-            .data_out_valid(v1_data_in_valid),
-            .data_out_ready(v1_data_in_ready)
+            .data_in_valid  (v1_in_valid),
+            .data_in_ready  (v1_in_ready),
+            .data_out_valid (v1_data_in_valid),
+            .data_out_ready (v1_data_in_ready)
         );
 
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
         ) v2_handshake (
-            .data_in_valid(v2_in_valid),
-            .data_in_ready(v2_in_ready),
-            .data_out_valid(v2_data_in_valid),
-            .data_out_ready(v2_data_in_ready)
+            .data_in_valid  (v2_for_mm_in_valid),
+            .data_in_ready  (v2_for_mm_in_ready),
+            .data_out_valid (v2_data_for_mm_in_valid),
+            .data_out_ready (v2_data_for_mm_in_ready)
+        );
+
+        split_n #(
+            .N(SYS_ARRAY_AMOUNT)
+        ) vect_handshake (
+            .data_in_valid(v2_for_mv_in_valid),
+            .data_in_ready(v2_for_mv_in_ready),
+            .data_out_valid(v2_data_for_mv_in_valid),
+            .data_out_ready(v2_data_for_mv_in_ready)
         );
 
 
@@ -108,14 +129,14 @@ module systolic_mcu #(
             ) top_streamer (
                 .clk(clk),
                 .rst(rst),
-                .data_elem_in(v1_element[i * M +: M]),
-                .data_scale_in(v1_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
-                .data_in_valid(v1_data_in_valid[i]),
-                .data_in_ready(v1_data_in_ready[i]),
-                .data_elem_out(array_top_in_element[i]),
-                .data_scale_out(array_top_in_scale[i]),
-                .data_out_valid(array_top_in_valid[i]),
-                .data_out_ready(array_top_in_ready[i])
+                .data_elem_in   (v1_element[i * M +: M]),
+                .data_scale_in  (v1_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .data_in_valid  (v1_data_in_valid[i]),
+                .data_in_ready  (v1_data_in_ready[i]),
+                .data_elem_out  (array_top_in_element[i]),
+                .data_scale_out (array_top_in_scale[i]),
+                .data_out_valid (array_top_in_valid[i]),
+                .data_out_ready (array_top_in_ready[i])
             );
 
             systolic_data_streamer #(
@@ -129,14 +150,14 @@ module systolic_mcu #(
             ) left_streamer (
                 .clk(clk),
                 .rst(rst),
-                .data_elem_in(v2_element[i * M +: M]),
-                .data_scale_in(v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
-                .data_in_valid(v2_data_in_valid[i]),
-                .data_in_ready(v2_data_in_ready[i]),
-                .data_elem_out(array_left_in_element[i]),
-                .data_scale_out(array_left_in_scale[i]),
-                .data_out_valid(array_left_in_valid[i]),
-                .data_out_ready(array_left_in_ready[i])
+                .data_elem_in   (v2_element[i * M +: M]),
+                .data_scale_in  (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .data_in_valid  (v2_data_for_mm_in_valid[i]),
+                .data_in_ready  (v2_data_for_mm_in_ready[i]),
+                .data_elem_out  (array_left_in_element[i]),
+                .data_scale_out (array_left_in_scale[i]),
+                .data_out_valid (array_left_in_valid[i]),
+                .data_out_ready (array_left_in_ready[i])
             );
 
             systolic_array #(
@@ -163,10 +184,10 @@ module systolic_mcu #(
                 .in_left_valid      (array_left_in_valid[i]),
                 .in_left_ready      (array_left_in_ready[i]),
                 // Input from Vector
-                .in_top_v_element   (v1_element[i * M +: M]),
-                .in_top_v_scale     (v1_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
-                .in_top_v_valid     (v1_data_in_valid[i]),
-                .in_top_v_ready     (v1_data_in_ready[i]),
+                .in_top_v_element   (v2_element[i * M +: M]),
+                .in_top_v_scale     (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .in_top_v_valid     (v2_data_for_mv_in_valid[i]),
+                .in_top_v_ready     (v2_data_for_mv_in_ready[i]),
                 // GEMM Compute Result
                 .m_out_fp           (gemm_result[i]),
                 .m_out_valid        (gemm_result_valid[i]),
