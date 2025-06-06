@@ -33,9 +33,6 @@ module sa_result_collector #(
     input   logic out_result_ready
 );
 
-    // assign gemm_result_ready = fifo_in_ready;
-    // assign gemv_result_ready = fifo_in_ready;
-
     logic gemm_valid, gemm_ready;
     logic gemv_valid, gemv_ready;
 
@@ -55,7 +52,7 @@ module sa_result_collector #(
     assign gemm_ready = fifo_in_ready;
     assign gemv_ready = fifo_in_ready;
 
-    logic [SYS_ARRAY_AMOUNT * COMPUTE_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] fifo_in_data;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] fifo_in_data;
     logic [$clog2(COMPUTE_DIM) : 0] gemm_store_count;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] stored_gemm_result;
     logic load_gemm_result;
@@ -82,7 +79,7 @@ module sa_result_collector #(
         if (load_gemm_result) begin
             // GEMM
             for (int i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
-                fifo_in_data[i * COMPUTE_DIM] = stored_gemm_result[i][gemm_store_count];
+                fifo_in_data[i] = stored_gemm_result[i][gemm_store_count];
             end
             fifo_in_valid = 1'b1;
         end else if (control == 1'b0) begin

@@ -234,15 +234,17 @@ module systolic_array #(
     endgenerate
 
 
-    join_n #(
-        .NUM_HANDSHAKES(COMPUTE_DIM * COMPUTE_DIM)
-    ) join_result (
-        .data_in_valid(result_valid),
-        .data_in_ready(result_ready),
-        .data_out_valid(out_result_valid),
-        .data_out_ready(out_result_ready)
-    );
+    // join_n #(
+    //     .NUM_HANDSHAKES(COMPUTE_DIM * COMPUTE_DIM)
+    // ) join_result (
+    //     .data_in_valid(result_valid),
+    //     .data_in_ready(result_ready),
+    //     .data_out_valid(out_result_valid),
+    //     .data_out_ready(out_result_ready)
+    // );
 
+    assign out_result_valid = & result_valid;
+    assign result_ready = (out_result_ready) ? {(COMPUTE_DIM * COMPUTE_DIM){1'b1}} : result_ready;
     assign m_out_valid = out_result_valid;
     assign v_out_valid = out_result_valid;
     assign v_out_fp = m_out_fp[0];
