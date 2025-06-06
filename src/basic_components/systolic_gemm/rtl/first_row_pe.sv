@@ -89,77 +89,77 @@ module first_row_pe #(
         
         if (control == 1'b1) begin
             // GEMM
-            pe_in_left_element = in_left_element;
-            pe_in_left_scale = in_left_scale;
-            pe_in_left_valid = in_left_valid;
-            in_left_ready = pe_in_left_ready;
+            pe_in_left_element  = in_left_element;
+            pe_in_left_scale    = in_left_scale;
+            pe_in_left_valid    = in_left_valid;
+            in_left_ready       = pe_in_left_ready;
             // Bottom
-            out_bottom_element = pe_out_bottom_element;
-            out_bottom_scale = pe_out_bottom_scale;
-            out_bottom_valid = pe_out_bottom_valid;
+            out_bottom_element  = pe_out_bottom_element;
+            out_bottom_scale    = pe_out_bottom_scale;
+            out_bottom_valid    = pe_out_bottom_valid;
             pe_out_bottom_ready = out_bottom_ready;
             // Right
-            out_right_element = pe_out_right_element;
-            out_right_scale = pe_out_right_scale;
-            out_right_valid = pe_out_right_valid;
-            pe_out_right_ready = out_right_ready;
+            out_right_element   = pe_out_right_element;
+            out_right_scale     = pe_out_right_scale;
+            out_right_valid     = pe_out_right_valid;
+            pe_out_right_ready  = out_right_ready;
             // Result
-            out_fp  = pe_out_fp;
+            out_fp              = pe_out_fp;
             out_result_valid    = pe_out_result_valid;
             pe_out_result_ready = out_result_ready;
         end else begin
             // GEMV
-            pe_in_left_element = in_top_v_element;
-            pe_in_left_scale = in_top_v_scale;
-            pe_in_left_valid = in_top_v_valid;
-            in_top_v_ready = pe_in_left_ready;
+            pe_in_left_element  = in_top_v_element;
+            pe_in_left_scale    = in_top_v_scale;
+            pe_in_left_valid    = in_top_v_valid;
+            in_top_v_ready      = pe_in_left_ready;
             // Bottom
-            out_bottom_element = 'b0;
-            out_bottom_scale = 'b0;
-            out_bottom_valid = 1'b0;
+            out_bottom_element  = 'b0;
+            out_bottom_scale    = 'b0;
+            out_bottom_valid    = 1'b0;
             pe_out_bottom_ready = 1'b1;
             // Right
-            out_right_element = 'b0;
-            out_right_scale = 'b0;
-            out_right_valid = 1'b0;
-            pe_out_right_ready = 1'b1;
+            out_right_element   = 'b0;
+            out_right_scale     = 'b0;
+            out_right_valid     = 1'b0;
+            pe_out_right_ready  = 1'b1;
             // Result
-            out_fp = pe_out_fp;
-            out_result_valid   = pe_out_result_valid;
-            pe_out_result_ready  = out_result_ready;
+            out_fp              = pe_out_fp;
+            out_result_valid    = pe_out_result_valid;
+            pe_out_result_ready = out_result_ready;
         end
 
     end
 
     // Declare the default PE
     default_pe #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-        .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
+        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+        .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
+        .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
     ) default_pe_inst (
         .clk(clk),
         .rst(rst),
-        .in_top_element(pe_in_top_element),
-        .in_top_scale(pe_in_top_scale),
-        .in_top_valid(pe_in_top_valid),
-        .in_top_ready(pe_in_top_ready),
-        .in_left_element(pe_in_left_element),
-        .in_left_scale(pe_in_left_scale),
-        .in_left_valid(pe_in_left_valid),
-        .in_left_ready(pe_in_left_ready),
-        .out_bottom_element(pe_out_bottom_element),
-        .out_bottom_scale(pe_out_bottom_scale),
-        .out_bottom_valid(pe_out_bottom_valid),
-        .out_bottom_ready(pe_out_bottom_ready),
-        .out_right_element(pe_out_right_element),
-        .out_right_scale(pe_out_right_scale),
-        .out_right_valid(pe_out_right_valid),
-        .out_right_ready(pe_out_right_ready),
-        .out_fp(pe_out_fp),
-        .out_result_valid(pe_out_result_valid),
-        .out_result_ready(pe_out_result_ready)
+        .in_top_element     (pe_in_top_element),
+        .in_top_scale       (pe_in_top_scale),
+        .in_top_valid       (pe_in_top_valid),
+        .in_top_ready       (pe_in_top_ready),
+        .in_left_element    (pe_in_left_element),
+        .in_left_scale      (pe_in_left_scale),
+        .in_left_valid      (pe_in_left_valid),
+        .in_left_ready      (pe_in_left_ready),
+        .out_bottom_element (pe_out_bottom_element),
+        .out_bottom_scale   (pe_out_bottom_scale),
+        .out_bottom_valid   (pe_out_bottom_valid),
+        .out_bottom_ready   (pe_out_bottom_ready),
+        .out_right_element  (pe_out_right_element),
+        .out_right_scale    (pe_out_right_scale),
+        .out_right_valid    (pe_out_right_valid),
+        .out_right_ready    (pe_out_right_ready),
+        .out_fp             (pe_out_fp),
+        .out_result_valid   (pe_out_result_valid),
+        .out_result_ready   (pe_out_result_ready)
     );
 
 

@@ -21,18 +21,39 @@ module sa_result_collector #(
     input   logic control, // 0 for GEMV, 1 for GEMM
     //  GEMM
     input   logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result,
-    input   logic gemm_result_valid,
-    output  logic gemm_result_ready,
+    input   logic [SYS_ARRAY_AMOUNT - 1 : 0]gemm_result_valid,
+    output  logic [SYS_ARRAY_AMOUNT - 1 : 0]gemm_result_ready,
     //  GEMV
     input   logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result,
-    input   logic gemv_result_valid,
-    output  logic gemv_result_ready,
+    input   logic [SYS_ARRAY_AMOUNT - 1 : 0]gemv_result_valid,
+    output  logic [SYS_ARRAY_AMOUNT - 1 : 0]gemv_result_ready,
     //  Output Result
     output  logic [SYS_ARRAY_AMOUNT * COMPUTE_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
     output  logic out_result_valid,
     input   logic out_result_ready
 );
 
+    // assign gemm_result_ready = fifo_in_ready;
+    // assign gemv_result_ready = fifo_in_ready;
+
+    logic gemm_valid, gemm_ready;
+    logic gemv_valid, gemv_ready;
+
+    join2 #() join_gemm (
+        .data_in_ready (gemm_result_ready),
+        .data_in_valid (gemm_result_valid),
+        .data_out_valid (gemm_valid),
+        .data_out_ready (gemm_ready)
+    );
+    join2 #() join_gemv (
+        .data_in_ready (gemv_result_ready),
+        .data_in_valid (gemv_result_valid),
+        .data_out_valid (gemv_valid),
+        .data_out_ready (gemv_ready)
+    );
+
+    assign gemm_ready = fifo_in_ready;
+    assign gemv_ready = fifo_in_ready;
 
     logic [SYS_ARRAY_AMOUNT * COMPUTE_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] fifo_in_data;
     logic [$clog2(COMPUTE_DIM) : 0] gemm_store_count;
@@ -45,7 +66,7 @@ module sa_result_collector #(
         if (rst) begin
             gemm_store_count <= 0;
             load_gemm_result <= 1'b0;
-        end else if (gemm_result_valid) begin
+        end else if (gemm_valid) begin
             stored_gemm_result <= gemm_result;
             if (gemm_store_count < COMPUTE_DIM - 1 & fifo_in_ready) begin
                 gemm_store_count <= gemm_store_count + 1;
@@ -59,11 +80,13 @@ module sa_result_collector #(
     
     always_comb begin
         if (load_gemm_result) begin
+            // GEMM
             for (int i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
                 fifo_in_data[i * COMPUTE_DIM] = stored_gemm_result[i][gemm_store_count];
             end
             fifo_in_valid = 1'b1;
         end else if (control == 1'b0) begin
+            // GEMV
             fifo_in_data = gemv_result;
             fifo_in_valid = gemv_result_valid;
         end 

@@ -88,16 +88,16 @@ module default_pe #(
         end
     end
 
-    assign in_top_ready  = out_bottom_ready & stored_left_ready;
-    assign in_left_ready = out_right_ready & stored_top_ready;
+    assign in_top_ready  = out_bottom_ready;
+    assign in_left_ready = out_right_ready; // Directly Connect to avoid unnecessary stalling for the PE the middle of the array, where the valid signals not arrived together.
 
-    assign out_bottom_element = reg_top_element;
-    assign out_bottom_scale = reg_top_scale;
-    assign out_bottom_valid = stored_top_valid & out_bottom_ready;
+    assign out_bottom_element   = reg_top_element;
+    assign out_bottom_scale     = reg_top_scale;
+    assign out_bottom_valid     = stored_top_valid;
 
-    assign out_right_element = reg_left_element;
-    assign out_right_scale = reg_left_scale;
-    assign out_right_valid = stored_left_valid & out_right_ready;
+    assign out_right_element    = reg_left_element;
+    assign out_right_scale      = reg_left_scale;
+    assign out_right_valid      = stored_left_valid;
 
 
     // ==============================================================================================
@@ -200,9 +200,9 @@ module default_pe #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            stored_result <= {ACC_FP_EXP_WIDTH + ACC_FP_EXP_WIDTH + 1{1'b0}};
+            stored_result <= {ACC_FP_EXP_WIDTH + ACC_FP_EXP_WIDTH + 1'b0};
         end else begin
-            if (shifted_result_valid) begin
+            if (shifted_result_valid & out_result_ready) begin
                 stored_result <= acc_result;
             end
         end

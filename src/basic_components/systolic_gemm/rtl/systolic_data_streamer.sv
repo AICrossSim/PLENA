@@ -29,17 +29,17 @@ module systolic_data_streamer #(
     input   logic data_in_valid,
     output  logic data_in_ready,
 
-    input   logic load_en,
     output  logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] data_elem_out,
     output  logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] data_scale_out,
     output  logic data_out_valid,
     input   logic data_out_ready
 );
     localparam COUNTER_BIT_WIDTH = $clog2(COMPUTE_DIM);
+    localparam BLOCK_BITWIDTH = $clog2(BLOCK_DIM);
     logic [COUNTER_BIT_WIDTH - 1 : 0] store_counter;
 
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_array_queue [COMPUTE_DIM - 1 : 0];
-    logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 data_scale_array_queue [COMPUTE_DIM - 1 : 0];
+    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue [COMPUTE_DIM - 1 : 0];
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   stream_elem_out;
     logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 stream_scale_out;
     logic stream_elem_in_ready,     stream_elem_in_valid;
@@ -55,14 +55,15 @@ module systolic_data_streamer #(
             for (int i = 0; i < COMPUTE_DIM; i++) begin
                 if ((store_counter == i & data_in_valid)) begin
                     data_elem_array_queue[store_counter]    <= data_elem_in;
-                    data_scale_array_queue[store_counter]   <= data_scale_in;
+                    // data_scale_array_queue[store_counter]   <= data_scale_in;
+                    for (int j = 0; j < COMPUTE_DIM; j++) begin
+                        data_scale_array_queue[store_counter][j] <= data_scale_in[(j >> BLOCK_BITWIDTH)];
+                    end
                     store_counter <= store_counter + 1;
                 end else begin
                     if (data_out_ready) begin
                         data_elem_array_queue[i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                        if (i % BLOCK_DIM == 0) begin
-                            data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
-                        end
+                        data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                     end
                 end
                 stream_elem_in_valid <= data_in_valid;
@@ -88,7 +89,7 @@ module systolic_data_streamer #(
         .clk(clk),
         .rst(rst),
         .data_in            (stream_elem_out),
-        .data_in_valid      (load_en),
+        .data_in_valid      (stream_elem_in_valid),
         .data_in_ready      (stream_elem_in_ready),
         .data_out           (data_elem_out),
         .data_out_valid     (data_out_valid),
@@ -101,7 +102,7 @@ module systolic_data_streamer #(
         .clk(clk),
         .rst(rst),
         .data_in            (stream_scale_out),
-        .data_in_valid      (load_en),
+        .data_in_valid      (stream_scale_in_valid),
         .data_in_ready      (stream_scale_in_ready),
         .data_out           (data_scale_out),
         .data_out_valid     (data_out_valid),

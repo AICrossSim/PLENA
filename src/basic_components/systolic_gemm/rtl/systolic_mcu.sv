@@ -66,10 +66,10 @@ module systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_top_in_valid, array_top_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] array_top_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] array_top_in_scale;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] array_left_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] array_left_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] array_top_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]           array_top_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] array_left_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]           array_left_in_scale;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
@@ -77,6 +77,7 @@ module systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_ready;
 
+    // Control
     always_comb begin
         if (control == 1'b0) begin
             v2_in_ready = v2_for_mv_in_ready;
@@ -125,7 +126,7 @@ module systolic_mcu #(
                 .BLOCK_DIM(BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH),
-                .COMPUTE_DIM(M)
+                .COMPUTE_DIM(COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
                 .rst(rst),
@@ -146,7 +147,7 @@ module systolic_mcu #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
-                .COMPUTE_DIM        (M)
+                .COMPUTE_DIM        (COMPUTE_DIM)
             ) left_streamer (
                 .clk(clk),
                 .rst(rst),
@@ -161,13 +162,13 @@ module systolic_mcu #(
             );
 
             systolic_array #(
-                .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-                .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-                .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-                .BLOCK_DIM(BLOCK_DIM),
-                .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-                .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH),
-                .COMPUTE_DIM(M)
+                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .BLOCK_DIM          (BLOCK_DIM),
+                .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
+                .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                .COMPUTE_DIM        (COMPUTE_DIM)
             ) systolic_array_inst (
                 .clk(clk),
                 .rst(rst),
