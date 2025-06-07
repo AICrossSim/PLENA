@@ -84,11 +84,12 @@ biaccess_sram #(
     .clk(clk),
     .req(req),
     .transposed_read    (transposed_read),
+    .sram_raddr         (raddr_for_sub_sram),
+    .out_data           (loaded_scale_out),
     .wen                (wen),
     .write_response     (scale_write_response),
-    .sram_addr          (waddr_for_sub_sram),
-    .write_data         (dumplicated_scale_in),
-    .out_data           (loaded_scale_out)
+    .sram_waddr          (waddr_for_sub_sram),
+    .write_data         (dumplicated_scale_in)
 );
 
 // element storage
@@ -101,11 +102,12 @@ biaccess_sram #(
     .clk(clk),
     .req(req),
     .transposed_read    (transposed_read),
+    .sram_raddr         (raddr_for_sub_sram),
+    .out_data           (loaded_element_out),
     .wen                (wen),
     .write_response     (element_write_response),
-    .sram_addr          (waddr_for_sub_sram),
-    .write_data         (element_in),
-    .out_data           (loaded_element_out)
+    .sram_waddr         (waddr_for_sub_sram),
+    .write_data         (element_in)
 );
 
 // Output Rescale

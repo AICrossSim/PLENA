@@ -222,7 +222,10 @@ always_ff @(posedge clk) begin
 
         case(decode_instr_info.instruction_type)
             M: begin
-                decoded_op_bundle.m_op          <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_TMV) ? MV : MV_O;
+                decoded_op_bundle.m_op          <=  (decode_instr_info.opcode == M_BMM  || decode_instr_info.opcode == M_TMM)       ? MM   :
+                                                    (decode_instr_info.opcode == M_BMM_O || decode_instr_info.opcode == M_TMM_O)    ? MM_O :
+                                                    (decode_instr_info.opcode == M_MV   || decode_instr_info.opcode == M_TMV)       ? MV   :
+                                                    (decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_TMV_O)     ? MV_O : STALL_M;
                 decoded_op_bundle.v_ele_op      <= STALL_V_ELEMENT;
                 decoded_op_bundle.v_reduct_op   <= STALL_V_REDUCT;
                 decoded_op_bundle.s_fp_op       <= STALL_S_FP;

@@ -164,7 +164,7 @@ module default_pe #(
     always_ff @(posedge clk) begin
         if (rst) begin
             shifted_result_valid <= 1'b0;
-            rescaled_result <= {ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1'b0};
+            rescaled_result <= {(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1){1'b0}};
         end else begin
             if (reg_mul_out_valid) begin
                 rescaled_result <= shifted_result; // Keep the value from the previous stage
@@ -209,7 +209,7 @@ module default_pe #(
                 out_fp <= stored_result;
             end else begin
                 out_result_valid <= 1'b0;
-                out_fp <= {ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1'b0};
+                out_fp <= {(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1){1'b0}};
             end
         end
     end

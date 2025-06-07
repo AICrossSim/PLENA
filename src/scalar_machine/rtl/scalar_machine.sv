@@ -38,12 +38,12 @@ module scalar_machine import precision_pkg::*;  #(
     output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2,
 
     // FP Value input
-    input   logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] external_fp_in,
+    input   logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] external_fp_in,
     input   logic external_fp_in_valid,
     output  logic external_fp_in_ready,
     input   logic [FP_OPERAND_WIDTH - 1 : 0] external_fp_wtarget,
     
-    output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out,
+    output  logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_out,
 
     // Stall Detection
     output  logic sfu_in_use,
@@ -127,7 +127,7 @@ module scalar_machine import precision_pkg::*;  #(
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
     logic fp_reg_we;
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
     logic sfu_out_valid, sfu_out_ready;
     logic write_data_from_external_fp;
     logic general_fp_alu_en;
@@ -181,8 +181,8 @@ module scalar_machine import precision_pkg::*;  #(
     assign fp_rd  = assigned_op_bundle.fpd;
 
     fp_alu #(
-        .EXP_WIDTH(FP_EXP_WIDTH),
-        .MANT_WIDTH(FP_MANT_WIDTH)
+        .EXP_WIDTH(S_FP_EXP_WIDTH),
+        .MANT_WIDTH(S_FP_MANT_WIDTH)
     ) fp_alu_init (
         .clk        (clk),
         .data_a     (fp_reg_1),
@@ -192,8 +192,8 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     fp_sfu #(
-        .EXP_WIDTH  (FP_EXP_WIDTH),
-        .MANT_WIDTH (FP_MANT_WIDTH)      
+        .EXP_WIDTH  (S_FP_EXP_WIDTH),
+        .MANT_WIDTH (S_FP_MANT_WIDTH)      
     ) fp_sfu_init (
         .clk            (clk),
         .rst            (rst),
@@ -206,7 +206,7 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     regfile_2p1w #(
-        .BITWIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
+        .BITWIDTH(S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1),
         .DEPTH(2 << FP_OPERAND_WIDTH)
     ) fp_reg_file (
         .clk        (clk),
@@ -239,7 +239,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     // SRAM for FP
     scalar_sram #(
-        .DATA_WIDTH(FP_EXP_WIDTH + FP_MANT_WIDTH + 1),
+        .DATA_WIDTH(S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1),
         .DEPTH(FP_SRAM_DEPTH)
         `ifdef SIMULATION
             ,

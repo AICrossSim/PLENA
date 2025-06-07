@@ -4,14 +4,15 @@
 `include "precision.svh"
 
 /*
-Module      : Vector Machine Module
-Timing      : Sequential, Takes 4 cycles to compute every vector operation
+Module      : Vector Machine Module V1
+Timing      : Sequential
 Description : This module is the first version of the vector machine based on FP data type.
-Status      : Passed Simple Tests
+            : It accepts data in MX-FP format and converts it to FP format for computation, converting back to MX-FP format for output.
+Status      : Passed Logical Tests
 */
 
 
-module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
+module vector_machine_v1 import precision_pkg::*; import configuration_pkg::*; #(
     localparam  BLOCK_NUM       = VLEN / BLOCK_DIM,
     localparam   ADDR_WIDTH     = ON_CHIP_ADDR_WIDTH    // Vector write address
 ) (
@@ -19,10 +20,10 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     input   logic rst,
 
     // Control
-    input   logic broadcast_fp2,
-    input   V_ELEMENT_OP element_v_control,
-    input   V_REDUCT_OP  reduct_v_control,
-    output  logic in_preparation_stage,
+    input   logic           broadcast_fp2,
+    input   V_ELEMENT_OP    element_v_control,
+    input   V_REDUCT_OP     reduct_v_control,
+    output  logic           in_preparation_stage,
 
     // Vector a
     input   logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    v_a_element,
@@ -186,12 +187,12 @@ assign s_in_ready = v_b_ready;
 generate;
     for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
         mx_fp_2_fp_block #(
-            .BLOCK_DIM(BLOCK_DIM),
-            .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-            .FP_MANT_WIDTH(FP_MANT_WIDTH),
-            .FP_EXP_WIDTH(FP_EXP_WIDTH)
+            .BLOCK_DIM          (BLOCK_DIM),
+            .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+            .FP_MANT_WIDTH      (FP_MANT_WIDTH),
+            .FP_EXP_WIDTH       (FP_EXP_WIDTH)
         ) mxfp_fp_conversion_unit_a (
             .element_in(v_a_element[i]),
             .scale_in(v_a_scale[i]),
@@ -406,8 +407,8 @@ generate;
             .BLOCK_DIM(BLOCK_DIM),
             .FP_MANT_WIDTH(FP_MANT_WIDTH),
             .FP_EXP_WIDTH(FP_EXP_WIDTH),
-            .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
         ) fp_mxfp_conversion_unit (
             .clk(clk),

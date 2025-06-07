@@ -22,7 +22,8 @@ module fp_vector_sram #(
     parameter   MANT_WIDTH        = 7,
 
     // Dimension
-    parameter   VLEN              = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.
+    parameter   VLEN              = 8,   
+    parameter   MLEN              = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.  
     parameter   BLOCK_DIM         = 4,                                
     localparam  BLOCK_NUM         = VLEN / BLOCK_DIM,
 
@@ -38,10 +39,14 @@ module fp_vector_sram #(
     input   logic port_a_req,
     input   logic port_a_write_en,
     input   logic [AddrLen-1:0] port_a_addr,
+    input   logic control, // 0 for Vector Machine, 1 for Matrix Machine
     // FP Data Connection
-    input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_fp_in,
+    input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_in,
+    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_in,
     input   logic [VLEN - 1 : 0]                                        port_a_mask_in,
-    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_fp_out,
+    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_out,
+    output  logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_out,
+
 
     // Port B
     input   logic port_b_req,
@@ -59,27 +64,54 @@ module fp_vector_sram #(
 
 );
 
+    initial begin
+        if (VLEN < MLEN) begin
+            $error("VLEN must be greater than or equal to MLEN, but got VLEN = %0d, MLEN = %0d", VLEN, MLEN);
+            $finish;
+        end
+    end
 
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_out_internal;
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_in_internal;
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_out_internal;
+    localparam int REPL_COUNT = (VLEN > MLEN) ? (VLEN - MLEN) * (EXP_WIDTH + MANT_WIDTH + 1) : 0;
 
+    // -----------------------------
+    // Port A Management
+    // -----------------------------
+    
+    always_comb begin
+        if (control == 1'b0) begin
+            // Vector Machine Mode
+            port_a_fp_in_internal = port_a_v_fp_in;
+            port_a_v_fp_out = port_a_fp_out_internal;
+        end else begin
+            // Matrix Machine Mode
+            port_a_fp_in_internal = {{REPL_COUNT{1'b0}}, port_a_m_fp_in}; // Use Matrix FP Input
+            port_a_m_fp_out = port_a_fp_out_internal[VLEN - 1:0]; // Ensure the output is within VLEN
+        end
+    end
 
     // -----------------------------
     // Port B Management
     // -----------------------------
+    assign port_b_fp_out = port_b_fp_out_internal;
+
     // Convert MX-FP Data to FP Data
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_in;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_out;
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
             mx_fp_2_fp_block #(
-                .BLOCK_DIM(BLOCK_DIM),
-                .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
-                .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
-                .FP_MANT_WIDTH(MANT_WIDTH),
-                .FP_EXP_WIDTH(EXP_WIDTH)
+                .BLOCK_DIM          (BLOCK_DIM),
+                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .FP_MANT_WIDTH      (MANT_WIDTH),
+                .FP_EXP_WIDTH       (EXP_WIDTH)
             ) mx_fp_2_fp_convert (
-                .element_in(element_in_b[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
-                .scale_in(scale_in_b[i]),
-                .fp_out(converted_b_fp_in)
+                .element_in     (element_in_b[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
+                .scale_in       (scale_in_b[i]),
+                .fp_out         (converted_b_fp_in)
             );
         end
     endgenerate
@@ -99,21 +131,21 @@ module fp_vector_sram #(
 
     for (genvar j = 0; j < BLOCK_NUM; j++) begin
         fp_2_mx_fp_block #(
-            .BLOCK_DIM(BLOCK_DIM),
-            .FP_MANT_WIDTH(ACC_MANT_WIDTH),
-            .FP_EXP_WIDTH(ACC_EXP_WIDTH),
-            .MX_FP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MX_FP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH)
+            .BLOCK_DIM          (BLOCK_DIM),
+            .FP_MANT_WIDTH      (MANT_WIDTH),
+            .FP_EXP_WIDTH       (EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
         ) fp_2_mx_convert_init(
             .clk(clk),
             .rst(rst),
-            .data_in(fp_dot_out[(j+1)*BLOCK_DIM-1 : j*BLOCK_DIM]),
-            .data_in_valid(mxfp_fp_convert_in_valid[j]),
+            .data_in(port_b_fp_out_internal),
+            .data_in_valid(mxfp_fp_convert_in_valid),
             .data_in_ready(),
             .element_data_out(element_out_b[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
             .scale_data_out(scale_out_b[j]),
-            .mx_fp_data_out_valid(mxfp_fp_convert_out_valid[j]),
+            .mx_fp_data_out_valid(),
             .mx_fp_data_out_ready(mxfp_fp_convert_out_ready[j])
         );
 
@@ -132,16 +164,16 @@ prim_generic_ram_2p #(
     .a_req_i        (port_a_req),
     .a_write_i      (port_a_write_en),
     .a_addr_i       (port_a_addr),
-    .a_wdata_i      (port_a_fp_in),
+    .a_wdata_i      (port_a_fp_in_internal),
     .a_wmask_i      (port_a_mask_in),
-    .a_rdata_o      (element_out_a),
+    .a_rdata_o      (port_a_fp_out_internal),
 
     .b_req_i        (port_b_req),
     .b_write_i      (port_b_write_en),
     .b_addr_i       (port_b_addr),
     .b_wdata_i      (converted_b_fp_in),
-    .b_wmask_i      (mask_in_b),
-    .b_rdata_o      (element_out_b),
+    .b_wmask_i      (port_b_mask_in),
+    .b_rdata_o      (port_b_fp_out_internal),
     // Unused
     .cfg_i('0),
     .cfg_rsp_o()

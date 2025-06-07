@@ -74,9 +74,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [MATRIX_COUNTER_WIDTH - 1 : 0] m_sram_continuous_prefetch_counter;
     
 
-    // Scratchpad SRAM
-    logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element_port_a_in;
-    logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      v_scale_port_a_in;
+    // Vector SRAM
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]      vs_port_a_in_fp;
     logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element_port_b_in;
     logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      v_scale_port_b_in;
     
@@ -204,9 +203,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Matrix
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    fetched_m_element;
     logic [BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]               fetched_m_scale;
-
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 m_out_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 m_out_scale;
+    logic [MLEN-1:0][S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]                                m_out_v_fp;
 
     // Vector
     logic v_v_a_valid,      v_v_a_ready;
@@ -222,16 +219,16 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [BLOCK_NUM-1:0] s_sram_mask_a, s_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_a_out;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_a_out;
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_out;
-    logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_out_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_out_scale;
+
+    logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_a_out_fp;
+    logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_b_out_fp;
+    logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_out_fp;
 
     // Scalar
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_in;
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH -1 : 0] fp_s_out;
+    logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH -1 : 0] fp_s_in;
+    logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH -1 : 0] fp_s_out;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
     logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr;
@@ -240,30 +237,22 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
                 
     generate;
         // Matrix Compute Unit
-        matrix_machine #(
+        matrix_machine_v2 #(
         ) matrix_machine_init (
             .clk(clk),
             .rst(rst),
             .matrix_opcode          (assigned_op_bundle.m_op),
-            .prepare_flag           (m_in_prep),
-            .set_offset_addr        ((assigned_op_bundle.c_op == SET_M_OFFSET)),
             .addr_in                (assigned_op_bundle.addr_2),
-            .offset_addr_out        (m_offset_addr),
+            .result_waddr_update    (assigned_op_bundle.update_m_waddr),
             .m_element              (fetched_m_element),
             .m_scale                (fetched_m_scale),
             .m_valid                (m_m_valid),
             .m_ready                (m_m_ready),
-            .v_element              (v_element_port_a_out),
-            .v_scale                (v_scale_port_a_out),
+            .v_element              (v_element_port_b_out),
+            .v_scale                (v_scale_port_b_out),
             .v_valid                (m_v_valid),
             .v_ready                (m_v_ready),
-            .o_element              (v_element_port_b_out),
-            .o_scale                (v_scale_port_b_out),
-            .o_valid                (m_o_valid),
-            .o_ready                (m_o_ready),
-            .result_waddr_update    (assigned_op_bundle.update_m_waddr),
-            .out_element            (m_out_element),
-            .out_scale              (m_out_scale),
+            .out_v_fp               (m_out_v_fp),
             .out_valid              (m_out_valid),
             .out_ready              (m_out_ready),
             .m_waddr                (m_waddr),
@@ -271,7 +260,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         );
 
         // Vector Compute Unit
-        vector_machine #(
+        vector_machine_v2 #(
         ) vector_machine_init (
             .clk(clk),
             .rst(rst),
@@ -279,12 +268,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .element_v_control      (assigned_op_bundle.v_ele_op),
             .reduct_v_control       (assigned_op_bundle.v_reduct_op),
             .in_preparation_stage   (v_in_prep),
-            .v_a_element            (v_element_port_a_out),
-            .v_a_scale              (v_scale_port_a_out),
+            .v_a_in                 (v_port_a_out_fp),
             .v_a_valid              (v_v_a_valid),
             .v_a_ready              (v_v_a_ready),
-            .v_b_element            (v_element_port_b_out),
-            .v_b_scale              (v_scale_port_b_out),
+            .v_b_in                 (v_port_b_out_fp),
             .v_b_valid              (v_v_b_valid),
             .v_b_ready              (v_v_b_ready),
             .s_in                   (fp_s_in),
@@ -293,8 +280,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .s_wtarget              (assigned_op_bundle.fps2),
             .result_waddr           (assigned_op_bundle.addr_2),
             .result_waddr_update    (assigned_op_bundle.update_v_waddr),
-            .v_out_element          (v_out_element),
-            .v_out_scale            (v_out_scale),
+            .v_out                  (v_out_fp),
             .v_out_valid            (v_v_out_valid),
             .v_out_ready            (v_v_out_ready),
             .v_waddr                (v_waddr),
@@ -331,7 +317,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .fp_stall_req           (stall_req_from_fp),
             .fixed_stall_req        (fixed_stall_req)
         );
-
     endgenerate
 
 
@@ -357,7 +342,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .element_in         (prefetch_m_element),
         .scale_in           (prefetch_m_scale),
         .wen                (m_sram_wen),
-        .sram_waddr         (),
+        .sram_waddr         (m_sram_waddr),
         .element_out        (fetched_m_element),
         .scale_out          (fetched_m_scale)
     );
@@ -365,34 +350,35 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Scratchpad SRAM
     // Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
     // Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
-    assign v_element_port_a_in = select_write_data_a ? m_out_element : v_out_element;
-    assign v_scale_port_a_in   = select_write_data_a ? m_out_scale : v_out_scale;
     
-    scratch_sram #(
+    fp_vector_sram #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+        .EXP_WIDTH(S_FP_EXP_WIDTH),
+        .MANT_WIDTH(S_FP_MANT_WIDTH),
         .VLEN(VLEN),
         .BLOCK_DIM(BLOCK_DIM),
         .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
     ) vector_sram (
         .clk(clk),
         .rst(rst),
-        .req_a              (s_sram_req_a),
-        .write_en_a         (s_sram_wen_a),
-        .sram_addr_a        (s_sram_addr_a),
-        .element_in_a       (v_element_port_a_in),
-        .scale_in_a         (v_scale_port_a_in),
-        .mask_in_a          (s_sram_mask_a),
-        .element_out_a      (v_element_port_a_out),
-        .scale_out_a        (v_scale_port_a_out),
-        
-        .req_b              (s_sram_req_b),
-        .write_en_b         (s_sram_wen_b),
-        .sram_addr_b        (s_sram_addr_b),
+        .control(select_write_data_a),
+        .port_a_req         (s_sram_req_a),
+        .port_a_write_en    (s_sram_wen_a),
+        .port_a_addr        (s_sram_addr_a),
+        .port_a_m_fp_in     (m_out_v_fp),
+        .port_a_v_fp_in     (v_out_fp),
+        .port_a_mask_in     (s_sram_mask_a),
+        .port_a_v_fp_out    (v_port_a_out_fp),
+        // .port_a_m_fp_out    (),
+        .port_b_req         (s_sram_req_b),
+        .port_b_write_en    (s_sram_wen_b),
+        .port_b_addr        (s_sram_addr_b),
+        .port_b_fp_out      (v_port_b_out_fp),
+        .port_b_mask_in     (s_sram_mask_b),
         .element_in_b       (v_element_port_b_in),
         .scale_in_b         (v_scale_port_b_in),
-        .mask_in_b          (s_sram_mask_b),
         .element_out_b      (v_element_port_b_out),
         .scale_out_b        (v_scale_port_b_out)
     );
@@ -407,7 +393,5 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
     `TL_BIND_HOST_PORT(out_scale, scale);
-
-    
 
 endmodule

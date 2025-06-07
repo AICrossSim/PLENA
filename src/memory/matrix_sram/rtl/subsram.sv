@@ -52,13 +52,13 @@ end
 // Read Address Translation
 always @(*) begin
 
-    addr_offset = sram_index - addr[Parallel_Rd_Index_Width-1:0];
+    addr_offset = sram_index - raddr[Parallel_Rd_Index_Width-1:0];
 
     if (transposed_read) begin
-        translated_raddr = { addr[AdrWidth - 1 : Parallel_Rd_Index_Width], addr_offset};
+        translated_raddr = { raddr[AdrWidth - 1 : Parallel_Rd_Index_Width], addr_offset};
     end
     else begin
-        translated_raddr = addr;
+        translated_raddr = raddr;
     end
 end
 // Write
