@@ -29,7 +29,7 @@ module systolic_mcu #(
 )(
     input   logic clk,
     input   logic rst,
-    input   logic control,      // 0 for GEMV, 1 for GEMM
+    input   M_OP  control,      // 0 for GEMV, 1 for GEMM
     // Multiplicant Matrix 1
     input   logic [K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] v1_element,
     input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v1_scale,

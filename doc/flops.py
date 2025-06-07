@@ -18,7 +18,7 @@ def estimate_flops(mlen, vlen, operate_freq, batch_size=1):
     return total_flops / pow(10, 12)  # Convert to TFLOPs
 
 
-def estimate_hbm_bandwidth(mlen, mx_fp_element_width, blocksize, mx_fp_scale_width, operate_freq):
+def estimate_hbm_bandwidth(mlen, parallel_rd, mx_fp_element_width, blocksize, mx_fp_scale_width, operate_freq):
     """
     Estimate the HBM bandwidth.
 
@@ -31,19 +31,20 @@ def estimate_hbm_bandwidth(mlen, mx_fp_element_width, blocksize, mx_fp_scale_wid
     Returns:
         int: Estimated HBM bandwidth in GB/s.
     """
-    hbm_bandwidth = mlen * (mlen * mx_fp_element_width + (mlen // blocksize) * mx_fp_scale_width) * operate_freq * pow(10,6) / 8
+    hbm_bandwidth = parallel_rd * (mlen * mx_fp_element_width + (mlen // blocksize) * mx_fp_scale_width) * operate_freq * pow(10,6) / 8
     return hbm_bandwidth / pow(10, 9)  # Convert to GB/s
 
 
 if __name__ == "__main__":
-    mlen = 64
+    mlen = 1024
     vlen = 64
     operate_freq = 225  # MHz
     batch_size = 32
-    flops = estimate_flops(mlen, vlen, operate_freq, batch_size)
-    print(f"Estimated FLOPs: {flops:.2f} TFLOPs")
+    # flops = estimate_flops(mlen, vlen, operate_freq, batch_size)
+    # print(f"Estimated FLOPs: {flops:.2f} TFLOPs")
     element_width = 8  # bits
     scale_width = 16  # bits
-    blocksize = 8
-    hbm_bandwidth = estimate_hbm_bandwidth(mlen, element_width, blocksize, scale_width, operate_freq)
+    blocksize = 4
+    parallel_rd = 1
+    hbm_bandwidth = estimate_hbm_bandwidth(mlen, parallel_rd, element_width, blocksize, scale_width, operate_freq)
     print(f"Estimated HBM Bandwidth: {hbm_bandwidth:.2f} GB/s")

@@ -3,9 +3,9 @@
 
 `ifdef SIMULATION
     package configuration_pkg;
-        parameter   BATCH_SIZE                      = 1;
-        parameter   MLEN                            = 4;
-        parameter   Matrix_Parallel_Rd_Dim          = 2;
+        parameter   BATCH_SIZE                      = 4;
+        parameter   MLEN                            = 8;
+        parameter   Matrix_Parallel_Rd_Dim          = 1; // Forced to be 1 at the moment for systolic array.
         parameter   HBM_M_Prefetch_Amount           = 16;
         parameter   HBM_V_Prefetch_Amount           = 128;
         parameter   HBM_LD_Amount                   = 16;

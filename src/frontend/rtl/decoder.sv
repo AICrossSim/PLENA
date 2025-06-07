@@ -85,7 +85,7 @@ INSTR_INFO decode_instr_info;
 always_comb begin
     case (loaded_opcode)
         // Matrix Operations
-        M_MV, M_MV_O, M_TMV, M_TMV_O: begin
+        M_BMM, M_BMM_O, M_TMM, M_TMM_O, M_MV, M_MV_O, M_TMV, M_TMV_O: begin
             decode_instruction_type = M;
         end
 
@@ -215,7 +215,7 @@ always_ff @(posedge clk) begin
         imm                               <= 'b0;
     end else begin
         rd_operand_ready <= 1'b0;
-        decoded_op_bundle.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O) ? 1'b1 : 1'b0;
+        decoded_op_bundle.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O || decode_instr_info.opcode == M_TMM || decode_instr_info.opcode == M_TMM_O) ? 1'b1 : 1'b0;
         decoded_op_bundle.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_LD_F) ? 1'b1 : 1'b0;
         decoded_op_bundle.update_m_waddr        <= 1'b0;
         decoded_op_bundle.update_v_waddr        <= 1'b0;
@@ -377,14 +377,14 @@ always_ff @(posedge clk) begin
                     imm                             <= decode_instr_info.imm; // Might require shifting
                 end else begin
                     // Not Defined 
-                    exe_fixed_op        <= STALL_S_FIXED;
+                    exe_fixed_op                    <= STALL_S_FIXED;
                     decoded_op_bundle.fps1          <= {FP_OPERAND_WIDTH{1'b0}};
                     decoded_op_bundle.fps2          <= {FP_OPERAND_WIDTH{1'b0}};
                     decoded_op_bundle.fpd           <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    rs1                 <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rs2                 <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd                  <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    imm                 <= {IMM_WIDTH{1'b0}};
+                    rs1                             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rd                              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    imm                             <= {IMM_WIDTH{1'b0}};
                 end
             end
 

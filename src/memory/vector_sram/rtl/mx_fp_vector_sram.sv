@@ -9,7 +9,7 @@ Description :
 Status      :
 */
 
-module scratch_sram #(
+module mx_fp_vector_sram #(
     // MX-FP Data Format
     parameter MXFP_EXP_WIDTH    = 4,
     parameter MXFP_MANT_WIDTH   = 3,

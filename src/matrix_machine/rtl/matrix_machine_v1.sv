@@ -6,12 +6,12 @@
 /*
 Module      : Matrix Machine Module
 Timing      : Sequential, Takes x cycles to compute the dot product
-Description : This module conducts the operation m(MLEN, MLEN) @ v(MLEN, 1) + o (MLEN, 1)
+Description : This module is the older version of the matrix machine, which solely supports the GEMV, conducting the operation m(MLEN, MLEN) @ v(MLEN, 1) + o (MLEN, 1)
 Status      : Passed Simple Tests
 */
 
 
-module matrix_machine import precision_pkg::*; import configuration_pkg::*; #(
+module matrix_machine_v1 import precision_pkg::*; import configuration_pkg::*; #(
     localparam  BLOCK_NUM       = MLEN / BLOCK_DIM,
     localparam  ADDR_WIDTH      = ON_CHIP_ADDR_WIDTH
 ) (
@@ -48,8 +48,7 @@ module matrix_machine import precision_pkg::*; import configuration_pkg::*; #(
     // Output
     input  logic result_waddr_update,
     
-    output logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_element,
-    output logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale,
+    output logic [MLEN-1:0]                     out_v_fp,
     output logic                                out_valid,
     input  logic                                out_ready,
     output logic [ADDR_WIDTH-1:0]               m_waddr,
