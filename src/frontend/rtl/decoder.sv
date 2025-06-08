@@ -208,6 +208,9 @@ always_ff @(posedge clk) begin
         decode_stage_op.fps1            <= 'b0;
         decode_stage_op.fps2            <= 'b0;
         decode_stage_op.fpd             <= 'b0;
+        decode_stage_op.fixed_rs1       <= 'b0;
+        decode_stage_op.fixed_rs2       <= 'b0;
+        decode_stage_op.fixed_rd        <= 'b0;
         decode_stage_op.update_m_waddr  <= pass_m_update_waddr;
         decode_stage_op.update_v_waddr  <= pass_v_update_waddr;
         
@@ -221,6 +224,9 @@ always_ff @(posedge clk) begin
         decode_stage_op.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_LD_F) ? 1'b1 : 1'b0;
         decode_stage_op.update_m_waddr        <= 1'b0;
         decode_stage_op.update_v_waddr        <= 1'b0;
+        decode_stage_op.fixed_rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+        decode_stage_op.fixed_rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+        decode_stage_op.fixed_rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
 
         case(decode_instr_info.instruction_type)
             M: begin

@@ -23,13 +23,13 @@ module fp_vector_sram #(
 
     // Dimension
     parameter   VLEN              = 8,   
-    parameter   MLEN              = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.  
+    parameter   MLEN              = 8, 
     parameter   BLOCK_DIM         = 4,                                
     localparam  BLOCK_NUM         = VLEN / BLOCK_DIM,
 
     // SRAM
     parameter   SRAM_DEPTH        = 128,
-    localparam  AddrLen           = $clog2(SRAM_DEPTH)                // Address Space for the SRAM
+    localparam  AddrLen           = $clog2(SRAM_DEPTH)
 
 )(
     input   logic clk,

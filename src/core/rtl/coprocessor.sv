@@ -63,7 +63,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
-    logic m_o_valid,    m_o_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
 
@@ -73,6 +72,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_m_element;
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetch_m_scale;
     logic hbm_write_data_valid, hbm_write_data_ready;
+    logic hbm_m_prefetch_in_progress, hbm_v_prefetch_in_progress;
 
     // Vector SRAM
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]      vs_port_a_in_fp;
@@ -121,23 +121,25 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     ) pipeline_control_init (
         .clk(clk),
         .rst(rst),
-        .decode_stage_op        (decode_stage_op),
-        .fixed_addr_1           (fixed_out_1),
-        .fixed_addr_2           (fixed_out_2),
-        .v_sram_wen_a           (v_sram_wen_a),
-        .v_sram_addr_a          (v_sram_addr_a),
-        .v_sram_wen_b           (v_sram_wen_b),
-        .v_sram_addr_b          (v_sram_addr_b),
-        .mem_write_req          (mem_write_req),
-        .hbm_in_used            (hbm_in_used),
-        .fp_stall_req           (stall_req_from_fp),
-        .fixed_stall_req        (fixed_stall_req),
-        .m_load_in_process      (m_in_prep),
-        .v_load_in_process      (v_in_prep),
-        .sfu_in_use             (sfu_in_use),
-        .pipeline_stall_req     (pipeline_stall),
-        .exe_stage_op           (exe_stage_op),
-        .mem_write_control      (mem_write_control)
+        .decode_stage_op                (decode_stage_op),
+        .fixed_addr_1                   (fixed_out_1),
+        .fixed_addr_2                   (fixed_out_2),
+        .v_sram_wen_a                   (v_sram_wen_a),
+        .v_sram_addr_a                  (v_sram_addr_a),
+        .v_sram_wen_b                   (v_sram_wen_b),
+        .v_sram_addr_b                  (v_sram_addr_b),
+        .hbm_m_prefetch_in_progress     (hbm_m_prefetch_in_progress),
+        .hbm_v_prefetch_in_progress     (hbm_v_prefetch_in_progress),
+        .mem_write_req                  (mem_write_req),
+        .hbm_in_used                    (hbm_in_used),
+        .fp_stall_req                   (stall_req_from_fp),
+        .fixed_stall_req                (fixed_stall_req),
+        .m_load_in_process              (m_in_prep),
+        .v_load_in_process              (v_in_prep),
+        .sfu_in_use                     (sfu_in_use),
+        .pipeline_stall_req             (pipeline_stall),
+        .exe_stage_op                   (exe_stage_op),
+        .mem_write_control              (mem_write_control)
     );
 
 
@@ -153,12 +155,12 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .exe_stage_op           (exe_stage_op),
         .mem_write_control      (mem_write_control),
         .write_req              (mem_write_req),
+        .m_load_in_process      (m_in_prep),
+        .v_load_in_process      (),
         .m_m_ready              (m_m_ready),
         .m_m_valid              (m_m_valid),
         .m_v_valid              (m_v_valid),
         .m_v_ready              (m_v_ready),
-        .m_o_valid              (m_o_valid),
-        .m_o_ready              (m_o_ready),
         .m_out_valid            (m_out_valid),
         .m_out_ready            (m_out_ready),
         .m_write_request        (m_write_request),
@@ -213,7 +215,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_sram_req_a, v_sram_req_b;
     logic v_sram_wen_a, v_sram_wen_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
-    logic [BLOCK_NUM-1:0] v_sram_mask_a, v_sram_mask_b;
+    logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
@@ -395,9 +397,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     ) hbm_interface_init (
         .clk(clk),
         .rst(rst),
-        .exe_stage_op     (exe_stage_op),
-        .addr_reg_write_operand (s_rd),
-        .addr_reg_read_operand  (s_rs2),
+        .exe_stage_op           (exe_stage_op),
         .prefetch_m_ready       (m_sram_wen),
         .prefetch_m_valid       (hbm_m_prefetch_valid),
         .prefetch_m_element     (prefetch_m_element),
@@ -410,6 +410,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .hbm_write_v_ready      (hbm_write_data_ready),
         .hbm_write_v_element    (v_element_port_b_out),
         .hbm_write_v_scale      (v_scale_port_b_out),
+        .prefetch_m_in_progress (hbm_m_prefetch_in_progress),
+        .prefetch_v_in_progress (hbm_v_prefetch_in_progress),
         `TL_CONNECT_HOST_PORT   (host_m_element, m_element),
         `TL_CONNECT_HOST_PORT   (host_m_scale, m_scale),
         `TL_CONNECT_HOST_PORT   (host_v_element, v_element),

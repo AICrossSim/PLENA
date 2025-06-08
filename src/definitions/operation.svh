@@ -190,6 +190,7 @@ typedef struct {
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
+// TODO: The definition is not very efficient, might need to be optimized later.
 typedef struct {
     M_OP            m_op;
     V_ELEMENT_OP    v_ele_op;
@@ -202,6 +203,9 @@ typedef struct {
     logic [FP_OPERAND_WIDTH - 1:0]      fps1;
     logic [FP_OPERAND_WIDTH - 1:0]      fps2;
     logic [FP_OPERAND_WIDTH - 1:0]      fpd;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs1;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs2;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rd;
     logic [ON_CHIP_ADDR_WIDTH - 1:0]   addr_1;
     logic [ON_CHIP_ADDR_WIDTH - 1:0]   addr_2;
     logic update_m_waddr;

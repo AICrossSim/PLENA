@@ -19,8 +19,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     // Control
     input   OP_BUNDLE exe_stage_op,
-    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] addr_reg_write_operand,
-    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] addr_reg_read_operand,
 
     // Data to Matrix SRAM
     input   logic prefetch_m_ready,
@@ -41,6 +39,9 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     input  logic   [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    hbm_write_v_element,
     input  logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]              hbm_write_v_scale,
 
+    // Status Tracking
+    output logic prefetch_m_in_progress,
+    output logic prefetch_v_in_progress,
 
     // Matrix SRAM TL Interface
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_m_element),
@@ -49,6 +50,45 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_v_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_v_scale)
 );
+
+    // -----------------------------
+    // HBM System Control
+    // -----------------------------
+    logic v_hbm_prefetch_en, m_hbm_prefetch_en;
+    // One clk delayed for address mapping
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            v_hbm_prefetch_en <= 1'b0;
+            m_hbm_prefetch_en <= 1'b0;
+        end else begin
+            v_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_V_HBM);
+            m_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_M_HBM);
+        end
+    end
+
+    // -----------------------------
+    // HBM Status Tracking
+    // -----------------------------
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            prefetch_m_in_progress <= 1'b0;
+            prefetch_v_in_progress <= 1'b0;
+        end else begin
+            if (exe_stage_op.h_op == PREFETCH_V_HBM) begin
+                prefetch_v_in_progress <= 1'b1;
+            end else if (prefetch_v_valid && prefetch_v_ready) begin
+                prefetch_v_in_progress <= 1'b0;
+            end
+            if (exe_stage_op.h_op == PREFETCH_M_HBM) begin
+                prefetch_m_in_progress <= 1'b1;
+            end else if (prefetch_m_valid && prefetch_m_ready) begin
+                prefetch_m_in_progress <= 1'b0;
+            end
+        end
+    end
+
+
+
     // -----------------------------
     // HBM Address Mapping
     // -----------------------------
@@ -61,13 +101,15 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
-        .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
+        .mapp_addr_en   (hbm_write_v_en || 
+                          exe_stage_op.h_op == PREFETCH_V_HBM || 
+                          exe_stage_op.h_op == PREFETCH_M_HBM),
         .set_addr_en    (exe_stage_op.c_op == SET_ADDR_REG),
         .addr_in_a      (exe_stage_op.addr_1),
         .addr_in_b      (exe_stage_op.addr_2),
         .addr_offset    (exe_stage_op.addr_1),
-        .read_operand   (addr_reg_read_operand),
-        .write_operand  (addr_reg_write_operand),
+        .read_operand   (exe_stage_op.fixed_rs2),
+        .write_operand  (exe_stage_op.fixed_rd),
         .hbm_addr_out   (hbm_addr_out)
     );
 
@@ -79,7 +121,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // Prefetching Control
     logic [MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] m_hbm_element_out;
     logic [MLEN * M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
-    logic m_hbm_prefetch_valid, m_hbm_prefetch_en;
+    logic m_hbm_prefetch_valid;
 
     // Write Control, Temporarily not used, only enable write for vector hbm controller
     // logic m_hbm_write_en;
@@ -114,6 +156,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .prefetch_element_data_ready        (prefetch_m_element_ready),
         .prefetch_scale_data_ready          (prefetch_m_scale_ready),
         .hbm_prefetch_en                    (m_hbm_prefetch_en),
+        .hbm_addr                           (hbm_addr_out),
         .hbm_write_en                       (),
         .hbm_write_valid                    (),
         .hbm_write_ready                    (),
@@ -166,10 +209,11 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // -----------------------------
 
     // HBM Control Signal between Arbiter and Controller
+
     // Prefetching Control
     logic [VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] v_hbm_element_out;
     logic [VLEN * V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
-    logic v_hbm_prefetch_valid, v_hbm_prefetch_en;
+    logic v_hbm_prefetch_valid;
 
     // Buffering Control
     logic prefetch_v_element_ready, prefetch_v_scale_ready;
@@ -198,6 +242,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .prefetch_element_data_ready        (prefetch_v_element_ready),
         .prefetch_scale_data_ready          (prefetch_v_scale_ready),
         .hbm_prefetch_en                    (v_hbm_prefetch_en),
+        .hbm_addr                           (hbm_addr_out),
         .hbm_write_en                       (hbm_write_v_en),
         .hbm_write_valid                    (hbm_write_v_valid),
         .hbm_write_ready                    (hbm_write_v_ready),

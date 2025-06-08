@@ -6,7 +6,8 @@ Module      : TileLink master
 Description : 
   - TL-UL (TileLink Uncached Lite) master interface
   - Supports simple read (Get) and write (PutFullData) operations
-  - Fetches data through TileLink and outputs it with valid strobe
+  - Fetches data through TileLink and outputs it with valid
+  - Note that, the req and addr only need to be valid for one cycle
 */
 
 module tl_master #(

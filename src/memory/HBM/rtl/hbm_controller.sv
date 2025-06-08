@@ -37,6 +37,7 @@ module hbm_controller #(
     input   logic                                   prefetch_element_data_ready,
     input   logic                                   prefetch_scale_data_ready,
     input   logic                                   hbm_prefetch_en,
+    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_addr, // Address for prefetching data
     
     // HBM data writing
     input   logic                                   hbm_write_en,
@@ -88,15 +89,15 @@ module hbm_controller #(
         .clk(clk),
         .rst(rst),
         // Control signals
-        .req_en     (hbm_prefetch_en),
-        .write_en   (hbm_write_en),
-        .addr       (hbm_addr_out),
-        .fetch_data (prefetch_element),
-        .fetch_data_ready(prefetch_element_data_ready),
-        .write_data (hbm_write_element),
-        .write_mask (hbm_ele_write_mask),
-        .fetch_data_valid(prefetch_data_valid),
-        `TL_CONNECT_HOST_PORT(host, tl_element)
+        .req_en                 (hbm_prefetch_en),
+        .write_en               (hbm_write_en),
+        .addr                   (hbm_addr),
+        .fetch_data             (prefetch_element),
+        .fetch_data_ready       (prefetch_element_data_ready),
+        .write_data             (hbm_write_element),
+        .write_mask             (hbm_ele_write_mask),
+        .fetch_data_valid       (prefetch_data_valid),
+        `TL_CONNECT_HOST_PORT   (host, tl_element)
     );
 
     tl_adapter #(
@@ -111,8 +112,8 @@ module hbm_controller #(
         .clk_i(clk),
         .rst_ni(!rst),
         // TileLink Interface
-        `TL_CONNECT_DEVICE_PORT(host, tl_element),
-        `TL_CONNECT_HOST_PORT(device, adapted_tl_element)
+        `TL_CONNECT_DEVICE_PORT     (host, tl_element),
+        `TL_CONNECT_HOST_PORT       (device, adapted_tl_element)
     );
 
     // -----------------------------
@@ -130,13 +131,13 @@ module hbm_controller #(
     ) scale_master (
         .clk(clk),
         .rst(rst),
-        .req_en(hbm_prefetch_en),
-        .write_en(hbm_write_en),
-        .addr(addr_for_prefetched_data + SCALE_DATA_OFFSET),
-        .fetch_data(prefetch_scale),
-        .fetch_data_ready(prefetch_scale_data_ready),
-        .write_data(hbm_write_scale),
-        .write_mask(hbm_scale_write_mask),
+        .req_en             (hbm_prefetch_en),
+        .write_en           (hbm_write_en),
+        .addr               (hbm_addr + SCALE_DATA_OFFSET),
+        .fetch_data         (prefetch_scale),
+        .fetch_data_ready   (prefetch_scale_data_ready),
+        .write_data         (hbm_write_scale),
+        .write_mask         (hbm_scale_write_mask),
         `TL_CONNECT_HOST_PORT(host, tl_scale)
     );
 
@@ -151,8 +152,8 @@ module hbm_controller #(
     ) adapter_for_scale (
         .clk_i(clk),
         .rst_ni(!rst),
-        `TL_CONNECT_DEVICE_PORT(host, tl_scale ),
-        `TL_CONNECT_HOST_PORT(device, adapted_tl_scale)
+        `TL_CONNECT_DEVICE_PORT     (host, tl_scale ),
+        `TL_CONNECT_HOST_PORT       (device, adapted_tl_scale)
     );
 
 endmodule

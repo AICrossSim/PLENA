@@ -68,6 +68,9 @@ module pipeline_control #(
         fps1                : '0,
         fps2                : '0,
         fpd                 : '0,
+        fixed_rs1           : '0,
+        fixed_rs2           : '0,
+        fixed_rd            : '0,
         addr_1              : '0,
         addr_2              : '0,
         update_m_waddr      : 1'b0,
@@ -186,6 +189,9 @@ module pipeline_control #(
         reg_rd_stage_op.fps1            = recorded_determine_stage_op.fps1;
         reg_rd_stage_op.fps2            = recorded_determine_stage_op.fps2;
         reg_rd_stage_op.fpd             = recorded_determine_stage_op.fpd;
+        reg_rd_stage_op.fixed_rs1       = recorded_determine_stage_op.fixed_rs1;
+        reg_rd_stage_op.fixed_rs2       = recorded_determine_stage_op.fixed_rs2;
+        reg_rd_stage_op.fixed_rd        = recorded_determine_stage_op.fixed_rd;
         reg_rd_stage_op.addr_1          = fixed_addr_1;
         reg_rd_stage_op.addr_2          = fixed_addr_2; 
         reg_rd_stage_op.update_m_waddr  = recorded_determine_stage_op.update_m_waddr;
