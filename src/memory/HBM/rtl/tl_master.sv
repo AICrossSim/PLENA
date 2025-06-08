@@ -32,7 +32,7 @@ module tl_master #(
 
   // Status Indicators
   output logic fetch_data_valid,
-  output logic complete_fetch
+  output logic complete_fetch,
 
   `TL_DECLARE_HOST_PORT(DataWidth, AddrWidth, SourceWidth, SinkWidth, host)
 );

@@ -13,15 +13,18 @@ module hbm_controller #(
     parameter int MXFP_EXP_WIDTH     = 4,
     parameter int MXFP_MANT_WIDTH    = 3,
     parameter int MXFP_SCALE_WIDTH   = 16,
+    parameter int BLOCK_DIM             = 4,
 
     parameter int   DATA_DIM          = 8,
     localparam      BLOCK_NUM       = DATA_DIM / BLOCK_DIM,
 
     localparam int  ELE_WIDTH    =   DATA_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int  SCALE_WIDTH  =   BLOCK_NUM * MXFP_SCALE_WIDTH,
-
+    parameter int   HBM_ADDR_WIDTH = 32, // Assuming 32-bit address width for HBM
     parameter int   HBM_ELE_WIDTH = 128,
     parameter int   HBM_SCALE_WIDTH = 128,
+    parameter int   SourceWidth = 4, // TileLink Source Width
+    parameter int   SinkWidth = 4,   // TileLink Sink Width
     parameter SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
@@ -57,11 +60,11 @@ module hbm_controller #(
     logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
     logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
     
-
+    // TODO: Might not be needed
     always_comb begin
         if (rst) begin
             track_prefetch_status = 1'b0;
-        end else if (start_prefetch) begin
+        end else if (hbm_prefetch_en) begin
             track_prefetch_status = 1'b1;
         end else if (prefetch_data_valid) begin
             track_prefetch_status = 1'b0;
@@ -74,7 +77,7 @@ module hbm_controller #(
     `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_element);
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, adapted_tl_element);
     `TL_BIND_HOST_PORT(host_element, adapted_tl_element);
-    
+
     // TL for element
     tl_master #(
         .DataWidth(ELE_WIDTH),

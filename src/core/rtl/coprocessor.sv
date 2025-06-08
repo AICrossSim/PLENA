@@ -30,7 +30,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // HBM Interface 1 for Matrix
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_element),
-    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale)
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale),
     // HBM Interface 2 for Vector
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_scale)
@@ -424,6 +424,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         `TL_CONNECT_HOST_PORT   (host_m_scale, m_scale),
         `TL_CONNECT_HOST_PORT   (host_v_element, v_element),
         `TL_CONNECT_HOST_PORT   (host_v_scale, v_scale)
-    )
+    );
 
 endmodule
