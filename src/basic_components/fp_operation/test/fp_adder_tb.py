@@ -17,9 +17,8 @@ from cfl_cocotb.fp_generation import TorchFpGenerator
 from quant.quantizer.hardware_quantizer import _minifloat_denorm_quantize_hardware
 
 import math
-
-
 import torch
+
 
 def frexp(x: torch.Tensor, config: dict):
     exp_width = config["EXP_WIDTH"]
@@ -83,7 +82,6 @@ def fp_add_hardware(
     mant_sum = a_mant_casted + b_mant_casted
     return exp_sum, mant_sum
 
-## questions, why - ?
 ## questions, why 
 class FPAddTB(CombinationalTestbench):
     def generate_inputs(self, num):
@@ -99,8 +97,9 @@ class FPAddTB(CombinationalTestbench):
             "FLOOR" : True,
         }
 
-        torch_a = torch.randn(num)
-        torch_b = torch.randn(num)
+        torch.manual_seed(0)
+        torch_a = torch.randn(num) * 10 - 5
+        torch_b = torch.randn(num) * 10 - 5
 
         width = config["IN_FIX_WIDTH"] + config["IN_EXP_WIDTH"]
         exponent_width = config["IN_EXP_WIDTH"]
@@ -145,9 +144,8 @@ class FPAddTB(CombinationalTestbench):
         }
 
     def check_output(self, input, output):
-        self.log.debug(f"Expected result : {input}, got: {int(output)}")
-
-        # assert input == output, f"Expected {input}, but got {int(output)}"
+        self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
+        assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
 
 @cocotb.test()
 async def test(dut):
@@ -177,14 +175,25 @@ def test_simple_fp_addition():
             str(SRC_PATH / "basic_components/buffer")
         ],
         module_param_list=[
+            # basic functionality of FP 8 addition
             {
                 "IN_EXP_WIDTH" : 4, 
-                "IN_FIX_WIDTH" : 3, # sign bit + mant_width 
-                "IN_FIX_FRAC_WIDTH" : 2,
+                "IN_FIX_WIDTH" : 4, 
+                "IN_FIX_FRAC_WIDTH" : 3,
 
                 "OUT_EXP_WIDTH" : 4, 
                 "OUT_FIX_WIDTH" : 5,
                 "OUT_FIX_FRAC_WIDTH" : 3,
+            },
+            # Adding one bit in outputto test the function of allowing more underflow
+            {
+                "IN_EXP_WIDTH" : 4, 
+                "IN_FIX_WIDTH" : 4, # sign bit + mant_width 
+                "IN_FIX_FRAC_WIDTH" : 3,
+
+                "OUT_EXP_WIDTH" : 4, 
+                "OUT_FIX_WIDTH" : 6,
+                "OUT_FIX_FRAC_WIDTH" : 4, # adding one bit to test the 
             },
         ],
         trace = True,
@@ -192,5 +201,4 @@ def test_simple_fp_addition():
 
 
 if __name__ == "__main__":
-    torch.manual_seed(0)
     test_simple_fp_addition()
