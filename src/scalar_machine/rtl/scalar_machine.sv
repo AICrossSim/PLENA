@@ -23,7 +23,7 @@ module scalar_machine import precision_pkg::*;  #(
     input   logic rst,
 
     // Control
-    input   OP_BUNDLE  assigned_op_bundle,
+    input   OP_BUNDLE  exe_stage_op,
     input   S_FIXED_OP assigned_fixed_op,
 
     // Fixed Register Control
@@ -65,7 +65,7 @@ module scalar_machine import precision_pkg::*;  #(
 
 
     S_FP_OP fp_control, exe_fp_control;
-    assign  fp_control = assigned_op_bundle.s_fp_op;
+    assign  fp_control = exe_stage_op.s_fp_op;
 
     logic   general_fp_operation;
 
@@ -176,9 +176,9 @@ module scalar_machine import precision_pkg::*;  #(
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd;
 
-    assign fp_rs1 = assigned_op_bundle.fps1;
-    assign fp_rs2 = assigned_op_bundle.fps2;
-    assign fp_rd  = assigned_op_bundle.fpd;
+    assign fp_rs1 = exe_stage_op.fps1;
+    assign fp_rs2 = exe_stage_op.fps2;
+    assign fp_rd  = exe_stage_op.fpd;
 
     fp_alu #(
         .EXP_WIDTH(S_FP_EXP_WIDTH),
@@ -233,7 +233,7 @@ module scalar_machine import precision_pkg::*;  #(
             end else if (fp_control == ST_REG_FP) begin
                 fp_out <= 'b0;
             end
-            fp_sram_addr <= assigned_op_bundle.addr_1; 
+            fp_sram_addr <= exe_stage_op.addr_1; 
         end
     end
 

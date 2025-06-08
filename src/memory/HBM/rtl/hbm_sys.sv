@@ -18,9 +18,9 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     input   logic rst,
 
     // Control
-    input   OP_BUNDLE assigned_op_bundle,
-    input  logic [FIXED_OPERAND_WIDTH - 1 : 0] addr_reg_write_operand,
-    input  logic [FIXED_OPERAND_WIDTH - 1 : 0] addr_reg_read_operand,
+    input   OP_BUNDLE exe_stage_op,
+    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] addr_reg_write_operand,
+    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] addr_reg_read_operand,
 
     // Data to Matrix SRAM
     input   logic prefetch_m_ready,
@@ -62,10 +62,10 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .clk(clk),
         .rst(rst),
         .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
-        .set_addr_en    (assigned_op_bundle.c_op == SET_ADDR_REG),
-        .addr_in_a      (assigned_op_bundle.addr_1),
-        .addr_in_b      (assigned_op_bundle.addr_2),
-        .addr_offset    (assigned_op_bundle.addr_1),
+        .set_addr_en    (exe_stage_op.c_op == SET_ADDR_REG),
+        .addr_in_a      (exe_stage_op.addr_1),
+        .addr_in_b      (exe_stage_op.addr_2),
+        .addr_offset    (exe_stage_op.addr_1),
         .read_operand   (addr_reg_read_operand),
         .write_operand  (addr_reg_write_operand),
         .hbm_addr_out   (hbm_addr_out)

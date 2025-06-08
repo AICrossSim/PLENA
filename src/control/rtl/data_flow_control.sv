@@ -12,13 +12,12 @@ Description : This module serves as the controller for all the memory related op
             : It also controls iterative load process.
 */
 
-module data_flow_control import precision_pkg::*; #(
+module data_flow_control import precision_pkg::*;  #(
     parameter   OPERAND_WIDTH           = 5,
     parameter   VLEN                    = 8,       
     parameter   MLEN                    = 8,
     parameter   Parallel_Rd_Dim         = 4,       // Number of inputs per cycle
-    localparam MATRIX_LOAD_ITERATION = MLEN / Parallel_Rd_Dim,
-    localparam MATRIX_COUNTER_WIDTH = $clog2(MATRIX_LOAD_ITERATION),
+    localparam MATRIX_LOAD_ITERATION = MLEN,
     localparam BLOCK_NUM = VLEN / BLOCK_DIM
 ) (
 
@@ -26,7 +25,7 @@ module data_flow_control import precision_pkg::*; #(
     input       logic rst,
 
     // Current Execution
-    input       OP_BUNDLE                       assigned_op_bundle,
+    input       OP_BUNDLE                       exe_stage_op,
     input       MEM_WEN_INFO                    mem_write_control,
 
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr,
@@ -73,41 +72,45 @@ module data_flow_control import precision_pkg::*; #(
     input       logic [FIXED_DATA_WIDTH - 1 : 0] v_write_addr,
 
     // Interface with Scratchpad SRAM
-    output      logic s_sram_req_a,
-    output      logic s_sram_wen_a,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_a,
-    output      logic [BLOCK_NUM-1:0]               s_sram_mask_a,
+    output      logic v_sram_req_a,
+    output      logic v_sram_wen_a,
+    output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_a,
+    output      logic [BLOCK_NUM-1:0]               v_sram_mask_a,
     output      logic select_write_data_a,          
 
-    output      logic s_sram_req_b,
-    output      logic s_sram_wen_b,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_b,
-    output      logic [BLOCK_NUM-1:0]               s_sram_mask_b,
+    output      logic v_sram_req_b,
+    output      logic v_sram_wen_b,
+    output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
+    output      logic [BLOCK_NUM-1:0]               v_sram_mask_b,
 
     // Interface with HBM
-    input       logic dma_m_ready,
-    input       logic dma_v_ready,
-    output      logic continuous_prefetch_m_en,
-    output      logic hbm_ready_to_write,
-    output      logic [MATRIX_COUNTER_WIDTH - 1: 0] m_sram_continuous_prefetch_counter
+    input       logic prefetch_m_valid,
+    input       logic prefetch_v_valid,
+    input       logic hbm_ready_to_write,
+    output      logic hbm_write_data_valid
 );
+    // Package Imports
+    import pipeline_pkg::MAX_PIPELINE_STAGE;
+    import configuration_pkg::*;
 
+    localparam M_LD_COUNT_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
+    localparam M_PF_COUNT_WIDTH = $clog2(HBM_M_Prefetch_Amount);
+    localparam V_PF_COUNT_WIDTH = $clog2(HBM_V_Prefetch_Amount);
 
     // Memory Execution Control and Dependency Monitor
-    import pipeline_pkg::MAX_PIPELINE_STAGE;
     localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
 
-    OP_BUNDLE  exe_op_bundle;
-    MEM_WEN_INFO exe_mem_write_control;
+    OP_BUNDLE  mem_stage_op;
+    MEM_WEN_INFO mem_stage_write_control;
 
     always_ff @(posedge clk ) begin
-        exe_op_bundle          <= assigned_op_bundle;
-        exe_mem_write_control <= mem_write_control;
+        mem_stage_op          <= exe_stage_op;
+        mem_stage_write_control <= mem_write_control;
     end
 
     // TODO: Currently, we assume all the data written to the SRAM are in the same dim of VLEN.
-    assign s_sram_mask_a = {BLOCK_NUM{1'b1}};
-    assign s_sram_mask_b = {BLOCK_NUM{1'b1}};
+    assign v_sram_mask_a = {BLOCK_NUM{1'b1}};
+    assign v_sram_mask_b = {BLOCK_NUM{1'b1}};
 
     // Stall Request
     logic previous_dma_m_ready;
@@ -117,16 +120,16 @@ module data_flow_control import precision_pkg::*; #(
             previous_dma_m_ready <= 1'b0;
             previous_dma_v_ready <= 1'b0;
         end else begin
-            previous_dma_m_ready <= dma_m_ready;
-            previous_dma_v_ready <= dma_v_ready;
+            previous_dma_m_ready <= prefetch_m_valid;
+            previous_dma_v_ready <= prefetch_v_valid;
         end
     end
 
     //Request Asserted in single cycle
     always_comb begin
-        write_req.wreq_m_sram        = ((dma_m_ready == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
+        write_req.wreq_m_sram        = ((prefetch_m_valid == 1'b1) & (previous_dma_m_ready == 1'b0)) ? 1'b1 : 1'b0;
         write_req.wreq_s_sram_port_a = ((m_write_request == 1'b1) || (v_write_request == 1'b1)) ? 1'b1 : 1'b0;
-        write_req.wreq_s_sram_port_b = ((dma_v_ready == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
+        write_req.wreq_s_sram_port_b = ((prefetch_v_valid == 1'b1) & (previous_dma_v_ready == 1'b0)) ? 1'b1 : 1'b0;
     end
 
 
@@ -136,104 +139,108 @@ module data_flow_control import precision_pkg::*; #(
     // Matrix SRAM
     // -----------------------------
 
-    logic [MATRIX_COUNTER_WIDTH : 0]    m_sram_prefetch_counter;
-    assign m_sram_continuous_prefetch_counter = m_sram_prefetch_counter;
-    logic continuous_load_m_en;
-    logic [MATRIX_COUNTER_WIDTH : 0] m_sram_load_counter;
+
+    logic continuous_load_m_en, continuous_prefetch_m_en;
+    logic [M_LD_COUNT_WIDTH : 0] m_sram_load_counter;
+    logic [M_PF_COUNT_WIDTH : 0] m_sram_prefetch_counter;
     logic m_m_load, m_v_load, m_o_load;
-    logic hbm_write_load_en;
+    logic hbm_load_write_data;
 
 
     // Update addr only when the exe operation is MV or MV_O
     always_comb begin
-        if (exe_op_bundle.m_op == MV || exe_op_bundle.m_op == MV_O || continuous_load_m_en) begin
+        if (mem_stage_op.m_op == MV || mem_stage_op.m_op == MV_O || continuous_load_m_en) begin
             m_sram_raddr = recorded_m_load_addr + m_sram_load_counter * BYTES_PER_ROW;
         end else begin
             m_sram_raddr = 'b0;
         end
         
-        if (exe_mem_write_control.w_m_sram_en == 1'b1 && dma_m_ready) begin
+        if (continuous_prefetch_m_en) begin
             m_sram_waddr = recorded_m_prefetch_addr + (m_sram_prefetch_counter - 1) * BYTES_PER_ROW;
         end else begin
             m_sram_waddr = 'b0;
         end
 
         if (rst) begin
-            continuous_prefetch_m_en    = 1'b0;
             recorded_m_prefetch_addr    = 'b0;
             recorded_m_load_addr        = 'b0;
         end else begin 
-            if (assigned_op_bundle.h_op == PREFETCH_M) begin
-                recorded_m_prefetch_addr = assigned_op_bundle.addr_2;
-                continuous_prefetch_m_en = 1'b1;
+            if (exe_stage_op.h_op == PREFETCH_M) begin
+                recorded_m_prefetch_addr = exe_stage_op.addr_2;
             end else if (m_sram_prefetch_counter == MATRIX_LOAD_ITERATION) begin
-                continuous_prefetch_m_en = 1'b0;
-            end else if (assigned_op_bundle.m_op != STALL_M) begin
-                recorded_m_load_addr = assigned_op_bundle.addr_2;
+
+            end else if (exe_stage_op.m_op != STALL_M) begin
+                recorded_m_load_addr = exe_stage_op.addr_2;
             end 
         end
     end
 
+    // -----------------------------
+    // Matrix SRAM
+    // -----------------------------
+
+    // Read  Port -> Matrix Weight Load
+    // Write Port -> Matrix Weight Prefetch
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            m_sram_prefetch_counter <= 'b0;
             m_sram_req <= 1'b0;
             m_sram_wen <= 1'b0;
-            continuous_load_m_en <= 1'b0;
-            m_sram_prefetch_counter <= 'b0;
+            continuous_load_m_en        <= 1'b0;
+            continuous_prefetch_m_en    <= 1'b0;
+            m_sram_load_counter         <= 'b0;
+            m_sram_prefetch_counter     <= 'b0;
             m_m_load    <= 1'b0;
             m_m_valid   <= 1'b0;
             m_out_ready <= 1'b0;
         end else begin
-
-            // Computation Ready Signal Control TODO: Need to be revised
             m_out_ready <= 1'b1;
+            m_m_valid   <= m_m_load;
 
-            // Loading Process (NOTE: Assuming the load process and the prefetch process do not overlap, controlled by the pipeline control unit)
-            if (assigned_op_bundle.m_op == MV || assigned_op_bundle.m_op == MV_O) begin
-                // Fetching the data from the Matrix Sram to the Matrix Machine
+            // Matrix SRAM Read Port Control
+            if (exe_stage_op.m_op != STALL_M) begin
                 m_sram_req      <= 1'b1;
                 m_m_load        <= 1'b1;
-                m_sram_wen      <= 1'b0;
-                m_sram_transposed_read <= assigned_op_bundle.m_transposed_read;
-                m_sram_prefetch_counter <= 'b0;
+                m_sram_transposed_read <= exe_stage_op.m_transposed_read;
                 m_sram_load_counter <= 'b0;
                 continuous_load_m_en <= 1'b1;
             end else if (continuous_load_m_en & m_m_ready) begin
                 if (m_sram_load_counter == MATRIX_LOAD_ITERATION - 1) begin
                     m_sram_req <= 1'b0;
                     m_m_load   <= 1'b0;
-                    m_sram_wen <= 1'b0;
                     m_sram_load_counter <= 'b0;
                     continuous_load_m_en <= 1'b0;
                 end else begin
                     m_m_load    <= 1'b1;
                     m_sram_req  <= 1'b1;
-                    m_sram_wen  <= 1'b0;
                     m_sram_load_counter <= m_sram_load_counter + 1'b1;
                 end
-            end else if (mem_write_control.w_m_sram_en == 1'b1 && dma_m_ready) begin
-                // Prefetching the data from the HBM to the Matrix Sram
-                m_m_load   <= 1'b0;
-                m_sram_req <= 1'b1;
-                m_sram_wen <= 1'b1;
-                m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
-            end else if (continuous_prefetch_m_en && dma_m_ready) begin
-                m_m_load   <= 1'b0;
-                m_sram_req <= 1'b1;
-                m_sram_wen <= 1'b1;
-                m_sram_prefetch_counter <= m_sram_prefetch_counter;
             end else begin
                 m_m_load   <= 1'b0;
                 m_sram_req <= 1'b0;
                 m_sram_wen <= 1'b0;
-                m_sram_prefetch_counter <= 'b0;
-                m_sram_prefetch_counter <= 'b0;
                 continuous_load_m_en <= 1'b0;
             end
+
+            // Matrix SRAM Write Port Control
+            if (mem_write_control.w_m_sram_en == 1'b1 && prefetch_m_valid) begin
+                // Prefetching the data from the HBM to the Matrix Sram
+                m_sram_wen <= 1'b1;
+                continuous_prefetch_m_en <= 1'b1;
+                m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
+            end else if (continuous_prefetch_m_en & m_sram_prefetch_counter < HBM_M_Prefetch_Amount & prefetch_m_valid) begin
+                m_sram_wen <= 1'b1;
+                m_sram_prefetch_counter <= m_sram_prefetch_counter + 'b1;
+            end else if (m_sram_prefetch_counter == HBM_M_Prefetch_Amount) begin
+                // Prefetching finished, reset the counter
+                m_sram_wen <= 1'b0;
+                continuous_prefetch_m_en <= 1'b0;
+                m_sram_prefetch_counter <= 'b0;
+            end else begin
+                m_sram_wen <= 1'b0;
+            end     
         end
-        m_m_valid <= m_m_load;
+
     end
 
     // -----------------------------
@@ -248,38 +255,38 @@ module data_flow_control import precision_pkg::*; #(
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] hbm_waddr;
+    logic continuous_v_prefetch_en, continuous_load_v_for_matrix_en;
+    logic [M_LD_COUNT_WIDTH : 0] v_sram_load_for_matrix_counter;
+    logic [V_PF_COUNT_WIDTH : 0] v_sram_prefetch_counter;
     logic v_v_a_load, v_v_b_load;
-
 
     always_comb begin
         // Port A Addr Mangement
-        if (exe_mem_write_control.w_s_sram_port_a_en == 1'b1 && select_write_data_a == 1'b1) begin
-            s_sram_addr_a = recorded_m_write_addr;
-        end else if (exe_mem_write_control.w_s_sram_port_a_en == 1'b1 && select_write_data_a == 1'b0) begin
-            s_sram_addr_a = recorded_v_write_addr;
+        if (mem_stage_write_control.w_s_sram_port_a_en == 1'b1 && select_write_data_a == 1'b1) begin
+            v_sram_addr_a = recorded_m_write_addr;
+        end else if (mem_stage_write_control.w_s_sram_port_a_en == 1'b1 && select_write_data_a == 1'b0) begin
+            v_sram_addr_a = recorded_v_write_addr;
         end else begin
-            s_sram_addr_a = recorded_v_load_addr_1;
+            v_sram_addr_a = recorded_v_load_addr_1;
         end
 
         // Port B Addr Mangement
-        if (exe_op_bundle.m_op == MV_O) begin
-            s_sram_addr_b = m_offset_addr;
-        end else if (exe_mem_write_control.w_s_sram_port_b_en == 1'b1 && dma_v_ready) begin
-            s_sram_addr_b = recorded_v_prefetch_addr;
-        end else if (exe_op_bundle.h_op == STORE_V) begin
-            s_sram_addr_b = hbm_waddr;
+        if (continuous_v_prefetch_en) begin
+            v_sram_addr_b = recorded_v_prefetch_addr;
+        end else if (mem_stage_op.h_op == STORE_V) begin
+            v_sram_addr_b = hbm_waddr;
         end else begin
-            s_sram_addr_b = recorded_v_load_addr_2;
+            v_sram_addr_b = recorded_v_load_addr_2;
         end
 
         // Prefetch Record
         if (rst) begin
             recorded_v_prefetch_addr = 'b0;
             hbm_waddr = 'b0;
-        end else if (assigned_op_bundle.h_op == PREFETCH_V) begin
-            recorded_v_prefetch_addr = assigned_op_bundle.addr_2;
-        end else if (assigned_op_bundle.h_op == STORE_V) begin
-            hbm_waddr = assigned_op_bundle.addr_2;
+        end else if (exe_stage_op.h_op == PREFETCH_V) begin
+            recorded_v_prefetch_addr = exe_stage_op.addr_2;
+        end else if (exe_stage_op.h_op == STORE_V) begin
+            hbm_waddr = exe_stage_op.addr_2;
         end
     end
 
@@ -287,7 +294,7 @@ module data_flow_control import precision_pkg::*; #(
         if (rst) begin
             v_v_a_valid     <= 1'b0;
             v_v_b_valid     <= 1'b0;
-            hbm_ready_to_write      <= 1'b0;
+            hbm_write_data_valid      <= 1'b0;
             recorded_v_load_addr_1  <= 'b0;
             recorded_v_load_addr_2  <= 'b0;
             recorded_m_write_addr   <= 'b0;
@@ -301,33 +308,46 @@ module data_flow_control import precision_pkg::*; #(
         end else begin
             v_v_a_valid                 <= v_v_a_load;
             v_v_b_valid                 <= v_v_b_load;
-            hbm_ready_to_write          <= hbm_write_load_en;
+            hbm_write_data_valid          <= hbm_load_write_data;
             //Port A
-            if(assigned_op_bundle.m_op != STALL_M && m_v_ready) begin
+            if(exe_stage_op.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM
                 m_v_load        <= 1'b1;
                 v_v_a_load      <= 1'b0;
-                s_sram_req_a    <= 1'b1;
-                s_sram_wen_a    <= 1'b0;
-            end else if (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT || assigned_op_bundle.v_reduct_op != STALL_V_REDUCT) begin
+                v_sram_req_a    <= 1'b1;
+                v_sram_wen_a    <= 1'b0;
+                continuous_load_v_for_matrix_en <= 1'b1;
+            end else if (continuous_load_v_for_matrix_en & m_v_ready) begin
+                if (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION - 1) begin
+                    m_sram_req <= 1'b0;
+                    m_v_load   <= 1'b0;
+                    v_sram_load_for_matrix_counter <= 'b0;
+                    continuous_load_v_for_matrix_en <= 1'b0;
+                end else begin
+                    m_v_load    <= 1'b1;
+                    m_sram_req  <= 1'b1;
+                    v_sram_load_for_matrix_counter <= v_sram_load_for_matrix_counter + 1'b1;
+                end
+            end else if (exe_stage_op.v_ele_op != STALL_V_ELEMENT || exe_stage_op.v_reduct_op != STALL_V_REDUCT) begin
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b1;
-                s_sram_req_a    <= 1'b1;
-                s_sram_wen_a    <= 1'b0;
+                v_sram_req_a    <= 1'b1;
+                v_sram_wen_a    <= 1'b0;
             end else if (mem_write_control.w_s_sram_port_a_en == 1'b1) begin
                 // Write the result from matrix machine to the s_sram
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b0;
-                s_sram_req_a    <= 1'b1;
-                s_sram_wen_a    <= 1'b1;
+                v_sram_req_a    <= 1'b1;
+                v_sram_wen_a    <= 1'b1;
             end else begin
                 // No Scratchpad SRAM access request.
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b0;
-                s_sram_req_a    <= 1'b0;
-                s_sram_wen_a    <= 1'b0;
+                v_sram_req_a    <= 1'b0;
+                v_sram_wen_a    <= 1'b0;
             end
 
+            // Write Data Selection
             if (m_out_valid && v_v_out_valid) begin
                 // When the two data are ready at the same time, need to decide the priority. Now set the matrix machine to be higher priority.
                 select_write_data_a <= 1'b1;
@@ -344,43 +364,48 @@ module data_flow_control import precision_pkg::*; #(
             end
 
             //Port B
-            if (((assigned_op_bundle.v_ele_op != STALL_V_ELEMENT) && !assigned_op_bundle.v_broadcast_en) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
+            if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // Read Port activated
                 v_v_b_load          <= 1'b1;
                 m_o_load            <= 1'b0;
-                hbm_write_load_en   <= 1'b0;
-                s_sram_req_b        <= 1'b1;
-                s_sram_wen_b        <= 1'b0;
-            end else if (assigned_op_bundle.m_op == MV_O & m_o_ready) begin
-                v_v_b_load          <= 1'b0;
-                m_o_load            <= 1'b1;
-                hbm_write_load_en   <= 1'b0;
-                s_sram_req_b        <= 1'b1;
-                s_sram_wen_b        <= 1'b0;
-            end else if (assigned_op_bundle.h_op == STORE_V) begin
-                v_v_b_load      <= 1'b0;
-                m_o_load        <= 1'b0;
-                hbm_write_load_en   <= 1'b1;
-                s_sram_req_b        <= 1'b1;
-                s_sram_wen_b        <= 1'b0;
-            end else if (mem_write_control.w_s_sram_port_b_en && dma_v_ready) begin
-                // HBM Fetch to the scratchpad sram
+                hbm_load_write_data <= 1'b0;
+                v_sram_req_b        <= 1'b1;
+                v_sram_wen_b        <= 1'b0;
+            end else if (exe_stage_op.h_op == STORE_V & hbm_ready_to_write) begin
                 v_v_b_load          <= 1'b0;
                 m_o_load            <= 1'b0;
-                hbm_write_load_en   <= 1'b0;
-                s_sram_wen_b        <= 1'b1;
-                s_sram_req_b        <= 1'b1;
+                hbm_load_write_data <= 1'b1;
+                v_sram_req_b        <= 1'b1;
+                v_sram_wen_b        <= 1'b0;
+            end else if (mem_write_control.w_s_sram_port_b_en && prefetch_v_valid) begin
+                // HBM Fetch to the scratchpad sram
+                continuous_v_prefetch_en <= 1'b1;
+                v_v_b_load          <= 1'b0;
+                m_o_load            <= 1'b0;
+                hbm_load_write_data <= 1'b0;
+                v_sram_wen_b        <= 1'b1;
+                v_sram_req_b        <= 1'b1;
+            end else if (continuous_v_prefetch_en & v_sram_prefetch_counter < HBM_V_Prefetch_Amount & prefetch_m_valid) begin
+                v_sram_wen_b        <= 1'b1;
+                v_sram_req_b        <= 1'b1;
+                v_sram_prefetch_counter <= v_sram_prefetch_counter + 'b1;
+            end else if (v_sram_prefetch_counter == HBM_V_Prefetch_Amount) begin
+                // Prefetching finished, reset the counter
+                v_sram_wen_b        <= 1'b0;
+                v_sram_req_b        <= 1'b0;
+                continuous_v_prefetch_en <= 1'b0;
+                v_sram_prefetch_counter <= 'b0;
             end else begin
                 // No SRAM access
-                s_sram_wen_b        <= 1'b0;
+                v_sram_req_b        <= 1'b0;
+                v_sram_wen_b        <= 1'b0;
                 m_o_load            <= 1'b0;
-                hbm_write_load_en   <= 1'b0;
+                hbm_load_write_data   <= 1'b0;
                 v_v_b_load          <= 1'b0;
-                s_sram_req_b        <= 1'b0;
             end
             
-            recorded_v_load_addr_1 <= assigned_op_bundle.addr_1;
-            recorded_v_load_addr_2 <= assigned_op_bundle.addr_2;
+            recorded_v_load_addr_1 <= exe_stage_op.addr_1;
+            recorded_v_load_addr_2 <= exe_stage_op.addr_2;
 
             if (m_write_request) begin
                 recorded_m_write_addr <= m_write_addr;
@@ -400,13 +425,12 @@ module data_flow_control import precision_pkg::*; #(
 
     end
 
-
     // Scalar Data Forwarding to Vector Machine
     always_ff @(posedge clk) begin
         if (rst) begin
             v_s_in_valid <= 1'b0;
         end else begin
-            if ((((assigned_op_bundle.v_broadcast_en == 1'b1)  & (assigned_op_bundle.v_ele_op != STALL_V_ELEMENT)) || (assigned_op_bundle.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
+            if ((((exe_stage_op.v_broadcast_en == 1'b1)  & (exe_stage_op.v_ele_op != STALL_V_ELEMENT)) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
                 v_s_in_valid <= 1'b1;
             end else begin
                 v_s_in_valid <= 1'b0;

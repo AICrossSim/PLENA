@@ -16,18 +16,18 @@ module addr_monitor#(
     input   logic rst,
 
     // Execution Operation
-    input   OP_BUNDLE decoded_op_bundle,  
-    input   OP_BUNDLE assigned_op_bundle,  
+    input   OP_BUNDLE check_stage_op,  
+    input   OP_BUNDLE exe_stage_op,  
 
     // ---------- Monitor Operand Read Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
     input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_2,
 
     // ---------- Monitor SRAM Write Signals -----------
-    input   logic [ADDR_WIDTH - 1 : 0] s_sram_addr_a,
-    input   logic [ADDR_WIDTH - 1 : 0] s_sram_addr_b,
-    input   logic s_sram_wen_a,
-    input   logic s_sram_wen_b,
+    input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_a,
+    input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_b,
+    input   logic v_sram_wen_a,
+    input   logic v_sram_wen_b,
 
     // Stall Decision
     output  logic stall_req
@@ -90,7 +90,7 @@ module addr_monitor#(
             end
             stall_req = |addr_collide_flag;
 
-        end else if ((decoded_op_bundle.m_op != STALL_M) ||((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!decoded_op_bundle.v_broadcast_en)) || (decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
+        end else if ((check_stage_op.m_op != STALL_M) ||((check_stage_op.v_ele_op != STALL_V_ELEMENT) & (!check_stage_op.v_broadcast_en)) || (check_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if ((v_write_addr_track[i].track_addr == fixed_addr_1_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -106,7 +106,7 @@ module addr_monitor#(
                 end
             end
             stall_req = |addr_collide_flag;
-        end else if (((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (decoded_op_bundle.v_broadcast_en))) begin
+        end else if (((check_stage_op.v_ele_op != STALL_V_ELEMENT) & (check_stage_op.v_broadcast_en))) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_1_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -118,7 +118,7 @@ module addr_monitor#(
                 end
             end
             stall_req = |addr_collide_flag;
-        end else if (decoded_op_bundle.h_op == STORE_V) begin
+        end else if (check_stage_op.h_op == STORE_V) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 if (((v_write_addr_track[i].track_addr == fixed_addr_2_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -151,14 +151,14 @@ module addr_monitor#(
 
     always_comb begin
         // Decide which source is providing the address this cycle
-        if (assigned_op_bundle.h_op == PREFETCH_V) begin
+        if (exe_stage_op.h_op == PREFETCH_V) begin
             insert_addr  = fixed_addr_2_to_check;
             insert_valid = 1'b1;
-        end else if (assigned_op_bundle.update_m_waddr) begin
-            insert_addr  = assigned_op_bundle.addr_2;
+        end else if (exe_stage_op.update_m_waddr) begin
+            insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
-        end else if (assigned_op_bundle.update_v_waddr) begin
-            insert_addr  = assigned_op_bundle.addr_2;
+        end else if (exe_stage_op.update_v_waddr) begin
+            insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else begin
             insert_addr  = {ADDR_WIDTH{1'b0}};
@@ -169,8 +169,8 @@ module addr_monitor#(
         matched_waddr                 = 1'b0;
         matched_track_entry_idx     = '0; // default value, in case all are valid
         for (int i = 0; i < PIPELINE_STAGES; i++) begin
-            if (((s_sram_wen_a && v_write_addr_track[i].track_addr == s_sram_addr_a) ||
-                    (s_sram_wen_b && v_write_addr_track[i].track_addr == s_sram_addr_b)) & !matched_waddr) begin
+            if (((v_sram_wen_a && v_write_addr_track[i].track_addr == v_sram_addr_a) ||
+                    (v_sram_wen_b && v_write_addr_track[i].track_addr == v_sram_addr_b)) & !matched_waddr) begin
                 matched_track_entry_idx     = i;
                 matched_waddr                 = 1'b1;
             end

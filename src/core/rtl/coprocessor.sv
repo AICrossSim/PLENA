@@ -44,7 +44,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     localparam BLOCK_NUM = MLEN / BLOCK_DIM;
     
     // Execution Control
-    OP_BUNDLE   decoded_op_bundle, assigned_op_bundle;
+    OP_BUNDLE   decode_stage_op, exe_stage_op;
     S_FIXED_OP  exe_fixed_op;
     logic pipeline_stall;
     MEM_WEN_INFO mem_write_control;
@@ -66,16 +66,13 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic m_o_valid,    m_o_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
-    logic continuous_prefetch_m_en;
 
     // HBM Control
-    logic hbm_m_prefetch_complete, hbm_m_prefetch_en;
-    logic hbm_v_prefetch_complete, hbm_v_prefetch_en;
+    logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
+    logic hbm_v_prefetch_valid, hbm_v_prefetch_en;
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_m_element;
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetch_m_scale;
-    logic hbm_ready_to_write;
-    logic [MATRIX_COUNTER_WIDTH - 1 : 0] m_sram_continuous_prefetch_counter;
-    
+    logic hbm_write_data_valid, hbm_write_data_ready;
 
     // Vector SRAM
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]      vs_port_a_in_fp;
@@ -107,7 +104,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .instruction            (instruction),
         .instruction_valid      (instruction_valid),
         .instruction_ready      (instruction_ready),
-        .decoded_op_bundle      (decoded_op_bundle),
+        .decode_stage_op        (decode_stage_op),
         .exe_fixed_op           (exe_fixed_op),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
@@ -124,23 +121,22 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     ) pipeline_control_init (
         .clk(clk),
         .rst(rst),
-        .decoded_op_bundle      (decoded_op_bundle),
+        .decode_stage_op        (decode_stage_op),
         .fixed_addr_1           (fixed_out_1),
         .fixed_addr_2           (fixed_out_2),
-        .s_sram_wen_a           (s_sram_wen_a),
-        .s_sram_addr_a          (s_sram_addr_a),
-        .s_sram_wen_b           (s_sram_wen_b),
-        .s_sram_addr_b          (s_sram_addr_b),
+        .v_sram_wen_a           (v_sram_wen_a),
+        .v_sram_addr_a          (v_sram_addr_a),
+        .v_sram_wen_b           (v_sram_wen_b),
+        .v_sram_addr_b          (v_sram_addr_b),
         .mem_write_req          (mem_write_req),
         .hbm_in_used            (hbm_in_used),
-        .continuous_m_prefetch  (continuous_prefetch_m_en),
         .fp_stall_req           (stall_req_from_fp),
         .fixed_stall_req        (fixed_stall_req),
         .m_load_in_process      (m_in_prep),
         .v_load_in_process      (v_in_prep),
         .sfu_in_use             (sfu_in_use),
         .pipeline_stall_req     (pipeline_stall),
-        .assigned_op_bundle     (assigned_op_bundle),
+        .exe_stage_op           (exe_stage_op),
         .mem_write_control      (mem_write_control)
     );
 
@@ -154,9 +150,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     ) data_flow_init(
         .clk(clk),
         .rst(rst),
-        .assigned_op_bundle     (assigned_op_bundle),
+        .exe_stage_op           (exe_stage_op),
         .mem_write_control      (mem_write_control),
-        .m_offset_addr          (m_offset_addr),
         .write_req              (mem_write_req),
         .m_m_ready              (m_m_ready),
         .m_m_valid              (m_m_valid),
@@ -183,20 +178,19 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .v_s_in_ready           (v_s_in_ready),
         .v_write_request        (v_write_request),
         .v_write_addr           (v_waddr),
-        .s_sram_req_a           (s_sram_req_a),
-        .s_sram_wen_a           (s_sram_wen_a),
-        .s_sram_addr_a          (s_sram_addr_a),
-        .s_sram_mask_a          (s_sram_mask_a),
+        .v_sram_req_a           (v_sram_req_a),
+        .v_sram_wen_a           (v_sram_wen_a),
+        .v_sram_addr_a          (v_sram_addr_a),
+        .v_sram_mask_a          (v_sram_mask_a),
         .select_write_data_a    (select_write_data_a),
-        .s_sram_req_b           (s_sram_req_b),
-        .s_sram_wen_b           (s_sram_wen_b),
-        .s_sram_addr_b          (s_sram_addr_b),
-        .s_sram_mask_b          (s_sram_mask_b),
-        .dma_m_ready            (hbm_m_prefetch_complete),
-        .dma_v_ready            (hbm_v_prefetch_complete),
-        .continuous_prefetch_m_en(continuous_prefetch_m_en),
-        .hbm_ready_to_write           (hbm_ready_to_write),
-        .m_sram_continuous_prefetch_counter(m_sram_continuous_prefetch_counter)
+        .v_sram_req_b           (v_sram_req_b),
+        .v_sram_wen_b           (v_sram_wen_b),
+        .v_sram_addr_b          (v_sram_addr_b),
+        .v_sram_mask_b          (v_sram_mask_b),
+        .prefetch_m_valid       (hbm_m_prefetch_valid),
+        .prefetch_v_valid       (hbm_v_prefetch_valid),
+        .hbm_ready_to_write     (hbm_write_data_ready),
+        .hbm_write_data_valid   (hbm_write_data_valid)
     );
 
     // -----------------------------
@@ -216,10 +210,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_s_out_valid,    v_s_out_ready;
 
     logic select_write_data_a;
-    logic s_sram_req_a, s_sram_req_b;
-    logic s_sram_wen_a, s_sram_wen_b;
-    logic [FIXED_DATA_WIDTH - 1 : 0] s_sram_addr_a, s_sram_addr_b;
-    logic [BLOCK_NUM-1:0] s_sram_mask_a, s_sram_mask_b;
+    logic v_sram_req_a, v_sram_req_b;
+    logic v_sram_wen_a, v_sram_wen_b;
+    logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
+    logic [BLOCK_NUM-1:0] v_sram_mask_a, v_sram_mask_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
@@ -234,7 +228,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH -1 : 0] fp_s_out;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_offset_addr;
     logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
 
                 
@@ -244,9 +237,9 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         ) matrix_machine_init (
             .clk(clk),
             .rst(rst),
-            .matrix_opcode          (assigned_op_bundle.m_op),
-            .addr_in                (assigned_op_bundle.addr_2),
-            .result_waddr_update    (assigned_op_bundle.update_m_waddr),
+            .matrix_opcode          (exe_stage_op.m_op),
+            .addr_in                (exe_stage_op.addr_2),
+            .result_waddr_update    (exe_stage_op.update_m_waddr),
             .m_element              (fetched_m_element),
             .m_scale                (fetched_m_scale),
             .m_valid                (m_m_valid),
@@ -267,9 +260,9 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         ) vector_machine_init (
             .clk(clk),
             .rst(rst),
-            .broadcast_fp2          (assigned_op_bundle.v_broadcast_en),
-            .element_v_control      (assigned_op_bundle.v_ele_op),
-            .reduct_v_control       (assigned_op_bundle.v_reduct_op),
+            .broadcast_fp2          (exe_stage_op.v_broadcast_en),
+            .element_v_control      (exe_stage_op.v_ele_op),
+            .reduct_v_control       (exe_stage_op.v_reduct_op),
             .in_preparation_stage   (v_in_prep),
             .v_a_in                 (v_port_a_out_fp),
             .v_a_valid              (v_v_a_valid),
@@ -280,9 +273,9 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .s_in                   (fp_s_in),
             .s_in_valid             (v_s_in_valid),
             .s_in_ready             (v_s_in_ready),
-            .s_wtarget              (assigned_op_bundle.fps2),
-            .result_waddr           (assigned_op_bundle.addr_2),
-            .result_waddr_update    (assigned_op_bundle.update_v_waddr),
+            .s_wtarget              (exe_stage_op.fps2),
+            .result_waddr           (exe_stage_op.addr_2),
+            .result_waddr_update    (exe_stage_op.update_v_waddr),
             .v_out                  (v_out_fp),
             .v_out_valid            (v_v_out_valid),
             .v_out_ready            (v_v_out_ready),
@@ -303,7 +296,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),
-            .assigned_op_bundle     (assigned_op_bundle),
+            .exe_stage_op           (exe_stage_op),
             .assigned_fixed_op      (exe_fixed_op),
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
@@ -327,7 +320,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Memory Units
     // -----------------------------
 
-    // Matrix Memory 
+    // Matrix SRAM 
     matrix_sram_with_rounding #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
@@ -350,10 +343,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .scale_out          (fetched_m_scale)
     );
 
-    // Scratchpad SRAM
-    // Port A ->  R: Matrix Multiplicand Vector or Vector Operand               W: Vector Result from either Matrix or Vector Machine, 
-    // Port B ->  R: Matrix Offest Vector or Vector Operand or HBM Write Data   W: Vector Prefetch
-    
+    // Vector SRAM
     fp_vector_sram #(
         .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
@@ -367,19 +357,19 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .clk(clk),
         .rst(rst),
         .control(select_write_data_a),
-        .port_a_req         (s_sram_req_a),
-        .port_a_write_en    (s_sram_wen_a),
-        .port_a_addr        (s_sram_addr_a),
+        .port_a_req         (v_sram_req_a),
+        .port_a_write_en    (v_sram_wen_a),
+        .port_a_addr        (v_sram_addr_a),
         .port_a_m_fp_in     (m_out_v_fp),
         .port_a_v_fp_in     (v_out_fp),
-        .port_a_mask_in     (s_sram_mask_a),
+        .port_a_mask_in     (v_sram_mask_a),
         .port_a_v_fp_out    (v_port_a_out_fp),
         // .port_a_m_fp_out    (),
-        .port_b_req         (s_sram_req_b),
-        .port_b_write_en    (s_sram_wen_b),
-        .port_b_addr        (s_sram_addr_b),
+        .port_b_req         (v_sram_req_b),
+        .port_b_write_en    (v_sram_wen_b),
+        .port_b_addr        (v_sram_addr_b),
         .port_b_fp_out      (v_port_b_out_fp),
-        .port_b_mask_in     (s_sram_mask_b),
+        .port_b_mask_in     (v_sram_mask_b),
         .element_in_b       (v_element_port_b_in),
         .scale_in_b         (v_scale_port_b_in),
         .element_out_b      (v_element_port_b_out),
@@ -405,19 +395,19 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     ) hbm_interface_init (
         .clk(clk),
         .rst(rst),
-        .assigned_op_bundle     (assigned_op_bundle),
+        .exe_stage_op     (exe_stage_op),
         .addr_reg_write_operand (s_rd),
         .addr_reg_read_operand  (s_rs2),
-        .prefetch_m_ready       (),
-        .prefetch_m_valid       (hbm_m_prefetch_complete),
+        .prefetch_m_ready       (m_sram_wen),
+        .prefetch_m_valid       (hbm_m_prefetch_valid),
         .prefetch_m_element     (prefetch_m_element),
         .prefetch_m_scale       (prefetch_m_scale),
-        .prefetch_v_ready       (),
-        .prefetch_v_valid       (hbm_v_prefetch_complete),
+        .prefetch_v_ready       (v_sram_wen_b),
+        .prefetch_v_valid       (hbm_v_prefetch_valid),
         .prefetch_v_element     (v_element_port_b_in),
         .prefetch_v_scale       (v_scale_port_b_in),
-        .hbm_write_v_en         (),
-        .hbm_write_v_ready      (),
+        .hbm_write_v_en         (hbm_write_data_valid),
+        .hbm_write_v_ready      (hbm_write_data_ready),
         .hbm_write_v_element    (v_element_port_b_out),
         .hbm_write_v_scale      (v_scale_port_b_out),
         `TL_CONNECT_HOST_PORT   (host_m_element, m_element),

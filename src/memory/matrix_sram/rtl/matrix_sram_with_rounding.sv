@@ -6,7 +6,7 @@ Timing      : Sequential Logic, x cycle for read/write process.
 Description :
             : This module supports parallel row / column read and write.
             : The addressing mode is Little Endian.
-            ： The units for the address is Byte
+            ：The units for the address is Byte
 Status      : Passed Simple Row/Col Read/Write Tests
 */
 
