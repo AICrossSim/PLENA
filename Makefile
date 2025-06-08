@@ -16,6 +16,4 @@ shell:
         -v /$(USER_PREFIX)/$(shell whoami)/.ssh:/root/.ssh \
         -v /$(USER_PREFIX)/$(shell whoami)/.mase:/root/.mase \
         -v $(shell pwd):/workspace:z \
-        coprocessor-llama /bin/bash
-
-#    	&& source .coprocessor_env/bin/activate
+        coprocessor-llama /bin/bash -c "source .coprocessor_env/bin/activate && /bin/bash"
