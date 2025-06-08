@@ -7,7 +7,7 @@ Timing      : Combinatorial
 Description : This module is used to schedule the data prefetched from HBM to Matrix SRAM and Scratchpad SRAM.
             : It also shdules the write process from the two SRAMs to HBM.
             ： When the prefetch data is ready, it will outputs to the pipeline control to decide when to pass the data to the sram.
-Status      : Under Development
+Status      : No longer used
 */
 
 module hbm_arbiter #(

@@ -79,7 +79,7 @@ module fp_vector_sram #(
     // -----------------------------
     // Port A Management
     // -----------------------------
-    
+
     always_comb begin
         if (control == 1'b0) begin
             // Vector Machine Mode
@@ -95,6 +95,7 @@ module fp_vector_sram #(
     // -----------------------------
     // Port B Management
     // -----------------------------
+    
     assign port_b_fp_out = port_b_fp_out_internal;
 
     // Convert MX-FP Data to FP Data

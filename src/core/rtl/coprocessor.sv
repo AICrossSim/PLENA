@@ -28,9 +28,12 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     input   logic instruction_valid,
     output  logic instruction_ready,
 
-    // HBM Interface TileLink
-    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_element),
-    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, out_scale)
+    // HBM Interface 1 for Matrix
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale)
+    // HBM Interface 2 for Vector
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_scale)
 );
     // Import Packages
     import precision_pkg::*;
@@ -388,10 +391,39 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
     
     // TL Declaration
-    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element);
-    `TL_BIND_HOST_PORT(out_element, element);
+    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_element);
+    `TL_BIND_HOST_PORT(m_out_element, m_element);
+    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_scale);
+    `TL_BIND_HOST_PORT(m_out_scale, m_scale);
 
-    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale);
-    `TL_BIND_HOST_PORT(out_scale, scale);
+    `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_element);
+    `TL_BIND_HOST_PORT(v_out_element, v_element);
+    `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_scale);
+    `TL_BIND_HOST_PORT(v_out_scale, v_scale);
+
+    hbm_sys #(
+    ) hbm_interface_init (
+        .clk(clk),
+        .rst(rst),
+        .assigned_op_bundle     (assigned_op_bundle),
+        .addr_reg_write_operand (s_rd),
+        .addr_reg_read_operand  (s_rs2),
+        .prefetch_m_ready       (),
+        .prefetch_m_valid       (hbm_m_prefetch_complete),
+        .prefetch_m_element     (prefetch_m_element),
+        .prefetch_m_scale       (prefetch_m_scale),
+        .prefetch_v_ready       (),
+        .prefetch_v_valid       (hbm_v_prefetch_complete),
+        .prefetch_v_element     (v_element_port_b_in),
+        .prefetch_v_scale       (v_scale_port_b_in),
+        .hbm_write_v_en         (),
+        .hbm_write_v_ready      (),
+        .hbm_write_v_element    (v_element_port_b_out),
+        .hbm_write_v_scale      (v_scale_port_b_out),
+        `TL_CONNECT_HOST_PORT   (host_m_element, m_element),
+        `TL_CONNECT_HOST_PORT   (host_m_scale, m_scale),
+        `TL_CONNECT_HOST_PORT   (host_v_element, v_element),
+        `TL_CONNECT_HOST_PORT   (host_v_scale, v_scale)
+    )
 
 endmodule

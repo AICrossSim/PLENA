@@ -219,10 +219,10 @@ module data_flow_control import precision_pkg::*; #(
                 m_sram_req <= 1'b1;
                 m_sram_wen <= 1'b1;
                 m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
-            end else if (continuous_prefetch_m_en) begin
+            end else if (continuous_prefetch_m_en && dma_m_ready) begin
                 m_m_load   <= 1'b0;
-                m_sram_req <= 1'b0;
-                m_sram_wen <= 1'b0;
+                m_sram_req <= 1'b1;
+                m_sram_wen <= 1'b1;
                 m_sram_prefetch_counter <= m_sram_prefetch_counter;
             end else begin
                 m_m_load   <= 1'b0;

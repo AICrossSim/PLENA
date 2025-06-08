@@ -10,40 +10,31 @@ Status      : Under Development
 */
 
 module hbm_controller #(
+    parameter int MXFP_EXP_WIDTH     = 4,
+    parameter int MXFP_MANT_WIDTH    = 3,
+    parameter int MXFP_SCALE_WIDTH   = 16,
 
-    localparam  M_BLOCK_NUM         = MLEN / BLOCK_DIM,
-    localparam  V_BLOCK_NUM         = VLEN / BLOCK_DIM,
+    parameter int   DATA_DIM          = 8,
+    localparam      BLOCK_NUM       = DATA_DIM / BLOCK_DIM,
 
-    localparam int ELE_WIDTH    =   HBM_LD_Amount * MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
-    localparam int SCALE_WIDTH  =   HBM_LD_Amount * M_BLOCK_NUM * MXFP_SCALE_WIDTH,
+    localparam int  ELE_WIDTH    =   DATA_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    localparam int  SCALE_WIDTH  =   BLOCK_NUM * MXFP_SCALE_WIDTH,
 
-    parameter int HBM_ELE_WIDTH = 128,
-    parameter int HBM_SCALE_WIDTH = 128,
+    parameter int   HBM_ELE_WIDTH = 128,
+    parameter int   HBM_SCALE_WIDTH = 128,
     parameter SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
     input   logic rst,
 
-    // HBM addr mapping
-    input   logic   set_addr_reg_en,
-    input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_a,
-    input   logic   [ADDR_WIDTH - 1 : 0]            addr_in_b,
-    input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_write_operand,
-    input   logic   [ADR_OPERAND_WIDTH - 1 : 0]     addr_reg_read_operand,
-
     // HBM data prefetching
     output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
+    input   logic                                   prefetch_element_data_ready,
+    input   logic                                   prefetch_scale_data_ready,
     input   logic                                   hbm_prefetch_en,
-
-    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_to_prefetch,
-    output  logic   [HBM_ADDR_WIDTH - 1 : 0]        addr_for_prefetched_data,
-    // TODO : consider to move this part to upper level, here continuous prefetch means to continuously prefetch section [Parallel_Rd_Dim, MLEN] data into the matrix sram until the [MLEN, MLEN] data is transferred.
-    input   logic                                   continuous_prefetch_m_en,
-    input   logic   [MATRIX_COUNTER_WIDTH - 1 : 0]  m_sram_continuous_prefetch_counter,
-
-
+    
     // HBM data writing
     input   logic                                   hbm_write_en,
     input   logic                                   hbm_write_valid,
@@ -51,58 +42,21 @@ module hbm_controller #(
     input   logic   [ELE_WIDTH - 1 : 0]             hbm_write_element,
     input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,
 
-    // Check Existence
-    input   logic                                   hbm_prefetch_content_exist,
-    output  logic track_prefetch_status,            // 0 for idle, 1 for in prefetching progress.
+    // Status Tracking
+    output  logic                                   track_prefetch_status,           // 0 for idle, 1 for in prefetching progress.
 
     // TL Interface
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
     `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_scale)
 );
 
-    localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
-    localparam int V_ELE_WIDTH      = VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1);
-    localparam int V_SCALE_WIDTH    = V_BLOCK_NUM * MXFP_SCALE_WIDTH;
     localparam int ELE_MASK_WIDTH   = ELE_WIDTH / 8;
     localparam int SCALE_MASK_WIDTH = SCALE_WIDTH / 8;
-    localparam int V_ELE_MASIK_WIDTH = V_ELE_WIDTH / 8;
-    localparam int V_SCALE_MASK_WIDTH = V_SCALE_WIDTH / 8;
-
-    initial begin
-        assert (MLEN == VLEN) else $fatal("MLEN and VLEN should be equal for hbm controller");
-    end
-
-    logic start_prefetch;
-    logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
-    logic ready_for_prefetch;
-    logic delayed_continuous_prefetch_m_en;
 
 
-    logic [ELE_MASK_WIDTH - 1 : 0] hbm_ele_write_mask = {{ELE_MASK_WIDTH - V_ELE_MASIK_WIDTH {1'b0}}, {V_ELE_MASIK_WIDTH{1'b1}}};
-    logic [SCALE_MASK_WIDTH - 1 : 0] hbm_scale_write_mask = {{SCALE_MASK_WIDTH - V_SCALE_MASK_WIDTH {1'b0}}, {V_SCALE_MASK_WIDTH{1'b1}}};
+    logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
+    logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
     
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            start_prefetch              <= 1'b0;
-            ready_for_prefetch          <= 1'b0;
-            addr_to_prefetch            <= 'b0;
-            addr_for_prefetched_data    <= 'b0;
-            delayed_continuous_prefetch_m_en <= 1'b0;
-            hbm_write_ready             <= 1'b0;
-        end else begin
-            hbm_write_ready             <= 1'b1;                        // Force ready for writing
-            delayed_continuous_prefetch_m_en <= continuous_prefetch_m_en;
-            addr_to_prefetch    <= delayed_continuous_prefetch_m_en ? addr_for_prefetched_data + m_sram_continuous_prefetch_counter * BYTES_PER_ROW : hbm_addr_out;
-            ready_for_prefetch  <= hbm_prefetch_en;
-            if(ready_for_prefetch && !hbm_prefetch_content_exist) begin
-                addr_for_prefetched_data <= addr_to_prefetch;
-                start_prefetch <= 1'b1;
-            end else begin
-                start_prefetch <= 1'b0;
-            end
-        end
-    end
 
     always_comb begin
         if (rst) begin
@@ -114,29 +68,13 @@ module hbm_controller #(
         end 
     end
 
-    // Mapping inputted Addr to HBM address
-    address_mapper #(
-        .ADDR_WIDTH         (ADDR_WIDTH),
-        .ADR_OPERAND_WIDTH  (ADR_OPERAND_WIDTH),
-        .HBM_ADDR_WIDTH     (HBM_ADDR_WIDTH),
-        .HBM_ADDR_REG_NUM   (HBM_ADDR_REG_NUM)
-    ) address_mapper_inst (
-        .clk(clk),
-        .rst(rst),
-        .mapp_addr_en   (hbm_write_en || hbm_prefetch_en),
-        .set_addr_en    (set_addr_reg_en),
-        .addr_in_a      (addr_in_a),
-        .addr_in_b      (addr_in_b),
-        .addr_offset    (addr_in_a),
-        .read_operand   (addr_reg_read_operand),
-        .write_operand  (addr_reg_write_operand),
-        .hbm_addr_out   (hbm_addr_out)
-    );
-
+    // -----------------------------
+    // HBM element connection for TileLink
+    // -----------------------------
     `TL_DECLARE(ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_element);
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, adapted_tl_element);
     `TL_BIND_HOST_PORT(host_element, adapted_tl_element);
-
+    
     // TL for element
     tl_master #(
         .DataWidth(ELE_WIDTH),
@@ -147,12 +85,13 @@ module hbm_controller #(
         .clk(clk),
         .rst(rst),
         // Control signals
-        .req_en(start_prefetch),
-        .write_en(hbm_write_en),
-        .addr(hbm_addr_out),
-        .fetch_data(prefetch_element),
-        .write_data(hbm_write_element),
-        .write_mask(hbm_ele_write_mask),
+        .req_en     (hbm_prefetch_en),
+        .write_en   (hbm_write_en),
+        .addr       (hbm_addr_out),
+        .fetch_data (prefetch_element),
+        .fetch_data_ready(prefetch_element_data_ready),
+        .write_data (hbm_write_element),
+        .write_mask (hbm_ele_write_mask),
         .fetch_data_valid(prefetch_data_valid),
         `TL_CONNECT_HOST_PORT(host, tl_element)
     );
@@ -173,13 +112,13 @@ module hbm_controller #(
         `TL_CONNECT_HOST_PORT(device, adapted_tl_element)
     );
 
-
-    // TL for scale
+    // -----------------------------
+    // HBM scale connection for TileLink
+    // -----------------------------
     `TL_DECLARE(SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, tl_scale);
     `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, adapted_tl_scale);
     `TL_BIND_HOST_PORT(host_scale, adapted_tl_scale);
 
-    // Converting to TileLink
     tl_master #(
         .DataWidth(SCALE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
@@ -188,12 +127,11 @@ module hbm_controller #(
     ) scale_master (
         .clk(clk),
         .rst(rst),
-
-        // Control signals
         .req_en(hbm_prefetch_en),
         .write_en(hbm_write_en),
         .addr(addr_for_prefetched_data + SCALE_DATA_OFFSET),
         .fetch_data(prefetch_scale),
+        .fetch_data_ready(prefetch_scale_data_ready),
         .write_data(hbm_write_scale),
         .write_mask(hbm_scale_write_mask),
         `TL_CONNECT_HOST_PORT(host, tl_scale)
@@ -210,7 +148,6 @@ module hbm_controller #(
     ) adapter_for_scale (
         .clk_i(clk),
         .rst_ni(!rst),
-        // TileLink Interface
         `TL_CONNECT_DEVICE_PORT(host, tl_scale ),
         `TL_CONNECT_HOST_PORT(device, adapted_tl_scale)
     );

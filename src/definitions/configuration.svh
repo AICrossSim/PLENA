@@ -7,7 +7,7 @@
         parameter   MLEN                            = 8;
         parameter   Matrix_Parallel_Rd_Dim          = 1; // Forced to be 1 at the moment for systolic array.
         parameter   HBM_M_Prefetch_Amount           = 16;
-        parameter   HBM_V_Prefetch_Amount           = 128;
+        parameter   HBM_V_Prefetch_Amount           = 16;
         parameter   HBM_LD_Amount                   = 16;
         parameter   MATRIX_SRAM_DEPTH               = 128;
         parameter   VLEN                            = 4;
