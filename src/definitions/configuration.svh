@@ -29,8 +29,6 @@
         parameter   BATCH_SIZE                      = 1;
         parameter   SourceWidth                     = 1;
         parameter   SinkWidth                       = 1;
-        parameter   HBM_ELE_WIDTH                   = 8192; // In Bits
-        parameter   HBM_SCALE_WIDTH                 = 8192; // In Bits
         parameter   HBM_ADDR_WIDTH                  = 64;
         parameter   FAKE_HBM_ADDR_WIDTH             = 4;
     endpackage

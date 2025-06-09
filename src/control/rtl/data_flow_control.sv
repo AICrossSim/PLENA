@@ -82,7 +82,8 @@ module data_flow_control import precision_pkg::*;  #(
     input       logic prefetch_m_valid,
     input       logic prefetch_v_valid,
     input       logic hbm_ready_to_write,
-    output      logic hbm_write_data_valid
+    output      logic hbm_write_data_valid,
+    output      logic hbm_m_req_prefetch_data
 );
     // Package Imports
     import pipeline_pkg::MAX_PIPELINE_STAGE;
@@ -183,7 +184,7 @@ module data_flow_control import precision_pkg::*;  #(
     always_ff @(posedge clk) begin
         if (rst) begin
             m_sram_req <= 1'b0;
-            m_sram_wen <= 1'b0;
+            hbm_m_req_prefetch_data <= 1'b0;
             continuous_load_m_en        <= 1'b0;
             continuous_prefetch_m_en    <= 1'b0;
             m_sram_load_counter         <= 'b0;
@@ -220,29 +221,29 @@ module data_flow_control import precision_pkg::*;  #(
             end else begin
                 m_m_load   <= 1'b0;
                 m_sram_req <= 1'b0;
-                m_sram_wen <= 1'b0;
+                hbm_m_req_prefetch_data <= 1'b0;
                 continuous_load_m_en <= 1'b0;
             end
 
             // Matrix SRAM Write Port Control
             if (mem_write_control.w_m_sram_en == 1'b1 && prefetch_m_valid) begin
                 // Prefetching the data from the HBM to the Matrix Sram
-                m_sram_wen <= 1'b1;
+                hbm_m_req_prefetch_data <= 1'b1;
                 continuous_prefetch_m_en <= 1'b1;
                 m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
-            end else if (continuous_prefetch_m_en & m_sram_prefetch_counter < HBM_M_Prefetch_Amount & prefetch_m_valid) begin
-                m_sram_wen <= 1'b1;
+            end else if (continuous_prefetch_m_en & m_sram_prefetch_counter < HBM_M_Prefetch_Amount & m_sram_wen) begin
+                hbm_m_req_prefetch_data <= 1'b1;
                 m_sram_prefetch_counter <= m_sram_prefetch_counter + 'b1;
             end else if (m_sram_prefetch_counter == HBM_M_Prefetch_Amount) begin
                 // Prefetching finished, reset the counter
-                m_sram_wen <= 1'b0;
+                hbm_m_req_prefetch_data <= 1'b0;
                 continuous_prefetch_m_en <= 1'b0;
                 m_sram_prefetch_counter <= 'b0;
             end else begin
-                m_sram_wen <= 1'b0;
+                hbm_m_req_prefetch_data <= 1'b0;
             end     
+            m_sram_wen <= (hbm_m_req_prefetch_data && prefetch_m_valid);
         end
-
     end
 
     // -----------------------------

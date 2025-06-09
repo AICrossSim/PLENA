@@ -64,7 +64,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
     logic m_out_valid,  m_out_ready;
-    logic m_sram_wen, m_sram_req, m_sram_transposed_read;
+    logic m_sram_wen, hbm_m_req_prefetch_data, m_sram_req, m_sram_transposed_read;
 
     // HBM Control
     logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
@@ -192,7 +192,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .prefetch_m_valid       (hbm_m_prefetch_valid),
         .prefetch_v_valid       (hbm_v_prefetch_valid),
         .hbm_ready_to_write     (hbm_write_data_ready),
-        .hbm_write_data_valid   (hbm_write_data_valid)
+        .hbm_write_data_valid   (hbm_write_data_valid),
+        .hbm_m_req_prefetch_data  (hbm_m_req_prefetch_data)
     );
 
     // -----------------------------
@@ -398,7 +399,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .clk(clk),
         .rst(rst),
         .exe_stage_op           (exe_stage_op),
-        .prefetch_m_ready       (m_sram_wen),
+        .prefetch_m_ready       (hbm_m_req_prefetch_data),
         .prefetch_m_valid       (hbm_m_prefetch_valid),
         .prefetch_m_element     (prefetch_m_element),
         .prefetch_m_scale       (prefetch_m_scale),

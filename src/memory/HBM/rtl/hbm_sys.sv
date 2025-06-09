@@ -61,32 +61,31 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
             v_hbm_prefetch_en <= 1'b0;
             m_hbm_prefetch_en <= 1'b0;
         end else begin
-            v_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_V_HBM);
-            m_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_M_HBM);
+            v_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_V);
+            m_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_M);
         end
     end
 
     // -----------------------------
     // HBM Status Tracking
     // -----------------------------
-    always_ff @(posedge clk or posedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             prefetch_m_in_progress <= 1'b0;
             prefetch_v_in_progress <= 1'b0;
         end else begin
-            if (exe_stage_op.h_op == PREFETCH_V_HBM) begin
+            if (exe_stage_op.h_op == PREFETCH_V) begin
                 prefetch_v_in_progress <= 1'b1;
             end else if (prefetch_v_valid && prefetch_v_ready) begin
                 prefetch_v_in_progress <= 1'b0;
             end
-            if (exe_stage_op.h_op == PREFETCH_M_HBM) begin
+            if (exe_stage_op.h_op == PREFETCH_M) begin
                 prefetch_m_in_progress <= 1'b1;
             end else if (prefetch_m_valid && prefetch_m_ready) begin
                 prefetch_m_in_progress <= 1'b0;
             end
         end
     end
-
 
 
     // -----------------------------
@@ -123,12 +122,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic [MLEN * M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
     logic m_hbm_prefetch_valid;
 
-    // Write Control, Temporarily not used, only enable write for vector hbm controller
-    // logic m_hbm_write_en;
-    // logic [MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] m_hbm_element_in;
-    // logic [BLOCK_NUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_in;
-    // logic m_hbm_write_valid, m_hbm_write_ready;
-    
     // Buffering Control
     logic prefetch_m_element_ready, prefetch_m_scale_ready;
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth,  m_tl_element);
@@ -146,7 +139,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .HBM_ELE_WIDTH(HBM_ELE_WIDTH),
         .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH),
         .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth)
+        .SinkWidth(SinkWidth),
+        .LOAD_AMOUNT(HBM_M_Prefetch_Amount)
     ) matrix_hbm_controller_init (
         .clk(clk),
         .rst(rst),
@@ -232,7 +226,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .HBM_ELE_WIDTH(HBM_ELE_WIDTH),
         .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH),
         .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth)
+        .SinkWidth(SinkWidth),
+        .LOAD_AMOUNT(HBM_V_Prefetch_Amount)
     ) vector_hbm_controller_init (
         .clk(clk),
         .rst(rst),

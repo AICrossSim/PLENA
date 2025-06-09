@@ -131,7 +131,7 @@ module tl_master #(
             host_a.data = next_wdata;
           end
 
-          if (host_a_ready & continuous_prefetch_counter == LOAD_AMOUNT) begin
+          if (host_a_ready & continuous_prefetch_counter == LOAD_AMOUNT - 1) begin
             next_state = WAIT_RESP;
           end else if (host_a_ready) begin
             // Increment the counter for continuous prefetch

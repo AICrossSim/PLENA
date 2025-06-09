@@ -20,11 +20,12 @@ module hbm_controller #(
 
     localparam int  ELE_WIDTH    =   DATA_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int  SCALE_WIDTH  =   BLOCK_NUM * MXFP_SCALE_WIDTH,
-    parameter int   HBM_ADDR_WIDTH = 32, // Assuming 32-bit address width for HBM
+    parameter int   HBM_ADDR_WIDTH = 32,
     parameter int   HBM_ELE_WIDTH = 128,
     parameter int   HBM_SCALE_WIDTH = 128,
-    parameter int   SourceWidth = 4, // TileLink Source Width
-    parameter int   SinkWidth = 4,   // TileLink Sink Width
+    parameter int   SourceWidth = 4, 
+    parameter int   SinkWidth = 4,   
+    parameter int   LOAD_AMOUNT = 4,
     parameter SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
@@ -84,7 +85,8 @@ module hbm_controller #(
         .DataWidth(ELE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth)
+        .SinkWidth(SinkWidth),
+        .LOAD_AMOUNT(LOAD_AMOUNT)
     ) element_master (
         .clk(clk),
         .rst(rst),
@@ -127,7 +129,8 @@ module hbm_controller #(
         .DataWidth(SCALE_WIDTH),
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth)
+        .SinkWidth(SinkWidth),
+        .LOAD_AMOUNT(LOAD_AMOUNT)
     ) scale_master (
         .clk(clk),
         .rst(rst),
