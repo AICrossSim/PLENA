@@ -55,7 +55,7 @@ module pipeline_control #(
 );
 
     // Operation Control Decalration
-    OP_BUNDLE   reg_rd_stage_op, check_stage_op, determine_stage_op, invalid_op_bubble, recorded_determine_stage_op;
+    OP_BUNDLE   reg_rd_stage_op, check_stage_op, determine_stage_op, delayed_reg_rd_stage_op, invalid_op_bubble, recorded_determine_stage_op;
     assign invalid_op_bubble = '{
         m_op                : STALL_M,
         v_ele_op            : STALL_V_ELEMENT,
@@ -132,7 +132,7 @@ module pipeline_control #(
             end  else if (mem_write_req.wreq_s_sram_port_a & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
                 // Condition 4: Trying to access the vector sram port A while it is being written to.
                 pipeline_stall   = 1'b1;            
-            end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || recorded_determine_stage_op.m_op != STALL_M)) begin
+            end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.m_op != STALL_M)) begin
                 // Condition 5: Trying to access the vector sram port B while it is being written to.
                 pipeline_stall   = 1'b1;            
             end else if ((mem_write_req.wreq_m_sram == 1'b1) & (determine_stage_op.m_op != STALL_M) ) begin
@@ -178,24 +178,24 @@ module pipeline_control #(
 
     // Merge the decoded op with the register read outcome.
     always_comb begin
-        reg_rd_stage_op.m_op            = recorded_determine_stage_op.m_op;
-        reg_rd_stage_op.v_ele_op        = recorded_determine_stage_op.v_ele_op;
-        reg_rd_stage_op.v_reduct_op     = recorded_determine_stage_op.v_reduct_op;
-        reg_rd_stage_op.s_fp_op         = recorded_determine_stage_op.s_fp_op;
-        reg_rd_stage_op.c_op            = recorded_determine_stage_op.c_op;
-        reg_rd_stage_op.h_op            = recorded_determine_stage_op.h_op;
-        reg_rd_stage_op.m_transposed_read = recorded_determine_stage_op.m_transposed_read;
-        reg_rd_stage_op.v_broadcast_en  = recorded_determine_stage_op.v_broadcast_en;
-        reg_rd_stage_op.fps1            = recorded_determine_stage_op.fps1;
-        reg_rd_stage_op.fps2            = recorded_determine_stage_op.fps2;
-        reg_rd_stage_op.fpd             = recorded_determine_stage_op.fpd;
-        reg_rd_stage_op.fixed_rs1       = recorded_determine_stage_op.fixed_rs1;
-        reg_rd_stage_op.fixed_rs2       = recorded_determine_stage_op.fixed_rs2;
-        reg_rd_stage_op.fixed_rd        = recorded_determine_stage_op.fixed_rd;
-        reg_rd_stage_op.addr_1          = fixed_addr_1;
-        reg_rd_stage_op.addr_2          = fixed_addr_2; 
-        reg_rd_stage_op.update_m_waddr  = recorded_determine_stage_op.update_m_waddr;
-        reg_rd_stage_op.update_v_waddr  = recorded_determine_stage_op.update_v_waddr;
+        check_stage_op.m_op            = delayed_reg_rd_stage_op.m_op;
+        check_stage_op.v_ele_op        = delayed_reg_rd_stage_op.v_ele_op;
+        check_stage_op.v_reduct_op     = delayed_reg_rd_stage_op.v_reduct_op;
+        check_stage_op.s_fp_op         = delayed_reg_rd_stage_op.s_fp_op;
+        check_stage_op.c_op            = delayed_reg_rd_stage_op.c_op;
+        check_stage_op.h_op            = delayed_reg_rd_stage_op.h_op;
+        check_stage_op.m_transposed_read = delayed_reg_rd_stage_op.m_transposed_read;
+        check_stage_op.v_broadcast_en  = delayed_reg_rd_stage_op.v_broadcast_en;
+        check_stage_op.fps1            = delayed_reg_rd_stage_op.fps1;
+        check_stage_op.fps2            = delayed_reg_rd_stage_op.fps2;
+        check_stage_op.fpd             = delayed_reg_rd_stage_op.fpd;
+        check_stage_op.fixed_rs1       = delayed_reg_rd_stage_op.fixed_rs1;
+        check_stage_op.fixed_rs2       = delayed_reg_rd_stage_op.fixed_rs2;
+        check_stage_op.fixed_rd        = delayed_reg_rd_stage_op.fixed_rd;
+        check_stage_op.addr_1          = fixed_addr_1;
+        check_stage_op.addr_2          = fixed_addr_2; 
+        check_stage_op.update_m_waddr  = delayed_reg_rd_stage_op.update_m_waddr;
+        check_stage_op.update_v_waddr  = delayed_reg_rd_stage_op.update_v_waddr;
     end
     
     logic stall_in_process;
@@ -227,8 +227,9 @@ module pipeline_control #(
                 w_s_sram_port_b_en    : mem_write_req.wreq_s_sram_port_b
             };
 
-            check_stage_op <= reg_rd_stage_op;
-            determine_stage_op <= check_stage_op;
+            reg_rd_stage_op             <= decode_stage_op;
+            delayed_reg_rd_stage_op     <= reg_rd_stage_op;
+            determine_stage_op          <= check_stage_op;
 
             if (pipeline_stall) begin
                 exe_stage_op <= invalid_op_bubble;
@@ -243,7 +244,6 @@ module pipeline_control #(
                 end else begin
                     exe_stage_op <= determine_stage_op;
                 end
-
             end
         end
     end

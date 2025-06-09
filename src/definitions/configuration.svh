@@ -10,7 +10,7 @@
         parameter   HBM_V_Prefetch_Amount           = 16;
         parameter   HBM_LD_Amount                   = 16;
         parameter   MATRIX_SRAM_DEPTH               = 128;
-        parameter   VLEN                            = 4;
+        parameter   VLEN                            = 8;
         parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
         parameter   INST_BUFF_DEPTH                 = 8;
         parameter   ON_CHIP_ADDR_WIDTH              = 32;

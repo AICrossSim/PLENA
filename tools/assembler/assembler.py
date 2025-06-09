@@ -55,13 +55,12 @@ class Assembler:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["C_SET_M_OFFSET", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
+        elif instruction.opcode in ["S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
             binary_instruction = (
                 (rd << opw) +
                 opcode
             )
         else:
-            print("opcode is ", instruction.opcode)
             binary_instruction = (
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +

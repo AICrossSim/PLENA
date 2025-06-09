@@ -1,4 +1,3 @@
-
 S_LUI_FIX x1, 6;
 S_LUI_FIX x2, 8;
 
