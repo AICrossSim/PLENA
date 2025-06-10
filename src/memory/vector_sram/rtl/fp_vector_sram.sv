@@ -29,7 +29,8 @@ module fp_vector_sram #(
 
     // SRAM
     parameter   SRAM_DEPTH        = 128,
-    localparam  AddrLen           = $clog2(SRAM_DEPTH)
+    localparam  AddrLen           = $clog2(SRAM_DEPTH),
+    parameter   PREFETCH_AMOUNT   = 4
 
 )(
     input   logic clk,
@@ -60,8 +61,12 @@ module fp_vector_sram #(
     input   logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_in_b,
 
     output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      element_out_b,
-    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_out_b
+    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  scale_out_b,
 
+    // Status Tracking for Prefetch
+    input   logic prefetch_en,
+    input   logic [AddrLen - 1 : 0] prefetch_addr,
+    output  logic data_not_ready
 );
 
     initial begin
@@ -75,6 +80,29 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_in_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_out_internal;
     localparam int REPL_COUNT = (VLEN > MLEN) ? (VLEN - MLEN) * (EXP_WIDTH + MANT_WIDTH + 1) : 0;
+    
+    // -----------------------------
+    // Prefetch Tag Tracking
+    // -----------------------------
+
+    // Tag Matching, trackinng the prefetch status.
+    logic [SRAM_DEPTH - 1 : 0] mem_data_tag;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            mem_data_tag <= {{SRAM_DEPTH{1'b1}}};
+        end else if (prefetch_en) begin
+            for (int i = prefetch_addr; i < prefetch_addr + PREFETCH_AMOUNT; i++) begin
+                mem_data_tag[i] <= 1'b0;
+            end
+        end else if (port_b_write_en) begin
+            mem_data_tag[port_a_addr] <= 1'b1;
+        end
+    end
+
+    assign data_not_ready =     (port_b_req & !port_b_write_en) & (mem_data_tag[port_b_addr] == 1'b0)
+                            ||  (port_a_req & !port_a_write_en) & (mem_data_tag[port_a_addr] == 1'b0);   
+
 
     // -----------------------------
     // Port A Management

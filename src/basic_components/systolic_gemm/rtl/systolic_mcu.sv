@@ -56,6 +56,9 @@ module systolic_mcu #(
     localparam SYS_ARRAY_AMOUNT = K / M;
     localparam COMPUTE_DIM = M;
 
+    // -----------------------------
+    // Data Wires Declaration
+    // -----------------------------
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_in_valid, v1_data_in_ready;
     logic v2_for_mm_in_valid, v2_for_mm_in_ready;
@@ -76,10 +79,39 @@ module systolic_mcu #(
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_ready;
+    
+    // -----------------------------
+    // Control and Status Tracking
+    // -----------------------------
 
-    // Control
+    logic   load_array_data;
+    logic   complete_loading;
+    M_OP    control_under_exe, control_in_queue;
+    logic   gemm_en;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            load_array_data <= 1'b0;
+            control_under_exe    <= STALL_M; 
+        end else begin
+            if (control_under_exe == STALL_M & control != STALL_M) begin
+                // Start of the Systolic Array Operation
+                control_under_exe <= control;
+            end else if (control_under_exe != STALL_M & control != STALL_M) begin
+                control_in_queue <= control;
+            end else if (complete_loading) begin
+                if (control_in_queue == STALL_M) begin
+                    // End of the Array Operation
+                    control_under_exe <= STALL_M;
+                end else begin
+                    control_under_exe <= control_in_queue;
+                end
+            end
+        end
+    end
+
     always_comb begin
-        if (control == 1'b0) begin
+        if (control_under_exe == MV || control_under_exe = MV_O) begin
             v2_in_ready = v2_for_mv_in_ready;
             v2_for_mv_in_valid = v2_in_valid;
         end else begin
@@ -87,6 +119,12 @@ module systolic_mcu #(
             v2_for_mm_in_valid = v2_in_valid;
         end
     end
+
+    assign gemm_en = (control_under_exe == MM || control_under_exe == MM_O);
+
+    // -----------------------------
+    // Systolic Array Computation Unit
+    // -----------------------------
 
     generate;
         split_n #(
@@ -115,8 +153,6 @@ module systolic_mcu #(
             .data_out_valid(v2_data_for_mv_in_valid),
             .data_out_ready(v2_data_for_mv_in_ready)
         );
-
-
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
             systolic_data_streamer #(
@@ -172,34 +208,32 @@ module systolic_mcu #(
             ) systolic_array_inst (
                 .clk(clk),
                 .rst(rst),
-                // Control
-                .control(control),
-                // Input from Top
+                .control(gemm_en),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),
                 .in_top_valid       (array_top_in_valid[i]),
                 .in_top_ready       (array_top_in_ready[i]),
-                // Input from Left
                 .in_left_element    (array_left_in_element[i]),
                 .in_left_scale      (array_left_in_scale[i]),
                 .in_left_valid      (array_left_in_valid[i]),
                 .in_left_ready      (array_left_in_ready[i]),
-                // Input from Vector
                 .in_top_v_element   (v2_element[i * M +: M]),
                 .in_top_v_scale     (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
                 .in_top_v_valid     (v2_data_for_mv_in_valid[i]),
                 .in_top_v_ready     (v2_data_for_mv_in_ready[i]),
-                // GEMM Compute Result
                 .m_out_fp           (gemm_result[i]),
                 .m_out_valid        (gemm_result_valid[i]),
                 .m_out_ready        (gemm_result_ready[i]),
-                // GEMV Compute Result
                 .v_out_fp           (gemv_result[i]),
                 .v_out_valid        (gemv_result_valid[i]),
                 .v_out_ready        (gemv_result_ready[i])
             );
         end
     endgenerate
+
+    // -----------------------------
+    // Storing the computed result and write to the Vector SRAM
+    // -----------------------------
 
 sa_result_collector #(
     .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
@@ -210,7 +244,7 @@ sa_result_collector #(
     .clk(clk),
     .rst(rst),
     // Control
-    .control(control),
+    .control(gemm_en),
     // GEMM Result
     .gemm_result(gemm_result),
     .gemm_result_valid(gemm_result_valid),
@@ -224,9 +258,6 @@ sa_result_collector #(
     .out_result_valid(v_result_valid),
     .out_result_ready(v_result_ready)
 );
-
-
-
 
 
 endmodule

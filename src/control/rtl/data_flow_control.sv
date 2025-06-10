@@ -83,7 +83,8 @@ module data_flow_control import precision_pkg::*;  #(
     input       logic prefetch_v_valid,
     input       logic hbm_ready_to_write,
     output      logic hbm_write_data_valid,
-    output      logic hbm_m_req_prefetch_data
+    output      logic hbm_m_req_prefetch_data,
+    output      logic hbm_v_req_prefetch_data
 );
     // Package Imports
     import pipeline_pkg::MAX_PIPELINE_STAGE;
@@ -98,8 +99,8 @@ module data_flow_control import precision_pkg::*;  #(
     assign v_load_in_process = 1'b0;        // Currently not used, but can be extended for vector load in the future.
 
     // Memory Execution Control and Dependency Monitor
-    localparam BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
-
+    localparam MSRAM_BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * Parallel_Rd_Dim / 8;
+    localparam VSRAM_BYTES_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * VLEN / 8;
     OP_BUNDLE  mem_stage_op;
     MEM_WEN_INFO mem_stage_write_control;
 
@@ -149,13 +150,13 @@ module data_flow_control import precision_pkg::*;  #(
     // Update addr only when the exe operation is MV or MV_O
     always_comb begin
         if (mem_stage_op.m_op == MV || mem_stage_op.m_op == MV_O || continuous_load_m_en) begin
-            m_sram_raddr = recorded_m_load_addr + m_sram_load_counter * BYTES_PER_ROW;
+            m_sram_raddr = recorded_m_load_addr + m_sram_load_counter * MSRAM_BYTES_PER_ROW;
         end else begin
             m_sram_raddr = 'b0;
         end
         
         if (continuous_prefetch_m_en) begin
-            m_sram_waddr = recorded_m_prefetch_addr + (m_sram_prefetch_counter - 1) * BYTES_PER_ROW;
+            m_sram_waddr = recorded_m_prefetch_addr + (m_sram_prefetch_counter - 1) * MSRAM_BYTES_PER_ROW;
         end else begin
             m_sram_waddr = 'b0;
         end
@@ -166,8 +167,6 @@ module data_flow_control import precision_pkg::*;  #(
         end else begin 
             if (exe_stage_op.h_op == PREFETCH_M) begin
                 recorded_m_prefetch_addr = exe_stage_op.addr_2;
-            end else if (m_sram_prefetch_counter == MATRIX_LOAD_ITERATION) begin
-
             end else if (exe_stage_op.m_op != STALL_M) begin
                 recorded_m_load_addr = exe_stage_op.addr_2;
             end 
@@ -221,16 +220,15 @@ module data_flow_control import precision_pkg::*;  #(
             end else begin
                 m_m_load   <= 1'b0;
                 m_sram_req <= 1'b0;
-                hbm_m_req_prefetch_data <= 1'b0;
                 continuous_load_m_en <= 1'b0;
             end
 
             // Matrix SRAM Write Port Control
             if (mem_write_control.w_m_sram_en == 1'b1 && prefetch_m_valid) begin
                 // Prefetching the data from the HBM to the Matrix Sram
-                hbm_m_req_prefetch_data <= 1'b1;
-                continuous_prefetch_m_en <= 1'b1;
-                m_sram_prefetch_counter <= m_sram_prefetch_counter + 1'b1;
+                hbm_m_req_prefetch_data     <= 1'b1;
+                continuous_prefetch_m_en    <= 1'b1;
+                m_sram_prefetch_counter     <= m_sram_prefetch_counter + 'b1;
             end else if (continuous_prefetch_m_en & m_sram_prefetch_counter < HBM_M_Prefetch_Amount & m_sram_wen) begin
                 hbm_m_req_prefetch_data <= 1'b1;
                 m_sram_prefetch_counter <= m_sram_prefetch_counter + 'b1;
@@ -239,9 +237,10 @@ module data_flow_control import precision_pkg::*;  #(
                 hbm_m_req_prefetch_data <= 1'b0;
                 continuous_prefetch_m_en <= 1'b0;
                 m_sram_prefetch_counter <= 'b0;
-            end else begin
-                hbm_m_req_prefetch_data <= 1'b0;
-            end     
+            end 
+            // else begin
+            //     hbm_m_req_prefetch_data <= 1'b0;
+            // end     
             m_sram_wen <= (hbm_m_req_prefetch_data && prefetch_m_valid);
         end
     end
@@ -275,7 +274,7 @@ module data_flow_control import precision_pkg::*;  #(
 
         // Port B Addr Mangement
         if (continuous_v_prefetch_en) begin
-            v_sram_addr_b = recorded_v_prefetch_addr;
+            v_sram_addr_b = recorded_v_prefetch_addr + v_sram_prefetch_counter * VSRAM_BYTES_PER_ROW;
         end else if (mem_stage_op.h_op == STORE_V) begin
             v_sram_addr_b = hbm_waddr;
         end else begin
@@ -297,11 +296,12 @@ module data_flow_control import precision_pkg::*;  #(
         if (rst) begin
             v_v_a_valid     <= 1'b0;
             v_v_b_valid     <= 1'b0;
-            hbm_write_data_valid      <= 1'b0;
-            recorded_v_load_addr_1  <= 'b0;
-            recorded_v_load_addr_2  <= 'b0;
-            recorded_m_write_addr   <= 'b0;
-            recorded_v_write_addr   <= 'b0;
+            hbm_write_data_valid        <= 1'b0;
+            hbm_v_req_prefetch_data     <= 1'b0;
+            recorded_v_load_addr_1      <= 'b0;
+            recorded_v_load_addr_2      <= 'b0;
+            recorded_m_write_addr       <= 'b0;
+            recorded_v_write_addr       <= 'b0;
             m_v_valid       <= 1'b0;
             m_v_load        <= 1'b0;
             v_v_a_load      <= 1'b0;
@@ -374,29 +374,27 @@ module data_flow_control import precision_pkg::*;  #(
                 v_v_b_load          <= 1'b1;
                 hbm_load_write_data <= 1'b0;
                 v_sram_req_b        <= 1'b1;
-                v_sram_wen_b        <= 1'b0;
             end else if (exe_stage_op.h_op == STORE_V & hbm_ready_to_write) begin
                 v_v_b_load          <= 1'b0;
                 hbm_load_write_data <= 1'b1;
                 v_sram_req_b        <= 1'b1;
-                v_sram_wen_b        <= 1'b0;
             end else if (mem_write_control.w_s_sram_port_b_en && prefetch_v_valid) begin
                 // HBM Fetch to the scratchpad sram
                 continuous_v_prefetch_en <= 1'b1;
-                v_v_b_load          <= 1'b0;
-                hbm_load_write_data <= 1'b0;
-                v_sram_wen_b        <= 1'b1;
-                v_sram_req_b        <= 1'b1;
-            end else if (continuous_v_prefetch_en & v_sram_prefetch_counter < HBM_V_Prefetch_Amount & prefetch_m_valid) begin
-                v_sram_wen_b        <= 1'b1;
-                v_sram_req_b        <= 1'b1;
-                v_sram_prefetch_counter <= v_sram_prefetch_counter + 'b1;
+                v_v_b_load                      <= 1'b0;
+                hbm_load_write_data             <= 1'b0;
+                hbm_v_req_prefetch_data         <= 1'b1;
+                v_sram_req_b                    <= 1'b1;
+            end else if (continuous_v_prefetch_en & v_sram_prefetch_counter < HBM_V_Prefetch_Amount & v_sram_wen_b) begin
+                hbm_v_req_prefetch_data         <= 1'b1;
+                v_sram_req_b                    <= 1'b1;
+                v_sram_prefetch_counter         <= v_sram_prefetch_counter + 'b1;
             end else if (v_sram_prefetch_counter == HBM_V_Prefetch_Amount) begin
                 // Prefetching finished, reset the counter
-                v_sram_wen_b        <= 1'b0;
-                v_sram_req_b        <= 1'b0;
-                continuous_v_prefetch_en <= 1'b0;
-                v_sram_prefetch_counter <= 'b0;
+                hbm_v_req_prefetch_data         <= 1'b0;
+                v_sram_req_b                    <= 1'b0;
+                continuous_v_prefetch_en        <= 1'b0;
+                v_sram_prefetch_counter         <= 'b0;
             end else begin
                 // No SRAM access
                 v_sram_req_b        <= 1'b0;
@@ -404,6 +402,8 @@ module data_flow_control import precision_pkg::*;  #(
                 hbm_load_write_data   <= 1'b0;
                 v_v_b_load          <= 1'b0;
             end
+
+            v_sram_wen_b <= (hbm_v_req_prefetch_data && prefetch_v_valid);
             
             recorded_v_load_addr_1 <= exe_stage_op.addr_1;
             recorded_v_load_addr_2 <= exe_stage_op.addr_2;
@@ -419,7 +419,6 @@ module data_flow_control import precision_pkg::*;  #(
             end else begin
                 recorded_v_write_addr <= recorded_v_write_addr;
             end
-
             m_v_valid <= m_v_load;
         end
 

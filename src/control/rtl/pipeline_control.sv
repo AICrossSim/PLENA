@@ -48,6 +48,7 @@ module pipeline_control #(
     input       logic           v_load_in_process,
     input       logic           sfu_in_use,
 
+
     // Current control operation
     output      logic           pipeline_stall_req,
     output      OP_BUNDLE       exe_stage_op,

@@ -21,7 +21,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Execution Control
     input   M_OP    matrix_opcode,
     output logic    prepare_flag,
-    input  logic    [ADDR_WIDTH-1:0]             addr_in,
+    input  logic    [ADDR_WIDTH-1:0]                                        addr_in,
 
     // Matix - row-major order
     input  logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]          m_element,
@@ -37,12 +37,11 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Output
     input  logic result_waddr_update,
-    
-    output logic [MLEN-1:0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]     out_v_fp,
-    output logic                                out_valid,
-    input  logic                                out_ready,
-    output logic [ADDR_WIDTH-1:0]               m_waddr,
-    output logic                                m_wreq
+    output logic [MLEN-1:0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]    out_v_fp,
+    output logic                                                    out_valid,
+    input  logic                                                    out_ready,
+    output logic [ADDR_WIDTH-1:0]                                   m_waddr,
+    output logic                                                    m_wreq
 );
 
     import pipeline_pkg::*;
@@ -50,7 +49,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         logic [ADDR_WIDTH-1:0]             waddr;
         M_OP                               mop;
     } RECORDED_INFO_TYPE;
-
 
     // -----------------------------
     // Data Flow Management
@@ -161,14 +159,14 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .rst(rst),
 
         // Input
-        .data_in(v_element),
-        .data_in_valid(stored_v_in_ele_valid),
-        .data_in_ready(stored_v_in_ele_ready),
+        .data_in        (v_element),
+        .data_in_valid  (stored_v_in_ele_valid),
+        .data_in_ready  (stored_v_in_ele_ready),
 
         // Output
-        .data_out(stored_v_element),
-        .data_out_valid(stored_v_ele_valid),
-        .data_out_ready(stored_v_ele_ready)
+        .data_out       (stored_v_element),
+        .data_out_valid (stored_v_ele_valid),
+        .data_out_ready (stored_v_ele_ready)
     );
 
     skid_buffer #(
@@ -178,14 +176,14 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .rst(rst),
 
         // Input
-        .data_in(v_scale),
-        .data_in_valid(stored_v_in_scale_valid),
-        .data_in_ready(stored_v_in_scale_ready),
+        .data_in        (v_scale),
+        .data_in_valid  (stored_v_in_scale_valid),
+        .data_in_ready  (stored_v_in_scale_ready),
 
         // Output
-        .data_out(stored_v_scale),
-        .data_out_valid(stored_v_scale_valid),
-        .data_out_ready(stored_v_scale_ready)
+        .data_out       (stored_v_scale),
+        .data_out_valid (stored_v_scale_valid),
+        .data_out_ready (stored_v_scale_ready)
     );
 
     join_n #(

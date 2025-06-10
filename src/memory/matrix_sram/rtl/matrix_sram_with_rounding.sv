@@ -16,18 +16,18 @@ module matrix_sram_with_rounding #(
     parameter MXFP_EXP_WIDTH    = 4,
     parameter MXFP_MANT_WIDTH   = 3,
     parameter MXFP_SCALE_WIDTH  = 8,
-
     parameter FIXED_DATA_WIDTH  = 32,
 
     // Dimension
-    parameter   MLEN            = 8,                                  // The dimension of the sub SRAM, or the TileSize of the matrix.
+    parameter   MLEN            = 8,
     parameter   BLOCK_DIM       = 4,                                
     localparam  BLOCK_NUM       = MLEN / BLOCK_DIM,
 
     // SRAM
     parameter   SRAM_DEPTH      = 128,
-    localparam  AddrLen         = $clog2(SRAM_DEPTH),                 // Address Space for the SRAM
-    parameter   PARALLEL_DIM    = 2                                        // The depth of the SRAM
+    localparam  AddrLen         = $clog2(SRAM_DEPTH),      
+    parameter   PARALLEL_DIM    = 2,
+    parameter   PREFETCH_AMOUNT = 4                       
 
 ) (
     input   logic clk,
@@ -45,23 +45,46 @@ module matrix_sram_with_rounding #(
     output  logic write_response,
     input   logic [FIXED_DATA_WIDTH-1:0] sram_waddr,
     input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
-    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in
+    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in,
+
+    // Prefetch Status
+    input   logic [AddrLen - 1 : 0] prefetch_addr,
+    input   logic prefetch_en,
+    output  logic data_not_ready
 );
 
+// -----------------------------
+// Address Translation & Prefetch Tag Matching
+// -----------------------------
 
-// Address Translation
-logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram;
+logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram, prefetch_addr_for_sub_sram;
 localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
 assign waddr_for_sub_sram = sram_waddr >> $clog2(BITWIDTH_PER_ROW);
 assign raddr_for_sub_sram = sram_raddr >> $clog2(BITWIDTH_PER_ROW);
+assign prefetch_addr_for_sub_sram = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
 
+// Tag Matching, trackinng the prefetch status.
+logic [SRAM_DEPTH - 1 : 0] mem_data_tag;
+
+always_ff @(posedge clk) begin
+    if (rst) begin
+        mem_data_tag <= {{SRAM_DEPTH{1'b1}}};
+    end else if (prefetch_en) begin
+        for (int i = prefetch_addr_for_sub_sram; i < prefetch_addr_for_sub_sram + PREFETCH_AMOUNT; i++) begin
+            mem_data_tag[i] <= 1'b0;
+        end
+    end else if (wen) begin
+        mem_data_tag[waddr_for_sub_sram] <= 1'b1;
+    end
+end
+
+assign data_not_ready = (req & !wen) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
 
 // scale duplication
 logic scale_write_response, element_write_response;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] loaded_element_out;
-
 
 assign write_response = scale_write_response & element_write_response;
 
