@@ -43,7 +43,8 @@ module systolic_mcu #(
     // Vector Product Output
     output  logic [M - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] v_result,
     output  logic v_result_valid,
-    input   logic v_result_ready
+    input   logic v_result_ready,
+    output  logic load_in_progress
 );
 
     initial begin
@@ -91,27 +92,29 @@ module systolic_mcu #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            load_array_data <= 1'b0;
             control_under_exe    <= STALL_M; 
+            control_in_queue     <= STALL_M;
+            load_in_progress     <= 1'b0;
         end else begin
-            if (control_under_exe == STALL_M & control != STALL_M) begin
-                // Start of the Systolic Array Operation
+            if ((control_under_exe == STALL_M) & (control != STALL_M)) begin
                 control_under_exe <= control;
-            end else if (control_under_exe != STALL_M & control != STALL_M) begin
+                load_in_progress <= 1'b1;
+            end else if ((control_under_exe != STALL_M) & (control != STALL_M)) begin
                 control_in_queue <= control;
+                load_in_progress <= 1'b1;
             end else if (complete_loading) begin
                 if (control_in_queue == STALL_M) begin
-                    // End of the Array Operation
                     control_under_exe <= STALL_M;
                 end else begin
                     control_under_exe <= control_in_queue;
                 end
+                load_in_progress <= 1'b0;
             end
         end
     end
 
     always_comb begin
-        if (control_under_exe == MV || control_under_exe = MV_O) begin
+        if (control_under_exe == MV || control_under_exe == MV_O) begin
             v2_in_ready = v2_for_mv_in_ready;
             v2_for_mv_in_valid = v2_in_valid;
         end else begin
@@ -120,7 +123,57 @@ module systolic_mcu #(
         end
     end
 
-    assign gemm_en = (control_under_exe == MM || control_under_exe == MM_O);
+    assign gemm_en = ((control_under_exe == MM) || (control_under_exe == MM_O));
+
+    localparam COUNTER_BIT_WIDTH = $clog2(COMPUTE_DIM);
+    logic [COUNTER_BIT_WIDTH - 1 : 0] v1_load_counter;
+    logic [COUNTER_BIT_WIDTH - 1 : 0] v2_load_counter;
+    logic complete_v1_load, complete_v2_load;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            v1_load_counter <= '0;
+            complete_v1_load <= 1'b0;
+        end else if (v1_in_valid & v1_in_ready) begin
+            if (v1_load_counter == COMPUTE_DIM - 1) begin
+                v1_load_counter <= '0;
+                complete_v1_load <= 1'b1;
+            end else begin
+                v1_load_counter <= v1_load_counter + 'b1;
+                complete_v1_load <= 1'b0;
+            end
+        end else begin
+            v1_load_counter <= '0;
+            complete_v1_load <= 1'b0;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            v2_load_counter <= '0;
+            complete_v2_load <= 1'b0;
+        end else if (v2_in_valid & v2_in_ready) begin
+            if (v2_load_counter == COMPUTE_DIM - 1) begin
+                v2_load_counter <= '0;
+                complete_v2_load <= 1'b1;
+            end else begin
+                v2_load_counter <= v2_load_counter + 'b1;
+                complete_v2_load <= 1'b0;
+            end
+        end else begin
+            v2_load_counter <= '0;
+            complete_v2_load <= 1'b0;
+        end
+    end
+
+    always_comb begin
+        if (complete_v1_load & complete_v2_load) begin
+            complete_loading = 1'b1;
+        end else begin
+            complete_loading = 1'b0;
+        end
+    end
+
 
     // -----------------------------
     // Systolic Array Computation Unit
@@ -156,13 +209,13 @@ module systolic_mcu #(
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
             systolic_data_streamer #(
-                .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-                .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-                .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-                .BLOCK_DIM(BLOCK_DIM),
-                .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-                .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH),
-                .COMPUTE_DIM(COMPUTE_DIM)
+                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .BLOCK_DIM          (BLOCK_DIM),
+                .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
+                .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                .COMPUTE_DIM        (COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
                 .rst(rst),
@@ -208,7 +261,7 @@ module systolic_mcu #(
             ) systolic_array_inst (
                 .clk(clk),
                 .rst(rst),
-                .control(gemm_en),
+                .control            (gemm_en),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),
                 .in_top_valid       (array_top_in_valid[i]),
@@ -235,29 +288,28 @@ module systolic_mcu #(
     // Storing the computed result and write to the Vector SRAM
     // -----------------------------
 
-sa_result_collector #(
-    .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
-    .COMPUTE_DIM(M),
-    .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-    .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
-) sa_result_collector_inst (
-    .clk(clk),
-    .rst(rst),
-    // Control
-    .control(gemm_en),
-    // GEMM Result
-    .gemm_result(gemm_result),
-    .gemm_result_valid(gemm_result_valid),
-    .gemm_result_ready(gemm_result_ready),
-    // GEMV Result
-    .gemv_result(gemv_result),
-    .gemv_result_valid(gemv_result_valid),
-    .gemv_result_ready(gemv_result_ready),
-    // Output Result
-    .out_fp(v_result),
-    .out_result_valid(v_result_valid),
-    .out_result_ready(v_result_ready)
-);
-
+    sa_result_collector #(
+        .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
+        .COMPUTE_DIM(M),
+        .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
+        .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
+    ) sa_result_collector_inst (
+        .clk(clk),
+        .rst(rst),
+        // Control
+        .control            (gemm_en),
+        // GEMM Result
+        .gemm_result        (gemm_result),
+        .gemm_result_valid  (gemm_result_valid),
+        .gemm_result_ready  (gemm_result_ready),
+        // GEMV Result
+        .gemv_result        (gemv_result),
+        .gemv_result_valid  (gemv_result_valid),
+        .gemv_result_ready  (gemv_result_ready),
+        // Output Result
+        .out_fp             (v_result),
+        .out_result_valid   (v_result_valid),
+        .out_result_ready   (v_result_ready)
+    );
 
 endmodule

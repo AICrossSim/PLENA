@@ -148,11 +148,12 @@ module addr_monitor#(
     logic   [TRACK_ADDR_WIDTH-1:0] matched_track_entry_idx;
     logic   match_waddr_valid;
 
-
+    // Decide which source is providing the address this cycle
     always_comb begin
-        // Decide which source is providing the address this cycle
+
         if (exe_stage_op.h_op == PREFETCH_V) begin
-            insert_addr  = fixed_addr_2_to_check;
+            // Note, PREFETCH_M does not need to be monitored as it cannot be directly written.
+            insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else if (exe_stage_op.update_m_waddr) begin
             insert_addr  = exe_stage_op.addr_2;

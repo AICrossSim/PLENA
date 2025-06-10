@@ -166,8 +166,8 @@ module pipeline_control #(
     ) addr_monitor_inst (
         .clk(clk),
         .rst(rst),
-        .check_stage_op         (exe_stage_op),
-        .exe_stage_op           (decode_stage_op),
+        .check_stage_op         (check_stage_op),
+        .exe_stage_op           (exe_stage_op),
         .fixed_addr_1           (fixed_addr_1),
         .fixed_addr_2           (fixed_addr_2),
         .v_sram_addr_a          (v_sram_addr_a),

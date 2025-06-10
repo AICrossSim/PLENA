@@ -20,7 +20,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Execution Control
     input   M_OP    matrix_opcode,
-    output logic    prepare_flag,
+    output logic    load_in_progress,
     input  logic    [ADDR_WIDTH-1:0]                                        addr_in,
 
     // Matix - row-major order
@@ -226,7 +226,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .v2_in_ready        (stored_v_ready),
         .v_result           (result_v),
         .v_result_valid     (result_in_valid),
-        .v_result_ready     (result_in_ready)
+        .v_result_ready     (result_in_ready),
+        .load_in_progress   (load_in_progress)
     );
 
     assign m_wreq = result_in_valid;

@@ -23,12 +23,12 @@ module systolic_data_streamer #(
 )(
     input   logic clk,
     input   logic rst,
-
+    // Data Input
     input   logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] data_elem_in,
     input   logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] data_scale_in,
     input   logic data_in_valid,
     output  logic data_in_ready,
-
+    // Data Output
     output  logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] data_elem_out,
     output  logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] data_scale_out,
     output  logic data_out_valid,
@@ -55,11 +55,10 @@ module systolic_data_streamer #(
             for (int i = 0; i < COMPUTE_DIM; i++) begin
                 if ((store_counter == i & data_in_valid)) begin
                     data_elem_array_queue[store_counter]    <= data_elem_in;
-                    // data_scale_array_queue[store_counter]   <= data_scale_in;
                     for (int j = 0; j < COMPUTE_DIM; j++) begin
                         data_scale_array_queue[store_counter][j] <= data_scale_in[(j >> BLOCK_BITWIDTH)];
                     end
-                    store_counter <= store_counter + 1;
+                    store_counter <= store_counter + 'b1;
                 end else begin
                     if (data_out_ready) begin
                         data_elem_array_queue[i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
@@ -83,6 +82,9 @@ module systolic_data_streamer #(
 
     assign data_in_ready = stream_elem_in_ready & stream_scale_in_ready;
 
+    logic data_element_out_valid, data_scale_out_valid;
+    logic data_element_out_ready, data_scale_out_ready;
+
     skid_buffer #(
         .DATA_WIDTH(COMPUTE_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
     ) skid_buffer_elem (
@@ -92,8 +94,8 @@ module systolic_data_streamer #(
         .data_in_valid      (stream_elem_in_valid),
         .data_in_ready      (stream_elem_in_ready),
         .data_out           (data_elem_out),
-        .data_out_valid     (data_out_valid),
-        .data_out_ready     (data_out_ready)
+        .data_out_valid     (data_element_out_valid),
+        .data_out_ready     (data_element_out_ready)
     );
 
     skid_buffer #(
@@ -105,8 +107,16 @@ module systolic_data_streamer #(
         .data_in_valid      (stream_scale_in_valid),
         .data_in_ready      (stream_scale_in_ready),
         .data_out           (data_scale_out),
-        .data_out_valid     (data_out_valid),
-        .data_out_ready     (data_out_ready)
+        .data_out_valid     (data_scale_out_valid),
+        .data_out_ready     (data_scale_out_ready)
+    );
+
+    join2 #(        
+    ) join_data_out (
+        .data_in_valid({data_element_out_valid, data_scale_out_valid}),
+        .data_in_ready({data_element_out_ready, data_scale_out_ready}),
+        .data_out_valid(data_out_valid),
+        .data_out_ready(data_out_ready)
     );
 
 

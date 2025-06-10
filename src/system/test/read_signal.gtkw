@@ -1,20 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Jun  9 21:50:34 2025
+[*] Tue Jun 10 23:24:23 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Mon Jun  9 21:48:22 2025"
-[dumpfile_size] 54252418
+[dumpfile_mtime] "Tue Jun 10 23:20:12 2025"
+[dumpfile_size] 54314855
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] 111072 121059
-*-17.887817 1280000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.887817 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.hbm_interface_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
+[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
+[treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.fake_hbm_m_element.
 [sst_width] 390
@@ -25,54 +26,46 @@
 SimTop.dut.clk
 @22
 SimTop.dut.decoder_init.decode_instr_info.opcode[5:0]
-SimTop.dut.scalar_machine_init.fixed_reg_file.mem[1][31:0]
-SimTop.dut.scalar_machine_init.fixed_reg_file.mem[2][31:0]
-SimTop.dut.scalar_machine_init.assigned_fixed_op[3:0]
-SimTop.dut.hbm_interface_init.address_mapper_inst.hbm_addr[1][63:0]
-SimTop.dut.scalar_machine_init.imm_in[6:0]
-@28
-SimTop.dut.scalar_machine_init.fixed_reg_wen
-SimTop.dut.scalar_machine_init.fixed_reg_waddr[2:0]
-@22
-SimTop.dut.scalar_machine_init.fixed_reg_wdata[31:0]
-@28
-SimTop.dut.scalar_machine_init.rs1[2:0]
-SimTop.dut.scalar_machine_init.rs2[2:0]
-SimTop.dut.scalar_machine_init.rd[2:0]
-@22
-SimTop.dut.pipeline_control_init.fixed_addr_1[31:0]
-SimTop.dut.pipeline_control_init.fixed_addr_2[31:0]
-SimTop.dut.exe_stage_op.addr_1[31:0]
-SimTop.dut.exe_stage_op.addr_2[31:0]
 @28
 SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.hbm_interface_init.exe_stage_op.h_op[1:0]
-SimTop.dut.hbm_interface_init.exe_stage_op.fixed_rs1[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.control[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.control_under_exe[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_queue[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.load_in_progress
+SimTop.dut.pipeline_control_init.m_load_in_process
+SimTop.dut.pipeline_control_init.recorded_determine_stage_op.m_op[2:0]
+SimTop.dut.pipeline_control_init.stall_in_process
+SimTop.dut.pipeline_control_init.m_load_in_process
+SimTop.dut.pipeline_control_init.v_load_in_process
+SimTop.dut.pipeline_control_init.hbm_m_prefetch_in_progress
+SimTop.dut.pipeline_control_init.hbm_v_prefetch_in_progress
+SimTop.dut.pipeline_control_init.stall_for_mem_dependency
 @22
-SimTop.dut.hbm_interface_init.exe_stage_op.addr_1[31:0]
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.fetch_data[63:0]
-@28
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.fetch_data_valid
-@22
-SimTop.fake_hbm_m_element.bram_rdata[255:0]
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.host_d.data[63:0]
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.device_d.data[255:0]
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.device_a.data[255:0]
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.host_d_o[77:0]
-@28
-SimTop.dut.hbm_interface_init.prefetch_m_valid
-SimTop.dut.hbm_interface_init.m_hbm_prefetch_en
-SimTop.dut.hbm_interface_init.v_hbm_prefetch_en
-SimTop.dut.hbm_interface_init.prefetch_m_ready
-SimTop.dut.m_sram_wen
-@22
-SimTop.dut.hbm_interface_init.prefetch_m_element[0][7:0]
-SimTop.dut.hbm_interface_init.prefetch_m_element[1][7:0]
-@28
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.prefetch_element_data_ready
-SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.fetch_data_valid
-SimTop.dut.data_flow_init.prefetch_m_valid
+SimTop.dut.pipeline_control_init.addr_monitor_inst.fixed_addr_1[31:0]
 @29
-SimTop.dut.data_flow_init.m_sram_wen
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[2].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[2].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.exe_stage_op.update_m_waddr
+SimTop.dut.pipeline_control_init.addr_monitor_inst.exe_stage_op.update_v_waddr
+SimTop.dut.pipeline_control_init.addr_monitor_inst.exe_stage_op.h_op[1:0]
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.fixed_addr_2_to_check[31:0]
+SimTop.dut.pipeline_control_init.addr_monitor_inst.fixed_addr_2[31:0]
+SimTop.dut.pipeline_control_init.addr_monitor_inst.exe_stage_op.addr_2[31:0]
+SimTop.dut.pipeline_control_init.addr_monitor_inst.exe_stage_op.addr_1[31:0]
+SimTop.dut.pipeline_control_init.check_stage_op.addr_1[31:0]
+SimTop.dut.pipeline_control_init.check_stage_op.addr_2[31:0]
+SimTop.dut.pipeline_control_init.exe_stage_op.addr_1[31:0]
+SimTop.dut.pipeline_control_init.exe_stage_op.addr_2[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
