@@ -339,7 +339,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     assign fixed_reg_addr_1 = rs1;
-    assign fixed_reg_addr_2 = ((exe_fixed_op == PASS_ADDR_2) || (exe_fixed_op == ST_FIX)) ? rd : rs2;
+    assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX)) ? rd : rs2;
 
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH)

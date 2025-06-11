@@ -54,6 +54,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic stall_req_from_fp, fixed_stall_req;
     logic v_in_prep, m_in_prep;
     logic sfu_in_use;
+    logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -169,6 +170,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_sram_wen             (m_sram_wen),
         .m_sram_req             (m_sram_req),
         .m_sram_transposed_read (m_sram_transposed_read),
+        .m_prefetch_data_not_ready (m_prefetch_data_not_ready),
         .v_v_a_valid            (v_v_a_valid),
         .v_v_a_ready            (v_v_a_ready),
         .v_v_b_valid            (v_v_b_valid),
@@ -188,6 +190,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .v_sram_wen_b           (v_sram_wen_b),
         .v_sram_addr_b          (v_sram_addr_b),
         .v_sram_mask_b          (v_sram_mask_b),
+        .v_prefetch_data_not_ready (v_prefetch_data_not_ready),
         .prefetch_m_valid       (hbm_m_prefetch_valid),
         .prefetch_v_valid       (hbm_v_prefetch_valid),
         .hbm_ready_to_write     (hbm_write_data_ready),
@@ -217,7 +220,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_sram_wen_a, v_sram_wen_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
-    logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr;
 
     logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_out;
@@ -326,37 +328,42 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Matrix SRAM 
     matrix_sram_with_rounding #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .MLEN(MLEN),
-        .BLOCK_DIM(BLOCK_DIM),
-        .SRAM_DEPTH(MATRIX_SRAM_DEPTH),
-        .PARALLEL_DIM(Matrix_Parallel_Rd_Dim)
+        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+        .MLEN               (MLEN),
+        .BLOCK_DIM          (BLOCK_DIM),
+        .SRAM_DEPTH         (MATRIX_SRAM_DEPTH),
+        .PARALLEL_DIM       (Matrix_Parallel_Rd_Dim),
+        .PREFETCH_AMOUNT    (HBM_M_Prefetch_Amount)
     ) matrix_sram (
         .clk(clk),
         .rst(rst),
         .req                (m_sram_req),
         .transposed_read    (m_sram_transposed_read),
         .sram_raddr         (m_sram_raddr),
-        .element_in         (prefetch_m_element),
-        .scale_in           (prefetch_m_scale),
+        .element_out        (fetched_m_element),
+        .scale_out          (fetched_m_scale),
         .wen                (m_sram_wen),
         .sram_waddr         (m_sram_waddr),
-        .element_out        (fetched_m_element),
-        .scale_out          (fetched_m_scale)
+        .element_in         (prefetch_m_element),
+        .scale_in           (prefetch_m_scale),
+        .prefetch_addr      (exe_stage_op.addr_2),
+        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M),
+        .data_not_ready     (m_prefetch_data_not_ready)
     );
 
     // Vector SRAM
     fp_vector_sram #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .EXP_WIDTH(S_FP_EXP_WIDTH),
-        .MANT_WIDTH(S_FP_MANT_WIDTH),
-        .VLEN(VLEN),
-        .BLOCK_DIM(BLOCK_DIM),
-        .SRAM_DEPTH(SCRATCHPAD_SRAM_DEPTH)
+        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+        .EXP_WIDTH          (S_FP_EXP_WIDTH),
+        .MANT_WIDTH         (S_FP_MANT_WIDTH),
+        .VLEN               (VLEN),
+        .BLOCK_DIM          (BLOCK_DIM),
+        .SRAM_DEPTH         (SCRATCHPAD_SRAM_DEPTH),
+        .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount)
     ) vector_sram (
         .clk(clk),
         .rst(rst),
@@ -376,7 +383,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .element_in_b       (v_element_port_b_in),
         .scale_in_b         (v_scale_port_b_in),
         .element_out_b      (v_element_port_b_out),
-        .scale_out_b        (v_scale_port_b_out)
+        .scale_out_b        (v_scale_port_b_out),
+        .prefetch_en        (exe_stage_op.h_op == PREFETCH_V),
+        .prefetch_addr      (exe_stage_op.addr_2),
+        .data_not_ready     (v_prefetch_data_not_ready)
     );
 
     // -----------------------------

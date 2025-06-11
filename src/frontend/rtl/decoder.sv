@@ -200,7 +200,7 @@ always_ff @(posedge clk) begin
         decode_stage_op.v_ele_op        <= STALL_V_ELEMENT;
         decode_stage_op.v_reduct_op     <= STALL_V_REDUCT;
         decode_stage_op.s_fp_op         <= STALL_S_FP;
-        exe_fixed_op                      <= PASS_ADDR_2;
+        exe_fixed_op                    <= PASS_ADDR_2;
         decode_stage_op.c_op            <= STALL_C;
         decode_stage_op.h_op            <= STALL_H;
         decode_stage_op.m_transposed_read   <= 1'b0;
@@ -230,22 +230,22 @@ always_ff @(posedge clk) begin
 
         case(decode_instr_info.instruction_type)
             M: begin
-                decode_stage_op.m_op          <=  (decode_instr_info.opcode == M_BMM  || decode_instr_info.opcode == M_TMM)       ? MM   :
+                decode_stage_op.m_op          <=    (decode_instr_info.opcode == M_BMM  || decode_instr_info.opcode == M_TMM)       ? MM   :
                                                     (decode_instr_info.opcode == M_BMM_O || decode_instr_info.opcode == M_TMM_O)    ? MM_O :
                                                     (decode_instr_info.opcode == M_MV   || decode_instr_info.opcode == M_TMV)       ? MV   :
                                                     (decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_TMV_O)     ? MV_O : STALL_M;
                 decode_stage_op.v_ele_op      <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op   <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op       <= STALL_S_FP;
-                exe_fixed_op                    <= PASS_ADDR;
+                exe_fixed_op                  <= PASS_ADDR;
                 decode_stage_op.c_op          <= STALL_C;
                 decode_stage_op.h_op          <= STALL_H;
                 decode_stage_op.fps1          <= 'b0;
                 decode_stage_op.fps2          <= 'b0;
                 decode_stage_op.fpd           <= 'b0;
-                rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2                             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd                              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                rs1                           <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                rs2                           <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                rd                            <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                 imm     <= 'b0;
             end
 

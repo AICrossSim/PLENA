@@ -78,7 +78,13 @@ always_ff @(posedge clk) begin
     end
 end
 
-assign data_not_ready = (req & !wen) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
+always_ff @(posedge clk) begin
+    if (rst) begin
+        data_not_ready <= 1'b0;
+    end else begin
+        data_not_ready <= (req & !wen) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
+    end
+end
 
 // scale duplication
 logic scale_write_response, element_write_response;
