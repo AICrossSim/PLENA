@@ -125,9 +125,9 @@ module systolic_mcu #(
 
     assign gemm_en = ((control_under_exe == MM) || (control_under_exe == MM_O));
 
-    localparam COUNTER_BIT_WIDTH = $clog2(COMPUTE_DIM);
-    logic [COUNTER_BIT_WIDTH - 1 : 0] v1_load_counter;
-    logic [COUNTER_BIT_WIDTH - 1 : 0] v2_load_counter;
+    localparam COUNTER_BIT_WIDTH = $clog2(K);
+    logic [COUNTER_BIT_WIDTH : 0] v1_load_counter;
+    logic [COUNTER_BIT_WIDTH : 0] v2_load_counter;
     logic complete_v1_load, complete_v2_load;
 
     always_ff @(posedge clk) begin
@@ -135,15 +135,14 @@ module systolic_mcu #(
             v1_load_counter <= '0;
             complete_v1_load <= 1'b0;
         end else if (v1_in_valid & v1_in_ready) begin
-            if (v1_load_counter == COMPUTE_DIM - 1) begin
+            if (v1_load_counter == K - 1) begin
                 v1_load_counter <= '0;
                 complete_v1_load <= 1'b1;
             end else begin
                 v1_load_counter <= v1_load_counter + 'b1;
                 complete_v1_load <= 1'b0;
             end
-        end else begin
-            v1_load_counter <= '0;
+        end else if (complete_loading) begin
             complete_v1_load <= 1'b0;
         end
     end
@@ -153,15 +152,14 @@ module systolic_mcu #(
             v2_load_counter <= '0;
             complete_v2_load <= 1'b0;
         end else if (v2_in_valid & v2_in_ready) begin
-            if (v2_load_counter == COMPUTE_DIM - 1) begin
+            if (v2_load_counter == K - 1) begin
                 v2_load_counter <= '0;
                 complete_v2_load <= 1'b1;
             end else begin
                 v2_load_counter <= v2_load_counter + 'b1;
                 complete_v2_load <= 1'b0;
             end
-        end else begin
-            v2_load_counter <= '0;
+        end else if (complete_loading) begin
             complete_v2_load <= 1'b0;
         end
     end
@@ -296,17 +294,13 @@ module systolic_mcu #(
     ) sa_result_collector_inst (
         .clk(clk),
         .rst(rst),
-        // Control
         .control            (gemm_en),
-        // GEMM Result
         .gemm_result        (gemm_result),
         .gemm_result_valid  (gemm_result_valid),
         .gemm_result_ready  (gemm_result_ready),
-        // GEMV Result
         .gemv_result        (gemv_result),
         .gemv_result_valid  (gemv_result_valid),
         .gemv_result_ready  (gemv_result_ready),
-        // Output Result
         .out_fp             (v_result),
         .out_result_valid   (v_result_valid),
         .out_result_ready   (v_result_ready)

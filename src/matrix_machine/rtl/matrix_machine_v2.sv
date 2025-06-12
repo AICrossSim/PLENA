@@ -157,13 +157,9 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     ) vector_element_buffer (
         .clk(clk),
         .rst(rst),
-
-        // Input
         .data_in        (v_element),
         .data_in_valid  (stored_v_in_ele_valid),
         .data_in_ready  (stored_v_in_ele_ready),
-
-        // Output
         .data_out       (stored_v_element),
         .data_out_valid (stored_v_ele_valid),
         .data_out_ready (stored_v_ele_ready)
@@ -174,13 +170,9 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     ) vector_scale_buffer (
         .clk(clk),
         .rst(rst),
-
-        // Input
         .data_in        (v_scale),
         .data_in_valid  (stored_v_in_scale_valid),
         .data_in_ready  (stored_v_in_scale_ready),
-
-        // Output
         .data_out       (stored_v_scale),
         .data_out_valid (stored_v_scale_valid),
         .data_out_ready (stored_v_scale_ready)

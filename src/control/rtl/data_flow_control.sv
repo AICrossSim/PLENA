@@ -105,7 +105,7 @@ module data_flow_control import precision_pkg::*;  #(
     MEM_WEN_INFO mem_stage_write_control;
 
     always_ff @(posedge clk ) begin
-        mem_stage_op          <= exe_stage_op;
+        mem_stage_op            <= exe_stage_op;
         mem_stage_write_control <= mem_write_control;
     end
 
@@ -198,7 +198,7 @@ module data_flow_control import precision_pkg::*;  #(
         end else begin
             m_out_ready     <= 1'b1;
             m_m_valid       <= (m_m_load_cond & !end_of_load_m) & (!m_prefetch_data_not_ready);
-            m_m_load_cond   <= m_m_load;
+            m_m_load_cond   <= m_m_load & !end_of_load_m;
             // Matrix SRAM Read Port Control
             if (exe_stage_op.m_op != STALL_M) begin
                 m_sram_req      <= 1'b1;
@@ -256,12 +256,14 @@ module data_flow_control import precision_pkg::*;  #(
     // Assuming the read cycle is 1 cycle for both ports.
     // Port A ->  R: Matrix Multiplicand Vector & Vector Operand (RS1)                           W: Vector Result from either Matrix or Vector Machine, 
     // Port B ->  R: Vector Operand (RS2)  or HBM Write Data   W: Vector Prefetch
+    // For Port A, if loading it to the matrix machine, this takes extra cycle as we need to quantise the fp data (activation) into MX-FP format.
 
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_for_matrix_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] hbm_waddr;
+    logic port_b_prefetch_ready;
     logic continuous_v_prefetch_en, continuous_load_v_for_matrix_en;
     logic [M_LD_COUNT_WIDTH : 0] v_sram_load_for_matrix_counter;
     logic load_for_gemv_en;
@@ -315,16 +317,17 @@ module data_flow_control import precision_pkg::*;  #(
             recorded_m_write_addr           <= 'b0;
             recorded_v_write_addr           <= 'b0;
             load_for_gemv_en                <= 1'b0;
-            m_v_valid       <= 1'b0;
-            m_v_load        <= 1'b0;
-            v_v_a_load      <= 1'b0;
-            v_v_b_load      <= 1'b0;
-            m_v_load_cond   <= 1'b0;
+            m_v_valid                       <= 1'b0;
+            m_v_load                        <= 1'b0;
+            v_v_a_load                      <= 1'b0;
+            v_v_b_load                      <= 1'b0;
+            m_v_load_cond                   <= 1'b0;
+            port_b_prefetch_ready           <= 1'b0;
         end else begin
             v_v_a_valid                 <= v_v_a_load;
             v_v_b_valid                 <= v_v_b_load;
             hbm_write_data_valid        <= hbm_load_write_data;
-            m_v_load_cond               <= m_v_load;
+            m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
             //Port A
             if(exe_stage_op.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM
@@ -342,7 +345,7 @@ module data_flow_control import precision_pkg::*;  #(
                     v_sram_load_for_matrix_counter <= 'b0;
                     continuous_load_v_for_matrix_en <= 1'b0;
                 end else begin
-                    if (!m_prefetch_data_not_ready & m_v_load_cond) begin
+                    if (!v_prefetch_data_not_ready & m_v_load_cond) begin
 
                         if (load_for_gemv_en) begin
                             m_v_load    <= 1'b0;
@@ -422,18 +425,19 @@ module data_flow_control import precision_pkg::*;  #(
                 v_sram_req_b                    <= 1'b0;
                 continuous_v_prefetch_en        <= 1'b0;
                 v_sram_prefetch_counter         <= 'b0;
+            end else if (hbm_v_req_prefetch_data && prefetch_v_valid) begin
+                v_sram_req_b            <= 1'b1;
             end else begin
                 // No SRAM access
-                v_sram_req_b        <= 1'b0;
-                v_sram_wen_b        <= 1'b0;
-                hbm_load_write_data   <= 1'b0;
-                v_v_b_load          <= 1'b0;
+                v_sram_req_b            <= 1'b0;
+                hbm_load_write_data     <= 1'b0;
+                v_v_b_load              <= 1'b0;
             end
 
-            v_sram_wen_b <= (hbm_v_req_prefetch_data && prefetch_v_valid);
+            v_sram_wen_b            <= (hbm_v_req_prefetch_data && prefetch_v_valid);
             
-            recorded_v_load_addr_1 <= exe_stage_op.addr_1;
-            recorded_v_load_addr_2 <= exe_stage_op.addr_2;
+            recorded_v_load_addr_1  <= exe_stage_op.addr_1;
+            recorded_v_load_addr_2  <= exe_stage_op.addr_2;
             
             if (exe_stage_op.m_op != STALL_M) begin
                 recorded_v_load_for_matrix_addr <= exe_stage_op.addr_2;
