@@ -1,29 +1,32 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Jun 11 21:45:49 2025
+[*] Thu Jun 12 11:56:30 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed Jun 11 21:43:13 2025"
-[dumpfile_size] 54337529
+[dumpfile_mtime] "Thu Jun 12 11:55:46 2025"
+[dumpfile_size] 54441110
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 295600
+[timestart] 201200
 [size] 3428 1359
 [pos] 111072 121059
-*-15.638321 540000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.919439 1100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
+[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].
+[treeopen] SimTop.dut.matrix_sram.
+[treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].
 [treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.scalar_machine_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.fake_hbm_m_element.
 [treeopen] SimTop.fake_hbm_v_element.
 [sst_width] 390
-[signals_width] 425
+[signals_width] 506
 [sst_expanded] 1
 [sst_vpaned_height] 1017
 @28
@@ -38,13 +41,6 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_queue[2:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.load_in_progress
 SimTop.dut.pipeline_control_init.m_load_in_process
 SimTop.dut.pipeline_control_init.recorded_determine_stage_op.m_op[2:0]
-SimTop.dut.pipeline_control_init.stall_in_process
-SimTop.dut.pipeline_control_init.m_load_in_process
-SimTop.dut.pipeline_control_init.v_load_in_process
-SimTop.dut.pipeline_control_init.hbm_m_prefetch_in_progress
-SimTop.dut.pipeline_control_init.hbm_v_prefetch_in_progress
-SimTop.dut.pipeline_control_init.addr_monitor_inst.exe_stage_op.h_op[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control[2:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.control
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.columnwise_data_transfer_element[0][0][7:0]
@@ -52,46 +48,20 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_ins
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.columnwise_data_transfer_element[0][2][7:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.columnwise_data_transfer_element[0][3][7:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.columnwise_data_transfer_element[1][0][7:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_valid[1:0]
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_scale[0][0][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[1][0][7:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[0][0][7:0]
-SimTop.dut.matrix_machine_init.m_element[2][7:0]
-SimTop.dut.matrix_machine_init.m_element[0][7:0]
-SimTop.dut.matrix_machine_init.m_element[1][7:0]
-@28
-SimTop.dut.matrix_sram.wen
-@22
 SimTop.dut.matrix_sram.element_in[0][0][7:0]
 SimTop.dut.matrix_sram.element_in[0][1][7:0]
 SimTop.dut.matrix_sram.element_in[0][2][7:0]
-SimTop.dut.matrix_sram.raddr_for_sub_sram[6:0]
-SimTop.dut.matrix_sram.sram_raddr[31:0]
-SimTop.dut.matrix_sram.sram_waddr[31:0]
-@28
-SimTop.dut.data_flow_init.m_sram_req
-SimTop.dut.matrix_sram.data_not_ready
-@22
-SimTop.dut.matrix_sram.mem_data_tag[127:0]
-@28
-SimTop.dut.matrix_sram.prefetch_en
-SimTop.dut.exe_stage_op.h_op[1:0]
-@22
-SimTop.dut.data_flow_init.m_sram_prefetch_counter[4:0]
-SimTop.dut.scalar_machine_init.fixed_reg_file.mem[1][31:0]
-@28
-SimTop.dut.data_flow_init.exe_stage_op.h_op[1:0]
-SimTop.dut.data_flow_init.exe_stage_op.m_op[2:0]
-@22
-SimTop.dut.data_flow_init.recorded_m_prefetch_addr[31:0]
-SimTop.dut.data_flow_init.m_sram_raddr[31:0]
 SimTop.dut.data_flow_init.m_sram_load_counter[3:0]
 @28
 SimTop.dut.data_flow_init.continuous_load_m_en
 SimTop.dut.data_flow_init.m_sram_req
-@29
-SimTop.dut.data_flow_init.m_m_valid
+@22
+SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.wdata[7:0]
+SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.raddr[6:0]
+SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.rdata[7:0]
+@28
+SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.read_data_valid
+SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.wen
+SimTop.dut.matrix_sram.element_storage.wen_req
 [pattern_trace] 1
 [pattern_trace] 0

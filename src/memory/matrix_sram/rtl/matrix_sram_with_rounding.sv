@@ -66,6 +66,18 @@ assign prefetch_addr_for_sub_sram = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
 // Tag Matching, trackinng the prefetch status.
 logic [SRAM_DEPTH - 1 : 0] mem_data_tag;
 
+logic wen_delay;
+logic [AddrLen - 1 : 0] waddr_for_sub_sram_delay;
+always_ff @(posedge clk) begin
+    if (rst) begin
+        wen_delay <= 1'b0;
+        waddr_for_sub_sram_delay <= '0;
+    end else begin
+        wen_delay <= wen;
+        waddr_for_sub_sram_delay <= waddr_for_sub_sram;
+    end
+end
+
 always_ff @(posedge clk) begin
     if (rst) begin
         mem_data_tag <= {{SRAM_DEPTH{1'b1}}};
@@ -73,8 +85,8 @@ always_ff @(posedge clk) begin
         for (int i = prefetch_addr_for_sub_sram; i < prefetch_addr_for_sub_sram + PREFETCH_AMOUNT; i++) begin
             mem_data_tag[i] <= 1'b0;
         end
-    end else if (wen) begin
-        mem_data_tag[waddr_for_sub_sram] <= 1'b1;
+    end else if (wen_delay) begin
+        mem_data_tag[waddr_for_sub_sram_delay] <= 1'b1;
     end
 end
 
@@ -82,7 +94,7 @@ always_ff @(posedge clk) begin
     if (rst) begin
         data_not_ready <= 1'b0;
     end else begin
-        data_not_ready <= (req & !wen) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
+        data_not_ready <= (req) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
     end
 end
 
@@ -115,15 +127,15 @@ biaccess_sram #(
     .transposed_read    (transposed_read),
     .sram_raddr         (raddr_for_sub_sram),
     .out_data           (loaded_scale_out),
-    .wen                (wen),
+    .wen_req            (wen),
     .write_response     (scale_write_response),
-    .sram_waddr          (waddr_for_sub_sram),
+    .sram_waddr         (waddr_for_sub_sram),
     .write_data         (dumplicated_scale_in)
 );
 
 // element storage
 biaccess_sram #(
-    .DataWidth      (MXFP_SCALE_WIDTH),
+    .DataWidth      (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     .SRAM_DEPTH     (SRAM_DEPTH),
     .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)
@@ -133,7 +145,7 @@ biaccess_sram #(
     .transposed_read    (transposed_read),
     .sram_raddr         (raddr_for_sub_sram),
     .out_data           (loaded_element_out),
-    .wen                (wen),
+    .wen_req            (wen),
     .write_response     (element_write_response),
     .sram_waddr         (waddr_for_sub_sram),
     .write_data         (element_in)

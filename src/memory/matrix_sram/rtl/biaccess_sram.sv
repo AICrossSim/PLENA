@@ -27,7 +27,7 @@ module biaccess_sram #(
     input  logic [AddrLen-1:0] sram_raddr,
     output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0] out_data,
 
-    input  logic wen,
+    input  logic wen_req,
     output logic write_response,
     input  logic [AddrLen-1:0] sram_waddr,
     input  logic [Parallel_Rd_Dim * MLEN * DataWidth - 1:0] write_data
@@ -47,12 +47,19 @@ logic [SubSRAM_Amount - 1 : 0] [SubTileWidth - 1 : 0]   sub_sram_wdata, sub_sram
 logic [SubSRAM_Amount-1:0] individual_subs_sram_write_response ;
 logic [SubSRAM_Amount-1:0] individual_subs_sram_read_valid ;
 logic read_data_valid;
+logic wen;
+logic [AddrLen-1:0] sram_waddr_delayed;
 
 // Control Signals
 always_comb begin
     write_response =  (individual_subs_sram_write_response == {SubSRAM_Amount{1'b1}});
     read_data_valid = (individual_subs_sram_read_valid == {SubSRAM_Amount{1'b1}});
 end 
+
+always_ff @(posedge clk) begin
+    wen <= wen_req;
+    sram_waddr_delayed <= sram_waddr;
+end
 
 // Instantiate the sub SRAMs
 genvar sub_sram_index;
@@ -72,7 +79,7 @@ generate
             .rdata(sub_sram_rdata[sub_sram_index]),
             .read_data_valid(individual_subs_sram_read_valid[sub_sram_index]),
             .wen(wen),
-            .waddr(sram_waddr),
+            .waddr(sram_waddr_delayed),
             .wdata(sub_sram_wdata[sub_sram_index]),
             .write_response(individual_subs_sram_write_response[sub_sram_index])
         );
@@ -87,6 +94,7 @@ wdata_transform #(
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
 ) wdata_transform_init (
     .clk            (clk),
+    .wreq           (wen_req),
     .in_data        (write_data),
     .addr           (sram_waddr),
     .sub_sram_wdata (sub_sram_wdata)
