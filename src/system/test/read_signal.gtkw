@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Jun 12 19:10:28 2025
+[*] Thu Jun 12 21:20:49 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
 [dumpfile_mtime] "Thu Jun 12 17:55:44 2025"
 [dumpfile_size] 57446461
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 402300
+[timestart] 125300
 [size] 3428 1359
 [pos] 111072 121059
-*-16.919439 1048000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.919439 600000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
@@ -23,6 +23,10 @@
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
+[treeopen] SimTop.dut.vector_sram.
+[treeopen] SimTop.dut.vector_sram.genblk1[0].
+[treeopen] SimTop.dut.vector_sram.genblk1[1].
+[treeopen] SimTop.dut.vector_sram.genblk3[0].
 [treeopen] SimTop.fake_hbm_m_element.
 [sst_width] 390
 [signals_width] 429
@@ -99,7 +103,21 @@ SimTop.dut.vector_sram.port_a_element_out[0][7:0]
 SimTop.dut.vector_sram.port_a_element_out[1][7:0]
 SimTop.dut.vector_sram.port_a_element_out[3][7:0]
 SimTop.dut.vector_sram.port_a_element_out[4][7:0]
-@23
 SimTop.dut.vector_sram.port_a_element_out[5][7:0]
+@28
+SimTop.dut.vector_sram.mxfp_fp_convert_port_a_out_ready[1:0]
+@22
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in[0][15:0]
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in[2][15:0]
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in[1][15:0]
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in[3][15:0]
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.scale_data_out[15:0]
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.element_data_out[0][7:0]
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.element_conv_valid[3:0]
+@28
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in_valid
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in_ready
+@23
+SimTop.dut.vector_sram.genblk1[0].fp_2_mx_port_a_convert_init.data_in[0][15:0]
 [pattern_trace] 1
 [pattern_trace] 0

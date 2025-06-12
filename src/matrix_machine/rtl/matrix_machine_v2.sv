@@ -30,14 +30,13 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output logic                   m_ready,
 
     // Vector - row-major order
-    input  logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]          v_element,
-    input  logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                     v_scale,
+    input  logic [MLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]          v_fp_in,
     input  logic                   v_valid,
     output logic                   v_ready,
 
     // Output
     input  logic result_waddr_update,
-    output logic [MLEN-1:0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]    out_v_fp,
+    output logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]    out_v_fp,
     output logic                                                    out_valid,
     input  logic                                                    out_ready,
     output logic [ADDR_WIDTH-1:0]                                   m_waddr,
@@ -57,8 +56,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     RECORDED_INFO_TYPE pipeline_compute_track [0:MATRIX_MAX_CYCLES-1];
     M_OP    recorded_m_op;
     logic [ADDR_WIDTH-1:0] recorded_m_waddr;
-    logic collect_m_valid, collect_m_ready;
-    logic stored_v_valid, stored_v_ready;
 
     // Preparation Units 
     always_ff @(posedge clk) begin
@@ -133,58 +130,56 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready(stored_m_ready)
     );
 
+    // Convert MX-FP Data to FP Data
+    logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   converted_m_data_in;
+    logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   converted_m_data_out;
+    logic converted_m_valid, converted_m_ready;
 
-    // Data from Vector SRAM Buffering
-    logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]   stored_v_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]       stored_v_scale;
-    logic stored_v_in_ele_ready,    stored_v_in_scale_ready;
-    logic stored_v_in_ele_valid,    stored_v_in_scale_valid;
-    logic stored_v_ele_ready,       stored_v_scale_ready;
-    logic stored_v_ele_valid,       stored_v_scale_valid;
-
-
-    split_n #(
-        .N(2)
-    ) v_split_i (
-        .data_in_valid (v_valid),
-        .data_in_ready (v_ready),
-        .data_out_valid({stored_v_in_ele_valid, stored_v_in_scale_valid}),
-        .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
-    );
+    generate;
+        for (genvar i = 0; i < BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
+            mx_fp_2_fp_block #(
+                .BLOCK_DIM          (BLOCK_DIM),
+                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .FP_MANT_WIDTH      (V_FP_MANT_WIDTH),
+                .FP_EXP_WIDTH       (V_FP_EXP_WIDTH)
+            ) mx_fp_2_fp_convert (
+                .element_in     (stored_m_element[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
+                .scale_in       (stored_m_scale[i]),
+                .fp_out         (converted_m_data_in)
+            );
+        end
+    endgenerate
 
     skid_buffer #(
-        .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
+        .DATA_WIDTH(MLEN * (V_FP_MANT_WIDTH + V_FP_EXP_WIDTH + 1))
+    ) matrix_fp_data_buffer (
+        .clk(clk),
+        .rst(rst),
+        .data_in        (converted_m_data_in),
+        .data_in_valid  (stored_m_valid),
+        .data_in_ready  (stored_m_ready),
+        .data_out       (converted_m_data_out),
+        .data_out_valid (converted_m_valid),
+        .data_out_ready (converted_m_ready)
+    );
+
+    // Data from Vector SRAM Buffering
+    logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   stored_v_data;
+    logic stored_v_valid, stored_v_ready;
+
+    skid_buffer #(
+        .DATA_WIDTH(MLEN * (V_FP_MANT_WIDTH + V_FP_EXP_WIDTH + 1))
     ) vector_element_buffer (
         .clk(clk),
         .rst(rst),
-        .data_in        (v_element),
-        .data_in_valid  (stored_v_in_ele_valid),
-        .data_in_ready  (stored_v_in_ele_ready),
-        .data_out       (stored_v_element),
-        .data_out_valid (stored_v_ele_valid),
-        .data_out_ready (stored_v_ele_ready)
-    );
-
-    skid_buffer #(
-        .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
-    ) vector_scale_buffer (
-        .clk(clk),
-        .rst(rst),
-        .data_in        (v_scale),
-        .data_in_valid  (stored_v_in_scale_valid),
-        .data_in_ready  (stored_v_in_scale_ready),
-        .data_out       (stored_v_scale),
-        .data_out_valid (stored_v_scale_valid),
-        .data_out_ready (stored_v_scale_ready)
-    );
-
-    join_n #(
-        .NUM_HANDSHAKES (2)
-    ) join_v_element (
-        .data_in_valid({stored_v_ele_valid, stored_v_scale_valid}),
-        .data_in_ready({stored_v_ele_ready, stored_v_scale_ready}),
-        .data_out_valid(stored_v_valid),
-        .data_out_ready(stored_v_ready)
+        .data_in        (v_fp_in),
+        .data_in_valid  (v_valid),
+        .data_in_ready  (v_ready),
+        .data_out       (stored_v_data),
+        .data_out_valid (stored_v_valid),
+        .data_out_ready (stored_v_ready)
     );
 
     // Result Buffering
@@ -194,11 +189,11 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
     // Systolic Matrix Compute Unit
     // -----------------------------
-    systolic_mcu #(
-        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
-        .BLOCK_DIM          (BLOCK_DIM),
+    fp_systolic_mcu #(
+        .FP_EXP_WIDTH       (V_FP_EXP_WIDTH),
+        .FP_MANT_WIDTH      (V_FP_MANT_WIDTH),
+        .PROD_EXT_EXP_WIDTH (PRODUCT_EXT_EXP_WIDTH),
+        .PROD_EXT_MANT_WIDTH(PRODUCT_EXT_MANT_WIDTH),
         .ACC_FP_EXP_WIDTH   (M_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (M_FP_MANT_WIDTH),
         .M                  (BATCH_SIZE),
@@ -208,12 +203,10 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .clk                (clk),
         .rst                (rst),
         .control            (matrix_opcode),
-        .v1_element         (stored_m_element),
-        .v1_scale           (stored_m_scale),
-        .v1_in_valid        (stored_m_valid),
-        .v1_in_ready        (stored_m_ready),
-        .v2_element         (stored_v_element),
-        .v2_scale           (stored_v_scale),
+        .v1_data            (converted_m_data_out),
+        .v1_in_valid        (converted_m_valid),
+        .v1_in_ready        (converted_m_ready),
+        .v2_data            (stored_v_data),
         .v2_in_valid        (stored_v_valid),
         .v2_in_ready        (stored_v_ready),
         .v_result           (result_v),
@@ -234,12 +227,12 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     ) result_buffer (
         .clk(clk),
         .rst(rst),
-        .data_in(result_element),
-        .data_in_valid(result_in_valid),
-        .data_in_ready(result_in_ready),
-        .data_out(stored_result_v),
-        .data_out_valid(stored_result_valid),
-        .data_out_ready(stored_result_ready)
+        .data_in            (result_v),
+        .data_in_valid      (result_in_valid),
+        .data_in_ready      (result_in_ready),
+        .data_out           (stored_result_v),
+        .data_out_valid     (stored_result_valid),
+        .data_out_ready     (stored_result_ready)
     );
 
     // Quantize into Required Precision for Storage

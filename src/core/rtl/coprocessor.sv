@@ -77,7 +77,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic hbm_m_req_prefetch_data, hbm_v_req_prefetch_data;
 
     // Vector SRAM
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]      vs_port_a_in_fp;
     logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element_port_b_in;
     logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      v_scale_port_b_in;
     
@@ -223,8 +222,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_out;
-    logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_a_out;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_a_out;
 
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_a_out_fp;
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_b_out_fp;
@@ -252,10 +249,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .m_scale                (fetched_m_scale),
             .m_valid                (m_m_valid),
             .m_ready                (m_m_ready),
-            .v_element              (v_element_port_a_out),
-            .v_scale                (v_scale_port_a_out),
-            .v_valid                (m_v_valid),
-            .v_ready                (m_v_ready),
+            .v_fp_in                (v_port_a_out_fp),
             .out_v_fp               (m_out_v_fp),
             .out_valid              (m_out_valid),
             .out_ready              (m_out_ready),
@@ -377,8 +371,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_a_v_fp_in     (v_out_fp),
         .port_a_mask_in     (v_sram_mask_a),
         .port_a_v_fp_out    (v_port_a_out_fp),
-        .port_a_element_out (v_element_port_a_out),
-        .port_a_scale_out   (v_scale_port_a_out),
+        // .port_a_element_out (v_element_port_a_out),
+        // .port_a_scale_out   (v_scale_port_a_out),
         .port_b_req         (v_sram_req_b),
         .port_b_write_en    (v_sram_wen_b),
         .port_b_addr        (v_sram_addr_b),

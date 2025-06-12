@@ -7,7 +7,7 @@ Description :
 Status      : Under Development
 */
 
-module sa_result_collector #(
+module systolic_result_collector #(
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
     parameter ACC_FP_MANT_WIDTH     = 7,

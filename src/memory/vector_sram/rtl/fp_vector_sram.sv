@@ -47,9 +47,9 @@ module fp_vector_sram #(
     input   logic [VLEN - 1 : 0]                                        port_a_mask_in,
     output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_out,
     output  logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_out,
-    // MX-FP Connection
-    output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_a_element_out,
-    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_a_scale_out,
+    // // MX-FP Connection
+    // output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_a_element_out,
+    // output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_a_scale_out,
 
     // Port B
     input   logic port_b_req,
@@ -127,38 +127,38 @@ module fp_vector_sram #(
     end
 
     // Convert FP Data to MX-FP Data for HBM write
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            mxfp_fp_convert_port_a_in_valid     <= '0;
-        end else begin
-            mxfp_fp_convert_port_a_in_valid     <= port_a_req ? {BLOCK_NUM{1'b1}} : '0;
-            mxfp_fp_convert_port_a_out_ready    <= {BLOCK_NUM{1'b1}};
-        end
-    end
+    // logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
+    // logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
+    // always_ff @(posedge clk or posedge rst) begin
+    //     if (rst) begin
+    //         mxfp_fp_convert_port_a_in_valid     <= '0;
+    //     end else begin
+    //         mxfp_fp_convert_port_a_in_valid     <= port_a_req ? {BLOCK_NUM{1'b1}} : '0;
+    //         mxfp_fp_convert_port_a_out_ready    <= {BLOCK_NUM{1'b1}};
+    //     end
+    // end
 
-    for (genvar j = 0; j < BLOCK_NUM; j++) begin
-        fp_2_mx_fp_block #(
-            .BLOCK_DIM          (BLOCK_DIM),
-            .FP_MANT_WIDTH      (MANT_WIDTH),
-            .FP_EXP_WIDTH       (EXP_WIDTH),
-            .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
-        ) fp_2_mx_port_a_convert_init(
-            .clk(clk),
-            .rst(rst),
-            .data_in(port_a_fp_out_internal),
-            .data_in_valid(mxfp_fp_convert_port_a_in_valid),
-            .data_in_ready(),
-            .element_data_out(port_a_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
-            .scale_data_out(port_a_scale_out[j]),
-            .mx_fp_data_out_valid(),
-            .mx_fp_data_out_ready(mxfp_fp_convert_port_a_out_ready[j])
-        );
+    // for (genvar j = 0; j < BLOCK_NUM; j++) begin
+    //     fp_2_mx_fp_block #(
+    //         .BLOCK_DIM          (BLOCK_DIM),
+    //         .FP_MANT_WIDTH      (MANT_WIDTH),
+    //         .FP_EXP_WIDTH       (EXP_WIDTH),
+    //         .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+    //         .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+    //         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+    //     ) fp_2_mx_port_a_convert_init(
+    //         .clk(clk),
+    //         .rst(rst),
+    //         .data_in(port_a_fp_out_internal),
+    //         .data_in_valid(mxfp_fp_convert_port_a_in_valid),
+    //         .data_in_ready(),
+    //         .element_data_out(port_a_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
+    //         .scale_data_out(port_a_scale_out[j]),
+    //         .mx_fp_data_out_valid(),
+    //         .mx_fp_data_out_ready(mxfp_fp_convert_port_a_out_ready[j])
+    //     );
 
-    end
+    // end
 
 
     // -----------------------------
