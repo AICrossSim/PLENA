@@ -196,7 +196,7 @@ module data_flow_control import precision_pkg::*;  #(
             m_m_valid                   <= 1'b0;
             m_out_ready                 <= 1'b0;
         end else begin
-            m_out_ready     <= 1'b1;
+            m_out_ready     <= 1'b1;        // TODO
             m_m_valid       <= (m_m_load_cond & !end_of_load_m) & (!m_prefetch_data_not_ready);
             m_m_load_cond   <= m_m_load & !end_of_load_m;
             // Matrix SRAM Read Port Control
@@ -328,6 +328,7 @@ module data_flow_control import precision_pkg::*;  #(
             v_v_b_valid                 <= v_v_b_load;
             hbm_write_data_valid        <= hbm_load_write_data;
             m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
+            m_v_valid <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!v_prefetch_data_not_ready);
             //Port A
             if(exe_stage_op.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM
@@ -455,7 +456,7 @@ module data_flow_control import precision_pkg::*;  #(
                 recorded_v_write_addr <= recorded_v_write_addr;
             end
 
-            m_v_valid <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!m_prefetch_data_not_ready);
+            
         end
 
     end

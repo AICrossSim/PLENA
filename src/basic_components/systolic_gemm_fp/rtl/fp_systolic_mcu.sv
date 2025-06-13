@@ -203,7 +203,7 @@ module fp_systolic_mcu #(
             fp_systolic_data_streamer #(
                 .FP_EXP_WIDTH     (FP_EXP_WIDTH),
                 .FP_MANT_WIDTH    (FP_MANT_WIDTH),
-                .COMPUTE_DIM        (COMPUTE_DIM)
+                .COMPUTE_DIM      (COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
                 .rst(rst),
@@ -218,7 +218,7 @@ module fp_systolic_mcu #(
             fp_systolic_data_streamer #(
                 .FP_EXP_WIDTH     (FP_EXP_WIDTH),
                 .FP_MANT_WIDTH    (FP_MANT_WIDTH),
-                .COMPUTE_DIM        (COMPUTE_DIM)
+                .COMPUTE_DIM      (COMPUTE_DIM)
             ) left_streamer (
                 .clk(clk),
                 .rst(rst),
@@ -265,6 +265,9 @@ module fp_systolic_mcu #(
     // Storing the computed result and write to the Vector SRAM
     // -----------------------------
 
+    logic extract_output_ready;
+    assign extract_output_ready = v_result_ready & (control_under_exe == MM_O || control_under_exe == MV_O);
+
     systolic_result_collector #(
         .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
         .COMPUTE_DIM(M),
@@ -282,7 +285,7 @@ module fp_systolic_mcu #(
         .gemv_result_ready  (gemv_result_ready),
         .out_fp             (v_result),
         .out_result_valid   (v_result_valid),
-        .out_result_ready   (v_result_ready)
+        .out_result_ready   (extract_output_ready)
     );
 
 endmodule

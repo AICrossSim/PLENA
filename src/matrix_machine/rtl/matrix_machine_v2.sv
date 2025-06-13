@@ -44,16 +44,11 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 );
 
     import pipeline_pkg::*;
-    typedef struct {
-        logic [ADDR_WIDTH-1:0]             waddr;
-        M_OP                               mop;
-    } RECORDED_INFO_TYPE;
 
     // -----------------------------
     // Data Flow Management
     // -----------------------------
 
-    RECORDED_INFO_TYPE pipeline_compute_track [0:MATRIX_MAX_CYCLES-1];
     M_OP    recorded_m_op;
     logic [ADDR_WIDTH-1:0] recorded_m_waddr;
 
@@ -131,7 +126,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     // Convert MX-FP Data to FP Data
-    logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   converted_m_data_in;
+    logic [BLOCK_NUM-1:0][BLOCK_DIM * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1 ) - 1 : 0]   converted_m_data_in;
     logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   converted_m_data_out;
     logic converted_m_valid, converted_m_ready;
 
@@ -147,7 +142,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             ) mx_fp_2_fp_convert (
                 .element_in     (stored_m_element[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (stored_m_scale[i]),
-                .fp_out         (converted_m_data_in)
+                .fp_out         (converted_m_data_in[i])
             );
         end
     endgenerate
@@ -215,6 +210,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .load_in_progress   (load_in_progress)
     );
 
+    
     assign m_wreq = result_in_valid;
     assign m_waddr = recorded_m_waddr;
 

@@ -250,6 +250,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .m_valid                (m_m_valid),
             .m_ready                (m_m_ready),
             .v_fp_in                (v_port_a_out_fp),
+            .v_valid                (m_v_valid),
+            .v_ready                (m_v_ready),
             .out_v_fp               (m_out_v_fp),
             .out_valid              (m_out_valid),
             .out_ready              (m_out_ready),
@@ -359,6 +361,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .VLEN               (VLEN),
         .BLOCK_DIM          (BLOCK_DIM),
         .SRAM_DEPTH         (SCRATCHPAD_SRAM_DEPTH),
+        .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
         .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount)
     ) vector_sram (
         .clk(clk),
