@@ -49,16 +49,11 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Data Flow Management
     // -----------------------------
 
-    M_OP    recorded_m_op;
     logic [ADDR_WIDTH-1:0] recorded_m_waddr;
 
     // Preparation Units 
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (int i = 0; i < MATRIX_MAX_CYCLES; i++) begin
-                pipeline_compute_track[i] <= '{waddr: 'b0, mop: STALL_M};
-            end
-            recorded_m_op <= STALL_M;
             recorded_m_waddr <= 'b0;
         end else begin
             // Set result waddr 
@@ -211,8 +206,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     
-    assign m_wreq = result_in_valid;
-    assign m_waddr = recorded_m_waddr;
+    assign m_wreq   = result_in_valid;
+    assign m_waddr  = recorded_m_waddr;
 
     logic [MLEN-1:0] [M_FP_EXP_WIDTH + M_FP_MANT_WIDTH : 0]     stored_result_v;
     logic [MLEN-1:0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0]     quantized_result_v;

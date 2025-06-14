@@ -13,10 +13,16 @@ S_MUL_FIX x5, x3, x4;
 
 H_PREFETCH_V x1, x3, x1;
 
-M_BMM x5, x1, x1; 
+M_BMM x0, x1, x1; 
 
 S_ADDI_FIX x1, x1, 12;
 
 S_ADDI_FIX x5, x5, 12;
 
-M_BMM x5, x1, x1; 
+M_BMM x0, x1, x1; 
+
+S_ADDI_FIX x1, x1, 12;
+
+S_ADDI_FIX x5, x5, 12;
+
+M_BMM_O x5, x1, x1; 

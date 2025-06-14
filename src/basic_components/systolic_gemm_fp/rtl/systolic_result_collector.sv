@@ -30,19 +30,23 @@ module systolic_result_collector #(
     //  Output Result
     output  logic [SYS_ARRAY_AMOUNT * COMPUTE_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
     output  logic out_result_valid,
-    input   logic out_result_ready
+    input   logic out_result_fetch
 );
 
     logic gemm_valid, gemm_ready;
     logic gemv_valid, gemv_ready;
 
-    join2 #() join_gemm (
+    join_n #(
+        .NUM_HANDSHAKES(SYS_ARRAY_AMOUNT)
+    ) join_gemm (
         .data_in_ready (gemm_result_ready),
         .data_in_valid (gemm_result_valid),
         .data_out_valid (gemm_valid),
         .data_out_ready (gemm_ready)
     );
-    join2 #() join_gemv (
+    join_n #(
+        .NUM_HANDSHAKES(SYS_ARRAY_AMOUNT)
+    ) join_gemv (
         .data_in_ready (gemv_result_ready),
         .data_in_valid (gemv_result_valid),
         .data_out_valid (gemv_valid),
@@ -89,6 +93,20 @@ module systolic_result_collector #(
         end 
     end
 
+    logic continuous_fetch;
+    logic fifo_out_ready;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            continuous_fetch <= 1'b0;
+        end else if (out_result_fetch) begin
+            continuous_fetch <= 1'b1;
+        end else if (fifo_in_valid) begin
+            continuous_fetch <= 1'b0;
+        end
+    end
+    assign fifo_out_ready = continuous_fetch | out_result_fetch;
+    // Keep fetching data until the output is valid
+
     fifo #(
         .DATA_WIDTH((ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH + 1) * SYS_ARRAY_AMOUNT * COMPUTE_DIM),
         .DEPTH(COMPUTE_DIM)
@@ -100,7 +118,7 @@ module systolic_result_collector #(
         .data_in_ready(fifo_in_ready),
         .data_out(out_fp),
         .data_out_valid(out_result_valid),
-        .data_out_ready(out_result_ready)
+        .data_out_ready(fifo_out_ready)
     );
 
 

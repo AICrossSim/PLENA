@@ -81,80 +81,52 @@ module fp_systolic_mcu #(
 
     logic   load_array_data;
     logic   complete_loading;
-    M_OP    control_under_exe, control_in_queue;
+    M_OP    control_in_exe;
     logic   gemm_en;
+    logic   output_reset;
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            control_under_exe    <= STALL_M; 
-            control_in_queue     <= STALL_M;
-            load_in_progress     <= 1'b0;
-        end else begin
-            if ((control_under_exe == STALL_M) & (control != STALL_M)) begin
-                control_under_exe <= control;
-                load_in_progress <= 1'b1;
-            end else if ((control_under_exe != STALL_M) & (control != STALL_M)) begin
-                control_in_queue <= control;
-                load_in_progress <= 1'b1;
-            end else if (complete_loading) begin
-                if (control_in_queue == STALL_M) begin
-                    control_under_exe <= STALL_M;
-                end else begin
-                    control_under_exe <= control_in_queue;
-                end
-                load_in_progress <= 1'b0;
-            end
-        end
-    end
-
-    always_comb begin
-        if (control_under_exe == MV || control_under_exe == MV_O) begin
-            v2_in_ready = v2_for_mv_in_ready;
-            v2_for_mv_in_valid = v2_in_valid;
-        end else begin
-            v2_in_ready = v2_for_mm_in_ready;
-            v2_for_mm_in_valid = v2_in_valid;
-        end
-    end
-
-    assign gemm_en = ((control_under_exe == MM) || (control_under_exe == MM_O));
 
     localparam COUNTER_BIT_WIDTH = $clog2(K);
     logic [COUNTER_BIT_WIDTH : 0] v1_load_counter;
     logic [COUNTER_BIT_WIDTH : 0] v2_load_counter;
+    logic [COUNTER_BIT_WIDTH : 0] feed_counter;
     logic complete_v1_load, complete_v2_load;
 
+    
     always_ff @(posedge clk) begin
         if (rst) begin
-            v1_load_counter <= '0;
-            complete_v1_load <= 1'b0;
-        end else if (v1_in_valid & v1_in_ready) begin
-            if (v1_load_counter == K - 1) begin
-                v1_load_counter <= '0;
-                complete_v1_load <= 1'b1;
-            end else begin
-                v1_load_counter <= v1_load_counter + 'b1;
+            v1_load_counter     <= '0;
+            complete_v1_load    <= 1'b0;
+            v2_load_counter     <= '0;
+            complete_v2_load    <= 1'b0;
+            output_reset        <= 1'b0;
+        end else begin
+            // Counter for v1
+            if (v1_in_valid & v1_in_ready) begin
+                if (v1_load_counter == K - 1) begin
+                    v1_load_counter <= '0;
+                    complete_v1_load <= 1'b1;
+                end else begin
+                    v1_load_counter <= v1_load_counter + 'b1;
+                    complete_v1_load <= 1'b0;
+                end
+            end else if (complete_loading) begin
                 complete_v1_load <= 1'b0;
             end
-        end else if (complete_loading) begin
-            complete_v1_load <= 1'b0;
-        end
-    end
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            v2_load_counter <= '0;
-            complete_v2_load <= 1'b0;
-        end else if (v2_in_valid & v2_in_ready) begin
-            if (v2_load_counter == K - 1) begin
-                v2_load_counter <= '0;
-                complete_v2_load <= 1'b1;
-            end else begin
-                v2_load_counter <= v2_load_counter + 'b1;
+            // Counter for v2
+            if (v2_in_valid & v2_in_ready) begin
+                if (v2_load_counter == K - 1) begin
+                    v2_load_counter <= '0;
+                    complete_v2_load <= 1'b1;
+                end else begin
+                    v2_load_counter <= v2_load_counter + 'b1;
+                    complete_v2_load <= 1'b0;
+                end
+            end else if (complete_loading) begin
                 complete_v2_load <= 1'b0;
             end
-        end else if (complete_loading) begin
-            complete_v2_load <= 1'b0;
+            // Output Reset
+            output_reset <= ((control_in_exe == MV_O) || (control_in_exe == MM_O)) & gemm_result_valid & gemm_result_ready;
         end
     end
 
@@ -165,6 +137,69 @@ module fp_systolic_mcu #(
             complete_loading = 1'b0;
         end
     end
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            control_in_exe   <= STALL_M; 
+            load_in_progress     <= 1'b0;
+        end else begin
+            if ((control_in_exe == STALL_M) & (control != STALL_M)) begin
+                control_in_exe <= control;
+                load_in_progress <= 1'b1;
+            end else if ((control_in_exe != STALL_M) & (control != STALL_M)) begin
+                load_in_progress <= 1'b1;
+                control_in_exe <= control;
+            end else if (complete_loading) begin
+                load_in_progress <= 1'b0;
+            end
+        end
+    end
+
+    
+    always_comb begin
+        if (control_in_exe == MV || control_in_exe == MV_O) begin
+            v2_in_ready = v2_for_mv_in_ready;
+            v2_for_mv_in_valid = v2_in_valid;
+        end else begin
+            v2_in_ready = v2_for_mm_in_ready;
+            v2_for_mm_in_valid = v2_in_valid;
+        end
+    end
+
+    assign gemm_en = ((control_in_exe == MM) || (control_in_exe == MM_O));
+    logic start_feed_count;
+    logic ready_to_load_output;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            feed_counter            <= '0;
+            start_feed_count        <= 1'b0;
+            gemv_result_valid       <= 'b0;
+            gemm_result_valid       <= 'b0;
+            ready_to_load_output    <= 1'b0;
+        end else begin
+            if (complete_loading & control_in_exe == MM_O) begin
+                feed_counter        <= '0;
+                start_feed_count    <= 1'b1;
+            end
+            if (start_feed_count) begin
+                if (feed_counter == COMPUTE_DIM - 1) begin
+                    feed_counter    <= '0;
+                    start_feed_count <= 1'b0;
+                    ready_to_load_output <= 1'b1;
+                end else begin
+                    feed_counter <= feed_counter + 'b1;
+                    ready_to_load_output <= 1'b0;
+                end
+            end else begin
+                start_feed_count <= 1'b0;
+                ready_to_load_output <= 1'b0;
+            end
+            gemv_result_valid <= gemv_result_ready & (control_in_exe == MV_O);
+            gemm_result_valid <= gemm_result_ready & (control_in_exe == MM_O);
+        end
+    end
+
+
 
 
     // -----------------------------
@@ -206,7 +241,7 @@ module fp_systolic_mcu #(
                 .COMPUTE_DIM      (COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
-                .rst(rst),
+                .rst(rst | output_reset),
                 .data_in        (v1_data[i * M +: M]),
                 .data_in_valid  (v1_data_in_valid[i]),
                 .data_in_ready  (v1_data_in_ready[i]),
@@ -221,7 +256,7 @@ module fp_systolic_mcu #(
                 .COMPUTE_DIM      (COMPUTE_DIM)
             ) left_streamer (
                 .clk(clk),
-                .rst(rst),
+                .rst(rst | output_reset),
                 .data_in        (v2_data[i * M +: M]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
                 .data_in_ready  (v2_data_for_mm_in_ready[i]),
@@ -240,7 +275,7 @@ module fp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) systolic_array_inst (
                 .clk(clk),
-                .rst(rst),
+                .rst(rst | output_reset),
                 .control            (gemm_en),
                 .in_top_data        (array_top_in_data[i]),
                 .in_top_valid       (array_top_in_valid[i]),
@@ -252,10 +287,8 @@ module fp_systolic_mcu #(
                 .in_top_v_valid     (v2_data_for_mv_in_valid[i]),
                 .in_top_v_ready     (v2_data_for_mv_in_ready[i]),
                 .m_out_fp           (gemm_result[i]),
-                .m_out_valid        (gemm_result_valid[i]),
                 .m_out_ready        (gemm_result_ready[i]),
                 .v_out_fp           (gemv_result[i]),
-                .v_out_valid        (gemv_result_valid[i]),
                 .v_out_ready        (gemv_result_ready[i])
             );
         end
@@ -265,8 +298,6 @@ module fp_systolic_mcu #(
     // Storing the computed result and write to the Vector SRAM
     // -----------------------------
 
-    logic extract_output_ready;
-    assign extract_output_ready = v_result_ready & (control_under_exe == MM_O || control_under_exe == MV_O);
 
     systolic_result_collector #(
         .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
@@ -285,7 +316,7 @@ module fp_systolic_mcu #(
         .gemv_result_ready  (gemv_result_ready),
         .out_fp             (v_result),
         .out_result_valid   (v_result_valid),
-        .out_result_ready   (extract_output_ready)
+        .out_result_fetch   (ready_to_load_output)
     );
 
 endmodule

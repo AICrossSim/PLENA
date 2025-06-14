@@ -47,7 +47,6 @@ module fp_first_row_pe #(
 
     // Output Result
     output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
-    output logic out_result_valid,
     input  logic out_result_ready
 );
 
@@ -91,7 +90,6 @@ module fp_first_row_pe #(
             pe_out_right_ready  = out_right_ready;
             // Result
             out_fp              = pe_out_fp;
-            out_result_valid    = pe_out_result_valid;
             pe_out_result_ready = out_result_ready;
         end else begin
             // GEMV
@@ -108,7 +106,6 @@ module fp_first_row_pe #(
             pe_out_right_ready  = 1'b1;
             // Result
             out_fp              = pe_out_fp;
-            out_result_valid    = pe_out_result_valid;
             pe_out_result_ready = out_result_ready;
         end
 
@@ -138,7 +135,6 @@ module fp_first_row_pe #(
         .out_right_valid    (pe_out_right_valid),
         .out_right_ready    (pe_out_right_ready),
         .out_fp             (pe_out_fp),
-        .out_result_valid   (pe_out_result_valid),
         .out_result_ready   (pe_out_result_ready)
     );
 

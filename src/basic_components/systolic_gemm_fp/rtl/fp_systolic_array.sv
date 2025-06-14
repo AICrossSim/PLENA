@@ -39,14 +39,11 @@ module fp_systolic_array #(
 
     // Output GEMM
     output  logic [COMPUTE_DIM- 1: 0][COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] m_out_fp,
-    output  logic m_out_valid,
     input   logic m_out_ready,
 
     // Output GEMV
     output  logic [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] v_out_fp,
-    output  logic v_out_valid,
     input   logic v_out_ready
-    
 );
 
     logic [COMPUTE_DIM - 1:0] distributed_in_top_valid;
@@ -92,7 +89,6 @@ module fp_systolic_array #(
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]    columnwise_data_transfer_data    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
 
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
-    logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_valid;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_ready;
 
     // Fill the Front Top Row and Left Column with the input data
@@ -163,7 +159,6 @@ module fp_systolic_array #(
 
                         // Output Result
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_valid   (result_valid[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
                 end else begin
@@ -200,7 +195,6 @@ module fp_systolic_array #(
 
                         // Output Result
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_valid   (result_valid[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
                 end
@@ -208,10 +202,7 @@ module fp_systolic_array #(
         end
     endgenerate
 
-    assign out_result_valid = & result_valid;
     assign result_ready     = (out_result_ready) ? {(COMPUTE_DIM * COMPUTE_DIM){1'b1}} : result_ready;
-    assign m_out_valid      = out_result_valid;
-    assign v_out_valid      = out_result_valid;
     assign v_out_fp         = m_out_fp[0];
     assign out_result_ready = control ? m_out_ready : v_out_ready;
 

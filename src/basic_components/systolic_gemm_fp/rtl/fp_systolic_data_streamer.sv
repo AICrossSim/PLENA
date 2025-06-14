@@ -38,7 +38,8 @@ module fp_systolic_data_streamer #(
             for (int i = 0; i < COMPUTE_DIM; i++) begin
                 data_array_queue[i] <= '0;
             end
-            store_counter <= '0;
+            store_counter   <= '0;
+            stream_in_valid <= '0;
         end else begin
             for (int i = 0; i < COMPUTE_DIM; i++) begin
                 if ((store_counter == i & data_in_valid)) begin
@@ -50,12 +51,7 @@ module fp_systolic_data_streamer #(
                     end
                 end
             end
-            if (store_counter == COMPUTE_DIM - 1) begin
-                // Valid only when all data is stored
-                stream_in_valid    <= 1'b1;
-            end else begin
-                stream_in_valid    <= 1'b0;
-            end
+            stream_in_valid <= data_in_valid;
         end
     end
 
