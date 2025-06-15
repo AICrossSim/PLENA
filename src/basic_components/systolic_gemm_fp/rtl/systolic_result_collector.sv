@@ -69,14 +69,16 @@ module systolic_result_collector #(
             load_gemm_result <= 1'b0;
         end else if (gemm_valid) begin
             stored_gemm_result <= gemm_result;
-            if (gemm_store_count < COMPUTE_DIM - 1 & fifo_in_ready) begin
+            gemm_store_count <= 0;
+            load_gemm_result <= 1'b1;
+        end else if (gemm_store_count < COMPUTE_DIM - 1 & fifo_in_ready & load_gemm_result) begin
                 gemm_store_count <= gemm_store_count + 1;
                 load_gemm_result <= 1'b1;
-            end else if (gemm_store_count == COMPUTE_DIM - 1) begin
+        end else if (gemm_store_count == COMPUTE_DIM - 1 & load_gemm_result) begin
                 load_gemm_result <= 1'b0;
                 gemm_store_count <= 0; // Reset after reaching the limit
-            end
         end
+
     end
     
     always_comb begin
@@ -90,21 +92,13 @@ module systolic_result_collector #(
             // GEMV
             fifo_in_data = gemv_result;
             fifo_in_valid = gemv_result_valid;
-        end 
-    end
-
-    logic continuous_fetch;
-    logic fifo_out_ready;
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            continuous_fetch <= 1'b0;
-        end else if (out_result_fetch) begin
-            continuous_fetch <= 1'b1;
-        end else if (fifo_in_valid) begin
-            continuous_fetch <= 1'b0;
+        end else begin
+            // Default case, no data to fetch
+            fifo_in_data = '0;
+            fifo_in_valid = 1'b0;
         end
     end
-    assign fifo_out_ready = continuous_fetch | out_result_fetch;
+
     // Keep fetching data until the output is valid
 
     fifo #(
@@ -118,7 +112,7 @@ module systolic_result_collector #(
         .data_in_ready(fifo_in_ready),
         .data_out(out_fp),
         .data_out_valid(out_result_valid),
-        .data_out_ready(fifo_out_ready)
+        .data_out_ready(out_result_fetch)
     );
 
 

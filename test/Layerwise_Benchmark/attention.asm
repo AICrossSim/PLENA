@@ -36,8 +36,8 @@
 ; ============================================================
 
 
-S_ADDI_FIX x3, x0, 5*bd;                       Set FIX[3] to 5*br, pointing to the onchip location address of Kb in VSRAM
-S_ADDI_FIX x4, x3, bc*bd;                      Set FIX[4] to 5*br + (bc*bd), pointing to the onchip location address of S in VSRAM
+S_ADDI_FIX x3, x0, 5*Br;                       Set FIX[3] to 5*br, pointing to the onchip location address of Kb in VSRAM
+S_ADDI_FIX x4, x3, Bc*Br;                      Set FIX[4] to 5*br + (bc*br), pointing to the onchip location address of S in VSRAM
 
 
 S_ADDI_FIX x1, x0, 0;                          Set FIX[1] to 0, use as incremental pointer across N/Br
