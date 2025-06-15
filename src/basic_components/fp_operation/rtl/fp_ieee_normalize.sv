@@ -10,17 +10,19 @@ Status      : Under Development
 */
 
 module fp_ieee_normalize #(
-    parameter   EXP_WIDTH = 5,
-    parameter   MANT_WIDTH = 10,
-    parameter   IN_MANT_WIDTH = MANT_WIDTH + 2  // For sign bit and implicit 1
+    parameter  IN_FIXED_WIDTH = 10,  // For sign bit and implicit 1
+    parameter IN_FIXED_FRAC_WIDTH = 10,
+    parameter IN_EXP_WIDTH = 5,
+    parameter   OUT_EXP_WIDTH = 5,
+    parameter   OUT_MANT_WIDTH = 10,
 )(
-    input  logic signed [IN_MANT_WIDTH-1:0] signed_mant,
-    input  logic signed [EXP_WIDTH-1:0] signed_exp,
-    output logic [EXP_WIDTH + MANT_WIDTH:0] fp_out
+    input  logic signed [IN_FIXED_WIDTH-1:0] signed_mant,
+    input  logic signed [IN_EXP_WIDTH-1:0] signed_exp,
+    output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH:0] fp_out
 );
 // TODO: test it
 
-    localparam BIAS = (1 << (EXP_WIDTH - 1)) - 1;
+    localparam BIAS = (1 << (OUT_EXP_WIDTH - 1)) - 1;
     
     logic sign_bit;
     logic [EXP_WIDTH-1:0] exp_bits;

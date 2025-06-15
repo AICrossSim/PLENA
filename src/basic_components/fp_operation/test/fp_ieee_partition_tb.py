@@ -23,54 +23,58 @@ src_path = Path(__file__).parent.parent.parent
 
 torch.manual_seed(10)
 
-def fp_quantize(x, q_config):
-    man_width = q_config["man_width"]
-    exp_width = q_config["exp_width"]
-    return x
-
-def hardware_ieee_partition(x, q_config):
-    sign = torch.sign(x)
-
-    exp_width = q_config["exp_width"]
-    man_width = q_config["man_width"]
-    # Get raw exponent and mantissa
-    exponent = torch.zeros_like(x)
-    # Handle non-zero values: calculate log2 and floor it to get exponent
-    non_zero_mask = x != 0
-    if non_zero_mask.any():
-        exponent[non_zero_mask] = torch.floor(torch.log2(torch.abs(x[non_zero_mask])))
-    
-    # Handle zero values: set exponent to 0
-    exponent[~non_zero_mask] = 0
-    mantissa_val = x / (2 ** exponent) - 1.0  # remove leading 1
-    # Bias the exponent
-    bias = (2**(exp_width - 1)) - 1
-
-    # Mantissa
-    mantissa_bits = (mantissa_val * 2**man_width).floor()
-    return sign*mantissa_bits, exponent
-
-
-
 class FPIEEEPartitionTB(CombinationalTestbench):
+    def pack_fp_to_bin(self, signed_exponent, signed_mantissa):
+        exp_width = self.q_config["exp_width"]
+        man_width = self.q_config["man_width"]
+        sign = signed_mantissa.sign()
+        sign_bit = torch.where(sign < 0, torch.tensor(1), torch.tensor(0))
+
+        exponent_bias = (2**(exp_width - 1)) - 1
+        exponent_bit = signed_exponent + exponent_bias
+
+        for item in exponent_bit:
+            assert item >= 0 and item < (2**exp_width - 1), "Exponent out of range!"
+
+        mantissa = torch.where(signed_mantissa < 0, -signed_mantissa, signed_mantissa)
+        mantissa_bit = torch.where(exponent_bit == 0, mantissa, mantissa - 1)
+
+        mantissa_bit = mantissa_bit * 2**(man_width)
+
+        result = ((sign_bit * 2**(exp_width + man_width)) + 
+                exponent_bit * 2**(man_width) + 
+                mantissa_bit).int()
+
+        return result
+
     def generate_inputs(self, num):
-        q_config = {
+        self.log.setLevel(logging.INFO)
+
+        self.q_config = {
             "exp_width": self.dut.EXP_WIDTH.value,
             "man_width": self.dut.MANT_WIDTH.value,
         }
         
         # Generate random inputs between -1 and 1
         x = torch.rand(num) * 2 - 1
-        
-        # For sqrt, ensure inputs are positive
-        x_sqrt = torch.abs(x)
-        
+
+        from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+        x, exponent, mantissa = _minifloat_ieee_quantize_hardware(
+            x, 
+            self.q_config["man_width"] + self.q_config["exp_width"] + 1, 
+            self.q_config["exp_width"],
+        )
+        fp_bits = self.pack_fp_to_bin(exponent, mantissa)
+
+        self.log.debug(f"Exponent: {exponent}")
+        self.log.debug(f"Mantissa: {mantissa}")
+        self.log.debug(f"Packed FP: {fp_bits}")
+
         # Convert inputs to binary format
-        inputs = torch_fp2bin(x, q_config).tolist()
+        inputs = fp_bits.int().tolist()
         
-        # Compute expected outputs
-        signed_mant, signed_exp = hardware_ieee_partition(x, q_config)
-        
+        signed_mant = mantissa * 2**(self.q_config["man_width"])
+        signed_exp = exponent
         # Convert outputs to binary format
         self.inputs = {
             "data_in": inputs,
@@ -79,6 +83,10 @@ class FPIEEEPartitionTB(CombinationalTestbench):
             "signed_mant": signed_mant.int().tolist(),
             "signed_exp": signed_exp.int().tolist(),
         }
+        
+    def check_output(self, input, output):
+        self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
+        assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
 
 @cocotb.test()
 async def test(dut):
