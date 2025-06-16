@@ -117,7 +117,12 @@ def mxfp_quantizer(
     - `block_size`: a list of integers where each integer is the block size on that dimension. See function `block`.
 
     """
-    return MXFPQuantize.apply(
+    ori_shape = x.size()
+    if len(ori_shape) > 2:
+        # a hack to support 4D/5D tensor
+        x = x.reshape(-1, *ori_shape[-1:])
+
+    x_q = MXFPQuantize.apply(
         x,
         width,
         exponent_width,
@@ -125,3 +130,8 @@ def mxfp_quantizer(
         block_size,
         skip_first_dim,
     )
+
+    if len(ori_shape) > 2:
+        x_q = x_q.reshape(*ori_shape)
+
+    return x_q

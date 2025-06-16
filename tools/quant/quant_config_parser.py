@@ -45,6 +45,43 @@ QUANT_ARITH_ENTRIES = {
             "bias_exponent_bias_width",
             "bias_block_size",
         ),
+    },
+    "mxint": {
+        "weight_entries": (
+            "weight_width",
+            "weight_exponent_width",
+            "weight_exponent_bias_width",
+            "weight_block_size",
+        ),
+        "data_in_entries": (
+            "data_in_width",
+            "data_in_exponent_width",
+            "data_in_exponent_bias_width",
+            "data_in_block_size",
+        ),
+        "bias_entries": (
+            "bias_width",
+            "bias_exponent_width",
+            "bias_exponent_bias_width",
+            "bias_block_size",
+        ),
+    },
+    "minifloat_ieee": {
+        "weight_entries": (
+            "weight_width",
+            "weight_exponent_width",
+            "weight_exponent_bias_width",
+        ),
+        "data_in_entries": (
+            "data_in_width",
+            "data_in_exponent_width",
+            "data_in_exponent_bias_width",
+        ),
+        "bias_entries": (
+            "bias_width",
+            "bias_exponent_width",
+            "bias_exponent_bias_width",
+        ),
     }
 }
 
@@ -123,6 +160,10 @@ MASE_OP_TO_ENTRIES = {
     # <op_name> : (<entries>, <optional_entries>)
     "bmm": (("name", "data_in_entries", "weight_entries"), ("bypass",)),
     "matmul": (("name", "data_in_entries", "weight_entries"), ("bypass",)),
+    "embedding": (("name", "is_ptq", "weight_entries"), ("bypass",)),
+    "rms_norm":  (("name", "is_ptq", "data_in_entries", "weight_entries"), ("bypass",)),
+    "silu": (("name", "data_in_entries"), ("bypass",)),
+    "softmax": (("name", "data_in_entries"), ("bypass",)),
     "linear": (
         ("name", "is_ptq", "data_in_entries", "weight_entries"),
         (
