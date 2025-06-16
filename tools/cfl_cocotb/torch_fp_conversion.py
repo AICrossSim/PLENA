@@ -34,4 +34,4 @@ def torch_fp2bin(val, config):
             exponent_bits * 2**(man_width - 1) + 
             mantissa_bits).int()
     result = result.reshape(-1)
-    return result
+    return result, mantissa_bits, exponent_bits
