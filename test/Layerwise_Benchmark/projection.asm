@@ -26,3 +26,5 @@ S_ADDI_FIX x1, x1, 12;
 S_ADDI_FIX x5, x5, 12;
 
 M_BMM_O x5, x1, x1; 
+M_MV x5, x1, x1;
+M_MV_O x5, x1, x1;

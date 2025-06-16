@@ -55,6 +55,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_in_prep, m_in_prep;
     logic sfu_in_use;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
+    logic m_complete_acc_writeback;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -138,6 +139,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_load_in_process              (m_in_prep),
         .v_load_in_process              (v_in_prep),
         .sfu_in_use                     (sfu_in_use),
+        .m_complete_acc_writeback       (m_complete_acc_writeback),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
         .mem_write_control              (mem_write_control)
@@ -158,6 +160,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_v_ready              (m_v_ready),
         .m_out_valid            (m_out_valid),
         .m_out_ready            (m_out_ready),
+        .m_complete_acc_writeback (m_complete_acc_writeback),
         .m_write_request        (m_write_request),
         .m_write_addr           (m_waddr),
         .m_sram_raddr           (m_sram_raddr),

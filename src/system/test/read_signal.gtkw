@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Jun 16 08:23:24 2025
+[*] Mon Jun 16 11:11:29 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Mon Jun 16 07:33:14 2025"
-[dumpfile_size] 87173215
+[dumpfile_mtime] "Mon Jun 16 11:05:51 2025"
+[dumpfile_size] 86606876
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 1824600
+[timestart] 513300
 [size] 3428 1359
 [pos] 143808 153795
-*-15.919439 2180000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.919439 1301600 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.data_flow_init.
@@ -22,6 +22,9 @@
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].
+[treeopen] SimTop.dut.pipeline_control_init.
+[treeopen] SimTop.dut.pipeline_control_init.addr_monitor_inst.
+[treeopen] SimTop.dut.scalar_machine_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.dut.vector_sram.
 [treeopen] SimTop.fake_hbm_m_element.
@@ -49,9 +52,7 @@ SimTop.dut.vector_sram.port_a_req
 SimTop.dut.vector_sram.port_a_mask_in[7:0]
 @28
 SimTop.dut.vector_sram.port_a_write_en
-@29
 SimTop.dut.data_flow_init.select_write_data_a
-@28
 SimTop.dut.data_flow_init.m_out_valid
 SimTop.dut.data_flow_init.continuous_v_write_from_matrix_en
 SimTop.dut.matrix_machine_init.stored_result_valid
@@ -84,5 +85,35 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.fifo
 SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.out_result_valid
 SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.load_gemm_result
 SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.gemm_valid
+SimTop.dut.data_flow_init.m_complete_acc_writeback
+SimTop.dut.pipeline_control_init.m_accumulate_in_progress
+SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
+SimTop.dut.pipeline_control_init.m_load_in_process
+SimTop.dut.pipeline_control_init.stall_for_mem_dependency
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.fixed_addr_1_to_check[31:0]
+SimTop.dut.pipeline_control_init.addr_monitor_inst.fixed_addr_2_to_check[31:0]
+@29
+SimTop.dut.pipeline_control_init.addr_monitor_inst.sys_pipe_stall
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[0].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[1].activate
+@22
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[2].track_addr[31:0]
+@28
+SimTop.dut.pipeline_control_init.addr_monitor_inst.v_write_addr_track[2].activate
+@22
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[0][31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[1][31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[2][31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[3][31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[5][31:0]
+@28
+SimTop.dut.pipeline_control_init.pipeline_stall
 [pattern_trace] 1
 [pattern_trace] 0

@@ -33,6 +33,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     input       logic m_v_ready,
     input       logic m_out_valid,
     output      logic m_out_ready,
+    output      logic m_complete_acc_writeback,
     input       logic m_write_request,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
 
@@ -325,7 +326,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             port_b_prefetch_ready           <= 1'b0;
             continuous_v_write_from_matrix_en   <= 1'b0;
             continuous_load_v_for_matrix_en     <= 1'b0;
-            v_v_out_ready                 <= 1'b0;
+            v_v_out_ready                   <= 1'b0;
+            m_complete_acc_writeback        <= 1'b0;
         end else begin
             v_v_out_ready               <= 1'b1;
             v_v_a_valid                 <= v_v_a_load;
@@ -333,6 +335,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             hbm_write_data_valid        <= hbm_load_write_data;
             m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
             m_v_valid <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!v_prefetch_data_not_ready);
+            m_complete_acc_writeback    <= (v_sram_write_from_matrix_counter == MATRIX_LOAD_ITERATION - 1) & 
+                                            continuous_v_write_from_matrix_en & m_out_valid;
             //Port A
             if(exe_stage_op.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM
