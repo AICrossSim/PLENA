@@ -53,7 +53,7 @@ module bit_width_aware_right_shift #(
 
   always_comb begin
     if (data_in == 0) data_out = 0;
-    else
+    else begin
         case (mode)
           SHIFT_OUT_RANGE: data_out = (data_in[IN_WIDTH-1]) ? MIN_VAL : MAX_VAL;
           SHIFT_IN_RANGE: data_out = clamped_out;

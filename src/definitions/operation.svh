@@ -1,6 +1,7 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
+// TODO Remove this parameter definitions
 parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = 3;
@@ -8,11 +9,13 @@ parameter OPCODE_WIDTH = 6;
 parameter IMM_WIDTH = 7;
 parameter IMM_2_WIDTH = 4;
 parameter INSTRUCTION_LENGTH = 16;
+parameter ON_CHIP_ADDR_WIDTH = 32;
 
 typedef struct {
     logic w_m_sram_en;
     logic w_s_sram_port_a_en;
     logic w_s_sram_port_b_en;
+    logic w_from_m;
 } MEM_WEN_INFO;
 
 
@@ -20,6 +23,7 @@ typedef struct {
     logic wreq_m_sram;
     logic wreq_s_sram_port_a;
     logic wreq_s_sram_port_b;
+    logic wreq_from_m;
 } MEM_WREQ_INFO;
 
 package instruction_pkg;
@@ -32,9 +36,11 @@ package instruction_pkg;
     parameter INSTRUCTION_LENGTH = 16;
 endpackage
 
-typedef enum logic [1:0] {
+typedef enum logic [2:0] {
     MV          = 1,
     MV_O        = 2,
+    MM          = 3,
+    MM_O        = 4,
     STALL_M     = 0
 } M_OP;
 
@@ -43,6 +49,7 @@ typedef enum logic [2:0] {
     SUB_V_ELEMENT   = 2,
     MUL_V_ELEMENT   = 3,
     EXP_V_ELEMENT   = 4,
+    LD_V_ELEMENT    = 5,
     STALL_V_ELEMENT = 0
 } V_ELEMENT_OP;
 
@@ -79,7 +86,7 @@ typedef enum logic [3:0] {
     LD_FIX        = 8,
     ST_FIX        = 9,
     PASS_ADDR     = 10,
-    PASS_ADDR_2   = 11, // outputs rd adress.
+    PASS_ADDR_2   = 11, // addr_port_2: rd and addr_port_1: rs1 adress.
     COMP_ADDR     = 12,
     STALL_S_FIXED = 0
 } S_FIXED_OP;
@@ -106,59 +113,63 @@ endfunction
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Invalid
-    INVALID_OPCODE  = 6'h00,
+    INVALID_OPCODE   = 6'h00,
 
     // Matrix Operation
-    M_MV            = 6'h01,
-    M_MV_O          = 6'h02,
-    M_TMV           = 6'h03,
-    M_TMV_O         = 6'h04,
+    M_BMM            = 6'h01,
+    M_BMM_O          = 6'h02,
+    M_TMM            = 6'h03,
+    M_TMM_O          = 6'h04,
+    M_MV             = 6'h05,
+    M_MV_O           = 6'h06,
+    M_TMV            = 6'h07,
+    M_TMV_O          = 6'h08,
 
     // Vector Operation
-    V_ADD_VV        = 6'h05,
-    V_ADD_VF        = 6'h06,
-    V_SUB_VV        = 6'h07,
-    V_SUB_VF        = 6'h08,
-    V_MUL_VV        = 6'h09,
-    V_MUL_VF        = 6'h0A,
-    V_EXP_VV        = 6'h0B,
-    V_RED_SUM       = 6'h0C,
-    V_RED_MAX       = 6'h0D,
+    V_ADD_VV         = 6'h09,
+    V_ADD_VF         = 6'h0A,
+    V_SUB_VV         = 6'h0B,
+    V_SUB_VF         = 6'h0C,
+    V_MUL_VV         = 6'h0D,
+    V_MUL_VF         = 6'h0E,
+    V_EXP_VV         = 6'h0F,
+    V_LD_F           = 6'h10,
+    V_RED_SUM        = 6'h11,
+    V_RED_MAX        = 6'h12,
 
     // Scalar Operation (Floating-Point)
-    S_ADD_FP        = 6'h0E,
-    S_SUB_FP        = 6'h0F,
-    S_MAX_FP        = 6'h10,
-    S_MUL_FP        = 6'h11,
-    S_EXP_FP        = 6'h12,
-    S_RECI_FP       = 6'h13,
-    S_SQRT_FP       = 6'h14,
-    S_MV_FP         = 6'h15,
-    S_LD_FP         = 6'h16,
-    S_ST_FP         = 6'h17,
+    S_ADD_FP         = 6'h13,
+    S_SUB_FP         = 6'h14,
+    S_MAX_FP         = 6'h15,
+    S_MUL_FP         = 6'h16,
+    S_EXP_FP         = 6'h17,
+    S_RECI_FP        = 6'h18,
+    S_SQRT_FP        = 6'h19,
+    S_MV_FP          = 6'h1A,
+    S_LD_FP          = 6'h1B,
+    S_ST_FP          = 6'h1C,
 
     // Scalar Operation (Fixed-Point)
-    S_ADD_FIX       = 6'h18,
-    S_ADDI_FIX      = 6'h19,
-    S_SUB_FIX       = 6'h1A,
-    S_MUL_FIX       = 6'h1B,
-    S_DIV_FIX       = 6'h1C,
-    S_LUI_FIX       = 6'h1D,
-    S_MV_FIX        = 6'h1E,
-    S_LD_FIX        = 6'h1F,
-    S_ST_FIX        = 6'h20,
+    S_ADD_FIX        = 6'h1D,
+    S_ADDI_FIX       = 6'h1E,
+    S_SUB_FIX        = 6'h1F,
+    S_MUL_FIX        = 6'h20,
+    S_DIV_FIX        = 6'h21,
+    S_LUI_FIX        = 6'h22,
+    S_MV_FIX         = 6'h23,
+    S_LD_FIX         = 6'h24,
+    S_ST_FIX         = 6'h25,
 
     // Memory Operation
-    H_PREFETCH_M    = 6'h21,
-    H_PREFETCH_V    = 6'h22,
-    H_STORE_V       = 6'h23,
+    H_PREFETCH_M     = 6'h26,
+    H_PREFETCH_V     = 6'h27,
+    H_STORE_V        = 6'h28,
 
     // CSR Setting
-    C_SET_ADDR_REG  = 6'h24,
-    C_SET_M_OFFSET  = 6'h25,
-    C_SET_LUT       = 6'h26
+    C_SET_ADDR_REG   = 6'h29,
+    C_SET_M_OFFSET   = 6'h2A,
+    C_SET_LUT        = 6'h2B
 } CUSTOM_ISA_OPCODE;
-
 
 
 
@@ -181,6 +192,7 @@ typedef struct {
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
+// TODO: The definition is not very efficient, might need to be optimized later.
 typedef struct {
     M_OP            m_op;
     V_ELEMENT_OP    v_ele_op;
@@ -193,8 +205,13 @@ typedef struct {
     logic [FP_OPERAND_WIDTH - 1:0]      fps1;
     logic [FP_OPERAND_WIDTH - 1:0]      fps2;
     logic [FP_OPERAND_WIDTH - 1:0]      fpd;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   addr_1;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   addr_2;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs1;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs2;
+    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rd;
+    logic [ON_CHIP_ADDR_WIDTH - 1:0]   addr_1;
+    logic [ON_CHIP_ADDR_WIDTH - 1:0]   addr_2;
+    logic update_m_waddr;
+    logic update_v_waddr;
 } OP_BUNDLE;
 
 `endif

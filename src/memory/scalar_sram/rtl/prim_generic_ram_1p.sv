@@ -5,14 +5,17 @@
 // Synchronous single-port SRAM model
 `timescale 1ns / 1ps
 `include "prim_assert.sv"
-`include "prim_ram_1p_pkg.sv"
+`include "prim_ram_1p_pkg.svh"
 
 module prim_generic_ram_1p import prim_ram_1p_pkg::*; #(
   parameter  int Width           = 32, // bit
   parameter  int Depth           = 128,
   parameter  int DataBitsPerMask = 1, // Number of data bits per bit of write mask
-  parameter  string MemInitFile  = "", // VMEM file to initialize the memory with
-
+  `ifdef SIMULATION
+    parameter  string MemInitFile  = "",
+  `else
+    parameter MemInitFile = "",
+  `endif
   localparam int Aw              = $clog2(Depth)  // derived parameter
 ) (
   input  logic             clk_i,
@@ -79,26 +82,23 @@ module prim_generic_ram_1p import prim_ram_1p_pkg::*; #(
   end
 
 // Load memory from file
-generate;
-  if (MemInitFile != "") begin
-    initial begin
-      string filename;
-      $sformat(filename, "%s", MemInitFile);
-      $display("Loading memory from: %s", filename);
-      $readmemh(filename, mem);
+`ifdef SIMULATION
+  generate;
+    if (MemInitFile != "") begin
+      initial begin
+        string filename;
+        $sformat(filename, "%s", MemInitFile);
+        $display("Loading memory from: %s", filename);
+        $readmemh(filename, mem);
+      end
+    end else begin
+      initial begin
+        rdata_o = '0;
+      end
     end
-  end else begin
-    initial begin
-      rdata_o = '0;
-    end
-  end
-endgenerate
-  // initial begin
-  //     string filename;
-  //     $sformat(filename, "%s", MemInitFile);
-  //     $display("Loading memory from: %s", filename);
-  //     $readmemh(filename, mem);
-  // end
+  endgenerate
+`endif
+
 
   `include "prim_util_memload.svh"
 `endif

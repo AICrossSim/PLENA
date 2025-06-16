@@ -76,7 +76,7 @@ def test_simple_fp_addition():
             "../../../../src/basic_components/common"
         ],       
         module_param_list=[
-            {"CONVERT_DIM" : vect_dim, "IN_EXP_WIDTH" : fp_exp_width, "IN_MAN_WIDTH" : fp_mant_width, "MX_FP_EXP_WIDTH" : mx_fp_exp_width, "MX_FP_MANT_WIDTH" : mx_fp_mant_width, "MXFP_SCALE_WIDTH" : mx_fp_scale_width},
+            {"CONVERT_DIM" : vect_dim, "IN_EXP_WIDTH" : fp_exp_width, "IN_MAN_WIDTH" : fp_mant_width, "MXFP_EXP_WIDTH" : mx_fp_exp_width, "MXFP_MANT_WIDTH" : mx_fp_mant_width, "MXFP_SCALE_WIDTH" : mx_fp_scale_width},
         ],
         trace = True,
     )

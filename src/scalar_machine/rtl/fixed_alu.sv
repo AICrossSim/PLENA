@@ -5,7 +5,7 @@
 Module      : Scalar Fixed ALU
 Timing      : Combinatorial Logic
 Description : This module is mainly used for address manipulation
-Status      : Under Development
+Status      : Passed Simple Test
 */
 
 module fixed_alu #(
@@ -28,8 +28,8 @@ module fixed_alu #(
                 result = operand_a - operand_b; // Subtraction
             MUL_FIX:
                 result = operand_a * operand_b; // Multiplication
-            DIV_FIX:
-                result = operand_a / operand_b; // Division
+            // DIV_FIX:
+            //     result = operand_a / operand_b; // Division Affecting the critical path.
             LUI_FIX:
                 result = { {(BITWIDTH - IMM_SHIFT_AMOUNT){1'b0}}, imm_value, {IMM_SHIFT_AMOUNT{1'b0}}};     // Load upper immediate
             ADDI_FIX, COMP_ADDR, LD_FIX, ST_FIX:

@@ -1,15 +1,12 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "global_define.vh"
 `include "configuration.svh"
-`include "tl_pkg.sv"
-
-
-import simulation_pkg::*;
+`include "tl_pkg.svh"
 
 /*
 Module      : Sim Top Module
 */
-
 
 module SimTop#(
     parameter   INSTRUCTION_LENGTH = 32,
@@ -26,8 +23,13 @@ module SimTop#(
     output  logic instruction_ready
 );
 
-`TL_DECLARE(HBM_ELE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, element_link);
-`TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, scale_link);
+import simulation_pkg::*;
+import configuration_pkg::*;
+
+`TL_DECLARE(HBM_ELE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_element_link);
+`TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_scale_link);
+`TL_DECLARE(HBM_ELE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_element_link);
+`TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_scale_link);
 
 // Processor
 coprocessor #(
@@ -39,8 +41,10 @@ coprocessor #(
     .instruction(instruction),
     .instruction_valid(instruction_valid),
     .instruction_ready(instruction_ready),
-    `TL_CONNECT_HOST_PORT(out_element,  element_link),
-    `TL_CONNECT_HOST_PORT(out_scale,    scale_link)
+    `TL_CONNECT_HOST_PORT(m_out_element,  m_element_link),
+    `TL_CONNECT_HOST_PORT(m_out_scale,    m_scale_link),
+    `TL_CONNECT_HOST_PORT(v_out_element,  v_element_link),
+    `TL_CONNECT_HOST_PORT(v_out_scale,    v_scale_link)
 );
 
 fake_hbm #(
@@ -50,11 +54,10 @@ fake_hbm #(
     .SourceWidth        (SourceWidth),
     .SinkWidth          (SinkWidth),
     .MemInitFile        (FAKE_HBM_ELEMENT_INIT_FILE)
-) fake_hbm_element (
+) fake_hbm_m_element (
     .clk(clk),
     .rst(rst),
-
-    `TL_CONNECT_DEVICE_PORT(host, element_link)
+    `TL_CONNECT_DEVICE_PORT(host, m_element_link)
 );
 
 
@@ -65,11 +68,36 @@ fake_hbm #(
     .SourceWidth        (SourceWidth),
     .SinkWidth          (SinkWidth),
     .MemInitFile        (FAKE_HBM_SCALE_INIT_FILE)
-) fake_hbm_scale (
+) fake_hbm_m_scale (
     .clk(clk),
     .rst(rst),
+    `TL_CONNECT_DEVICE_PORT(host, m_scale_link)
+);
 
-    `TL_CONNECT_DEVICE_PORT(host, scale_link)
+fake_hbm #(
+    .ADDR_WIDTH         (HBM_ADDR_WIDTH),
+    .DATA_WIDTH         (HBM_ELE_WIDTH),
+    .BRAM_ADDR_WIDTH    (FAKE_HBM_ADDR_WIDTH),
+    .SourceWidth        (SourceWidth),
+    .SinkWidth          (SinkWidth),
+    .MemInitFile        (FAKE_HBM_ELEMENT_INIT_FILE)
+) fake_hbm_v_element (
+    .clk(clk),
+    .rst(rst),
+    `TL_CONNECT_DEVICE_PORT(host, v_element_link)
+);
+
+fake_hbm #(
+    .ADDR_WIDTH         (HBM_ADDR_WIDTH),
+    .DATA_WIDTH         (HBM_SCALE_WIDTH),
+    .BRAM_ADDR_WIDTH    (FAKE_HBM_ADDR_WIDTH),
+    .SourceWidth        (SourceWidth),
+    .SinkWidth          (SinkWidth),
+    .MemInitFile        (FAKE_HBM_SCALE_INIT_FILE)
+) fake_hbm_v_scale (
+    .clk(clk),
+    .rst(rst),
+    `TL_CONNECT_DEVICE_PORT(host, v_scale_link)
 );
 
 

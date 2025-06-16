@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
-`include "prim_util_pkg.sv"
+`include "prim_util_pkg.svh"
 // An adpater that shrinks DataWidth.
 module tl_data_downsizer import tl_pkg::*; import prim_util_pkg::*; #(
   parameter  int unsigned HostDataWidth   = 64,
@@ -18,6 +18,13 @@ module tl_data_downsizer import tl_pkg::*; import prim_util_pkg::*; #(
 );
 
   if (HostDataWidth <= DeviceDataWidth) $fatal(1, "Unexpected DataWidth");
+  initial begin
+      if (HostDataWidth > DeviceDataWidth) begin
+          $fatal(1, "HostDataWidth (%0d) must be less than or equal to DeviceDataWidth (%0d)",
+                  HostDataWidth, DeviceDataWidth);
+      end
+  end
+
 
   localparam int unsigned HostDataWidthInBytes = HostDataWidth / 8;
   localparam int unsigned HostNonBurstSize = $clog2(HostDataWidthInBytes);

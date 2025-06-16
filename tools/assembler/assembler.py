@@ -1,4 +1,5 @@
 from parser import load_isa_definitions, load_isa_settings, parse_asm_file
+import argparse
 
 
 class Assembler:
@@ -54,7 +55,7 @@ class Assembler:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["C_SET_M_OFFSET", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
+        elif instruction.opcode in ["S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
             binary_instruction = (
                 (rd << opw) +
                 opcode
@@ -93,8 +94,13 @@ class Assembler:
     
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--layer', type=str, required=True, help='Input file name')
+    args = parser.parse_args()
+
     isa_file_path = '../../src/definitions/operation.svh'
-    asm_file_path = '../../test/Layerwise_Benchmark/rms.asm'
-    output_file_path = '../../test/Layerwise_Benchmark/rms.mem'
+    asm_file_path = f'../../test/Layerwise_Benchmark/{args.layer}.asm'
+    output_file_path = f'../../test/Layerwise_Benchmark/{args.layer}.mem'
     assembler = Assembler(isa_file_path)
     assembler.generate_binary(asm_file_path, output_file_path)

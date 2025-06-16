@@ -4,7 +4,7 @@ module fp_rounding #(
     parameter LAYER_DIM = 3,
     parameter EXP_WIDTH = 3,
     parameter IN_MANT_WIDTH = 8,
-    parameter OUT_MANT_WIDTH = 3,
+    parameter OUT_MANT_WIDTH = 3
 ) (
     input  [ IN_WIDTH - 1:0] data_in [LAYER_DIM - 1:0],
     output [OUT_WIDTH - 1:0] data_out[LAYER_DIM - 1:0]

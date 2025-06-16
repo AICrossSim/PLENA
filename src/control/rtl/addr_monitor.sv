@@ -16,21 +16,18 @@ module addr_monitor#(
     input   logic rst,
 
     // Execution Operation
-    input   OP_BUNDLE decoded_op_bundle,  
-
-    // ----------- Monitor Operand Write Signals -----------
-    input   logic m_waddr_ready,
-    input   logic v_waddr_ready,
+    input   OP_BUNDLE check_stage_op,  
+    input   OP_BUNDLE exe_stage_op,  
 
     // ---------- Monitor Operand Read Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
     input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_2,
 
     // ---------- Monitor SRAM Write Signals -----------
-    input   logic [ADDR_WIDTH - 1 : 0] s_sram_addr_a,
-    input   logic [ADDR_WIDTH - 1 : 0] s_sram_addr_b,
-    input   logic s_sram_wen_a,
-    input   logic s_sram_wen_b,
+    input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_a,
+    input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_b,
+    input   logic v_sram_wen_a,
+    input   logic v_sram_wen_b,
 
     // Stall Decision
     output  logic stall_req
@@ -44,13 +41,11 @@ module addr_monitor#(
 
     localparam TRACK_ADDR_WIDTH = $clog2(PIPELINE_STAGES) + 1;
     TRACK_ADDR v_write_addr_track [PIPELINE_STAGES - 1 : 0];
-    logic [TRACK_ADDR_WIDTH - 1 : 0]     free_track_entry_idx, locked_entry_idx_1, locked_entry_idx_2;
+    logic [TRACK_ADDR_WIDTH - 1 : 0]     free_track_entry_idx;
+    logic [ADDR_WIDTH - 1 : 0] locked_entry_1, locked_entry_2;
     logic lock_entry_1_valid, lock_entry_2_valid;    
-    logic                                   found_invalid;
-    logic                                   pipe_full;
-    logic                                   stall;
-
-    assign stall_req = stall || stall_in_process_p1 || stall_in_process_p2;
+    logic found_invalid;
+    logic pipe_full;
 
     always_comb begin
         found_invalid           = 1'b0;
@@ -67,62 +62,80 @@ module addr_monitor#(
 
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
-    logic stall_in_process_p1, stall_in_process_p2;
+    logic stall_in_process;
+    logic [ADDR_WIDTH - 1 : 0] fixed_addr_1_to_check;
+    logic [ADDR_WIDTH - 1 : 0] fixed_addr_2_to_check;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            fixed_addr_1_to_check <= {ADDR_WIDTH{1'b0}};
+            fixed_addr_2_to_check <= {ADDR_WIDTH{1'b0}};
+        end else begin
+            fixed_addr_1_to_check <= fixed_addr_1;
+            fixed_addr_2_to_check <= fixed_addr_2;
+        end
+    end
 
     always_comb begin
-        if (stall_in_process_p1) begin
+        if (stall_in_process) begin
             // To Check if the tracked address has been written.
-            if ((v_write_addr_track[locked_entry_idx_1].activate & lock_entry_1_valid) || (v_write_addr_track[locked_entry_idx_2].activate & lock_entry_2_valid)) begin
-                stall = 1'b1;
-            end else begin
-                stall = 1'b0;
+            for (int i = 0; i < PIPELINE_STAGES; i++) begin
+                if (((v_write_addr_track[i].track_addr == locked_entry_1)) & (v_write_addr_track[i].activate == 1'b1) & lock_entry_1_valid) begin
+                    addr_collide_flag[i] = 1'b1;
+                end else if (((v_write_addr_track[i].track_addr == locked_entry_2)) & (v_write_addr_track[i].activate == 1'b1) & lock_entry_2_valid) begin
+                    addr_collide_flag[i] = 1'b1;
+                end else begin
+                    addr_collide_flag[i] = 1'b0;
+                end
             end
-        end else if ((decoded_op_bundle.m_op != STALL_M) ||((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (!decoded_op_bundle.v_broadcast_en)) || (decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin        
+            stall_req = |addr_collide_flag;
+
+        end else if ((check_stage_op.m_op != STALL_M) ||((check_stage_op.v_ele_op != STALL_V_ELEMENT) & (!check_stage_op.v_broadcast_en)) || (check_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
             // Two ports of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if ((v_write_addr_track[i].track_addr == fixed_addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if ((v_write_addr_track[i].track_addr == fixed_addr_1_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_1 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_1 = fixed_addr_1_to_check;
                     lock_entry_1_valid = 1'b1;
-                end else if ((v_write_addr_track[i].track_addr == fixed_addr_2) & (v_write_addr_track[i].activate == 1'b1)) begin
+                end else if ((v_write_addr_track[i].track_addr == fixed_addr_2_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_2 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_2 = fixed_addr_2_to_check;
                     lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
                 end
             end
-            stall = |addr_collide_flag;
-        end else if (((decoded_op_bundle.v_ele_op != STALL_V_ELEMENT) & (decoded_op_bundle.v_broadcast_en))) begin
+            stall_req = |addr_collide_flag;
+        end else if (((check_stage_op.v_ele_op != STALL_V_ELEMENT) & (check_stage_op.v_broadcast_en))) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if (((v_write_addr_track[i].track_addr == fixed_addr_1_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_1 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_1 = fixed_addr_1_to_check;
                     lock_entry_1_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
                 end
             end
-            stall = |addr_collide_flag;
-        end else if (decoded_op_bundle.h_op == STORE_V) begin
+            stall_req = |addr_collide_flag;
+        end else if (check_stage_op.h_op == STORE_V) begin
             // One port of address to monitor
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                if (((v_write_addr_track[i].track_addr == fixed_addr_2_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
                     addr_collide_flag[i] = 1'b1;
-                    locked_entry_idx_2 = i[TRACK_ADDR_WIDTH - 1 : 0];
+                    locked_entry_2 = fixed_addr_2_to_check;
                     lock_entry_2_valid = 1'b1;
                 end else begin
                     addr_collide_flag[i] = 1'b0;
                 end
             end
-            stall = |addr_collide_flag;
+            stall_req = |addr_collide_flag;
         end else begin
-            stall = 1'b0;
+            stall_req = 1'b0;
             lock_entry_1_valid = 1'b0;
             lock_entry_2_valid = 1'b0;
-            locked_entry_idx_1 = '0;
-            locked_entry_idx_2 = '0;
+            locked_entry_1 = '0;
+            locked_entry_2 = '0;
         end 
     end
 
@@ -135,17 +148,18 @@ module addr_monitor#(
     logic   [TRACK_ADDR_WIDTH-1:0] matched_track_entry_idx;
     logic   match_waddr_valid;
 
-
+    // Decide which source is providing the address this cycle
     always_comb begin
-        // Decide which source is providing the address this cycle
-        if (decoded_op_bundle.h_op == PREFETCH_V) begin
-            insert_addr  = fixed_addr_1;
+
+        if (exe_stage_op.h_op == PREFETCH_V) begin
+            // Note, PREFETCH_M does not need to be monitored as it cannot be directly written.
+            insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
-        end else if (m_waddr_ready) begin
-            insert_addr  = fixed_addr_2;
+        end else if (exe_stage_op.update_m_waddr) begin
+            insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
-        end else if (v_waddr_ready) begin
-            insert_addr  = fixed_addr_2;
+        end else if (exe_stage_op.update_v_waddr) begin
+            insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else begin
             insert_addr  = {ADDR_WIDTH{1'b0}};
@@ -156,15 +170,15 @@ module addr_monitor#(
         matched_waddr                 = 1'b0;
         matched_track_entry_idx     = '0; // default value, in case all are valid
         for (int i = 0; i < PIPELINE_STAGES; i++) begin
-            if (((s_sram_wen_a && v_write_addr_track[i].track_addr == s_sram_addr_a) ||
-                    (s_sram_wen_b && v_write_addr_track[i].track_addr == s_sram_addr_b)) & !matched_waddr) begin
+            if (((v_sram_wen_a && v_write_addr_track[i].track_addr == v_sram_addr_a) ||
+                    (v_sram_wen_b && v_write_addr_track[i].track_addr == v_sram_addr_b)) & !matched_waddr) begin
                 matched_track_entry_idx     = i;
                 matched_waddr                 = 1'b1;
             end
         end
     end
 
-    always_ff @(posedge clk or negedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             for (int i = 0; i < PIPELINE_STAGES; i++) begin
                 v_write_addr_track[i] <= '{
@@ -172,11 +186,9 @@ module addr_monitor#(
                     activate   : 1'b0
                 };
             end
-            stall_in_process_p1 <= 1'b0;
-            stall_in_process_p2 <= 1'b0;
+            stall_in_process <= 1'b0;
         end else begin
-            stall_in_process_p1 <= stall;
-            stall_in_process_p2 <= stall_in_process_p1;
+            stall_in_process <= stall_req;
             // Try inserting into the first available empty slot
             if (pipe_full == 1'b0 & insert_valid) begin
                 v_write_addr_track[free_track_entry_idx] <= '{

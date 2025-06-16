@@ -19,8 +19,7 @@ module matrix_sram_without_rounding #(
     // Dimension
     parameter   MLEN              = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
     parameter   BLOCK_DIM         = 4,                                
-    localparam  BLOCK_NUM         = MLEN / BLOCK_DIM,
-
+    localparam  BLOCK_NUM         = MLEN / BLOCK_DIM
     // 
 
 ) (

@@ -13,7 +13,9 @@ module scalar_sram #(
     parameter DATA_WIDTH = 32,
     parameter DEPTH      = 32,         // Address Space for the SRAM
     parameter DataBitsPerMask = 1,
-    parameter string MemInitFile = "",
+    `ifdef SIMULATION
+        parameter string MemInitFile = "",
+    `endif
     localparam int Aw              = $clog2(DEPTH)
 )(
     input   logic clk,
@@ -30,8 +32,11 @@ module scalar_sram #(
 prim_generic_ram_1p #(
     .Width(DATA_WIDTH),
     .Depth(DEPTH),
-    .DataBitsPerMask(DataBitsPerMask),
-    .MemInitFile(MemInitFile)
+    .DataBitsPerMask(DataBitsPerMask)
+    `ifdef SIMULATION
+        ,   
+        .MemInitFile(MemInitFile)
+    `endif
 ) sram (
     .clk_i(clk),
     .rst_ni(!rst),

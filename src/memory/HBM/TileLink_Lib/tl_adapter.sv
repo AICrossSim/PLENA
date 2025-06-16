@@ -58,7 +58,7 @@ module tl_adapter import tl_pkg::*; #(
       .DeviceSourceWidth (DataCvtSourceWidth),
       .SinkWidth (HostSinkWidth),
       .MaxSize (HostMaxSize)
-    ) data_downsizer (
+    ) data_upsizer (
       .clk_i,
       .rst_ni,
       `TL_FORWARD_DEVICE_PORT(host, host),

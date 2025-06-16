@@ -51,14 +51,11 @@ always_ff @(posedge clk) begin
         if (set_addr_en) begin
             hbm_addr[write_operand] <= {addr_in_a, addr_in_b};
         end
-    end
-end
-
-always_comb begin
-    if (mapp_addr_en) begin
-        hbm_addr_out = hbm_addr[read_operand] + {{HBM_ADDR_WIDTH - ADDR_WIDTH{1'b0}}, addr_offset};
-    end else begin
-        hbm_addr_out = {HBM_ADDR_WIDTH{1'b0}};
+        if (mapp_addr_en) begin
+            hbm_addr_out <= hbm_addr[read_operand] + {{HBM_ADDR_WIDTH - ADDR_WIDTH{1'b0}}, addr_offset};
+        end else begin
+            hbm_addr_out <= {HBM_ADDR_WIDTH{1'b0}};
+        end
     end
 end
 

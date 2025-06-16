@@ -8,9 +8,10 @@ Timing      : Combinatorial
 Description : This module monitors the execution stages of each module and decide whether the pipeline is stalled or not. 
             : This module will also control the overall execution of the coprocessor.
             ：Note: The pipeline stages are listed as follows:
-            For Vect/Matrix     | Decode | Decision | Data Prep | Execute | Write Back |
-            For FP Scalar       | Decode | Decision | Execute | Write Back |
-            For Fixed Scalar    | Decode | Execute  | Write Back |
+            Control Flow Decode - > Register Read -> Check Address Dependencies -> Determine Stall -> Data Preparation -> Execute -> Write Back
+            For Vect/Matrix     | Decode | Register Rd  | Check      | Determine Stall | Data Prep | Execute | Write Back |
+            For FP Scalar       | Decode | Decision     | Execute    | Write Back |
+            For Fixed Scalar    | Decode | Execute      | Write Back |
 */
 
 module pipeline_control #(
@@ -24,131 +25,38 @@ module pipeline_control #(
     input       logic rst,
 
     // Decoded Instruction
-    input       OP_BUNDLE       decoded_op_bundle,
+    input       OP_BUNDLE       decode_stage_op,
 
     // Address
-    input       logic load_m_waddr_en,
-    input       logic load_v_waddr_en, 
     input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_1,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_2,
 
     // Memory Monitor
-    input       logic s_sram_wen_a,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_a,
-    input       logic s_sram_wen_b,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0]    s_sram_addr_b,
+    input       logic v_sram_wen_a,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_a,
+    input       logic v_sram_wen_b,
+    input       logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
+    input       logic hbm_m_prefetch_in_progress,
+    input       logic hbm_v_prefetch_in_progress,
 
     // Execution Monitor
     input       MEM_WREQ_INFO   mem_write_req,
-    input       logic           hbm_in_used,            // Activated when we need to prefetch data from HBM through TL.
-    input       logic           continuous_m_prefetch,  // TODO: should be optimized in the future.
+    input       logic           hbm_in_used,            
     input       logic           fp_stall_req,
     input       logic           fixed_stall_req,
     input       logic           m_load_in_process,
     input       logic           v_load_in_process,
+    input       logic           sfu_in_use,
 
     // Current control operation
-    output      logic           pipeline_stall,
-    output      OP_BUNDLE       assigned_op_bundle,
+    output      logic           pipeline_stall_req,
+    output      OP_BUNDLE       exe_stage_op,
     output      MEM_WEN_INFO    mem_write_control
-
 );
 
-import pipeline_pkg::*;
-    // Pipeline Control
-    
-    // Prefetch monitor
-    logic prefetch_in_progress;
-    logic delayed_hbm_in_used; // Extend extra cycle to determine the write to matrix/scratchpad sram
-    logic prefetch_stage_1_in_progress, prefetch_stage_2_in_progress;
-
-    assign prefetch_in_progress = prefetch_stage_1_in_progress || prefetch_stage_2_in_progress || continuous_m_prefetch;
-    assign prefetch_stage_2_in_progress = hbm_in_used || delayed_hbm_in_used;
-
-    logic [$clog2(PREFETCH_STAGE_1_CYCLES) : 0] prefetch_stage_1_counter;
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            prefetch_stage_1_in_progress <= 1'b0;
-            prefetch_stage_1_counter <= 'b0;
-            delayed_hbm_in_used <= 1'b0;
-        end else begin
-            delayed_hbm_in_used <= hbm_in_used;
-            if (!pipeline_stall && (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
-                prefetch_stage_1_in_progress <= 1'b1;
-                prefetch_stage_1_counter <= 'b0;
-            end else if (prefetch_stage_1_counter == PREFETCH_STAGE_1_CYCLES-1) begin
-                prefetch_stage_1_in_progress <= 1'b0;
-                prefetch_stage_1_counter <= 'b0;
-            end else if (prefetch_stage_1_in_progress) begin
-                prefetch_stage_1_counter <= prefetch_stage_1_counter + 1'b1;
-            end else begin
-                prefetch_stage_1_counter <= 'b0;
-            end
-        end
-    end
-
-    // Memory Monitor
-    logic           mem_vwrite_stall_req;
-    logic           m_waddr_ready, v_waddr_ready;
-
-    always_ff @(posedge clk or negedge rst ) begin
-        m_waddr_ready          <= load_m_waddr_en;
-        v_waddr_ready          <= load_v_waddr_en;
-    end
-
-    addr_monitor #(
-        .ADDR_WIDTH(FIXED_DATA_WIDTH),
-        .PIPELINE_STAGES(MAX_PIPELINE_STAGE)
-    ) addr_monitor_inst (
-        .clk(clk),
-        .rst(rst),
-        .decoded_op_bundle     (decoded_op_bundle),
-        .m_waddr_ready          (m_waddr_ready),
-        .v_waddr_ready          (v_waddr_ready),
-        .fixed_addr_1           (fixed_addr_1),
-        .fixed_addr_2           (fixed_addr_2),
-        .s_sram_addr_a          (s_sram_addr_a),
-        .s_sram_addr_b          (s_sram_addr_b),
-        .s_sram_wen_a           (s_sram_wen_a),
-        .s_sram_wen_b           (s_sram_wen_b),
-        .stall_req              (mem_vwrite_stall_req)
-    );
-
-
-
-
-    // Decision for pipeline stall
-    always_comb begin
-        // If the current decoded instruction is Memory/Vector that required access to thress operands values, stall the pipeline for single cycle to read the rd content.
-        if ((prefetch_in_progress || m_load_in_process) & (decoded_op_bundle.m_op != STALL_M)) begin
-            // Note: Any M type instruction involves interaction with the matrix sram, hence need to stall when its prefetching.
-            pipeline_stall   = 1'b1;            
-        end else if ((mem_write_req.wreq_m_sram == 1'b1 || mem_write_req.wreq_s_sram_port_b == 1'b1) & (decoded_op_bundle.m_op != STALL_M) ) begin
-            // In prefetching mode
-            pipeline_stall   = 1'b1;
-        end else if (prefetch_in_progress & (decoded_op_bundle.h_op == PREFETCH_M || decoded_op_bundle.h_op == PREFETCH_V)) begin
-            // Release until the prefetching is done.
-            pipeline_stall   = 1'b1;            
-        end else if ((prefetch_in_progress || mem_write_req.wreq_s_sram_port_b == 1'b1 || v_load_in_process) & ( decoded_op_bundle.v_ele_op != STALL_V_ELEMENT || decoded_op_bundle.v_reduct_op != STALL_V_REDUCT)) begin
-            // Release until the prefetching is done.
-            pipeline_stall   = 1'b1;            
-        end else if (fp_stall_req & (decoded_op_bundle.s_fp_op != STALL_S_FP)) begin
-            // Release until the prefetching is done.
-            pipeline_stall   = 1'b1;            
-        end else if (mem_vwrite_stall_req) begin
-            // Unconditionally stall the overall pipeline.
-            pipeline_stall   = 1'b1;                
-        end else begin
-            pipeline_stall   = 1'b0;
-        end
-
-    end
-
-    // Operation Assignment
-    OP_BUNDLE          invalid_op_bundle;
-    
-    assign invalid_op_bundle = '{
+    // Operation Control Decalration
+    OP_BUNDLE   reg_rd_stage_op, check_stage_op, determine_stage_op, delayed_reg_rd_stage_op, invalid_op_bubble, recorded_check_stage_op;
+    assign invalid_op_bubble = '{
         m_op                : STALL_M,
         v_ele_op            : STALL_V_ELEMENT,
         v_reduct_op         : STALL_V_REDUCT,
@@ -160,45 +68,153 @@ import pipeline_pkg::*;
         fps1                : '0,
         fps2                : '0,
         fpd                 : '0,
+        fixed_rs1           : '0,
+        fixed_rs2           : '0,
+        fixed_rd            : '0,
         addr_1              : '0,
-        addr_2              : '0
+        addr_2              : '0,
+        update_m_waddr      : 1'b0,
+        update_v_waddr      : 1'b0
     };
 
-    always_ff @(posedge clk or negedge rst) begin
-        if (rst) begin
-            mem_write_control <= '{
-                w_m_sram_en:        1'b0,
-                w_s_sram_port_a_en: 1'b0,
-                w_s_sram_port_b_en: 1'b0
-            };
+    import pipeline_pkg::*;
+    logic pipeline_stall;
+    logic stall_for_prefetch;
+    // Decision for pipeline stall
+    always_comb begin
+        if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M)) begin
+            // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
+            pipeline_stall   = 1'b1;            
+        end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V)) begin
+            // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
+            pipeline_stall   = 1'b1;            
+        end else if ((m_load_in_process) & (determine_stage_op.m_op != STALL_M)) begin
+            // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
+            pipeline_stall   = 1'b1;            
+        end else if ((v_load_in_process) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
+            // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
+            pipeline_stall   = 1'b1;            
+        end  else if (mem_write_req.wreq_s_sram_port_a & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
+            // Condition 4: Trying to access the vector sram port A while it is being written to.
+            pipeline_stall   = 1'b1;            
+        end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.m_op != STALL_M)) begin
+            // Condition 5: Trying to access the vector sram port B while it is being written to.
+            pipeline_stall   = 1'b1;            
+        end else if ((mem_write_req.wreq_m_sram == 1'b1) & (determine_stage_op.m_op != STALL_M) ) begin
+            // Condition 6: Trying to access the matrix sram while it is being written to.
+            pipeline_stall   = 1'b1;
+        end else if (fp_stall_req & (determine_stage_op.s_fp_op != STALL_S_FP)) begin
+            // Condition 7: FP unit requests a stall, but the current operation is another FP operation.
+            pipeline_stall   = 1'b1;            
+        end else if (sfu_in_use & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
+            // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
+            pipeline_stall = 1'b1;
+        end else if (stall_for_mem_dependency) begin
+            // Unconditionally stall the overall pipeline.
+            pipeline_stall   = 1'b1;                
         end else begin
-            mem_write_control <= '{
-            w_m_sram_en           : mem_write_req.wreq_m_sram,
-            w_s_sram_port_a_en    : mem_write_req.wreq_s_sram_port_a,
-            w_s_sram_port_b_en    : mem_write_req.wreq_s_sram_port_b
-        };
-
-            if (pipeline_stall) begin
-                assigned_op_bundle <= invalid_op_bundle;
-            end else begin
-                assigned_op_bundle.m_op            <= decoded_op_bundle.m_op;
-                assigned_op_bundle.v_ele_op        <= decoded_op_bundle.v_ele_op;
-                assigned_op_bundle.v_reduct_op     <= decoded_op_bundle.v_reduct_op;
-                assigned_op_bundle.s_fp_op         <= decoded_op_bundle.s_fp_op;
-                assigned_op_bundle.c_op            <= decoded_op_bundle.c_op;
-                assigned_op_bundle.h_op            <= decoded_op_bundle.h_op;
-                assigned_op_bundle.m_transposed_read <= decoded_op_bundle.m_transposed_read;
-                assigned_op_bundle.v_broadcast_en  <= decoded_op_bundle.v_broadcast_en;
-                assigned_op_bundle.fps1            <= decoded_op_bundle.fps1;
-                assigned_op_bundle.fps2            <= decoded_op_bundle.fps2;
-                assigned_op_bundle.fpd             <= decoded_op_bundle.fpd;
-                assigned_op_bundle.addr_1          <= fixed_addr_1;
-                assigned_op_bundle.addr_2          <= fixed_addr_2;
-            end
+            pipeline_stall   = 1'b0;
         end
     end
 
+    assign pipeline_stall_req = pipeline_stall || stall_in_process; // Extra stall cycle in order to execute the previously unexecuted operation.
+
+    // Memory Monitor
+    logic           mem_vwrite_stall_req;
+    logic           stall_for_mem_dependency;
+
+    addr_monitor #(
+        .ADDR_WIDTH(FIXED_DATA_WIDTH),
+        .PIPELINE_STAGES(MAX_PIPELINE_STAGE)
+    ) addr_monitor_inst (
+        .clk(clk),
+        .rst(rst),
+        .check_stage_op         (check_stage_op),
+        .exe_stage_op           (exe_stage_op),
+        .fixed_addr_1           (fixed_addr_1),
+        .fixed_addr_2           (fixed_addr_2),
+        .v_sram_addr_a          (v_sram_addr_a),
+        .v_sram_addr_b          (v_sram_addr_b),
+        .v_sram_wen_a           (v_sram_wen_a),
+        .v_sram_wen_b           (v_sram_wen_b),
+        .stall_req              (mem_vwrite_stall_req)
+    );
+
+    // Merge the decoded op with the register read outcome.
+    always_comb begin
+        check_stage_op.m_op            = delayed_reg_rd_stage_op.m_op;
+        check_stage_op.v_ele_op        = delayed_reg_rd_stage_op.v_ele_op;
+        check_stage_op.v_reduct_op     = delayed_reg_rd_stage_op.v_reduct_op;
+        check_stage_op.s_fp_op         = delayed_reg_rd_stage_op.s_fp_op;
+        check_stage_op.c_op            = delayed_reg_rd_stage_op.c_op;
+        check_stage_op.h_op            = delayed_reg_rd_stage_op.h_op;
+        check_stage_op.m_transposed_read = delayed_reg_rd_stage_op.m_transposed_read;
+        check_stage_op.v_broadcast_en  = delayed_reg_rd_stage_op.v_broadcast_en;
+        check_stage_op.fps1            = delayed_reg_rd_stage_op.fps1;
+        check_stage_op.fps2            = delayed_reg_rd_stage_op.fps2;
+        check_stage_op.fpd             = delayed_reg_rd_stage_op.fpd;
+        check_stage_op.fixed_rs1       = delayed_reg_rd_stage_op.fixed_rs1;
+        check_stage_op.fixed_rs2       = delayed_reg_rd_stage_op.fixed_rs2;
+        check_stage_op.fixed_rd        = delayed_reg_rd_stage_op.fixed_rd;
+        check_stage_op.addr_1          = fixed_addr_1;
+        check_stage_op.addr_2          = fixed_addr_2; 
+        check_stage_op.update_m_waddr  = delayed_reg_rd_stage_op.update_m_waddr;
+        check_stage_op.update_v_waddr  = delayed_reg_rd_stage_op.update_v_waddr;
+    end
+    logic stall_in_process, recover_from_stall, start_of_stall;
+    assign recover_from_stall = (!pipeline_stall) && stall_in_process;
+    assign start_of_stall = pipeline_stall && !stall_in_process;
 
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            mem_write_control <= '{
+                w_m_sram_en         : 1'b0,
+                w_s_sram_port_a_en  : 1'b0,
+                w_s_sram_port_b_en  : 1'b0,
+                w_from_m            : 1'b0
+            };
+            stall_in_process            <= 1'b0;
+            stall_for_mem_dependency    <= 1'b0;
+
+        end else begin
+
+            mem_write_control <= '{
+                w_m_sram_en           : mem_write_req.wreq_m_sram,
+                w_s_sram_port_a_en    : mem_write_req.wreq_s_sram_port_a,
+                w_s_sram_port_b_en    : mem_write_req.wreq_s_sram_port_b,
+                w_from_m              : mem_write_req.wreq_from_m
+            };
+
+            if (pipeline_stall) begin
+                stall_in_process <= 1'b1;
+            end else begin
+                stall_in_process <= 1'b0;
+            end
+
+            stall_for_mem_dependency <= mem_vwrite_stall_req;
+
+            if (!pipeline_stall) begin
+                // Normal Execution
+                reg_rd_stage_op             <= decode_stage_op;
+                delayed_reg_rd_stage_op     <= reg_rd_stage_op;
+                determine_stage_op          <= check_stage_op;
+                exe_stage_op                <= determine_stage_op;
+            end else if (recover_from_stall) begin
+                // Recover from Stall
+                determine_stage_op          <= recorded_check_stage_op;
+                exe_stage_op                <= determine_stage_op;
+            end else begin
+                // Stall Execution
+                exe_stage_op                <= invalid_op_bubble;
+            end
+
+            if (start_of_stall) begin
+                recorded_check_stage_op <= check_stage_op;
+                delayed_reg_rd_stage_op <= invalid_op_bubble;
+            end
+            
+        end
+    end
 
 endmodule
