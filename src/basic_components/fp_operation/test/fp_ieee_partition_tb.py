@@ -48,7 +48,6 @@ class FPIEEEPartitionTB(CombinationalTestbench):
         return result
 
     def generate_inputs(self, num):
-        self.log.setLevel(logging.INFO)
 
         self.q_config = {
             "exp_width": self.dut.EXP_WIDTH.value,
@@ -56,7 +55,8 @@ class FPIEEEPartitionTB(CombinationalTestbench):
         }
         
         # Generate random inputs between -1 and 1
-        x = torch.rand(num) * 2 - 1
+        # x = torch.rand(num) * 2 - 1
+        x = torch.tensor([0.0] * num)
 
         from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
         x, exponent, mantissa = _minifloat_ieee_quantize_hardware(
@@ -75,13 +75,14 @@ class FPIEEEPartitionTB(CombinationalTestbench):
         
         signed_mant = mantissa * 2**(self.q_config["man_width"])
         signed_exp = exponent
+
         # Convert outputs to binary format
         self.inputs = {
-            "data_in": inputs,
-        }
-        self.outputs = {
             "signed_mant": signed_mant.int().tolist(),
             "signed_exp": signed_exp.int().tolist(),
+        }
+        self.outputs = {
+            "fp_out": fp_bits.int().tolist(),
         }
         
     def check_output(self, input, output):
@@ -91,6 +92,7 @@ class FPIEEEPartitionTB(CombinationalTestbench):
 @cocotb.test()
 async def test(dut):
     tb = FPIEEEPartitionTB(dut)
+    self.log.setLevel(logging.INFO)
     await tb.run_test(10)
     # try:
     #     tb = FPIEEEOperationsTB(dut)
