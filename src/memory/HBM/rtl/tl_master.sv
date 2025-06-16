@@ -126,19 +126,17 @@ module tl_master #(
         SEND_REQ: begin
           host_a_valid   = 1'b1;
           host_a.opcode  = next_a_opcode;
-          
           if (next_a_opcode == PutFullData) begin // PutFullData
             host_a.data = next_wdata;
           end
-
           if (host_a_ready & continuous_prefetch_counter == LOAD_AMOUNT - 1) begin
+            host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8;
             next_state = WAIT_RESP;
           end else if (host_a_ready) begin
-            // Increment the counter for continuous prefetch
-            host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8; // Increment address for next fetch
-            next_state = SEND_REQ; // Stay in SEND_REQ to continue fetching
+            host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8;
+            next_state = SEND_REQ;
           end else begin
-            next_state = SEND_REQ; // Wait for host_a_ready
+            next_state = SEND_REQ;
           end
         end
 
@@ -146,7 +144,6 @@ module tl_master #(
           host_a_valid   = 1'b0;
           if ((previous_d_valid == 1'b1 ) & (host_d_valid == 1'b0)) begin
             next_state = IDLE;
-            
           end
         end
 

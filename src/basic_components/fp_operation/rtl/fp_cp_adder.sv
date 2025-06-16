@@ -10,7 +10,7 @@ Description : Adds two FP numbers with different exponents and signs.
 Status      : Passed Simple Tests
 */
 
-module fp_cp_adder #(
+module fp_cp_adder_v2 #(
     parameter int EXP_WIDTH = 5,
     parameter int MANT_WIDTH = 10,
     // Amount of bits needed to shift mantissas for alignment
@@ -45,7 +45,7 @@ module fp_cp_adder #(
     // Instantiate fp_ieee_partition for data_a
     fp_ieee_partition #(
         .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) fp_a (
         .data_in(data_a),
         .signed_exp(signed_exp_a),
@@ -55,8 +55,7 @@ module fp_cp_adder #(
     // Instantiate fp_ieee_partition for data_b
     fp_ieee_partition #(
         .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH + 2)
+        .MANT_WIDTH(MANT_WIDTH)
     ) fp_b (
         .data_in(data_b),
         .signed_exp(signed_exp_b),

@@ -35,8 +35,8 @@ current_path = Path(__file__).resolve().parent
 
 testcase_name       = "projection"
 instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
-hbm_element_file    = f"{current_path}/workload/hbm_ele.mem"
-hbm_scale_file      = f"{current_path}/workload/hbm_scale.mem"
+hbm_element_file    = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
+hbm_scale_file      = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
 fp_mem_file         = f"{current_path}/workload/fp.mem"
 fixed_mem_file      = f"{current_path}/workload/fixed.mem"
 INSTRUCTION_LENGTH = 16
