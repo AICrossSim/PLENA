@@ -37,7 +37,7 @@ module fp_systolic_mcu #(
     input   logic v2_in_valid,
     output  logic v2_in_ready,
     // Vector Product Output
-    output  logic [M - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] v_result,
+    output  logic [K - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] v_result,
     output  logic v_result_valid,
     input   logic v_result_ready,
     output  logic load_in_progress
@@ -103,7 +103,7 @@ module fp_systolic_mcu #(
         end else begin
             // Counter for v1
             if (v1_in_valid & v1_in_ready) begin
-                if (v1_load_counter == K - 1) begin
+                if (v1_load_counter == M - 1) begin
                     v1_load_counter <= '0;
                     complete_v1_load <= 1'b1;
                 end else begin
@@ -115,7 +115,7 @@ module fp_systolic_mcu #(
             end
             // Counter for v2
             if (v2_in_valid & v2_in_ready) begin
-                if (v2_load_counter == K - 1) begin
+                if (v2_load_counter == M - 1) begin
                     v2_load_counter <= '0;
                     complete_v2_load <= 1'b1;
                 end else begin
@@ -302,7 +302,7 @@ module fp_systolic_mcu #(
 
     systolic_result_collector #(
         .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
-        .COMPUTE_DIM(M),
+        .COMPUTE_DIM(K),
         .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
     ) sa_result_collector_inst (

@@ -205,9 +205,18 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .load_in_progress   (load_in_progress)
     );
 
-    
-    assign m_wreq   = result_in_valid;
+    logic delayed_result_in_valid;
+    assign m_wreq   = result_in_valid & ~delayed_result_in_valid;
     assign m_waddr  = recorded_m_waddr;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            delayed_result_in_valid <= 1'b0;
+        end else begin
+            delayed_result_in_valid <= result_in_valid;
+        end
+    end
+
 
     logic [MLEN-1:0] [M_FP_EXP_WIDTH + M_FP_MANT_WIDTH : 0]     stored_result_v;
     logic [MLEN-1:0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0]     quantized_result_v;

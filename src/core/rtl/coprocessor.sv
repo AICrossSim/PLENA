@@ -146,10 +146,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Dataflow Control
     data_flow_control #(
-        .OPERAND_WIDTH(FIXED_OPERAND_WIDTH),
-        .VLEN(MLEN),
-        .MLEN(MLEN),
-        .Parallel_Rd_Dim(Matrix_Parallel_Rd_Dim)
     ) data_flow_init(
         .clk(clk),
         .rst(rst),

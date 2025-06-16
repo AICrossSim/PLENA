@@ -15,6 +15,7 @@ typedef struct {
     logic w_m_sram_en;
     logic w_s_sram_port_a_en;
     logic w_s_sram_port_b_en;
+    logic w_from_m;
 } MEM_WEN_INFO;
 
 
@@ -22,6 +23,7 @@ typedef struct {
     logic wreq_m_sram;
     logic wreq_s_sram_port_a;
     logic wreq_s_sram_port_b;
+    logic wreq_from_m;
 } MEM_WREQ_INFO;
 
 package instruction_pkg;

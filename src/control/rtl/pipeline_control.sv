@@ -168,21 +168,22 @@ module pipeline_control #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-
             mem_write_control <= '{
-                w_m_sram_en:        1'b0,
-                w_s_sram_port_a_en: 1'b0,
-                w_s_sram_port_b_en: 1'b0
+                w_m_sram_en         : 1'b0,
+                w_s_sram_port_a_en  : 1'b0,
+                w_s_sram_port_b_en  : 1'b0,
+                w_from_m            : 1'b0
             };
-            stall_in_process <= 1'b0;
-            stall_for_mem_dependency <= 1'b0;
+            stall_in_process            <= 1'b0;
+            stall_for_mem_dependency    <= 1'b0;
 
         end else begin
 
             mem_write_control <= '{
                 w_m_sram_en           : mem_write_req.wreq_m_sram,
                 w_s_sram_port_a_en    : mem_write_req.wreq_s_sram_port_a,
-                w_s_sram_port_b_en    : mem_write_req.wreq_s_sram_port_b
+                w_s_sram_port_b_en    : mem_write_req.wreq_s_sram_port_b,
+                w_from_m              : mem_write_req.wreq_from_m
             };
 
             if (pipeline_stall) begin
