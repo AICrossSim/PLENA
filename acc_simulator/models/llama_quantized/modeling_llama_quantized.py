@@ -61,6 +61,7 @@ logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "LlamaQuantizedConfig"
 
 
+# qunatized Norm, in block-minifloat
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -76,7 +77,7 @@ class LlamaRMSNorm(nn.Module):
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
-
+    
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
@@ -121,6 +122,7 @@ class LlamaQuantizedMLP(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()
         self.config = config
+        self.layer_idx = layer_idx
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
         self.quant_config = config.quant_config[f"model_layer_{layer_idx}"]["mlp"]
@@ -130,10 +132,14 @@ class LlamaQuantizedMLP(nn.Module):
             self.intermediate_size, self.hidden_size, bias=config.mlp_bias, config=self.quant_config["down_proj"])
         self.up_proj = get_quantized_cls("linear", self.quant_config["up_proj"])(
             self.hidden_size, self.intermediate_size, bias=config.mlp_bias, config=self.quant_config["up_proj"])
-        self.act_fn = ACT2FN[config.hidden_act]
+        # Replace a qunatized activation here, specifically SILU
+        # self.act_fn = ACT2FN[config.hidden_act]
+
+        
 
     def forward(self, x):
-        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        silu_quant = get_quantized_func("silu", self.quant_config["silu"])
+        down_proj = self.down_proj(silu_quant(self.gate_proj(x), self.quant_config["silu"]) * self.up_proj(x))
         return down_proj
 
 
@@ -164,22 +170,24 @@ def eager_attention_forward(
     value_states = repeat_kv(value, module.num_key_value_groups)
 
     # attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
-    
-    matmul_quant = get_quantized_func("matmul", quant_config["matmul_attn_w"])
-    # scaling =  1 / math.sqrt(head_dim)
-    attn_weights = matmul_quant(query, key_states.transpose(2, 3), config=quant_config["matmul_attn_w"]) * scaling
+    matmul_quant = get_quantized_func("matmul", quant_config["matmul_0"])
+    attn_weights = matmul_quant(query, key_states.transpose(2, 3), config=quant_config["matmul_0"]) * scaling
 
 
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+    # TODO: Replace softmax here with quant_softmax
+
+    softmax_quant = get_quantized_func("softmax", quant_config["softmax"])
+    attn_weights = softmax_quant(attn_weights,  dim=-1, config = quant_config["softmax"])
+    # nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
     attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
 
     # attn_output = torch.matmul(attn_weights, value_states)
-    matmul_quant = get_quantized_func("matmul", quant_config["matmul_attn_o"])
-    attn_output = matmul_quant(attn_weights, value_states, config=quant_config["matmul_attn_o"])
+    matmul_quant = get_quantized_func("matmul", quant_config["matmul_1"])
+    attn_output = matmul_quant(attn_weights, value_states, config=quant_config["matmul_1"])
 
     attn_output = attn_output.transpose(1, 2).contiguous()
 
@@ -193,7 +201,6 @@ class LlamaQuantizedAttention(nn.Module):
         self.config = config
         self.layer_idx = layer_idx
         self.hidden_size = config.hidden_size
-        # why is this self.num_attention_heads a tuple but not a int, because of a ,,,
         self.num_attention_heads = config.num_attention_heads
         self.head_dim = getattr(config, "head_dim", self.hidden_size // config.num_attention_heads)
         self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads
@@ -201,10 +208,6 @@ class LlamaQuantizedAttention(nn.Module):
         self.attention_dropout = config.attention_dropout
         self.is_causal = True
         self.quant_config = config.quant_config[f"model_layer_{self.layer_idx}"]["self_attn"]
-        print("num_attention_heads:", config.num_attention_heads, type(config.num_attention_heads))
-        print("head_dim:", self.head_dim, type(self.head_dim))
-        print("product:", self.num_attention_heads * self.head_dim)
-
 
         self.q_proj = get_quantized_cls("linear", self.quant_config["q_proj"])(
             self.hidden_size, self.num_attention_heads * self.head_dim, bias=config.attention_bias, config=self.quant_config["q_proj"])
@@ -234,6 +237,10 @@ class LlamaQuantizedAttention(nn.Module):
 
         cos, sin = position_embeddings
 
+        # cos, sin = self.rotary_emb(value_states, position_ids)
+        # query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        # print("position_embeddings_cos: ", cos.shape)
+        # print("position_embeddings_sin: ", sin.shape)
         query_states, key_states = get_quantized_func(
             "rotary_positional_encoding",
             self.quant_config["rotary_positional_encoding"],
@@ -250,6 +257,7 @@ class LlamaQuantizedAttention(nn.Module):
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
+        # Only support quantized eager_attention for now
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
             if self.config._attn_implementation == "sdpa" and kwargs.get("output_attentions", False):
@@ -283,8 +291,13 @@ class LlamaQuantizedDecoderLayer(nn.Module):
         self.hidden_size = config.hidden_size
         self.self_attn = LlamaQuantizedAttention(config=config, layer_idx=layer_idx)
         self.mlp = LlamaQuantizedMLP(config=config, layer_idx=layer_idx)
-        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.quant_config = config.quant_config
+        # self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.input_layernorm  = get_quantized_cls("rms_norm", self.quant_config["rms_norm"])(
+            config.hidden_size,  eps=config.rms_norm_eps, config=self.quant_config["rms_norm"])
+        # self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm  = get_quantized_cls("rms_norm", self.quant_config["rms_norm"])(
+            config.hidden_size,  eps=config.rms_norm_eps, config=self.quant_config["rms_norm"])
 
     def forward(
         self,
@@ -462,13 +475,16 @@ class LlamaQuantizedModel(LlamaQuantizedPreTrainedModel):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
-
-        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
+        self.quant_config = config.quant_config
+        # self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
+        self.embed_tokens = get_quantized_cls("embedding", self.quant_config["embedding"])(config.vocab_size, config.hidden_size, self.padding_idx, config=self.quant_config["embedding"])
 
         self.layers = nn.ModuleList(
             [LlamaQuantizedDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
-        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.norm  = get_quantized_cls("rms_norm", self.quant_config["rms_norm"])(
+            config.hidden_size,  eps=config.rms_norm_eps, config=self.quant_config["rms_norm"])
         self.rotary_emb = LlamaRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
 
@@ -734,7 +750,7 @@ class LlamaQuantizedForCausalLM(LlamaQuantizedPreTrainedModel, GenerationMixin):
 
         self.quant_config = config.quant_config
         # self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.lm_head = get_quantized_cls("linear", self.quant_config["casual_lm_head"])(config.hidden_size, config.vocab_size, bias=False, config=self.quant_config["lm_head"])
+        self.lm_head = get_quantized_cls("linear", self.quant_config["casual_lm_head"])(config.hidden_size, config.vocab_size, bias=False, config=self.quant_config["casual_lm_head"])
 
         # Initialize weights and apply final processing
         self.post_init()

@@ -4,6 +4,7 @@ from .llama_quantized import LlamaQuantizedConfig, LlamaQuantizedForCausalLM
 
 MODEL_MAP = {
     "llama": {
+        # lm-language modeling
         "lm": LlamaQuantizedForCausalLM
     }
 }
