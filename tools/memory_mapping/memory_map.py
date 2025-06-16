@@ -1,4 +1,3 @@
-
 from rand_gen import RandomTensorGenerator
 import torch
 import os
@@ -81,3 +80,4 @@ if __name__ == "__main__":
                             bias_width=quant_config["exp_bias_width"],
                             directory=fake_hbm_dir,
                             hbm_row_width=256)
+
