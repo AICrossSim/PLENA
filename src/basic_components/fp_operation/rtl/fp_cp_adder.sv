@@ -7,6 +7,7 @@ Description : Adds two FP numbers with different exponents and signs.
               Output format: {sign, exp_out, mant_out}.
               No rounding.
               It needs normalisation.
+              The lossy part will be at the mantissa adder
 Status      : Passed Simple Tests
 */
 
@@ -27,8 +28,8 @@ module fp_cp_adder #(
     localparam int IN_FIXED_WIDTH = MANT_WIDTH + 2;
     localparam int IN_FIXED_FRAC_WIDTH = MANT_WIDTH;
 
-    localparam int ADDER_OUT_EXP_WIDTH = EXP_WIDTH;
-    localparam int ADDER_OUT_FIXED_WIDTH = IN_FIXED_WIDTH + 1;
+    localparam int ADDER_OUT_EXP_WIDTH = EXP_WIDTH + EXT_MANT_WIDTH;
+    localparam int ADDER_OUT_FIXED_WIDTH = IN_FIXED_WIDTH + EXT_MANT_WIDTH;
     localparam int ADDER_OUT_FIXED_FRAC_WIDTH = IN_FIXED_FRAC_WIDTH;
 
     // Internal signal declarations
