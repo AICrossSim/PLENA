@@ -92,7 +92,7 @@ class FPIEEEPartitionTB(CombinationalTestbench):
 @cocotb.test()
 async def test(dut):
     tb = FPIEEEPartitionTB(dut)
-    self.log.setLevel(logging.INFO)
+    tb.log.setLevel(logging.INFO)
     await tb.run_test(10)
     # try:
     #     tb = FPIEEEOperationsTB(dut)
