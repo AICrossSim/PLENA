@@ -1,21 +1,23 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Jun 16 08:23:24 2025
+[*] Mon Jun 16 22:28:27 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Mon Jun 16 07:33:14 2025"
-[dumpfile_size] 87173215
+[dumpfile_mtime] "Mon Jun 16 22:21:43 2025"
+[dumpfile_size] 85828972
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 1824600
+[timestart] 505100
 [size] 3428 1359
 [pos] 143808 153795
-*-15.919439 2180000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.874847 767300 920000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.data_flow_init.
+[treeopen] SimTop.dut.hbm_interface_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
-[treeopen] SimTop.dut.matrix_machine_init.
+[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.
+[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.
+[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.scale_master.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].
@@ -24,7 +26,9 @@
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.dut.vector_sram.
-[treeopen] SimTop.fake_hbm_m_element.
+[treeopen] SimTop.fake_hbm_m_element.bram_inst.
+[treeopen] SimTop.fake_hbm_v_element.bram_inst.
+[treeopen] SimTop.fake_hbm_v_scale.
 [sst_width] 390
 [signals_width] 429
 [sst_expanded] 1
@@ -32,57 +36,32 @@
 @28
 SimTop.dut.clk
 @22
-SimTop.dut.decoder_init.decode_instr_info.opcode[5:0]
+SimTop.dut.matrix_machine_init.converted_m_data_in[0][63:0]
+SimTop.dut.matrix_machine_init.stored_m_element[0][7:0]
+SimTop.dut.matrix_machine_init.stored_m_element[1][7:0]
+SimTop.dut.matrix_machine_init.stored_m_element[2][7:0]
+SimTop.dut.matrix_machine_init.stored_m_element[3][7:0]
+SimTop.dut.matrix_machine_init.v_fp_in[0][15:0]
+SimTop.dut.matrix_machine_init.v_fp_in[2][15:0]
+SimTop.dut.matrix_machine_init.v_fp_in[3][15:0]
+SimTop.dut.matrix_machine_init.v_fp_in[5][15:0]
 @28
-SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control[2:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.load_in_progress
-SimTop.dut.pipeline_control_init.m_load_in_process
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.control
+SimTop.dut.matrix_machine_init.v_valid
+SimTop.dut.data_flow_init.prefetch_v_valid
+SimTop.dut.data_flow_init.v_sram_wen_a
 @22
-SimTop.dut.vector_sram.translated_port_a_addr[6:0]
-SimTop.dut.vector_sram.port_a_fp_out_internal[0][15:0]
-@28
-SimTop.dut.m_v_valid
-SimTop.dut.vector_sram.port_a_req
-@22
-SimTop.dut.vector_sram.port_a_mask_in[7:0]
-@28
-SimTop.dut.vector_sram.port_a_write_en
-@29
-SimTop.dut.data_flow_init.select_write_data_a
-@28
-SimTop.dut.data_flow_init.m_out_valid
-SimTop.dut.data_flow_init.continuous_v_write_from_matrix_en
-SimTop.dut.matrix_machine_init.stored_result_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.out_result_valid
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.COMPUTE_DIM[31:0]
-@28
-SimTop.dut.vector_sram.data_not_ready
-SimTop.dut.matrix_machine_init.m_wreq
-SimTop.dut.matrix_machine_init.result_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.ready_to_load_output
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_loading
-SimTop.dut.matrix_machine_init.matrix_compute_unit.start_feed_count
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v_result_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.gemm_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.gemm_result_valid[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v_result_valid
-SimTop.dut.matrix_machine_init.m_wreq
-SimTop.dut.matrix_machine_init.result_in_valid
-SimTop.dut.matrix_machine_init.result_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_loading
-SimTop.dut.matrix_machine_init.matrix_compute_unit.ready_to_load_output
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_ready[1:0]
-SimTop.dut.matrix_machine_init.result_in_valid
-SimTop.dut.matrix_machine_init.result_in_ready
-SimTop.dut.matrix_machine_init.out_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.fifo_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.fifo_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.out_result_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.load_gemm_result
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_result_collector_inst.gemm_valid
+SimTop.dut.vector_sram.converted_b_fp_in[1][15:0]
+SimTop.dut.vector_sram.port_b_element_in[0][7:0]
+SimTop.dut.vector_sram.port_b_element_in[1][7:0]
+SimTop.dut.vector_sram.port_b_element_in[2][7:0]
+SimTop.dut.vector_sram.port_b_element_in[3][7:0]
+SimTop.dut.vector_sram.port_b_scale_in[0][15:0]
+SimTop.dut.vector_sram.port_b_scale_in[1][15:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.scale_master.host_d.data[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.prefetch_scale[31:0]
+SimTop.fake_hbm_v_scale.bram_inst.bram_rdata_i[255:0]
+SimTop.fake_hbm_v_scale.bram_inst.bram_addr_o[3:0]
+@23
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.scale_master.host_d.data[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

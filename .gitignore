@@ -26,3 +26,7 @@ Coprocessor_Vivado_Prj/
 *.rpt
 
 .nfs*
+
+*.mem
+
+*.pt
