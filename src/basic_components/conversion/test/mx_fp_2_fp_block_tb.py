@@ -13,11 +13,11 @@ from cfl_cocotb import veri_runner, MXBlockFPConverter, FpGenerator
 
 mxfp_exp_width = 4
 mxfp_mant_width = 3
-mxfp_scale_width = 8
+mxfp_scale_width = 16
 block_dim = 4
 
-fp_exp_width = 4
-fp_mant_width = 3
+fp_exp_width = 7
+fp_mant_width = 8
 
 generator = MXBlockFPConverter(mxfp_exp_width, mxfp_mant_width, mxfp_scale_width, block_dim)
 
@@ -38,10 +38,8 @@ async def simple_mxfp_2_fp_conversion(dut):
         mx_fp_scales, mx_fp_elems = generator.generate_certain_values([1.24, 2.01, 1.0231, 0.9820])
         print(f"mx_fp_scales: {mx_fp_scales}, mx_fp_elems: {mx_fp_elems}")
 
-        ele_data = 0
-        scale_data = 0
-        ele_data    += sum((mx_fp_elems[0][n] << (mxfp_exp_width + mxfp_mant_width + 1) * (n + i * block_dim) ) for n in range(block_dim))
-        scale_data  += (mx_fp_scales[0] << (mxfp_scale_width) * i)
+        ele_data = 0x32343EB2
+        scale_data = 0x0000
 
         dut.element_in.value = ele_data
         dut.scale_in.value = scale_data
@@ -56,10 +54,11 @@ async def simple_mxfp_2_fp_conversion(dut):
         cocotb.log.info(f"exp_overflow {dut.exp_overflow.value}")
         
         cocotb.log.info(f"mxfp_mant {dut.mxfp_mant.value}")
-        cocotb.log.info(f"mant_out{dut.mant_out.value}")
+        cocotb.log.info(f"mant_out {dut.mant_out.value}")
+        cocotb.log.info(f"exp_out {dut.exp_out.value}")
       
         cocotb.log.info(f"FP_OUT Result{dut.fp_out.value}")
-        cocotb.log.info(f"Converted Result {generator.fp_gen.multi_fp_conversion(  fp_exp_width, fp_mant_width, dut.fp_out.value)}")
+        cocotb.log.info(f"Converted Result {generator.fp_gen.multi_fp_conversion( fp_exp_width, fp_mant_width, dut.fp_out.value)}")
 
 
 

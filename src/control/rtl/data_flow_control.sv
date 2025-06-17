@@ -285,6 +285,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         end
 
         // Port B Addr Mangement
+        v_sram_mask_b = {VLEN{1'b1}};
         if (continuous_v_prefetch_en) begin
             v_sram_addr_b = recorded_v_prefetch_addr + v_sram_prefetch_counter * VSRAM_BYTES_PER_ROW;
         end else if (mem_stage_op.h_op == STORE_V) begin

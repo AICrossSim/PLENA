@@ -86,7 +86,7 @@ class MXBlockFPConverter:
         return result_fp
     
     def convert_block_to_fp(self, elements, scale, element_exp_width=4, element_mant_width=3):
-        true_scale = 2 ** (scale - self.scale_bias)
+        true_scale = 2 ** (scale)
         extracted_elements = split_bitstream_equal(elements, (element_exp_width + element_mant_width + 1) )
         result_fp = []
         for element in extracted_elements:
