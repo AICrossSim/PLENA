@@ -21,6 +21,7 @@ def eval_wrapper(model, task, max_batch_size):
     results = simple_evaluate(
         model=wrapped_model,
         tasks=[task],
+        num_fewshot=5 if task == "mmlu" else 0,
         max_batch_size=max_batch_size
     )
 
