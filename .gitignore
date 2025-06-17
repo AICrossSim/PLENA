@@ -15,5 +15,4 @@ build/
 
 notebooks/
 logging*/
-config/
 kube/

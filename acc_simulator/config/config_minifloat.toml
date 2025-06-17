@@ -1,0 +1,68 @@
+by = "type"
+[default]
+bypass = false
+name = "minifloat_ieee"
+is_ptq = true
+bias_exponent_bias_width = "None"
+bias_exponent_width = 5
+bias_width = 8
+data_in_exponent_bias_width = "None"
+data_in_exponent_width = 5
+data_in_width = 8
+weight_exponent_bias_width = "None"
+weight_exponent_width = 5
+weight_width = 8
+
+[embedding]
+bypass = false
+name = "minifloat_ieee"
+is_ptq = true
+weight_exponent_bias_width = "None"
+weight_exponent_width = 5
+weight_width = 8
+
+[rms_norm]
+bypass = true
+name = "minifloat_ieee"
+is_ptq = true
+data_in_exponent_bias_width = "None"
+data_in_exponent_width = 5
+data_in_width = 8
+weight_exponent_bias_width = "None"
+weight_exponent_width = 5
+weight_width = 8
+
+[silu]
+bypass = true
+name = "minifloat_ieee"
+data_in_exponent_bias_width = "None"
+data_in_exponent_width = 5
+data_in_width = 8
+
+[softmax]
+bypass = true
+name = "minifloat_ieee"
+data_in_exponent_bias_width = "None"
+data_in_exponent_width = 5
+data_in_width = 8
+
+[rotary_positional_encoding]
+bypass = false
+name = "minifloat_ieee"
+data_in_exponent_bias_width = "None"
+data_in_exponent_width = 5
+data_in_width = 8
+
+[casual_lm_head]
+bypass = false
+name = "minifloat_ieee"
+is_ptq = true
+bias_exponent_bias_width = "None"
+bias_exponent_width = 5
+bias_width = 8
+data_in_exponent_bias_width = "None"
+data_in_exponent_width = 5
+data_in_width = 8
+weight_exponent_bias_width = "None"
+weight_exponent_width = 5
+weight_width = 8
