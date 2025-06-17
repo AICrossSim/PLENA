@@ -16,6 +16,7 @@ from cfl_cocotb.streaming import (
 from cfl_cocotb.runner import veri_runner, SRC_PATH
 from cfl_cocotb.torch_fp_conversion import torch_fp2bin
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
+from cfl_tools.debugger import set_excepthook
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
@@ -24,11 +25,30 @@ src_path = Path(__file__).parent.parent.parent
 
 torch.manual_seed(10)
 
-def get_dut_attributes(dut, log):
+def detect_parameter(attr):
+    if attr.isupper():
+        return True
+    else:
+        return False
+
+def detect_signal(attr):
+    if attr.isupper() or attr.startswith("_") or attr == "get_definition_file" or attr == "get_definition_name":
+        return False
+    else:
+        return True
+
+def get_dut_attributes(dut, log, value_rep: str = None):
     for attr in dir(dut):
-        if not attr.startswith("_") and attr != "get_definition_file" and attr != "get_definition_name":
-            log.debug(f"{attr}: {getattr(dut, attr).value}")
-    breakpoint()
+        if detect_parameter(attr):
+            value = getattr(dut, attr).value
+        elif detect_signal(attr):
+            if value_rep is None:
+                value = getattr(dut, attr).value
+            else:
+                value = getattr(getattr(dut, attr).value, value_rep)
+        else:
+            continue
+        log.debug(f"{attr}: {value}")
 
 class FPIEEECasting(CombinationalTestbench):
     def generate_inputs(self, num):
@@ -61,6 +81,7 @@ class FPIEEECasting(CombinationalTestbench):
 
         q_out, out_exponent, out_mantissa = _minifloat_ieee_quantize_hardware(
             q_x, 
+            self.q_config["out_man_width"] + self.q_config["out_exp_width"] + 1,
             self.q_config["out_exp_width"],
         )
 
@@ -84,22 +105,27 @@ class FPIEEECasting(CombinationalTestbench):
         }
         
     def check_output(self, input, output):
-        self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
-        get_dut_attributes(self.dut, self.log)
+        self.log.debug(f"Expected result : {input}, got: {int(output.integer)}")
+        self.log.debug(f"----------------{self.dut}---------")
+        get_dut_attributes(self.dut, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_ieee_exponent_casting_inst}---------")
+        get_dut_attributes(self.dut.fp_ieee_exponent_casting_inst, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_ieee_mantissa_casting_inst}---------")
+        get_dut_attributes(self.dut.fp_ieee_mantissa_casting_inst, self.log, None)
 
-        assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
+        assert input == int(output.integer), f"Expected {input}, but got {int(output.integer)}"
 
 @cocotb.test()
 async def test(dut):
-    tb = FPIEEECasting(dut)
-    tb.log.setLevel(logging.INFO)
-    await tb.run_test(10)
-    # try:
-    #     tb = FPIEEEOperationsTB(dut)
-    #     await tb.run_test(10)
-    # except Exception as e:
-    #     print("\nEntering debugger...")
-    #     pdb.post_mortem(sys.exc_info()[2])
+    # tb = FPIEEECasting(dut)
+    # tb.log.setLevel(logging.DEBUG)
+    # await tb.run_test(10)
+    try:
+        tb = FPIEEECasting(dut)
+        tb.log.setLevel(logging.DEBUG)
+        await tb.run_test(10)
+    except Exception as e:
+        set_excepthook()
 
 if __name__ == "__main__":
     veri_runner(
