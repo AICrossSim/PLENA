@@ -234,7 +234,7 @@ class LlamaQuantizedConfig(PretrainedConfig):
     def __setattr__(self, key, value):
         if key == "quant_config" and value is not None:
             value = parse_llama_quantized_config(
-                config=value, num_hidden_layers=self.num_hidden_layers
+                config=value
             )
         return super().__setattr__(key, value)
 

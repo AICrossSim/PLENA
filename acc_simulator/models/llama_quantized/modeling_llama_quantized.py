@@ -125,7 +125,7 @@ class LlamaQuantizedMLP(nn.Module):
         self.layer_idx = layer_idx
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
-        self.quant_config = config.quant_config[f"model_layer_{layer_idx}"]["mlp"]
+        self.quant_config = config.quant_config[f"model_layer"]["mlp"]
         self.gate_proj = get_quantized_cls("linear", self.quant_config["gate_proj"])(
             self.hidden_size, self.intermediate_size, bias=config.mlp_bias, config=self.quant_config["gate_proj"])
         self.down_proj = get_quantized_cls("linear", self.quant_config["down_proj"])(
@@ -170,15 +170,14 @@ def eager_attention_forward(
     value_states = repeat_kv(value, module.num_key_value_groups)
 
     # attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
-    matmul_quant = get_quantized_func("matmul", quant_config["matmul_0"])
-    attn_weights = matmul_quant(query, key_states.transpose(2, 3), config=quant_config["matmul_0"]) * scaling
+    matmul_quant = get_quantized_func("matmul", quant_config["matmul"])
+    attn_weights = matmul_quant(query, key_states.transpose(2, 3), config=quant_config["matmul"]) * scaling
 
 
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    # TODO: Replace softmax here with quant_softmax
 
     softmax_quant = get_quantized_func("softmax", quant_config["softmax"])
     attn_weights = softmax_quant(attn_weights,  dim=-1, config = quant_config["softmax"])
@@ -186,8 +185,7 @@ def eager_attention_forward(
     attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
 
     # attn_output = torch.matmul(attn_weights, value_states)
-    matmul_quant = get_quantized_func("matmul", quant_config["matmul_1"])
-    attn_output = matmul_quant(attn_weights, value_states, config=quant_config["matmul_1"])
+    attn_output = matmul_quant(attn_weights, value_states, config=quant_config["matmul"])
 
     attn_output = attn_output.transpose(1, 2).contiguous()
 
@@ -207,7 +205,7 @@ class LlamaQuantizedAttention(nn.Module):
         self.scaling = self.head_dim**-0.5
         self.attention_dropout = config.attention_dropout
         self.is_causal = True
-        self.quant_config = config.quant_config[f"model_layer_{self.layer_idx}"]["self_attn"]
+        self.quant_config = config.quant_config[f"model_layer"]["self_attn"]
 
         self.q_proj = get_quantized_cls("linear", self.quant_config["q_proj"])(
             self.hidden_size, self.num_attention_heads * self.head_dim, bias=config.attention_bias, config=self.quant_config["q_proj"])
@@ -239,8 +237,6 @@ class LlamaQuantizedAttention(nn.Module):
 
         # cos, sin = self.rotary_emb(value_states, position_ids)
         # query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
-        # print("position_embeddings_cos: ", cos.shape)
-        # print("position_embeddings_sin: ", sin.shape)
         query_states, key_states = get_quantized_func(
             "rotary_positional_encoding",
             self.quant_config["rotary_positional_encoding"],

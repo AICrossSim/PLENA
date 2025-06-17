@@ -40,7 +40,8 @@ def apply_rotary_pos_emb_mxfp(
     cos: torch.Tensor,
     sin: torch.Tensor,
     quant_config: dict,
-    position_ids: Optional[torch.Tensor] = None,
+    # position_ids deprecated
+    position_ids: Optional[torch.Tensor] = None, 
     unsqueeze_dim: int = 1
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply Rotary Position Embedding using MXFP quantization."""

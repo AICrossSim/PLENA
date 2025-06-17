@@ -20,21 +20,19 @@ An example of quant_config for llama, llamaforcasualLM
             "v_proj": {},
             "o_proj": {},
             "rotary_positional_encoding": {},
-            "matmul_0": {},
-            "matmul_1": {},
+            "matmul": {},
             "softmax": {},
         },
         "mlp": {
             "gate_proj": {},
             "down_proj": {},
             "up_proj": {},
+            "silu": {}
         },
     }
     "norm": {},
-    "linear_default": {},
-    "matmul_default": {},
     "casual_lm_head": {},
-    "silu": {},
+    "default": {},
 }
 """
 
@@ -60,8 +58,7 @@ def create_a_layer_config(
             "v_proj": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("v_proj", linear_qc), "linear", strict=strict)),
             "o_proj": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("o_proj", linear_qc), "linear", strict=strict)),
             "rotary_positional_encoding": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("rotary_positional_encoding", rotary_positional_encoding_qc), "rotary_positional_encoding", strict=strict)),
-            "matmul_0": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("matmul_0", matmul_qc), "matmul", strict=strict)),
-            "matmul_1": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("matmul_1", matmul_qc), "matmul", strict=strict)),
+            "matmul": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("matmul_0", matmul_qc), "matmul", strict=strict)),
             "softmax": deepcopy(parse_node_config(layer_qc.get("self_attn", {}).get("softmax", softmax_qc), "softmax", strict=strict)),
         },
         "mlp": {
@@ -77,7 +74,6 @@ def create_a_layer_config(
 
 def _parse_and_complete_config(
     config: dict,
-    num_hidden_layers: int,
     strict: bool = True,
 ) -> dict:
     assert "default" in config, "Must provide default config for by_name_parser"
@@ -89,8 +85,6 @@ def _parse_and_complete_config(
         config.get("rotary_positional_encoding", config["rotary_positional_encoding"]),
         mase_op="rotary_positional_encoding",
     )
-    config["rotary_positional_encoding"]["bypass"] = True
-
     casual_lm_head_qc: dict = parse_node_config(
         config.get("casual_lm_head",  config["casual_lm_head"]),
         mase_op="linear",
@@ -112,16 +106,12 @@ def _parse_and_complete_config(
     softmax_qc: dict = parse_node_config(
         config.get("softmax", config["softmax"]), mase_op="softmax"
     )
-    general_layer_qc: dict = config.get("model_layer", None)
 
     # parsed config
     p_config = {}
-    for i in range(num_hidden_layers):
-        layer_entry = f"model_layer_{i}"
-        layer_qc = config.get(layer_entry, general_layer_qc)
-        p_config[layer_entry] = create_a_layer_config(
-            linear_qc, matmul_qc, rotary_positional_encoding_qc, silu_qc, softmax_qc, layer_qc, strict=strict
-        )
+    p_config["model_layer"] = create_a_layer_config(
+        linear_qc, matmul_qc, rotary_positional_encoding_qc, silu_qc, softmax_qc, strict=strict
+    )
     p_config["default"] = default_qc
     p_config["casual_lm_head"] = casual_lm_head_qc
     p_config["embedding"] = input_embedding_qc
@@ -130,7 +120,7 @@ def _parse_and_complete_config(
 
 
 def parse_llama_quantized_config(
-    config: str | dict | None, num_hidden_layers: int, strict: bool = True
+    config: str | dict | None, strict: bool = True
 ) -> dict:
     assert isinstance(
         config, (str, dict, type(None))
@@ -143,5 +133,5 @@ def parse_llama_quantized_config(
         config = toml.load(config)
 
     config = convert_str_na_to_none(config)
-    parsed_config = _parse_and_complete_config(config, num_hidden_layers, strict=strict)
+    parsed_config = _parse_and_complete_config(config, strict=strict)
     return parsed_config
