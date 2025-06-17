@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from ..quantizer import minifloat_ieee_quantizer
 
-class RMSNormMINIFP(nn.Module):
+class RMSNormMinifloatIEEE(nn.Module):
     def __init__(self, hidden_size, eps=1e-6, config: dict = None):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))

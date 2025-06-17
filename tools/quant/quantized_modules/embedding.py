@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..quantizer import mxfp_quantizer
+from ..quantizer import mxfp_quantizer, minifloat_ieee_quantizer
 
-class EmbeddingMXFP(nn.Embedding):
+class EmbeddingBase(nn.Embedding):
     def __init__(
         self,
         num_embeddings: int,
@@ -19,21 +19,15 @@ class EmbeddingMXFP(nn.Embedding):
 
         self.config = config
         self.bypass = config.get("bypass", False)
-        self.is_inference = config.get("is_ptq", False)
-        self.weight_requires_quantisation = True if self.is_inference else False
+        self.is_ptq = config.get("is_ptq", False)
+        self.weight_requires_quantisation = True if self.is_ptq else False
+        self.w_quantizer = None
 
         if not self.bypass:
             self._setup_quantizer(config)
 
     def _setup_quantizer(self, config: dict):
-        self.w_quantizer = partial(
-            mxfp_quantizer,
-            width=config["weight_width"],
-            exponent_width=config["weight_exponent_width"],
-            exponent_bias_width=config["weight_exponent_bias_width"],
-            block_size=config["weight_block_size"],
-            skip_first_dim=False,  # do not skip dim 0 — quantize over [num_embeddings, emb_dim]
-        )
+        raise NotImplementedError("Subclasses must implement _setup_quantizer()")
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.bypass:
@@ -44,7 +38,6 @@ class EmbeddingMXFP(nn.Embedding):
                     self.weight.copy_(self.w_quantizer(self.weight.data))
                     self.weight_requires_quantisation = False
             return F.embedding(input, self.weight, self.padding_idx)
-
 
     def __repr__(self):
         txt = "{}(num_embeddings={}, embedding_dim={}, padding_idx={}, bypass={}, is_ptq={}, weight-width={})".format(
@@ -57,3 +50,23 @@ class EmbeddingMXFP(nn.Embedding):
             self.config["weight_width"],
         )
         return txt
+
+class EmbeddingMXFP(EmbeddingBase):
+    def _setup_quantizer(self, config: dict):
+        self.w_quantizer = partial(
+            mxfp_quantizer,
+            width=config["weight_width"],
+            exponent_width=config["weight_exponent_width"],
+            exponent_bias_width=config["weight_exponent_bias_width"],
+            block_size=config["weight_block_size"],
+            skip_first_dim=False,
+        )
+
+class EmbeddingMinifloatIEEE(EmbeddingBase):
+    def _setup_quantizer(self, config: dict):
+        self.w_quantizer = partial(
+            minifloat_ieee_quantizer,
+            width=config["weight_width"],
+            exponent_width=config["weight_exponent_width"],
+            exponent_bias=config["weight_exponent_bias_width"],
+        )

@@ -1,17 +1,17 @@
-from .linear import LinearMXFP, LinearMinifloatIEEE, LinearMXINT
-from .embedding import EmbeddingMXFP
-from .rms_norm import RMSNormMINIFP
+from .linear import LinearMXFP, LinearMinifloatIEEE
+from .embedding import EmbeddingMXFP, EmbeddingMinifloatIEEE
+from .rms_norm import RMSNormMinifloatIEEE
 
 QUANTIZED_MODULE_MAP = {
     "linear": {
         "mxfp": LinearMXFP,
-        "minifloat_ieee": LinearMinifloatIEEE,
-        "mxint": LinearMXINT
+        "minifloat_ieee": LinearMinifloatIEEE
     },
     "embedding":{
         "mxfp": EmbeddingMXFP,
+        "minifloat_ieee": EmbeddingMinifloatIEEE
     },
     "rms_norm":{
-        "minifloat_ieee": RMSNormMINIFP
+        "minifloat_ieee": RMSNormMinifloatIEEE
     }
 }

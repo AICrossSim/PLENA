@@ -100,7 +100,6 @@ class LinearMXFP(_LinearBase):
             if self.bias is not None
             else None
         )
-
         
 class LinearMinifloatIEEE(_LinearBase):
     def _setup_quantizers(self, config: dict):
@@ -122,37 +121,6 @@ class LinearMinifloatIEEE(_LinearBase):
                 width=config["bias_width"],
                 exponent_width=config["bias_exponent_width"],
                 exponent_bias=config["data_in_exponent_bias_width"],
-            )
-            if self.bias is not None
-            else None
-        )
-
-class LinearMXINT(_LinearBase):
-    def _setup_quantizers(self, config: dict):
-        self.x_quantizer = partial(
-            mx_int_quantizer,
-            width=config["data_in_width"],
-            exponent_width=config["data_in_exponent_width"],
-            exponent_bias=config["data_in_exponent_bias_width"],
-            block_size=config["data_in_block_size"],
-            skip_first_dim=True,
-        )
-        self.w_quantizer = partial(
-            mx_int_quantizer,
-            width=config["weight_width"],
-            exponent_width=config["weight_exponent_width"],
-            exponent_bias=config["weight_exponent_bias_width"],
-            block_size=config["weight_block_size"],
-            skip_first_dim=False,
-        )
-        self.b_quantizer = (
-            partial(
-                mx_int_quantizer,
-                width=config["bias_width"],
-                exponent_width=config["bias_exponent_width"],
-                exponent_bias=config["bias_exponent_bias_width"],
-                block_size=config["bias_block_size"],
-                skip_first_dim=False,
             )
             if self.bias is not None
             else None
