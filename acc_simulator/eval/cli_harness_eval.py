@@ -34,7 +34,6 @@ def cli_eval():
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--task", type=str, choices=["wikitext", "mmlu"], default="wikitext")
     parser.add_argument("--quant_config", type=str, required=True)
-    parser.add_argument("--save_dir", type=str, default=None)
     parser.add_argument("--max_batch_size", type=int, default=4)
     parser.add_argument("--device_map", type=str, default="auto")
     parser.add_argument("--run_pytorch", action="store_true")
@@ -61,16 +60,7 @@ def cli_eval():
 
     model.eval()
 
-    results = eval_wrapper(model, args.task, args.max_batch_size)
-
-    if args.save_dir:
-        save_dir = Path(args.save_dir)
-        save_dir.mkdir(parents=True, exist_ok=True)
-
-        with open(save_dir / "eval_results.json", "w") as f:
-            json.dump(results, f, indent=4)
-        print(f"[INFO] Results saved to {save_dir / 'eval_results.json'}")
-
+    eval_wrapper(model, args.task, args.max_batch_size)
 
 if __name__ == "__main__":
     cli_eval()
