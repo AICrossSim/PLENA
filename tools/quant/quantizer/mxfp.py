@@ -43,12 +43,16 @@ def _mx_fp_quantize(
     per_block_exponent_bias = my_clamp(
         torch.floor(torch.log2(per_block_max)), 0, 2**exponent_bias_width - 1
     )
+    
+    blocked_x = blocked_x / 2**per_block_exponent_bias
+
     per_block_bm_x = _minifloat_ieee_quantize(
         blocked_x,
         width=width,
-        exponent_width=exponent_width,
-        exponent_bias=per_block_exponent_bias,
+        exponent_width=exponent_width
     )
+
+    per_block_bm_x = blocked_x * 2**per_block_exponent_bias
 
     bm_x = unblock(
         per_block_bm_x,
