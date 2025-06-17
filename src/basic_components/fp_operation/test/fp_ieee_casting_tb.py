@@ -24,9 +24,14 @@ src_path = Path(__file__).parent.parent.parent
 
 torch.manual_seed(10)
 
+def get_dut_attributes(dut, log):
+    for attr in dir(dut):
+        if not attr.startswith("_") and attr != "get_definition_file" and attr != "get_definition_name":
+            log.debug(f"{attr}: {getattr(dut, attr).value}")
+    breakpoint()
+
 class FPIEEECasting(CombinationalTestbench):
     def generate_inputs(self, num):
-
         self.q_config = {
             "in_exp_width": self.dut.IN_EXP_WIDTH.value,
             "in_man_width": self.dut.IN_MANT_WIDTH.value,
@@ -80,6 +85,8 @@ class FPIEEECasting(CombinationalTestbench):
         
     def check_output(self, input, output):
         self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
+        get_dut_attributes(self.dut, self.log)
+
         assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
 
 @cocotb.test()
@@ -107,8 +114,10 @@ if __name__ == "__main__":
         ],
         module_param_list=[
             {
-                "EXP_WIDTH": 4,
-                "MANT_WIDTH": 8
+                "IN_EXP_WIDTH": 5,
+                "IN_MANT_WIDTH": 10,
+                "OUT_EXP_WIDTH": 4,
+                "OUT_MANT_WIDTH": 7
             }
         ]
     )
