@@ -1,28 +1,29 @@
 [*]
-[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Jun 17 00:53:01 2025
+[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
+[*] Tue Jun 17 15:47:55 2025
 [*]
-[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Tue Jun 17 00:52:25 2025"
-[dumpfile_size] 86173802
-[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
-[size] 3428 1359
-[pos] 143808 153795
-*-16.919439 948800 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Tue Jun 17 14:55:54 2025"
+[dumpfile_size] 86012953
+[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[timestart] 538200
+[size] 1920 1080
+[pos] 138616 149990
+*-16.919439 940400 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
+[treeopen] SimTop.dut.data_flow_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.scale_master.
-[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
-[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].
-[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].
-[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.
+[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.
 [treeopen] SimTop.dut.matrix_sram.
+[treeopen] SimTop.dut.matrix_sram.element_storage.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].
+[treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.
+[treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[1].
 [treeopen] SimTop.dut.matrix_sram.output_rescale[0].
 [treeopen] SimTop.dut.matrix_sram.output_rescale[0].output_rescale_block[0].
 [treeopen] SimTop.dut.pipeline_control_init.addr_monitor_inst.
@@ -31,10 +32,10 @@
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
 [treeopen] SimTop.fake_hbm_v_element.bram_inst.
 [treeopen] SimTop.fake_hbm_v_scale.
-[sst_width] 390
-[signals_width] 429
+[sst_width] 255
+[signals_width] 280
 [sst_expanded] 1
-[sst_vpaned_height] 1017
+[sst_vpaned_height] 788
 @28
 SimTop.dut.clk
 @22
@@ -50,16 +51,18 @@ SimTop.dut.matrix_machine_init.v_fp_in[5][15:0]
 @28
 SimTop.dut.matrix_machine_init.v_valid
 SimTop.dut.data_flow_init.prefetch_v_valid
+SimTop.dut.matrix_sram.transposed_read
 SimTop.dut.data_flow_init.v_sram_wen_a
 @22
-SimTop.dut.matrix_machine_init.m_element[0][7:0]
-SimTop.dut.matrix_machine_init.m_element[1][7:0]
-SimTop.dut.matrix_machine_init.m_element[2][7:0]
-SimTop.dut.matrix_machine_init.m_element[3][7:0]
-SimTop.dut.matrix_machine_init.m_element[4][7:0]
-SimTop.dut.matrix_machine_init.m_element[5][7:0]
-SimTop.dut.matrix_machine_init.m_element[6][7:0]
-SimTop.dut.matrix_machine_init.m_element[7][7:0]
+SimTop.dut.matrix_sram.scale_in[0][0][15:0]
+SimTop.dut.matrix_sram.scale_in[0][1][15:0]
+SimTop.dut.matrix_sram.sram_waddr[31:0]
+SimTop.dut.matrix_sram.sram_raddr[31:0]
+SimTop.dut.matrix_sram.element_storage.sram_waddr_delayed[6:0]
+@28
+SimTop.dut.matrix_sram.element_storage.wen_req
+SimTop.dut.matrix_sram.element_storage.wen
+@22
 SimTop.dut.matrix_sram.element_in[0][0][7:0]
 SimTop.dut.matrix_sram.element_in[0][1][7:0]
 SimTop.dut.matrix_sram.element_in[0][2][7:0]
@@ -68,39 +71,28 @@ SimTop.dut.matrix_sram.element_in[0][4][7:0]
 SimTop.dut.matrix_sram.element_in[0][5][7:0]
 SimTop.dut.matrix_sram.element_in[0][6][7:0]
 SimTop.dut.matrix_sram.element_in[0][7][7:0]
-SimTop.dut.matrix_sram.scale_in[0][0][15:0]
-SimTop.dut.matrix_sram.scale_in[0][1][15:0]
-@28
-SimTop.dut.matrix_sram.wen
-@22
-SimTop.dut.matrix_sram.sram_waddr[31:0]
-SimTop.dut.matrix_sram.sram_raddr[31:0]
-@28
-SimTop.dut.matrix_sram.req
-@22
-SimTop.dut.matrix_sram.element_out[0][0][7:0]
 SimTop.dut.matrix_sram.loaded_element_out[0][0][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][1][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][2][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][3][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][4][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][5][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][6][7:0]
-SimTop.dut.matrix_sram.loaded_element_out[0][7][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[0][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[1][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[2][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[3][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[4][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[5][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[6][7:0]
-SimTop.dut.matrix_sram.element_storage.rdata_transform_init.in_data[7][7:0]
+SimTop.dut.matrix_sram.loaded_scale_out[0][0][15:0]
+SimTop.dut.matrix_sram.loaded_scale_out[0][1][15:0]
+SimTop.dut.matrix_sram.loaded_scale_out[0][2][15:0]
+SimTop.dut.matrix_sram.element_out[0][0][7:0]
+SimTop.dut.matrix_sram.element_out[0][1][7:0]
+SimTop.dut.matrix_sram.element_out[0][2][7:0]
 @28
-SimTop.dut.matrix_sram.element_storage.read_data_valid
+SimTop.dut.matrix_machine_init.m_valid
 @22
-SimTop.dut.matrix_sram.output_rescale[0].output_rescale_block[0].rescale_output.p0_rounded_element[0][7:0]
-SimTop.dut.matrix_sram.output_rescale[0].output_rescale_block[0].rescale_output.p0_rounded_element[1][7:0]
-@23
-SimTop.dut.matrix_sram.output_rescale[0].output_rescale_block[0].rescale_output.exp_max[15:0]
+SimTop.dut.matrix_machine_init.m_element[0][7:0]
+@28
+SimTop.dut.data_flow_init.m_prefetch_data_not_ready
+SimTop.dut.data_flow_init.m_sram_load_counter[2:0]
+SimTop.dut.data_flow_init.m_sram_req
+@22
+SimTop.dut.data_flow_init.m_sram_raddr[31:0]
+@28
+SimTop.dut.data_flow_init.exe_stage_op.m_op[2:0]
+SimTop.dut.data_flow_init.continuous_load_m_en
+SimTop.dut.data_flow_init.end_of_load_m
+@29
+SimTop.dut.data_flow_init.m_m_load_cond
 [pattern_trace] 1
 [pattern_trace] 0
