@@ -10,14 +10,14 @@ Description : Adds two FP numbers with different exponents and signs.
 Status      : Passed Simple Tests
 */
 
-module fp_adder #(
+module fp_mult #(
     parameter int IN_EXP_WIDTH = 5,
     parameter int IN_FIX_WIDTH = 10,
     parameter int IN_FIX_FRAC_WIDTH = IN_FIX_WIDTH - 1,
+    parameter int OUT_FIX_WIDTH = IN_FIX_WIDTH + IN_FIX_WIDTH,
+    parameter int OUT_FIX_FRAC_WIDTH = IN_FIX_FRAC_WIDTH + IN_FIX_FRAC_WIDTH,
     // Amount of bits needed to shift mantissas for alignment
-    parameter int OUT_EXP_WIDTH = -1,
-    parameter int OUT_FIX_WIDTH = -1,
-    parameter int OUT_FIX_FRAC_WIDTH = -1
+    localparam int OUT_EXP_WIDTH = IN_EXP_WIDTH + 1
 )(
     input  logic signed [IN_EXP_WIDTH - 1:0] exp_a,
     input  logic signed [IN_FIX_WIDTH - 1:0] mant_a,
@@ -27,33 +27,20 @@ module fp_adder #(
     output logic signed [OUT_FIX_WIDTH - 1:0] mant_out
 );
 
-    localparam int DATA_FIX_WIDTH = OUT_FIX_WIDTH - 1;
-    localparam int DATA_FIX_FRAC_WIDTH = OUT_FIX_FRAC_WIDTH;
+    localparam int INTERMEDIATE_FIX_WIDTH = IN_FIX_WIDTH + IN_FIX_WIDTH;
+    localparam int INTERMEDIATE_FIX_FRAC_WIDTH = IN_FIX_FRAC_WIDTH + IN_FIX_FRAC_WIDTH;
+
     initial begin
-        assert (IN_FIX_FRAC_WIDTH <= OUT_FIX_FRAC_WIDTH)
-            else $error("IN_FIX_FRAC_WIDTH must be less than OUT_FIX_FRAC_WIDTH");
+        assert (IN_FIX_WIDTH <= OUT_FIX_WIDTH)
+            else $error("IN_FIX_WIDTH must be less or equal than OUT_FIX_WIDTH");
     end
 
-    localparam signed FRAC_DIFF = DATA_FIX_FRAC_WIDTH - IN_FIX_FRAC_WIDTH;
-
-
-    logic signed [IN_EXP_WIDTH - 1:0] exp_diff;
-    logic signed [DATA_FIX_WIDTH - 1:0] mant_a_shifted, mant_b_shifted;
+    logic signed [INTERMEDIATE_FIX_WIDTH - 1:0] intermediate_mant;
 
     always_comb begin
-        if (exp_a > exp_b) begin
-            exp_diff = exp_a - exp_b;
-            mant_a_shifted = mant_a << FRAC_DIFF;
-            mant_b_shifted = (mant_b << FRAC_DIFF) >>> exp_diff;
-            exp_out = exp_a;
-        end
-        else begin
-            exp_diff = exp_b - exp_a;
-            mant_a_shifted = (mant_a << FRAC_DIFF) >>> exp_diff;
-            mant_b_shifted = mant_b << FRAC_DIFF;
-            exp_out = exp_b;
-        end
-        mant_out = mant_a_shifted + mant_b_shifted;
+        exp_out = exp_a + exp_b;
+        intermediate_mant = mant_a * mant_b;
+        mant_out = intermediate_mant[INTERMEDIATE_FIX_WIDTH - 1 : INTERMEDIATE_FIX_WIDTH - OUT_FIX_WIDTH];
     end
 
 endmodule
