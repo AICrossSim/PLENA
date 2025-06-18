@@ -16,11 +16,15 @@ from cfl_cocotb.runner import SRC_PATH
 from cfl_cocotb.testbench import CombinationalTestbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
 
-from quant.quantizer.hardware_quantizer import _minifloat_denorm_quantize_hardware, pack_fp_to_bin
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
+
 
 class FPCPAddTB(CombinationalTestbench):
     def generate_inputs(self, num):
+        # seed = torch.randint(0, 1000000, (1,)).item()
+        torch.manual_seed(756044)
+        # self.log.info(f"seed : {seed}")
         q_config = {
             "exp_width" : self.dut.EXP_WIDTH.value,
             "mant_width" : self.dut.MANT_WIDTH.value,
@@ -39,14 +43,23 @@ class FPCPAddTB(CombinationalTestbench):
         width = q_config["mant_width"] + q_config["exp_width"]
         exponent_width = q_config["exp_width"]
 
-        qa, a_exp, a_mant = _minifloat_denorm_quantize_hardware(torch_a, width, exponent_width)
-        qb, b_exp, b_mant = _minifloat_denorm_quantize_hardware(torch_b, width, exponent_width)
+        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
+        qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
+        breakpoint()
 
         out_width = q_config["mant_width"] + q_config["exp_width"] + q_config["ext_mant_width"] + q_config["ext_exp_width"] + 1
         out_exponent_width = q_config["exp_width"] + q_config["ext_exp_width"]
 
         out = qa + qb
-        qout, out_exp, out_mant = _minifloat_denorm_quantize_hardware(out, out_width, out_exponent_width)
+        self.log.debug(f"out : {out}")
+        debug_out, debug_exp, debug_mant = _minifloat_ieee_quantize_hardware(out, 5 + 8 + 1, 5)
+        debug_out_bin = pack_fp_to_bin(debug_exp, debug_mant, 5, 8)
+        self.log.debug(f"debug_out_bin : {debug_out_bin}")
+        self.log.debug(f"debug_out : {debug_out}")
+        self.log.debug(f"debug_exp : {debug_exp}")
+        self.log.debug(f"debug_mant : {debug_mant}")
+
+        qout, out_exp, out_mant = _minifloat_ieee_quantize_hardware(out, out_width, out_exponent_width)
 
         inputs_a = pack_fp_to_bin(a_exp, a_mant, q_config["exp_width"], q_config["mant_width"])
         inputs_b = pack_fp_to_bin(b_exp, b_mant, q_config["exp_width"], q_config["mant_width"])
@@ -69,7 +82,6 @@ class FPCPAddTB(CombinationalTestbench):
         self.log.debug(f"Expected result : {input}, got: {int(output)}")
         self.log.debug(f"----------------{self.dut}---------")
         get_dut_attributes(self.dut, self.log, "signed_integer")
-        breakpoint()
         # self.log.debug(f"----------------{self.dut.fp_ieee_exponent_casting_inst}---------")
         # get_dut_attributes(self.dut.fp_ieee_exponent_casting_inst, self.log, None)
         # self.log.debug(f"----------------{self.dut.fp_ieee_mantissa_casting_inst}---------")
