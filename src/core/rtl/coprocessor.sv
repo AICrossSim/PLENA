@@ -15,11 +15,9 @@ Description : This module serves as the top level of the coprocessor,
 */
 
 module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
-        // Simulation Purpose
-        `ifdef SIMULATION
-            parameter string FP_MEM_INIT_FILE = " ",
-            parameter string FIXED_MEM_INIT_FILE = " "
-        `endif
+    parameter string FP_MEM_INIT_FILE       = "",
+    parameter string FIXED_MEM_INIT_FILE    = "",
+    parameter string V_SRAM_RESULT_FILE     = ""
 )(
     input   logic clk,
     input   logic rst,
@@ -292,10 +290,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
         // Scalar Compute Unit
         scalar_machine #(
-            `ifdef SIMULATION
-                .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-                .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
-            `endif
+            .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
+            .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),
@@ -362,7 +358,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .BLOCK_DIM          (BLOCK_DIM),
         .SRAM_DEPTH         (SCRATCHPAD_SRAM_DEPTH),
         .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
-        .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount)
+        .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount),
+        .MEM_RESULT_FILE    (V_SRAM_RESULT_FILE)
     ) vector_sram (
         .clk(clk),
         .rst(rst),

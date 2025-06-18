@@ -11,11 +11,11 @@ module fake_hbm #(
     parameter int ADDR_WIDTH        = 32,
     parameter int DATA_WIDTH        = 64,
     parameter int BRAM_ADDR_WIDTH   = 20,
-    parameter int SourceWidth      = 1,
-    parameter int SinkWidth        = 1,
+    parameter int SourceWidth       = 1,
+    parameter int SinkWidth         = 1,
     parameter int ID_WIDTH          = 8,
-    parameter string  MemInitFile       = ""
-
+    parameter string  MemInitFile   = "",
+    parameter string  ResultFile    = ""
 )(
     input logic clk,
     input logic rst,
@@ -59,7 +59,8 @@ tl_adapter_bram #(
 bram #(
     .DATA_WIDTH(DATA_WIDTH),
     .ADDR_WIDTH(BRAM_ADDR_WIDTH),
-    .INIT_FILE(MemInitFile)
+    .INIT_FILE(MemInitFile),
+    .RESULT_FILE(ResultFile)
 ) bram_inst (
     .clk(clk),
     .bram_en_o(bram_en),

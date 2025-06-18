@@ -30,7 +30,9 @@ module fp_vector_sram #(
     // SRAM
     parameter   SRAM_DEPTH          = 128,
     parameter   ON_CHIP_ADDR_WIDTH  = 32,
-    parameter   PREFETCH_AMOUNT     = 4
+    parameter   PREFETCH_AMOUNT     = 4,
+    // For Debugging
+    parameter string MEM_RESULT_FILE = ""
 
 )(
     input   logic clk,
@@ -229,7 +231,7 @@ prim_generic_ram_2p #(
     .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
     .Depth(SRAM_DEPTH),
     .DataBitsPerMask((EXP_WIDTH + MANT_WIDTH + 1)),
-    .MemInitFile("")
+    .ResultFile(MEM_RESULT_FILE)
 ) element_storage (
     .clk_a_i(clk),
     .clk_b_i(clk),

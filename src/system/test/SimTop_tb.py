@@ -37,6 +37,11 @@ testcase_name       = "projection"
 instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
 hbm_element_file    = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
 hbm_scale_file      = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
+hbm_write_element_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_ele.mem"
+hbm_write_element_v_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_ele.mem"
+hbm_write_scale_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_scale.mem"
+hbm_write_scale_v_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_scale.mem"
+vector_mem_result_file = f"{current_path.parent.parent.parent}/test/result_mem/vector_result.mem"
 fp_mem_file         = f"{current_path}/workload/fp.mem"
 fixed_mem_file      = f"{current_path}/workload/fixed.mem"
 INSTRUCTION_LENGTH = 16
@@ -122,7 +127,12 @@ def SimToP_test():
                 "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{hbm_element_file}\"",
                 "FAKE_HBM_SCALE_INIT_FILE": f"\"{hbm_scale_file}\"",
                 "FP_MEM_INIT_FILE": f"\"{fp_mem_file}\"",
-                "FIXED_MEM_INIT_FILE": f"\"{fixed_mem_file}\""
+                "FIXED_MEM_INIT_FILE": f"\"{fixed_mem_file}\"",
+                "VECTOR_MEM_RESULT_FILE": f"\"{vector_mem_result_file}\"",
+                "FAKE_HBM_ELEMENT_WRITE_M_FILE": f"\"{hbm_write_element_m_file}\"",
+                "FAKE_HBM_ELEMENT_WRITE_V_FILE": f"\"{hbm_write_element_v_file}\"",
+                "FAKE_HBM_SCALE_WRITE_M_FILE": f"\"{hbm_write_scale_m_file}\"",
+                "FAKE_HBM_SCALE_WRITE_V_FILE": f"\"{hbm_write_scale_v_file}\""
             }
         ],
         trace = True,
