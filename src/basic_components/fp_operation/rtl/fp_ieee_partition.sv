@@ -2,11 +2,8 @@
 /*
 Module      : fp_ieee_partition
 Timing      : Combinatorial Logic
-Description : Give normalized fp number,
-            : return a sign bit,
-            : 2.MANT_WIDTH of unsigned mantissa (sign, add one?, mantissa)
-            : signed biased exponent of .
-Status      : Under Development
+Description : FP_IEEE_Partition
+            - Splits IEEE floating-point data into a signed mantissa and a signed integer exponent.
 */
 
 module fp_ieee_partition #(

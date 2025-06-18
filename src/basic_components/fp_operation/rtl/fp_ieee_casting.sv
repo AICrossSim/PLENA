@@ -2,8 +2,10 @@
 /*
 Module      : fp_ieee_casting
 Timing      : Combinatorial Logic
-Description : Casting fp number from IN_EXP_WIDTH + IN_MANT_WIDTH to OUT_EXP_WIDTH + OUT_MANT_WIDTH
-Status      : Under Development
+Description : FP_IEEE_Casting
+            - Performs casting between IEEE floating-point formats.
+            - Only **reducing** bit width is allowed.
+            - This operation is **lossy**: For instance, to cast a value like xxxx to x000, we **first truncate/floor** to xxx0, then apply **round-to-nearest-even**.
 */
 
 module fp_ieee_casting #(
