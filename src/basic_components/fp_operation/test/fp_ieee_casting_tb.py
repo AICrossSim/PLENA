@@ -25,9 +25,9 @@ src_path = Path(__file__).parent.parent.parent
 
 torch.manual_seed(10)
 
+
 class FPIEEECasting(CombinationalTestbench):
     def generate_inputs(self, num):
-
         self.q_config = {
             "in_exp_width": self.dut.IN_EXP_WIDTH.value,
             "in_man_width": self.dut.IN_MANT_WIDTH.value,
@@ -95,7 +95,7 @@ class FPIEEECasting(CombinationalTestbench):
 async def test(dut):
     try:
         tb = FPIEEECasting(dut)
-        tb.log.setLevel(logging.DEBUG)
+        tb.log.setLevel(logging.INFO)
         await tb.run_test(10)
     except Exception as e:
         set_excepthook()
@@ -113,8 +113,10 @@ if __name__ == "__main__":
         ],
         module_param_list=[
             {
-                "EXP_WIDTH": 4,
-                "MANT_WIDTH": 8
+                "IN_EXP_WIDTH": 5,
+                "IN_MANT_WIDTH": 10,
+                "OUT_EXP_WIDTH": 4,
+                "OUT_MANT_WIDTH": 7
             }
         ]
     )
