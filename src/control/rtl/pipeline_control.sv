@@ -200,15 +200,15 @@ module pipeline_control #(
             end
             stall_for_mem_dependency <= mem_vwrite_stall_req;
 
-            if (!pipeline_stall) begin
+            if (recover_from_stall) begin
+                // Recover from Stall
+                determine_stage_op          <= recorded_check_stage_op;
+                exe_stage_op                <= determine_stage_op;
+            end else if (!pipeline_stall) begin
                 // Normal Execution
                 reg_rd_stage_op             <= decode_stage_op;
                 delayed_reg_rd_stage_op     <= reg_rd_stage_op;
                 determine_stage_op          <= check_stage_op;
-                exe_stage_op                <= determine_stage_op;
-            end else if (recover_from_stall) begin
-                // Recover from Stall
-                determine_stage_op          <= recorded_check_stage_op;
                 exe_stage_op                <= determine_stage_op;
             end else begin
                 // Stall Execution
@@ -218,6 +218,8 @@ module pipeline_control #(
             if (start_of_stall) begin
                 recorded_check_stage_op <= check_stage_op;
                 delayed_reg_rd_stage_op <= invalid_op_bubble;
+            end else if (recover_from_stall) begin
+                recorded_check_stage_op <= invalid_op_bubble;
             end
 
             // Accumulation in progress

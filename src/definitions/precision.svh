@@ -14,7 +14,7 @@ package precision_pkg;
     parameter   S_FP_EXP_WIDTH                  = 7;
     parameter   S_FP_MANT_WIDTH                 = 8;
     parameter   FIXED_DATA_WIDTH                = 32;
-    parameter   PRODUCT_EXT_EXP_WIDTH           = 1;
+    parameter   PRODUCT_EXT_EXP_WIDTH           = 0;
     parameter   PRODUCT_EXT_MANT_WIDTH          = 0;
     parameter   BLOCK_ADD_EXT_EXP_WIDTH         = 1;
     parameter   BLOCK_ADD_EXT_MANT_WIDTH        = 0;

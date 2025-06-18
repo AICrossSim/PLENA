@@ -183,7 +183,7 @@ module default_pe #(
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
     logic acc_valid;
 
-    fp_cp_adder_v1 #(
+    fp_cp_adder_v2 #(
         .MANT_WIDTH(ACC_FP_MANT_WIDTH),
         .EXP_WIDTH(ACC_FP_EXP_WIDTH),
         .EXT_MANT_WIDTH(0),

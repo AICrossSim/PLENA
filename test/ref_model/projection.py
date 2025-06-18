@@ -13,11 +13,15 @@ def ref_projection(
     data_directory: str
 ):
     data = torch.load(data_directory)
-    print(data.shape)
     
     weight = data[0:8, :]
     activation = data[8:, :]
+    print("----------- Weight Matrix -----------")
+    pretty_print_matrix(weight, precision=4)
+    print("----------- Activation Matrix -----------")
+    pretty_print_matrix(activation, precision=4)
     output = torch.matmul(activation, weight.T)
+    print("----------- Output Matrix -----------")
     pretty_print_matrix(output, precision=4)
 
 

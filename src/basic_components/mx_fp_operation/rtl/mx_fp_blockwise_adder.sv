@@ -163,7 +163,7 @@ module mx_fp_blockwise_adder #(
     // FP Addition, TODO: how to consider the overflow problem, whether to add to the mx-fp scale?
     generate;
         for(genvar i = 0; i < BLOCK_DIM; i++) begin : gen_block_adder
-            fp_cp_adder_v1 #(
+            fp_cp_adder_v2 #(
                 .EXP_WIDTH(MXFP_EXP_WIDTH),
                 .MANT_WIDTH(MXFP_MANT_WIDTH),
                 .EXT_EXP_WIDTH(EXT_EXP_WIDTH),

@@ -66,7 +66,7 @@ fp_cp_mult #(
 
 
 // Do not consider extension
-fp_cp_adder_v1 #(
+fp_cp_adder_v2 #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH)
 ) fp_adder (

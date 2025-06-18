@@ -41,9 +41,10 @@ module decoder #(
 
 
 logic   stall_for_read_rd;
-logic [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
+logic   [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic   read_instr_from_fifo, decode_instr_valid;
 assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid;
+logic   p1_pipeline_stall, recover_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 // Note: When the buffer is empty, there is one last instruction in the buffer
 fifo #(
@@ -142,13 +143,17 @@ always_ff @(posedge clk or posedge rst) begin
         recorded_m_update_waddr <= 1'b0;
         recorded_v_update_waddr <= 1'b0;
         recorded_rd_to_load <= {FIXED_OPERAND_WIDTH{1'b0}};
+        p1_pipeline_stall <= 1'b0;
     end else begin
         recorded_stall_for_read_rd_flag <= stall_for_read_rd_flag;
         recorded_m_update_waddr         <= m_update_waddr;
         recorded_v_update_waddr         <= v_update_waddr;
         recorded_rd_to_load             <= rd_to_load;
+        p1_pipeline_stall               <= pipeline_stall;
     end
 end
+
+assign recover_from_stall = !pipeline_stall & p1_pipeline_stall;
 
 always_comb begin
     // Instructions that requires three operands. Insert additionally operation to load the third operand, the insertion takes place only when the pipeline is not stalled.
@@ -176,7 +181,7 @@ always_comb begin
         pass_m_update_waddr = m_update_waddr;
         pass_v_update_waddr = v_update_waddr;
         pass_rd_to_load     = rd_to_load;
-    end else if (!pipeline_stall & recorded_stall_for_read_rd_flag) begin
+    end else if (recover_from_stall & recorded_stall_for_read_rd_flag) begin
         // Release until the pipeline stall is released.
         stall_for_read_rd   = 1'b1;
         pass_m_update_waddr = recorded_m_update_waddr;
