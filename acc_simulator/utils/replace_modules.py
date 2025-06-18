@@ -39,6 +39,28 @@ def set_layer_by_name(module: torch.nn.Module, name: str, new_layer: torch.nn.Mo
         setattr(module, name, new_layer)
 
 
+def apply_online_rotate(layer_for_online_rotate: str | None, name: str) -> bool:
+    '''
+    The online rotation will assume the layers will be pass in with
+    "down_proj, up_proj, gate_proj, q_proj, k_proj, v_proj, o_proj, mlp"
+    will be parsed into ["down_proj", "up_proj"]
+    '''
+    if layer_for_online_rotate is None or layer_for_online_rotate == "None":
+        return False
+    
+    parse_layers = layer_for_online_rotate.split(",")
+    parse_layers = [x.strip() for x in parse_layers]
+    logger.debug(f"parse_layers: {parse_layers}")
+    for layer in parse_layers:
+        if "proj" in name and "." + layer in name:
+            return True
+        elif layer in name and "proj" not in name:
+            return True
+        else:
+            return False
+    else:
+        return False
+
 def replace_modules(
     model: nn.Module,
     target_class: type,
@@ -70,12 +92,12 @@ def replace_modules(
             continue
         
         # Only rotate activation in down-projection
-        if target_class == nn.Linear:
-            if (layer_for_online_rotate not in ['None', None]) and (layer_for_online_rotate not in name):
-                kwargs["online_rotate"] = False
-            else:
-                kwargs["online_rotate"] = online_rotate
-            logger.debug(f"Applying online rotation{kwargs.get('online_rotate', False)} to {name}")
+        logger.debug(f"layer_for_online_rotate: {layer_for_online_rotate}")
+        if apply_online_rotate(layer_for_online_rotate, name):
+            kwargs["online_rotate"] = online_rotate
+        else:
+            kwargs["online_rotate"] = False
+        logger.debug(f"apply rotation {kwargs.get('online_rotate', False)} to {name}")
 
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)

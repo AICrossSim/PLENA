@@ -271,7 +271,8 @@ def quantize_model(
         factory_fn=LlamaAttentionMXFP.from_attention,
         kwargs=parse_args(quant_args, "attention"),
         label="LlamaAttention",
-        online_rotate=online_rotate
+        online_rotate=online_rotate,
+        layer_for_online_rotate=layer_for_online_rotate
     )
 
     if linear_quantized: 
