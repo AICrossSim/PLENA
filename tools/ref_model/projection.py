@@ -27,5 +27,5 @@ def ref_projection(
 
 
 if __name__ == "__main__":
-    data_directory        = "../weight/test_projection_data.pt"
+    data_directory        = "../../test/weight/test_projection_data.pt"
     ref_projection(data_directory)

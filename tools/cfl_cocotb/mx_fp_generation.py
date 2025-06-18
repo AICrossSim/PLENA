@@ -77,20 +77,24 @@ class MXBlockFPConverter:
             result_fp.append(scale * self.fp_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
         return result_fp
     
-    def blockwise_convert_to_float(self, elements, scales, block_num, element_exp_width=4, element_mant_width=3):
+    def blockwise_convert_to_float(self, elements, scales, block_num):
         scale_array     = split_bitstream_equal(scales, self.scale_width)
-        elements_array  = split_bitstream_equal(elements, (element_exp_width + element_mant_width + 1) * self.block_size)
+        elements_array  = split_bitstream_equal(elements, (self.elem_exp_width + self.elem_mant_width + 1) * self.block_size)
+        
+        if len(scale_array) < block_num:
+            for i in range(len(scale_array), block_num):
+                scale_array.insert(0, 0)  # Padding with zero if not enough scales
         result_fp = []
         for i in range(block_num):
-            result_fp.append(self.convert_block_to_fp(elements_array[i], scale_array[i], element_exp_width, element_mant_width))
+            result_fp.append(self.convert_block_to_fp(elements_array[i], scale_array[i]))
         return result_fp
     
-    def convert_block_to_fp(self, elements, scale, element_exp_width=4, element_mant_width=3):
+    def convert_block_to_fp(self, elements, scale):
         true_scale = 2 ** (scale)
-        extracted_elements = split_bitstream_equal(elements, (element_exp_width + element_mant_width + 1) )
+        extracted_elements = split_bitstream_equal(elements, (self.elem_exp_width + self.elem_mant_width + 1) )
         result_fp = []
         for element in extracted_elements:
-            result_fp.append(true_scale * self.fp_gen.full_precision_fp_float_convertion(element_exp_width, element_mant_width, element))
+            result_fp.append(true_scale * self.fp_gen.full_precision_fp_float_convertion(self.elem_exp_width, self.elem_mant_width, element))
         return result_fp
 
 if __name__ == "__main__":
