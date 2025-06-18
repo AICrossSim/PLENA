@@ -218,7 +218,7 @@ always_ff @(posedge clk) begin
         imm                             <= 'b0;
     end else if (!pipeline_stall) begin
         rd_operand_ready <= 1'b0;
-        decode_stage_op.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O || decode_instr_info.opcode == M_TMM || decode_instr_info.opcode == M_TMM_O) ? 1'b1 : 1'b0;
+        decode_stage_op.m_transposed_read     <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_BMM || decode_instr_info.opcode == M_BMM_O) ? 1'b1 : 1'b0;
         decode_stage_op.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_LD_F) ? 1'b1 : 1'b0;
         decode_stage_op.update_m_waddr        <= 1'b0;
         decode_stage_op.update_v_waddr        <= 1'b0;

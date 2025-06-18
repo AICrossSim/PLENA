@@ -183,7 +183,6 @@ module fp_default_pe #(
 
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result;
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
-    logic acc_valid;
 
     fp_cp_adder_v1 #(
         .MANT_WIDTH(ACC_FP_MANT_WIDTH),
@@ -201,13 +200,9 @@ module fp_default_pe #(
     always_ff @(posedge clk) begin
         if (rst) begin
             stored_result <= 'b0;
-            acc_valid <= 1'b0;
         end else begin
             if (shifted_result_valid) begin
                 stored_result <= acc_result;
-                acc_valid <= 1'b1;
-            end else begin
-                acc_valid <= 1'b0;
             end
             if (out_result_ready) begin 
                 out_fp <= stored_result;
