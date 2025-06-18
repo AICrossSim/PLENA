@@ -9,21 +9,7 @@ from cocotb.log import SimLog
 from cocotb.triggers import *
 
 from cfl_cocotb.testbench import Testbench, CombinationalTestbench
-from cfl_cocotb.streaming import (
-    StreamDriver,
-    StreamMonitor,
-)
 from cfl_cocotb.runner import veri_runner, SRC_PATH
-from cfl_cocotb.torch_fp_conversion import torch_fp2bin
-
-src_path = Path(__file__).parent.parent.parent
-
-torch.manual_seed(10)
-
-def hardware_ieee_normalize(signed_mant, signed_exp, q_config):
-    # Reconstruct the floating point number
-    x = signed_mant * torch.pow(2, signed_exp)
-    return x
 
 class FPIEEENormalizeTB(CombinationalTestbench):
     def generate_inputs(self, num):
@@ -113,7 +99,7 @@ if __name__ == "__main__":
                 "IN_FIXED_WIDTH": 6,
                 "IN_FIXED_FRAC_WIDTH": 3,
                 "IN_EXP_WIDTH": 4,
-                "OUT_MANT_WIDTH": 8
+                "OUT_MANT_WIDTH": 5
                 # OUT_EXP_WIDTH = 5
             }
         ]

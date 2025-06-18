@@ -16,6 +16,7 @@ from cfl_cocotb.streaming import (
 from cfl_cocotb.runner import veri_runner, SRC_PATH
 from cfl_cocotb.torch_fp_conversion import torch_fp2bin
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
+from cfl_tools.debugger import set_excepthook, get_dut_attributes
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
@@ -56,6 +57,7 @@ class FPIEEECasting(CombinationalTestbench):
 
         q_out, out_exponent, out_mantissa = _minifloat_ieee_quantize_hardware(
             q_x, 
+            self.q_config["out_man_width"] + self.q_config["out_exp_width"] + 1,
             self.q_config["out_exp_width"],
         )
 
@@ -79,20 +81,24 @@ class FPIEEECasting(CombinationalTestbench):
         }
         
     def check_output(self, input, output):
-        self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
-        assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
+        self.log.debug(f"Expected result : {input}, got: {int(output.integer)}")
+        self.log.debug(f"----------------{self.dut}---------")
+        get_dut_attributes(self.dut, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_ieee_exponent_casting_inst}---------")
+        get_dut_attributes(self.dut.fp_ieee_exponent_casting_inst, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_ieee_mantissa_casting_inst}---------")
+        get_dut_attributes(self.dut.fp_ieee_mantissa_casting_inst, self.log, None)
+
+        assert input == int(output.integer), f"Expected {input}, but got {int(output.integer)}"
 
 @cocotb.test()
 async def test(dut):
-    tb = FPIEEECasting(dut)
-    tb.log.setLevel(logging.INFO)
-    await tb.run_test(10)
-    # try:
-    #     tb = FPIEEEOperationsTB(dut)
-    #     await tb.run_test(10)
-    # except Exception as e:
-    #     print("\nEntering debugger...")
-    #     pdb.post_mortem(sys.exc_info()[2])
+    try:
+        tb = FPIEEECasting(dut)
+        tb.log.setLevel(logging.DEBUG)
+        await tb.run_test(10)
+    except Exception as e:
+        set_excepthook()
 
 if __name__ == "__main__":
     veri_runner(
