@@ -12,7 +12,8 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   parameter  int Width           = 32, // bit
   parameter  int Depth           = 128,
   parameter  int DataBitsPerMask = 1, // Number of data bits per bit of write mask
-  parameter      MemInitFile     = "", // VMEM file to initialize the memory with
+  parameter  string    MemInitFile     = "", 
+  parameter  string    ResultFile      = "",
 
   localparam int Aw              = $clog2(Depth),  // derived parameter
   localparam int MaskWidth = Width / DataBitsPerMask
@@ -26,7 +27,6 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   input        [Width-1:0] a_wdata_i,
   input  logic [MaskWidth-1:0] a_wmask_i,
   output logic [Width-1:0] a_rdata_o,
-
 
   input                    b_req_i,
   input                    b_write_i,
@@ -110,5 +110,19 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   end
 
   `include "prim_util_memload.svh"
+  
+  initial begin
+    
+  end
+
+  final begin
+      if (ResultFile != "") begin
+          string result_filename;
+          $sformat(result_filename, "%s", ResultFile);
+          $display("Writing result file from: %s", result_filename);
+          $writememh(result_filename, mem);
+      end
+  end
+
 `endif
 endmodule

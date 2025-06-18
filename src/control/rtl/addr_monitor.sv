@@ -16,12 +16,12 @@ module addr_monitor#(
     input   logic rst,
 
     // Execution Operation
-    input   OP_BUNDLE check_stage_op,  
+    input   OP_BUNDLE determine_stage_op,  
     input   OP_BUNDLE exe_stage_op,  
 
-    // ---------- Monitor Operand Read Signals -----------
-    input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
-    input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_2,
+    // // ---------- Monitor Operand Read Signals -----------
+    // input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
+    // input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_2,
 
     // ---------- Monitor SRAM Write Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_a,
@@ -30,7 +30,8 @@ module addr_monitor#(
     input   logic v_sram_wen_b,
 
     // Stall Decision
-    output  logic stall_req
+    output  logic stall_req,
+    input   logic sys_pipe_stall
 );
 
     // Track Write V Address
@@ -63,18 +64,18 @@ module addr_monitor#(
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
     logic stall_in_process;
-    logic [ADDR_WIDTH - 1 : 0] fixed_addr_1_to_check;
-    logic [ADDR_WIDTH - 1 : 0] fixed_addr_2_to_check;
+    // logic [ADDR_WIDTH - 1 : 0] fixed_addr_1_to_check;
+    // logic [ADDR_WIDTH - 1 : 0] fixed_addr_2_to_check;
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            fixed_addr_1_to_check <= {ADDR_WIDTH{1'b0}};
-            fixed_addr_2_to_check <= {ADDR_WIDTH{1'b0}};
-        end else begin
-            fixed_addr_1_to_check <= fixed_addr_1;
-            fixed_addr_2_to_check <= fixed_addr_2;
-        end
-    end
+    // always_ff @(posedge clk) begin
+    //     if (rst) begin
+    //         fixed_addr_1_to_check <= {ADDR_WIDTH{1'b0}};
+    //         fixed_addr_2_to_check <= {ADDR_WIDTH{1'b0}};
+    //     end else begin
+    //         fixed_addr_1_to_check <= fixed_addr_1;
+    //         fixed_addr_2_to_check <= fixed_addr_2;
+    //     end
+    // end
 
     always_comb begin
         if (stall_in_process) begin
@@ -90,53 +91,63 @@ module addr_monitor#(
             end
             stall_req = |addr_collide_flag;
 
-        end else if ((check_stage_op.m_op != STALL_M) ||((check_stage_op.v_ele_op != STALL_V_ELEMENT) & (!check_stage_op.v_broadcast_en)) || (check_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
-            // Two ports of address to monitor
-            for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if ((v_write_addr_track[i].track_addr == fixed_addr_1_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
-                    addr_collide_flag[i] = 1'b1;
-                    locked_entry_1 = fixed_addr_1_to_check;
-                    lock_entry_1_valid = 1'b1;
-                end else if ((v_write_addr_track[i].track_addr == fixed_addr_2_to_check) & (v_write_addr_track[i].activate == 1'b1)) begin
-                    addr_collide_flag[i] = 1'b1;
-                    locked_entry_2 = fixed_addr_2_to_check;
-                    lock_entry_2_valid = 1'b1;
-                end else begin
-                    addr_collide_flag[i] = 1'b0;
+        end else if (!sys_pipe_stall) begin
+            if ((determine_stage_op.m_op != STALL_M) ||((determine_stage_op.v_ele_op != STALL_V_ELEMENT) & (!determine_stage_op.v_broadcast_en)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
+                // Two ports of address to monitor
+                for (int i = 0; i < PIPELINE_STAGES; i++) begin
+                    if ((v_write_addr_track[i].track_addr == determine_stage_op.addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
+                        addr_collide_flag[i] = 1'b1;
+                        locked_entry_1 = determine_stage_op.addr_1;
+                        lock_entry_1_valid = 1'b1;
+                    end else if ((v_write_addr_track[i].track_addr == determine_stage_op.addr_2) & (v_write_addr_track[i].activate == 1'b1)) begin
+                        addr_collide_flag[i] = 1'b1;
+                        locked_entry_2 = determine_stage_op.addr_2;
+                        lock_entry_2_valid = 1'b1;
+                    end else begin
+                        addr_collide_flag[i] = 1'b0;
+                    end
                 end
-            end
-            stall_req = |addr_collide_flag;
-        end else if (((check_stage_op.v_ele_op != STALL_V_ELEMENT) & (check_stage_op.v_broadcast_en))) begin
-            // One port of address to monitor
-            for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_1_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
-                    addr_collide_flag[i] = 1'b1;
-                    locked_entry_1 = fixed_addr_1_to_check;
-                    lock_entry_1_valid = 1'b1;
-                end else begin
-                    addr_collide_flag[i] = 1'b0;
+                stall_req = |addr_collide_flag;
+            end else if (((determine_stage_op.v_ele_op != STALL_V_ELEMENT) & (determine_stage_op.v_broadcast_en))) begin
+                // One port of address to monitor
+                for (int i = 0; i < PIPELINE_STAGES; i++) begin
+                    if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                        addr_collide_flag[i] = 1'b1;
+                        locked_entry_1 = determine_stage_op.addr_1;
+                        lock_entry_1_valid = 1'b1;
+                    end else begin
+                        addr_collide_flag[i] = 1'b0;
+                    end
                 end
-            end
-            stall_req = |addr_collide_flag;
-        end else if (check_stage_op.h_op == STORE_V) begin
-            // One port of address to monitor
-            for (int i = 0; i < PIPELINE_STAGES; i++) begin
-                if (((v_write_addr_track[i].track_addr == fixed_addr_2_to_check)) & (v_write_addr_track[i].activate == 1'b1)) begin
-                    addr_collide_flag[i] = 1'b1;
-                    locked_entry_2 = fixed_addr_2_to_check;
-                    lock_entry_2_valid = 1'b1;
-                end else begin
-                    addr_collide_flag[i] = 1'b0;
+                stall_req = |addr_collide_flag;
+            end else if (determine_stage_op.h_op == STORE_V) begin
+                // One port of address to monitor
+                for (int i = 0; i < PIPELINE_STAGES; i++) begin
+                    if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
+                        addr_collide_flag[i] = 1'b1;
+                        locked_entry_2 = determine_stage_op.addr_2;
+                        lock_entry_2_valid = 1'b1;
+                    end else begin
+                        addr_collide_flag[i] = 1'b0;
+                    end
                 end
-            end
-            stall_req = |addr_collide_flag;
+                stall_req = |addr_collide_flag;
+            end else begin
+                stall_req = 1'b0;
+                lock_entry_1_valid = 1'b0;
+                lock_entry_2_valid = 1'b0;
+                locked_entry_1 = '0;
+                locked_entry_2 = '0;
+            end 
         end else begin
+            // If the system is stalled, we do not need to check for address collision.
             stall_req = 1'b0;
             lock_entry_1_valid = 1'b0;
             lock_entry_2_valid = 1'b0;
             locked_entry_1 = '0;
             locked_entry_2 = '0;
-        end 
+        end
+
     end
 
 

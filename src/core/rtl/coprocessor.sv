@@ -15,11 +15,9 @@ Description : This module serves as the top level of the coprocessor,
 */
 
 module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
-        // Simulation Purpose
-        `ifdef SIMULATION
-            parameter string FP_MEM_INIT_FILE = " ",
-            parameter string FIXED_MEM_INIT_FILE = " "
-        `endif
+    parameter string FP_MEM_INIT_FILE       = "",
+    parameter string FIXED_MEM_INIT_FILE    = "",
+    parameter string V_SRAM_RESULT_FILE     = ""
 )(
     input   logic clk,
     input   logic rst,
@@ -55,6 +53,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_in_prep, m_in_prep;
     logic sfu_in_use;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
+    logic m_complete_acc_writeback;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -138,6 +137,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_load_in_process              (m_in_prep),
         .v_load_in_process              (v_in_prep),
         .sfu_in_use                     (sfu_in_use),
+        .m_complete_acc_writeback       (m_complete_acc_writeback),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
         .mem_write_control              (mem_write_control)
@@ -158,6 +158,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_v_ready              (m_v_ready),
         .m_out_valid            (m_out_valid),
         .m_out_ready            (m_out_ready),
+        .m_complete_acc_writeback (m_complete_acc_writeback),
         .m_write_request        (m_write_request),
         .m_write_addr           (m_waddr),
         .m_sram_raddr           (m_sram_raddr),
@@ -289,10 +290,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
         // Scalar Compute Unit
         scalar_machine #(
-            `ifdef SIMULATION
-                .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-                .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
-            `endif
+            .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
+            .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),
@@ -352,13 +351,15 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
-        .EXP_WIDTH          (S_FP_EXP_WIDTH),
-        .MANT_WIDTH         (S_FP_MANT_WIDTH),
+        .EXP_WIDTH          (V_FP_EXP_WIDTH),
+        .MANT_WIDTH         (V_FP_MANT_WIDTH),
         .VLEN               (VLEN),
+        .MLEN               (MLEN),
         .BLOCK_DIM          (BLOCK_DIM),
         .SRAM_DEPTH         (SCRATCHPAD_SRAM_DEPTH),
         .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
-        .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount)
+        .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount),
+        .MEM_RESULT_FILE    (V_SRAM_RESULT_FILE)
     ) vector_sram (
         .clk(clk),
         .rst(rst),

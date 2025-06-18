@@ -30,7 +30,9 @@ module fp_vector_sram #(
     // SRAM
     parameter   SRAM_DEPTH          = 128,
     parameter   ON_CHIP_ADDR_WIDTH  = 32,
-    parameter   PREFETCH_AMOUNT     = 4
+    parameter   PREFETCH_AMOUNT     = 4,
+    // For Debugging
+    parameter string MEM_RESULT_FILE = ""
 
 )(
     input   logic clk,
@@ -184,7 +186,7 @@ module fp_vector_sram #(
             ) mx_fp_2_fp_convert (
                 .element_in     (port_b_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (port_b_scale_in[i]),
-                .fp_out         (converted_b_fp_in)
+                .fp_out         (converted_b_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
             );
         end
     endgenerate
@@ -213,7 +215,7 @@ module fp_vector_sram #(
         ) fp_2_mx_port_b_convert_init(
             .clk(clk),
             .rst(rst),
-            .data_in(port_b_fp_out_internal),
+            .data_in(port_b_fp_out_internal[(j+1) * BLOCK_DIM - 1 : j * BLOCK_DIM]),
             .data_in_valid(mxfp_fp_convert_port_b_in_valid),
             .data_in_ready(),
             .element_data_out(port_b_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
@@ -229,7 +231,7 @@ prim_generic_ram_2p #(
     .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
     .Depth(SRAM_DEPTH),
     .DataBitsPerMask((EXP_WIDTH + MANT_WIDTH + 1)),
-    .MemInitFile("")
+    .ResultFile(MEM_RESULT_FILE)
 ) element_storage (
     .clk_a_i(clk),
     .clk_b_i(clk),
@@ -251,7 +253,6 @@ prim_generic_ram_2p #(
     .cfg_i('0),
     .cfg_rsp_o()
 );
-
 
 
 endmodule

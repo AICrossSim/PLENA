@@ -100,9 +100,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
-        .mapp_addr_en   (hbm_write_v_en || 
-                          exe_stage_op.h_op == PREFETCH_V_HBM || 
-                          exe_stage_op.h_op == PREFETCH_M_HBM),
+        .mapp_addr_en   (hbm_write_v_en || (exe_stage_op.h_op == PREFETCH_V) || (exe_stage_op.h_op == PREFETCH_M)),
         .set_addr_en    (exe_stage_op.c_op == SET_ADDR_REG),
         .addr_in_a      (exe_stage_op.addr_1),
         .addr_in_b      (exe_stage_op.addr_2),
@@ -136,6 +134,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .BLOCK_DIM(BLOCK_DIM),
         .DATA_DIM(MLEN),
         .HBM_ADDR_WIDTH(HBM_ADDR_WIDTH),
+        .ON_CHIP_ADDR_WIDTH(ADDR_WIDTH),
         .HBM_ELE_WIDTH(HBM_ELE_WIDTH),
         .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH),
         .SourceWidth(SourceWidth),
@@ -252,7 +251,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     skid_buffer #(
         .DATA_WIDTH(VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
-    ) vector_sram_prefetch_buffer (
+    ) vector_sram_prefetch_ele_buffer (
         .clk(clk),
         .rst(rst),
         .data_in(v_hbm_element_out),

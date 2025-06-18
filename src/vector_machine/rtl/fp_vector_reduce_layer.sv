@@ -52,7 +52,7 @@ module fp_vector_reduce_layer #(
 
     generate;
         for (genvar i = 0; i < LAYER_DIM / 2; i++) begin : adder_pair
-            fp_cp_adder #(
+            fp_cp_adder_v1 #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
                 .MANT_WIDTH(IN_MAN_WIDTH),
                 .EXT_MANT_WIDTH(EXT_MANT_WIDTH),

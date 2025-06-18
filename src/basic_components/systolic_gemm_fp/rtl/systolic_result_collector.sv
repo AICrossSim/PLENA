@@ -13,7 +13,7 @@ module systolic_result_collector #(
     parameter ACC_FP_MANT_WIDTH     = 7,
     // Dimension
     parameter SYS_ARRAY_AMOUNT      = 2,
-    parameter COMPUTE_DIM           = 8 // This is the number of systolic arrays in the column
+    parameter COMPUTE_DIM           = 8
 )(
     input   logic clk,
     input   logic rst,

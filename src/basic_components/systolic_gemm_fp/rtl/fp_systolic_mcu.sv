@@ -302,7 +302,7 @@ module fp_systolic_mcu #(
 
     systolic_result_collector #(
         .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
-        .COMPUTE_DIM(K),
+        .COMPUTE_DIM(M),
         .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
     ) sa_result_collector_inst (

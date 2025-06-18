@@ -49,7 +49,6 @@ def _mx_fp_quantize(
         exponent_width=exponent_width,
         exponent_bias=per_block_exponent_bias,
     )
-
     bm_x = unblock(
         per_block_bm_x,
         x_shape_before_blocking=x_shape_before_blocking,

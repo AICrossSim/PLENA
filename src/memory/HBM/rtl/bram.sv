@@ -3,6 +3,7 @@ module bram #(
     parameter DATA_WIDTH = 64,
     parameter ADDR_WIDTH = 20,
     parameter string INIT_FILE  = "",
+    parameter string RESULT_FILE = "",
     localparam int MASK_WIDTH = DATA_WIDTH / 8
 )(
     input  logic                  clk,
@@ -47,6 +48,16 @@ module bram #(
         $sformat(filename, "%s", INIT_FILE);
         $display("Loading memory from: %s", filename);
         $readmemh(filename, memory);
+    end
+
+    // Load result file if specified
+    final begin
+        if (RESULT_FILE != "") begin
+            string result_filename;
+            $sformat(result_filename, "%s", RESULT_FILE);
+            $display("Loading result file from: %s", result_filename);
+            $writememh(result_filename, memory);
+        end
     end
 
 endmodule
