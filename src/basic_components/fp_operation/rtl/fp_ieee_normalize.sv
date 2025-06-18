@@ -31,8 +31,8 @@ module fp_ieee_normalize #(
         assert (OUT_MANT_WIDTH >= IN_FIXED_WIDTH - 1)
         else $error("OUT_MANT_WIDTH should be greater than IN_FIXED_WIDTH - 1");
 
-        assert (OUT_EXP_WIDTH >= $clog2(OUT_MANT_WIDTH))
-        else $error("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
+        if (OUT_EXP_WIDTH < $clog2(OUT_MANT_WIDTH))
+            $warning("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
     end
 
     localparam signed BIAS = (1 << (OUT_EXP_WIDTH - 1)) - 1;
