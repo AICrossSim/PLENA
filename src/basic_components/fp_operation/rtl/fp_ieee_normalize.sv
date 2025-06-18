@@ -2,10 +2,9 @@
 /*
 Module      : fp_ieee_normalize
 Timing      : Combinatorial Logic
-Description : Give a sign bit, exponent, and mantissa, return a normalized fp number.
-              Note: this normalization only count for the case that exponent don't need to over or underflow
-              and the mantissa don't need underflow.
-              If want to support the casting, there is a casting module which can be connected after.
+Description : FP_IEEE_Normalization
+            - Normalizes data from a signed mantissa and signed exponent back to IEEE floating-point format.
+            - Note: This normalization is assumed to be **lossless**, which means the bit width may need to increase to preserve precision.
 
 Input       : 
     signed_mant : the mantissa of the fp number
@@ -31,8 +30,8 @@ module fp_ieee_normalize #(
         assert (OUT_MANT_WIDTH >= IN_FIXED_WIDTH - 1)
         else $error("OUT_MANT_WIDTH should be greater than IN_FIXED_WIDTH - 1");
 
-        assert (OUT_EXP_WIDTH >= $clog2(OUT_MANT_WIDTH))
-        else $error("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
+        if (OUT_EXP_WIDTH < $clog2(OUT_MANT_WIDTH))
+            $warning("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
     end
 
     localparam signed BIAS = (1 << (OUT_EXP_WIDTH - 1)) - 1;

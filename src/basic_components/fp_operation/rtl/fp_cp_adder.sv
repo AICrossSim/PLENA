@@ -7,6 +7,7 @@ Description : Adds two FP numbers with different exponents and signs.
               Output format: {sign, exp_out, mant_out}.
               No rounding.
               It needs normalisation.
+              The lossy part will be at the mantissa adder
 Status      : Passed Simple Tests
 */
 
@@ -27,9 +28,12 @@ module fp_cp_adder_v2 #(
     localparam int IN_FIXED_WIDTH = MANT_WIDTH + 2;
     localparam int IN_FIXED_FRAC_WIDTH = MANT_WIDTH;
 
-    localparam int ADDER_OUT_EXP_WIDTH = EXP_WIDTH;
-    localparam int ADDER_OUT_FIXED_WIDTH = IN_FIXED_WIDTH + 1;
-    localparam int ADDER_OUT_FIXED_FRAC_WIDTH = IN_FIXED_FRAC_WIDTH;
+    localparam int ADDER_OUT_EXP_WIDTH = IN_EXP_WIDTH;
+    localparam int ADDER_OUT_FIXED_WIDTH = IN_FIXED_WIDTH + IN_FIXED_FRAC_WIDTH + 1;
+    localparam int ADDER_OUT_FIXED_FRAC_WIDTH = IN_FIXED_FRAC_WIDTH + IN_FIXED_FRAC_WIDTH;
+
+    localparam int NORMALIZE_OUT_EXP_WIDTH = ADDER_OUT_EXP_WIDTH + 1;
+    localparam int NORMALIZE_OUT_MANT_WIDTH = ADDER_OUT_FIXED_WIDTH - 1;
 
     // Internal signal declarations
     logic signed [IN_EXP_WIDTH - 1:0] signed_exp_a, signed_exp_b;
@@ -37,16 +41,14 @@ module fp_cp_adder_v2 #(
 
     logic signed [ADDER_OUT_EXP_WIDTH - 1:0] signed_exp_out;
     logic signed [ADDER_OUT_FIXED_WIDTH - 1:0] signed_mant_out;
-    
-    // Extended signals for normalization
-    logic signed [EXP_WIDTH + EXT_EXP_WIDTH - 1:0] exp_out_ext;
-    logic signed [MANT_WIDTH + EXT_MANT_WIDTH + 2 - 1:0] mant_out_ext;
+
+    logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] normalized_data;
 
     // Instantiate fp_ieee_partition for data_a
     fp_ieee_partition #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
-    ) fp_a (
+    ) partition_a (
         .data_in(data_a),
         .signed_exp(signed_exp_a),
         .signed_mant(signed_mant_a)
@@ -56,7 +58,7 @@ module fp_cp_adder_v2 #(
     fp_ieee_partition #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
-    ) fp_b (
+    ) partition_b (
         .data_in(data_b),
         .signed_exp(signed_exp_b),
         .signed_mant(signed_mant_b)
@@ -79,14 +81,27 @@ module fp_cp_adder_v2 #(
         .mant_out(signed_mant_out)
     );
 
+
     // Instantiate fp_ieee_normalize for output
     fp_ieee_normalize #(
-        .EXP_WIDTH(ADDER_OUT_EXP_WIDTH),
-        .MANT_WIDTH(ADDER_OUT_FIXED_WIDTH)
+        .IN_FIXED_WIDTH(ADDER_OUT_FIXED_WIDTH),
+        .IN_FIXED_FRAC_WIDTH(ADDER_OUT_FIXED_FRAC_WIDTH),
+        .IN_EXP_WIDTH(ADDER_OUT_EXP_WIDTH),
+        .OUT_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
-        .signed_mant(mant_out_ext),
-        .signed_exp(exp_out_ext),
-        .fp_out(data_out)
+        .signed_mant(signed_mant_out),
+        .signed_exp(signed_exp_out),
+        .fp_out(normalized_data)
+    );
+
+    fp_ieee_casting #(
+        .IN_EXP_WIDTH(NORMALIZE_OUT_EXP_WIDTH),
+        .IN_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH),
+        .OUT_EXP_WIDTH(EXP_WIDTH + EXT_EXP_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH + EXT_MANT_WIDTH)
+    ) fp_casting (
+        .data_in(normalized_data),
+        .data_out(data_out)
     );
 
 endmodule

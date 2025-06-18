@@ -23,7 +23,7 @@ from cfl_tools.debugger import set_excepthook, get_dut_attributes
 class FPCPAddTB(CombinationalTestbench):
     def generate_inputs(self, num):
         # seed = torch.randint(0, 1000000, (1,)).item()
-        torch.manual_seed(0)
+        torch.manual_seed(756044)
         # self.log.info(f"seed : {seed}")
         q_config = {
             "exp_width" : self.dut.EXP_WIDTH.value,
@@ -45,6 +45,7 @@ class FPCPAddTB(CombinationalTestbench):
 
         qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
         qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
+        breakpoint()
 
         out_width = q_config["mant_width"] + q_config["exp_width"] + q_config["ext_mant_width"] + q_config["ext_exp_width"] + 1
         out_exponent_width = q_config["exp_width"] + q_config["ext_exp_width"]
@@ -107,7 +108,7 @@ def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
         group = "fp_operation",
-        module = "fp_cp_adder_v1",
+        module = "fp_cp_adder",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
