@@ -14,9 +14,9 @@ module fp_mult #(
     parameter int IN_EXP_WIDTH = 5,
     parameter int IN_FIX_WIDTH = 10,
     parameter int IN_FIX_FRAC_WIDTH = IN_FIX_WIDTH - 1,
-    parameter int OUT_FIX_WIDTH = IN_FIX_WIDTH + IN_FIX_WIDTH,
     parameter int OUT_FIX_FRAC_WIDTH = IN_FIX_FRAC_WIDTH + IN_FIX_FRAC_WIDTH,
     // Amount of bits needed to shift mantissas for alignment
+    localparam int OUT_FIX_WIDTH = 1 + (IN_FIX_WIDTH - IN_FIX_FRAC_WIDTH - 1) * 2 + OUT_FIX_FRAC_WIDTH,
     localparam int OUT_EXP_WIDTH = IN_EXP_WIDTH + 1
 )(
     input  logic signed [IN_EXP_WIDTH - 1:0] exp_a,
@@ -27,7 +27,7 @@ module fp_mult #(
     output logic signed [OUT_FIX_WIDTH - 1:0] mant_out
 );
 
-    localparam int INTERMEDIATE_FIX_WIDTH = IN_FIX_WIDTH + IN_FIX_WIDTH;
+    localparam int INTERMEDIATE_FIX_WIDTH = IN_FIX_WIDTH + IN_FIX_WIDTH - 1;
     localparam int INTERMEDIATE_FIX_FRAC_WIDTH = IN_FIX_FRAC_WIDTH + IN_FIX_FRAC_WIDTH;
 
     initial begin
