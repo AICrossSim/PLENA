@@ -2,12 +2,9 @@
 /*
 Module      : Floating Point Configurable Precision Adder (With Sign)
 Timing      : Combinatorial Logic
-Description : Adds two FP numbers with different exponents and signs.
-              Aligns mantissas, preserves full precision (no bits discarded).
-              Output format: {sign, exp_out, mant_out}.
-              No rounding.
-              It needs normalisation.
-Status      : Passed Simple Tests
+Description : FP_Adder
+            - The lossy trade-off in FP adder is between output width and exp_difference.
+            - (If the exponent difference is large, maintaining full precision may require a wider output to preserve underflowed bits. We choose truncate(floor) the extra, which is also the lossy part.)
 */
 
 module fp_adder #(

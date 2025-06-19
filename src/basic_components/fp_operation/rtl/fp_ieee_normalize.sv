@@ -2,10 +2,9 @@
 /*
 Module      : fp_ieee_normalize
 Timing      : Combinatorial Logic
-Description : Give a sign bit, exponent, and mantissa, return a normalized fp number.
-              Note: this normalization only count for the case that exponent don't need to over or underflow
-              and the mantissa don't need underflow.
-              If want to support the casting, there is a casting module which can be connected after.
+Description : FP_IEEE_Normalization
+            - Normalizes data from a signed mantissa and signed exponent back to IEEE floating-point format.
+            - Note: This normalization is assumed to be **lossless**, which means the bit width may need to increase to preserve precision.
 
 Input       : 
     signed_mant : the mantissa of the fp number
@@ -31,23 +30,23 @@ module fp_ieee_normalize #(
         assert (OUT_MANT_WIDTH >= IN_FIXED_WIDTH - 1)
         else $error("OUT_MANT_WIDTH should be greater than IN_FIXED_WIDTH - 1");
 
-        assert (OUT_EXP_WIDTH >= $clog2(OUT_MANT_WIDTH))
-        else $error("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
+        if (OUT_EXP_WIDTH < $clog2(OUT_MANT_WIDTH))
+            $warning("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
     end
 
-    localparam signed BIAS = (1 << (OUT_EXP_WIDTH - 1));
+    localparam signed BIAS = (1 << (OUT_EXP_WIDTH - 1)) - 1;
     
     logic sign_bit;
 
     logic [IN_FIXED_WIDTH-1:0] abs_mant;
     logic [$clog2(IN_FIXED_WIDTH)-1:0] leading_zeros;
     logic [IN_FIXED_WIDTH-1:0] unnormed_mantissa;
-    logic [OUT_MANT_WIDTH:0] normed_mantissa;
     
 
     logic signed [$clog2(IN_FIXED_WIDTH)-1:0] shift_amount;
     logic signed [IN_EXP_WIDTH:0] adjusted_exp; 
     
+    logic signed [OUT_EXP_WIDTH:0] full_exp; // one bit larger then exp_bits to represent the sign
     logic [OUT_EXP_WIDTH-1:0] exp_bits;
     logic [OUT_MANT_WIDTH-1:0] mant_bits;
 
@@ -65,16 +64,21 @@ module fp_ieee_normalize #(
         // get the mantisssa
         abs_mant = sign_bit ? -signed_mant : signed_mant;
         unnormed_mantissa = abs_mant << (leading_zeros - 1);
-        normed_mantissa = {
-            unnormed_mantissa[IN_FIXED_WIDTH - 3: 0], 
-            {(OUT_MANT_WIDTH - 1 - (IN_FIXED_WIDTH -2)){1'b0}}
+        mant_bits = {
+            unnormed_mantissa[IN_FIXED_WIDTH - 3: 0], //remove the leading 1
+            {(OUT_MANT_WIDTH - (IN_FIXED_WIDTH -2)){1'b0}}
         };
-        mant_bits = normed_mantissa[IN_MANT_WIDTH-2:IN_MANT_WIDTH-MANT_WIDTH-1]; 
 
         // get the sign bit
-        shift_amount = leading_zeros - 1 - (IN_FIXED_WIDTH - IN_FIXED_FRAC_WIDTH + 2); 
+        shift_amount = leading_zeros - 1 - (IN_FIXED_WIDTH - IN_FIXED_FRAC_WIDTH - 2); 
         adjusted_exp = signed_exp - shift_amount;
-        exp_bits = (adjusted_exp + BIAS)[OUT_EXP_WIDTH-1:0];
+        full_exp = (adjusted_exp + BIAS);
+        exp_bits = signed_mant != 0 ? full_exp[OUT_EXP_WIDTH-1:0] : 0;
+    end
+
+    always_comb begin
+        assert (full_exp >= 0)
+        else $error("exponent is negative");
     end
     
     // Assemble final IEEE 754 format

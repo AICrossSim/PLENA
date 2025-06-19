@@ -7,3 +7,29 @@ def set_excepthook():
         pdb.post_mortem(exc_traceback)
 
     sys.excepthook = excepthook
+
+def detect_signal(attr):
+    if attr.startswith("_") or attr == "get_definition_file" or attr == "get_definition_name":
+        return False
+    else:
+        return True
+
+def get_dut_attributes(dut, log, value_rep: str = None):
+    for attr in dir(dut):
+        if detect_signal(attr):
+            if value_rep is None:
+                try:
+                    value = getattr(dut, attr).value
+                except:
+                    log.debug(f"Cannot get value of {attr}")
+            else:
+                try:
+                    value = getattr(getattr(dut, attr).value, value_rep)
+                except:
+                    try:
+                        value = getattr(dut, attr).value
+                    except:
+                        log.debug(f"Cannot get value of {attr}")
+        else:
+            continue
+        log.debug(f"{attr}: {value}")
