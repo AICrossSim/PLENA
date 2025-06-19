@@ -14,7 +14,7 @@ from cfl_cocotb.runner import SRC_PATH
 from cfl_cocotb.testbench import CombinationalTestbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
 
-from quant.quantizer.hardware_quantizer import _minifloat_denorm_quantize_hardware
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, fp_add_hardware
 
 import math
 import torch
@@ -39,49 +39,6 @@ def frexp(x: torch.Tensor, config: dict):
     
     return exponent, mantissa
 
-def fixed_point_cast(
-        x: torch.Tensor,
-        OUT_WIDTH: int,
-        OUT_FRAC_WIDTH: int,
-        floor: bool = True,
-):
-    min_val = -2**(OUT_WIDTH - 1)
-    max_val = 2**(OUT_WIDTH) - 1
-    if floor:
-        x = torch.clamp((x * 2**(OUT_FRAC_WIDTH)).floor(), min_val, max_val)
-    else:
-        x = torch.clamp((x * 2**(OUT_FRAC_WIDTH)).round(), min_val, max_val)
-
-    x = x / 2**(OUT_FRAC_WIDTH)
-    return x
-
-def fp_add_hardware(
-        a_exp: torch.Tensor, 
-        a_mant: torch.Tensor, 
-        b_exp: torch.Tensor, 
-        b_mant: torch.Tensor, 
-        config: dict
-    ):
-    out_fix_width = config["OUT_FIX_WIDTH"]
-    out_fix_frac_width = config["OUT_FIX_FRAC_WIDTH"]
-    out_exp_width = config["OUT_EXP_WIDTH"]
-    floor = config["FLOOR"]
-
-    a_greater = a_exp > b_exp
-    # Calculate aligned exponent
-    exp_sum = torch.where(a_greater, a_exp, b_exp)
-    a_mant_shifted = a_mant / 2** (exp_sum - a_exp)
-    b_mant_shifted = b_mant / 2** (exp_sum - b_exp)
-
-    ## avoid loss here
-    data_fix_width = out_fix_width - 1
-    data_fix_frac_width = out_fix_frac_width
-    a_mant_casted = fixed_point_cast(a_mant_shifted, data_fix_width, data_fix_frac_width, floor=floor)
-    b_mant_casted = fixed_point_cast(b_mant_shifted, data_fix_width, data_fix_frac_width, floor=floor)
-
-    mant_sum = a_mant_casted + b_mant_casted
-    return exp_sum, mant_sum
-
 ## questions, why 
 class FPAddTB(CombinationalTestbench):
     def generate_inputs(self, num):
@@ -104,8 +61,8 @@ class FPAddTB(CombinationalTestbench):
         width = config["IN_FIX_WIDTH"] + config["IN_EXP_WIDTH"]
         exponent_width = config["IN_EXP_WIDTH"]
 
-        qa, a_exp, a_mant = _minifloat_denorm_quantize_hardware(torch_a, width, exponent_width)
-        qb, b_exp, b_mant = _minifloat_denorm_quantize_hardware(torch_b, width, exponent_width)
+        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
+        qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
 
 
         exp_sum, mant_sum = fp_add_hardware(a_exp, a_mant, b_exp, b_mant, config)

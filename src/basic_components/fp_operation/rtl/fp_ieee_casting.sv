@@ -67,7 +67,7 @@ module fp_ieee_exponent_casting #(
     // if 1 - OUT_BIAS <=in_exp - IN_BIAS <= 2**(OUT_EXP_WIDTH) - 1  - 1 - OUT_BIAS
     // lower bound = 1 - OUT_BIAS + IN_BIAS
     // upper bound = 2**(OUT_EXP_WIDTH) - 1 - OUT_BIAS + IN_BIAS
-    localparam EXP_UPPER_BOUND = 2**(OUT_EXP_WIDTH) - 1 - OUT_BIAS + IN_BIAS;
+    localparam EXP_UPPER_BOUND = 2**(OUT_EXP_WIDTH) - 2 - OUT_BIAS + IN_BIAS;
     localparam EXP_LOWER_BOUND = 1 - OUT_BIAS + IN_BIAS;
 
     logic [IN_EXP_WIDTH - 1:0] in_exp;
@@ -77,10 +77,10 @@ module fp_ieee_exponent_casting #(
     assign out_exp = in_exp - SHIFT_EXP;
 
     always_comb begin
-        if (in_exp < EXP_LOWER_BOUND) begin
+        if (in_exp <= EXP_LOWER_BOUND) begin
             data_out = {1'b0, {OUT_EXP_WIDTH{1'b0}}, {MANT_WIDTH{1'b0}}};
         end
-        else if (in_exp > EXP_UPPER_BOUND) begin
+        else if (in_exp >= EXP_UPPER_BOUND) begin
             data_out = {data_in[IN_EXP_WIDTH + MANT_WIDTH], {(OUT_EXP_WIDTH-1){1'b1}}, 1'b0, {MANT_WIDTH{1'b1}}};
         end
         else begin
@@ -157,7 +157,7 @@ module round_to_nearest_even #(
   always_comb begin
     rounded_out_data = data_in[IN_WIDTH-1:IN_WIDTH - OUT_WIDTH] + carry_in;
     if (rounded_out_data >= 1 << (OUT_WIDTH))
-      data_out = {(OUT_WIDTH - 1) {1'b1}};
+      data_out = {(OUT_WIDTH){1'b1}};
     else data_out = rounded_out_data[OUT_WIDTH-1:0];
   end
 endmodule

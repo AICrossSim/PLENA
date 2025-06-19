@@ -1,14 +1,9 @@
 import torch
 from torch import Tensor
 
-from .utils import block, my_clamp, unblock, my_round
-from .minifloat import _minifloat_ieee_quantize
-
-def hardware_round(x: Tensor, round_bits: int = 2):
-    x = x * 2**round_bits
-    x = torch.floor(x)
-    x = x / 2**round_bits
-    return x.round()
+from ..utils import block, my_clamp, unblock, my_round
+from ..minifloat import _minifloat_ieee_quantize
+from .utils import hardware_round
 
 def _minifloat_denorm_quantize_hardware(
     x: Tensor,
@@ -73,6 +68,7 @@ def _minifloat_denorm_quantize_hardware(
     # fmt: on
     return minifloat_denorm_x, exponent, sign * mantissa
 
+
 def _minifloat_ieee_quantize_hardware(
     x: Tensor, width: int, exponent_width: int, exponent_bias: int = None
 ):
@@ -104,7 +100,7 @@ def _minifloat_ieee_quantize_hardware(
     if exponent_bias in (None, "none", "None"):
         exponent_bias = 2 ** (exponent_width - 1) - 1
     # upper and lower bound of shifted exponent
-    exponent_max = 2**exponent_width - 1 - exponent_bias
+    exponent_max = 2**exponent_width - 2 - exponent_bias # the largest exponent leave for infinity
     exponent_min = -exponent_bias
     # upper and lower bound of shifted minifloat mantissa
     shift = 2**mantissa_bits
@@ -116,6 +112,7 @@ def _minifloat_ieee_quantize_hardware(
     value = torch.abs(x)
     # clip the exponent before calculating mantissa
     exponent = torch.floor(torch.log2(value + 1e-9))
+    overflow = exponent > exponent_max
     exponent = my_clamp(exponent, exponent_min, exponent_max)
 
     mantissa = value / 2**exponent
@@ -128,87 +125,12 @@ def _minifloat_ieee_quantize_hardware(
         exponent_bias = torch.tensor([exponent_bias], dtype=exponent.dtype, device=exponent.device)
     is_normal = (~torch.isclose(exponent, -exponent_bias))
 
-    shifted_mantissa = is_normal*my_clamp(hardware_round(mantissa*shift-shift), shifted_mantissa_min, shifted_mantissa_max) +\
+    shifted_mantissa = is_normal*my_clamp(hardware_round((mantissa - 1)*shift-shift), shifted_mantissa_min, shifted_mantissa_max) +\
         (~is_normal)*my_clamp(hardware_round(mantissa*shift/2), shifted_mantissa_min, shifted_mantissa_max)
+    shifted_mantissa[overflow] = shifted_mantissa_max
     mantissa = is_normal*(1.0+shifted_mantissa/shift) + (~is_normal)*(shifted_mantissa/shift*2)
     # this `is_close_to_0` helps the grad keeps 1 if input x is 0, or the zero-initialized value will be trapped in 0
     is_close_to_0 = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))
     minifloat_ieee_x = (~is_close_to_0)*(sign * (2**exponent) * mantissa) + is_close_to_0*x
     # fmt: on
     return minifloat_ieee_x, exponent, sign * mantissa
-
-def _mx_fp_quantize_hardware(
-    x: Tensor,
-    width: int,
-    exponent_width: int,
-    exponent_bias_width: int,
-    block_size: list[int] | int = [16],
-    skip_first_dim: bool = False,
-):
-    """
-    - Convert IEEE FP32/64 to Block Minifloat (BM) which is also called as MXFP, where an exponent bias is shared over all elements in a block
-    - `2**-bias_shared x [(-1)^s1 x 2^exponent1 x mantissa1, (-1)^s2 x 2^exponent2 x mantissa2, ...]`
-    - See https://openreview.net/forum?id=6zaTwpNSsQ2
-
-    ---
-    - forward: convert IEEE FP32/64 to BM
-    - backward: STE
-
-    ---
-    - `width`: the number of bits (1 sign bit + exponent_bits + mantissa_bits)
-    - `exponent_width`: the number of exponent_bits
-    - `exponent_bias_width`: the number of bits of the shared exponent bias
-    - `block_size`: a list of integers where each integer is the block size on that dimension. See function `block`.
-
-    """
-
-    x_shape_before_blocking = [i for i in x.shape]
-    blocked_x, per_block_max, padded_x_shape, block_shape = block(
-        x, block_shape=block_size, skip_first_dim=skip_first_dim
-    )
-
-    # fill zeros to avoid log2(0) = -inf
-    if torch.all(per_block_max == 0):
-        per_block_max = torch.ones_like(per_block_max)
-    else:
-        per_block_max[per_block_max == 0] = per_block_max[per_block_max != 0].min()
-
-    per_block_exponent_bias = my_clamp(
-        torch.floor(torch.log2(per_block_max)), 0, 2**exponent_bias_width - 1
-    )
-    per_block_bm_x = _minifloat_ieee_quantize(
-        blocked_x,
-        width=width,
-        exponent_width=exponent_width,
-        exponent_bias=per_block_exponent_bias,
-    )
-
-    bm_x = unblock(
-        per_block_bm_x,
-        x_shape_before_blocking=x_shape_before_blocking,
-        padded_x_shape=padded_x_shape,
-        block_shape=block_shape,
-        skipped_first_dim_when_blocking=skip_first_dim,
-    )
-    return bm_x, per_block_bm_x, per_block_exponent_bias
-
-def pack_fp_to_bin(signed_exponent, signed_mantissa, exp_width, man_width):
-    sign = signed_mantissa.sign()
-    sign_bit = torch.where(sign < 0, torch.tensor(1), torch.tensor(0))
-
-    exponent_bias = (2**(exp_width - 1)) - 1
-    exponent_bit = signed_exponent + exponent_bias
-
-    for item in exponent_bit:
-        assert item >= 0 and item < (2**exp_width - 1), "Exponent out of range!"
-
-    mantissa = torch.where(signed_mantissa < 0, -signed_mantissa, signed_mantissa)
-    mantissa_bit = torch.where(exponent_bit == 0, mantissa, mantissa - 1)
-
-    mantissa_bit = mantissa_bit * 2**(man_width)
-
-    result = ((sign_bit * 2**(exp_width + man_width)) + 
-            exponent_bit * 2**(man_width) + 
-            mantissa_bit).int()
-
-    return result

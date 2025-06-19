@@ -18,12 +18,18 @@ def get_dut_attributes(dut, log, value_rep: str = None):
     for attr in dir(dut):
         if detect_signal(attr):
             if value_rep is None:
-                value = getattr(dut, attr).value
+                try:
+                    value = getattr(dut, attr).value
+                except:
+                    log.debug(f"Cannot get value of {attr}")
             else:
                 try:
                     value = getattr(getattr(dut, attr).value, value_rep)
                 except:
-                    value = getattr(dut, attr).value
+                    try:
+                        value = getattr(dut, attr).value
+                    except:
+                        log.debug(f"Cannot get value of {attr}")
         else:
             continue
         log.debug(f"{attr}: {value}")
