@@ -100,7 +100,7 @@ def _minifloat_ieee_quantize_hardware(
     if exponent_bias in (None, "none", "None"):
         exponent_bias = 2 ** (exponent_width - 1) - 1
     # upper and lower bound of shifted exponent
-    exponent_max = 2**exponent_width - 1 - exponent_bias
+    exponent_max = 2**exponent_width - 2 - exponent_bias # the largest exponent leave for infinity
     exponent_min = -exponent_bias
     # upper and lower bound of shifted minifloat mantissa
     shift = 2**mantissa_bits
@@ -112,6 +112,7 @@ def _minifloat_ieee_quantize_hardware(
     value = torch.abs(x)
     # clip the exponent before calculating mantissa
     exponent = torch.floor(torch.log2(value + 1e-9))
+    overflow = exponent > exponent_max
     exponent = my_clamp(exponent, exponent_min, exponent_max)
 
     mantissa = value / 2**exponent
@@ -124,8 +125,9 @@ def _minifloat_ieee_quantize_hardware(
         exponent_bias = torch.tensor([exponent_bias], dtype=exponent.dtype, device=exponent.device)
     is_normal = (~torch.isclose(exponent, -exponent_bias))
 
-    shifted_mantissa = is_normal*my_clamp(hardware_round(mantissa*shift-shift), shifted_mantissa_min, shifted_mantissa_max) +\
+    shifted_mantissa = is_normal*my_clamp(hardware_round((mantissa - 1)*shift-shift), shifted_mantissa_min, shifted_mantissa_max) +\
         (~is_normal)*my_clamp(hardware_round(mantissa*shift/2), shifted_mantissa_min, shifted_mantissa_max)
+    shifted_mantissa[overflow] = shifted_mantissa_max
     mantissa = is_normal*(1.0+shifted_mantissa/shift) + (~is_normal)*(shifted_mantissa/shift*2)
     # this `is_close_to_0` helps the grad keeps 1 if input x is 0, or the zero-initialized value will be trapped in 0
     is_close_to_0 = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))

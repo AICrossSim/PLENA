@@ -1,8 +1,8 @@
 import torch
 from torch import Tensor
 
-from ..utils import block, my_clamp, unblock, my_round
-from ..minifloat import _minifloat_ieee_quantize
+from quant.quantizer.utils import block, my_clamp, unblock, my_round
+from quant.quantizer.hardware_quantizer.minifloat import _minifloat_ieee_quantize_hardware
 
 def _mx_fp_quantize_hardware(
     x: Tensor,
@@ -43,12 +43,16 @@ def _mx_fp_quantize_hardware(
     per_block_exponent_bias = my_clamp(
         torch.floor(torch.log2(per_block_max)), 0, 2**exponent_bias_width - 1
     )
-    per_block_bm_x = _minifloat_ieee_quantize(
+
+    blocked_x = blocked_x / 2**per_block_exponent_bias
+
+    per_block_bm_x, per_block_fp_exp, per_block_fp_mant = _minifloat_ieee_quantize_hardware(
         blocked_x,
         width=width,
         exponent_width=exponent_width,
-        exponent_bias=per_block_exponent_bias,
     )
+    
+    per_block_bm_x = per_block_fp_exp * 2**per_block_exponent_bias
 
     bm_x = unblock(
         per_block_bm_x,
@@ -57,5 +61,36 @@ def _mx_fp_quantize_hardware(
         block_shape=block_shape,
         skipped_first_dim_when_blocking=skip_first_dim,
     )
-    return bm_x, per_block_bm_x, per_block_exponent_bias
+    fp_exp = unblock(
+        per_block_fp_exp,
+        x_shape_before_blocking=x_shape_before_blocking,
+        padded_x_shape=padded_x_shape,
+        block_shape=block_shape,
+        skipped_first_dim_when_blocking=skip_first_dim,
+    )
+    fp_mant = unblock(
+        per_block_fp_mant,
+        x_shape_before_blocking=x_shape_before_blocking,
+        padded_x_shape=padded_x_shape,
+        block_shape=block_shape,
+        skipped_first_dim_when_blocking=skip_first_dim,
+    )
+    return bm_x, fp_exp, fp_mant, per_block_exponent_bias
 
+if __name__ == "__main__":
+    x = torch.tensor([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
+    exp_bias_width = 4
+    exp_width = 4
+    mant_width = 3
+    width = exp_width + mant_width + 1
+    bm_x, fp_exp, fp_mant, per_block_exponent_bias = _mx_fp_quantize_hardware(
+        x, width, exp_width, exp_bias_width, [2]
+    )
+    print(bm_x)
+    print(fp_exp)
+    print(fp_mant)
+    print(per_block_exponent_bias)
+
+    from quant.quantizer.hardware_quantizer.utils import pack_fp_to_bin
+    fp_bin = pack_fp_to_bin(fp_exp, fp_mant, exp_width, mant_width)
+    print(fp_bin)

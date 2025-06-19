@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+from re import A
 import pytest
 import cocotb
 import sys
@@ -9,44 +10,108 @@ import os
 from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
-from cfl_cocotb import veri_runner, FpGenerator
+import torch
 
-exp_width = 4
-mant_width = 3
-ext_mant_width = 0
-ext_exp_width = 0
+from cfl_cocotb import veri_runner
+from cfl_cocotb.runner import SRC_PATH
+from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.fp_generation import TorchFpGenerator
 
-output_man_width = mant_width + ext_mant_width
-output_exp_width = exp_width + ext_exp_width
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
+from cfl_tools.debugger import set_excepthook, get_dut_attributes
 
-generator = FpGenerator(exp_width, mant_width)
 
-logger = logging.getLogger("testbench")
-logger.setLevel(logging.INFO)
+class FPCPMultTB(CombinationalTestbench):
+    def generate_inputs(self, num):
+        # seed = torch.randint(0, 1000000, (1,)).item()
+        torch.manual_seed(0)
+        # self.log.info(f"seed : {seed}")
+        q_config = {
+            "exp_width" : self.dut.EXP_WIDTH.value,
+            "mant_width" : self.dut.MANT_WIDTH.value,
+            "ext_mant_width" : self.dut.EXT_MANT_WIDTH.value,
+            "ext_exp_width" : self.dut.EXT_EXP_WIDTH.value,
+        }
+
+        exp_width = q_config["exp_width"]
+        mant_width = q_config["mant_width"]
+        ext_mant_width = q_config["ext_mant_width"]
+        ext_exp_width = q_config["ext_exp_width"]
+
+        torch_a = torch.randn(num) * 10 - 5
+        torch_b = torch.randn(num) * 10 - 5
+
+        a = torch.tensor([0.75, -1.25, 0.0, 0.5])
+        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(
+            a, 8, 4)
+        result = pack_fp_to_bin(a_exp, a_mant, 4, 3)
+        breakpoint()
+        
+
+        width = q_config["mant_width"] + q_config["exp_width"]
+        exponent_width = q_config["exp_width"]
+
+        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
+        qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
+
+        out_width = q_config["mant_width"] + q_config["exp_width"] + q_config["ext_mant_width"] + q_config["ext_exp_width"] + 1
+        out_exponent_width = q_config["exp_width"] + q_config["ext_exp_width"]
+
+        out = qa * qb
+        self.log.debug(f"out : {out}")
+        debug_out, debug_exp, debug_mant = _minifloat_ieee_quantize_hardware(out, 6 + 8 + 1, 6)
+        debug_out_bin = pack_fp_to_bin(debug_exp, debug_mant, 6, 8)
+        self.log.debug(f"debug_out_bin : {debug_out_bin}")
+        self.log.debug(f"debug_out : {debug_out}")
+        self.log.debug(f"debug_exp : {debug_exp}")
+        self.log.debug(f"debug_mant : {debug_mant}")
+        qout, out_exp, out_mant = _minifloat_ieee_quantize_hardware(out, out_width, out_exponent_width)
+
+        inputs_a = pack_fp_to_bin(a_exp, a_mant, q_config["exp_width"], q_config["mant_width"])
+        inputs_b = pack_fp_to_bin(b_exp, b_mant, q_config["exp_width"], q_config["mant_width"])
+
+        outputs_out = pack_fp_to_bin(out_exp, out_mant, q_config["exp_width"] + q_config["ext_exp_width"], q_config["mant_width"] + q_config["ext_mant_width"])
+
+        self.inputs = {
+            "data_a": inputs_a.int().tolist(),
+            "data_b": inputs_b.int().tolist(),
+        }
+
+        self.log.debug(f"input_0 : {qa}, {a_exp}, {a_mant}")
+        self.log.debug(f"input_1 : {qb}, {b_exp}, {b_mant}")
+        self.log.debug(f"output : {qout}, {out_exp}, {out_mant}")
+        self.outputs = {
+            "data_out": outputs_out.int().tolist(),
+        }
+
+    def check_output(self, input, output):
+        self.log.debug(f"Expected result : {input}, got: {int(output)}")
+        self.log.debug(f"----------------{self.dut}---------")
+        get_dut_attributes(self.dut, self.log, "signed_integer")
+        self.log.debug(f"----------------{self.dut.fp_casting}---------")
+        get_dut_attributes(self.dut.fp_casting, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
+        get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
+        get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
+        self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
+        get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
+
+        assert input == output, f"Expected {input}, but got {int(output)}"
 
 @cocotb.test()
-async def random_fp_test(dut):
-    # Start clock generation
-    TESTCASE_SIZE = 1
-    # cocotb.start_soon(Clock(dut.clk, 2, units="ns").start())  # 2ns period (1GHz clock)
-    await Timer(5, units="ns")
-    cocotb.log.info("Starting fp addition test")
+async def test_fp_cp_mult(dut):
+    set_excepthook()
+    tb = FPCPMultTB(dut)
+    tb.log.setLevel(logging.DEBUG)
+    await tb.run_test(10)
+    # try:
+    #     tb = FPCPMultTB(dut)
+    #     tb.log.setLevel(logging.DEBUG)
+    #     await tb.run_test(10)
+    # except Exception or AssertionError or AttributeError:
+    #     set_excepthook()
 
-    for i in range (TESTCASE_SIZE):
-        # Generate random floating point values
-        fp_values, results = generator.generate_specified_value_fp_input([4.517, 30.231])
-        dut.data_a.value = results[0]
-        dut.data_b.value = results[1]
-        # await RisingEdge(dut.clk)
-        await Timer(1, units="ns")
-        cocotb.log.info(f"Value a : {fp_values[0]}, Result a : {generator.custom_fp_to_float(results[0])} Binary: {dut.data_a.value}")
-        cocotb.log.info(f"Value b : {fp_values[1]}, Result b : {generator.custom_fp_to_float(results[1])} Binary: {dut.data_b.value}")
-        await Timer(1, units="ns")
-        cocotb.log.info(f"Internal man_a_ext: {dut.man_a_ext.value}, Internal man_b_ext: {dut.man_b_ext.value}")
-        cocotb.log.info(f"Internal mant_product_full: {dut.mant_product_full.value}")
-        cocotb.log.info(f"Internal mant_product_norm : {dut.mant_product_norm.value}")
-        cocotb.log.info(f"Internal exp_temp_out : {dut.exp_temp_out.value}, exp_add_raw : {dut.exp_add_raw.value}")
-        cocotb.log.info(f"Expected result : {fp_values[0] * fp_values[1]}, Binary: {dut.data_out.value}, Converted Float : {generator.full_precision_fp_float_convertion(output_exp_width, output_man_width, dut.data_out.value)}")
 
 
 @pytest.mark.dev
@@ -55,8 +120,16 @@ def test_simple_fp_addition():
     veri_runner(
         group = "fp_operation",
         module = "fp_cp_mult",
+        additional_include_paths=[
+            str(SRC_PATH / "basic_components/common"),
+            str(SRC_PATH / "basic_components/conversion"),
+            str(SRC_PATH / "basic_components/fixed_operation"),
+            str(SRC_PATH / "basic_components/buffer")
+        ],
         module_param_list=[
-            {"EXP_WIDTH" : exp_width, "MANT_WIDTH" : mant_width, "EXT_MANT_WIDTH" : ext_mant_width, "EXT_EXP_WIDTH" : ext_exp_width},
+            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            # {"EXP_WIDTH" : 3, "MANT_WIDTH" : 4, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
         ],
         trace = False,
     )
