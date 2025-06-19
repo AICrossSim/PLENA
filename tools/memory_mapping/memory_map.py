@@ -68,11 +68,11 @@ if __name__ == "__main__":
         filename=filename,
         quant_config=quant_config
     )
+    
+    # Expect shape, blocks.shape = (16, 2, 4), bias.shape = (16, 2)
     rand_gen.tensor_gen()
     weight = rand_gen.tensor_load()
     blocks, bias = rand_gen.quantize_tensor(weight)
-    print(f"Blocks: {blocks}")
-    print(f"Bias: {bias}")
     map_data_to_fake_hbm(   blocks=blocks,
                             element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
                             block_width=(quant_config["exp_width"] + quant_config["man_width"] + 1) * 4,

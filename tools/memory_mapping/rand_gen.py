@@ -43,7 +43,7 @@ class RandomTensorGenerator:
             return None
 
     def quantize_tensor(self, tensor):
-        quant_weight, per_block_quant_weight, per_block_exponent_bias = _mx_fp_quantize_hardware(
+        bm_x, quant_weight, per_block_quant_weight, per_block_exponent_bias = _mx_fp_quantize_hardware(
             tensor,
             width = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
             exponent_width = self.quant_config["exp_width"],
@@ -51,13 +51,17 @@ class RandomTensorGenerator:
             block_size = self.quant_config["block_size"],
             skip_first_dim = self.quant_config["skip_first_dim"],
         )
+        # breakpoint()
 
         logger.debug(f"quant_weight: {quant_weight.shape}")
         logger.debug(f"per_block_quant_weight: {per_block_quant_weight.shape}")
         logger.debug(f"per_block_exponent_bias: {per_block_exponent_bias.shape}")
 
-        per_block_quant_weight  = per_block_quant_weight.transpose(-2, -1)
-        per_block_exponent_bias = per_block_exponent_bias.transpose(-2, -1)
+        # per_block_quant_weight  = per_block_quant_weight.transpose(-2, -1)
+        
+        # per_block_exponent_bias = per_block_exponent_bias.transpose(-2, -1)
+
+        per_block_exponent_bias = per_block_exponent_bias.reshape(per_block_quant_weight.size(0) // self.quant_config["block_size"][0], per_block_quant_weight.size(1) // self.quant_config["block_size"][1])
 
         block_list  = []
         bias_list   = []
@@ -67,7 +71,7 @@ class RandomTensorGenerator:
                 per_block_quant_weight[i],
                 width = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
                 exponent_width  = self.quant_config["exp_width"],
-                exponent_bias   = per_block_exponent_bias[i],
+                # exponent_bias   = per_block_exponent_bias[i],
             )
             bin_block = pack_fp_to_bin(
                 exponent,

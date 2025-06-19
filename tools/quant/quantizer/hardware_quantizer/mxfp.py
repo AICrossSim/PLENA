@@ -28,11 +28,15 @@ def _mx_fp_quantize_hardware(
     - `block_size`: a list of integers where each integer is the block size on that dimension. See function `block`.
 
     """
-
+    print(block_size)
     x_shape_before_blocking = [i for i in x.shape]
     blocked_x, per_block_max, padded_x_shape, block_shape = block(
         x, block_shape=block_size, skip_first_dim=skip_first_dim
     )
+    print(f"x shape : {x.shape}")
+    print(f"blocked_x shape: {blocked_x.shape}")
+
+    # print(f"blocked_x: {blocked_x.shape}, per_block_max: {per_block_max.shape}, padded_x_shape: {padded_x_shape}, block_shape: {block_shape}")
 
     # fill zeros to avoid log2(0) = -inf
     if torch.all(per_block_max == 0):
@@ -84,7 +88,7 @@ if __name__ == "__main__":
     mant_width = 3
     width = exp_width + mant_width + 1
     bm_x, fp_exp, fp_mant, per_block_exponent_bias = _mx_fp_quantize_hardware(
-        x, width, exp_width, exp_bias_width, [2]
+        x, width, exp_width, exp_bias_width, [4]
     )
     print(bm_x)
     print(fp_exp)
