@@ -1,8 +1,9 @@
 import torch
 from torch import Tensor
 
-from quant.quantizer.utils import my_clamp, my_round
-from quant.quantizer.hardware_quantizer.utils import hardware_round
+from ..utils import block, my_clamp, unblock, my_round
+from ..minifloat import _minifloat_ieee_quantize
+from .utils import hardware_round
 
 def _minifloat_denorm_quantize_hardware(
     x: Tensor,
@@ -125,14 +126,11 @@ def _minifloat_ieee_quantize_hardware(
     is_normal = (~torch.isclose(exponent, -exponent_bias))
 
     shifted_mantissa = is_normal*my_clamp(hardware_round((mantissa - 1)*shift), shifted_mantissa_min, shifted_mantissa_max) +\
-        (~is_normal)*my_clamp(hardware_round(mantissa*shift/2), shifted_mantissa_min, shifted_mantissa_max)
+        (~is_normal)*my_clamp(hardware_round(mantissa*shift), shifted_mantissa_min, shifted_mantissa_max)
     shifted_mantissa[overflow] = shifted_mantissa_max
-    mantissa = is_normal*(1.0+shifted_mantissa/shift) + (~is_normal)*(shifted_mantissa/shift*2)
+    mantissa = is_normal*(1.0+shifted_mantissa/shift) + (~is_normal)*(shifted_mantissa/shift)
     # this `is_close_to_0` helps the grad keeps 1 if input x is 0, or the zero-initialized value will be trapped in 0
     is_close_to_0 = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))
     minifloat_ieee_x = (~is_close_to_0)*(sign * (2**exponent) * mantissa) + is_close_to_0*x
     # fmt: on
     return minifloat_ieee_x, exponent, sign * mantissa
-
-if __name__ == "__main__":
-    print(_minifloat_ieee_quantize_hardware(torch.tensor([196]), 8,4))

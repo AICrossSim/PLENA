@@ -24,6 +24,11 @@ def hardware_round(x: Tensor, round_bits: int = 2):
     return x.round()
 
 def pack_fp_to_bin(signed_exponent, signed_mantissa, exp_width, man_width):
+    exp_shape = signed_exponent.shape
+    man_shape = signed_mantissa.shape
+    signed_exponent = signed_exponent.reshape(-1)
+    signed_mantissa = signed_mantissa.reshape(-1)
+
     sign = signed_mantissa.sign()
     sign_bit = torch.where(sign < 0, torch.tensor(1), torch.tensor(0))
 
@@ -41,6 +46,8 @@ def pack_fp_to_bin(signed_exponent, signed_mantissa, exp_width, man_width):
     result = ((sign_bit * 2**(exp_width + man_width)) + 
             exponent_bit * 2**(man_width) + 
             mantissa_bit).int()
+    
+    result = result.reshape(exp_shape)
 
     return result
 
