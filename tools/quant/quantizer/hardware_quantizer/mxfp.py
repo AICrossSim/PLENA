@@ -45,6 +45,7 @@ def _mx_fp_quantize_hardware(
     )
 
     blocked_x = blocked_x / 2**per_block_exponent_bias
+    _minifloat_ieee_quantize_hardware(torch.tensor([1.5]), 4,3)
 
     per_block_bm_x, per_block_fp_exp, per_block_fp_mant = _minifloat_ieee_quantize_hardware(
         blocked_x,
