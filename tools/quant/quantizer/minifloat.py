@@ -148,7 +148,7 @@ def _minifloat_ieee_quantize(
     if exponent_bias in (None, "none", "None"):
         exponent_bias = 2 ** (exponent_width - 1) - 1
     # upper and lower bound of shifted exponent
-    exponent_max = 2**exponent_width - 1 - exponent_bias
+    exponent_max = 2**exponent_width - 2 - exponent_bias
     exponent_min = -exponent_bias
     # upper and lower bound of shifted minifloat mantissa
     shift = 2**mantissa_bits
@@ -172,9 +172,9 @@ def _minifloat_ieee_quantize(
         exponent_bias = torch.tensor([exponent_bias], dtype=exponent.dtype, device=exponent.device)
     is_normal = (~torch.isclose(exponent, -exponent_bias))
 
-    shifted_mantissa = is_normal*my_clamp(my_round(mantissa*shift-shift), shifted_mantissa_min, shifted_mantissa_max) +\
-        (~is_normal)*my_clamp(my_round(mantissa*shift/2), shifted_mantissa_min, shifted_mantissa_max)
-    mantissa = is_normal*(1.0+shifted_mantissa/shift) + (~is_normal)*(shifted_mantissa/shift*2)
+    shifted_mantissa = is_normal*my_clamp(my_round((mantissa - 1)*shift), shifted_mantissa_min, shifted_mantissa_max) +\
+        (~is_normal)*my_clamp(my_round(mantissa*shift), shifted_mantissa_min, shifted_mantissa_max)
+    mantissa = is_normal*(1.0+shifted_mantissa/shift) + (~is_normal)*(shifted_mantissa/shift)
     # this `is_close_to_0` helps the grad keeps 1 if input x is 0, or the zero-initialized value will be trapped in 0
     is_close_to_0 = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))
     minifloat_ieee_x = (~is_close_to_0)*(sign * (2**exponent) * mantissa) + is_close_to_0*x
