@@ -1,4 +1,4 @@
-from rand_gen import RandomTensorGenerator
+from memory_mapping.rand_gen import RandomTensorGenerator
 import torch
 import os
 

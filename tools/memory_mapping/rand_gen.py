@@ -43,6 +43,12 @@ class RandomTensorGenerator:
             return None
 
     def quantize_tensor(self, tensor):
+        '''
+        note in 2d case the tensor of the original shape [shape_1, shape_2]
+        the output bm_x will keep the orignal shape
+        but the per_block * will be packed as showns
+        [shape_1 * shaped_2 // (block_size[0] * block_size[1]), block_size[0] * block_size[1]]
+        '''
         bm_x, quant_weight, per_block_quant_weight, per_block_exponent_bias = _mx_fp_quantize_hardware(
             tensor,
             width = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
