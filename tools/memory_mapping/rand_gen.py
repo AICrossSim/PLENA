@@ -63,11 +63,7 @@ class RandomTensorGenerator:
         logger.debug(f"per_block_quant_weight: {per_block_quant_weight.shape}")
         logger.debug(f"per_block_exponent_bias: {per_block_exponent_bias.shape}")
 
-        # per_block_quant_weight  = per_block_quant_weight.transpose(-2, -1)
-        
-        # per_block_exponent_bias = per_block_exponent_bias.transpose(-2, -1)
 
-        per_block_exponent_bias = per_block_exponent_bias.reshape(per_block_quant_weight.size(0) // self.quant_config["block_size"][0], per_block_quant_weight.size(1) // self.quant_config["block_size"][1])
 
         block_list  = []
         bias_list   = []
@@ -89,6 +85,8 @@ class RandomTensorGenerator:
             bias_list.append(int(per_block_exponent_bias[i]))
             # note here the block_mantissa was represented as unsigned integer
             # the exponent was represented as signed integer
+        logger.debug(f"block_list: {block_list}")
+        logger.debug(f"bias_list: {bias_list}")
 
         return block_list, bias_list
 
