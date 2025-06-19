@@ -54,16 +54,17 @@ def _mx_fp_quantize_hardware(
 
     per_block_max = px.abs().max(dim=-1, keepdim=True).values + 1e-9
     per_block_exponent_bias = my_clamp(
-        torch.floor(torch.log2(per_block_max)), 0, 2**exponent_bias_width - 1
+        torch.floor(torch.log2(per_block_max)), -2**(exponent_bias_width - 1), 2**(exponent_bias_width - 1) - 1
     )
 
+    px = px / 2**per_block_exponent_bias
     per_block_bm_x, per_block_fp_exp, per_block_fp_mant = _minifloat_ieee_quantize_hardware(
         px,
         width=width,
         exponent_width=exponent_width,
     )
 
-    per_block_bm_x = per_block_fp_exp * 2**per_block_exponent_bias
+    per_block_bm_x = per_block_bm_x * 2**per_block_exponent_bias
 
     bm_x = per_block_bm_x.reshape(x_shape[0], x_shape[1], -1, block_size[0], block_size[1])
     bm_x = bm_x.permute(0, 1, 3, 2, 4)
@@ -72,7 +73,7 @@ def _mx_fp_quantize_hardware(
 
     return bm_x, per_block_fp_exp, per_block_fp_mant, per_block_exponent_bias
 
-if __name__ == "__main__":
+def test_bin_mxfp():
     x = torch.randn([4, 16,8])
     exp_bias_width = 4
     exp_width = 4
@@ -89,3 +90,28 @@ if __name__ == "__main__":
     from quant.quantizer.hardware_quantizer.utils import pack_fp_to_bin
     fp_bin = pack_fp_to_bin(per_block_fp_exp, per_block_fp_mant, exp_width, mant_width)
     print(fp_bin.shape)
+    
+
+def test_functionality():
+    x = torch.randn([4, 16,8]) * 100 - 50
+    exp_bias_width = 4
+    exp_width = 1
+    mant_width = 3
+    width = exp_width + mant_width + 1
+    bm_x, _, _, _ = _mx_fp_quantize_hardware(
+        x, width, exp_width, exp_bias_width, [4]
+    )
+    from quant.quantizer.minifloat import _minifloat_ieee_quantize
+    minifloat_x = _minifloat_ieee_quantize(
+        x,
+        width=width,
+        exponent_width=exp_width,
+    )
+
+    from cfl_tools.debugger import _get_similarity
+    print(_get_similarity(x, bm_x, metric="cosine").mean())
+    print(_get_similarity(x, minifloat_x, metric="cosine").mean())
+
+
+if __name__ == "__main__":
+    test_functionality()
