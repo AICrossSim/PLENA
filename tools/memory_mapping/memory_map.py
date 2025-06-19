@@ -69,7 +69,7 @@ if __name__ == "__main__":
         quant_config=quant_config
     )
     
-    # Expect shape, blocks.shape = (16, 2, 4), bias.shape = (16, 2)
+    # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
     rand_gen.tensor_gen()
     weight = rand_gen.tensor_load()
     blocks, bias = rand_gen.quantize_tensor(weight)

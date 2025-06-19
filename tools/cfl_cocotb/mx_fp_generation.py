@@ -26,8 +26,8 @@ class MXBlockFPConverter:
         self.elem_exp_width = elem_exp_width
         self.elem_mant_width = elem_mant_width
         self.scale_width = scale_width
-        self.scale_bias = (1 << (scale_width - 1)) - 1
         self.block_size = block_size
+        self.scale_bias = (1 << (scale_width - 1)) - 1  # Bias for the shared exponent
         self.fp_gen = FpGenerator(elem_exp_width, elem_mant_width)
 
     def _get_shared_exponent(self, values: List[float]) -> int:
@@ -90,7 +90,7 @@ class MXBlockFPConverter:
         return result_fp
     
     def convert_block_to_fp(self, elements, scale):
-        true_scale = 2 ** (scale)
+        true_scale = 2 ** (scale - self.scale_bias)
         extracted_elements = split_bitstream_equal(elements, (self.elem_exp_width + self.elem_mant_width + 1) )
         result_fp = []
         for element in extracted_elements:

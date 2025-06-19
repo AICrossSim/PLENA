@@ -63,10 +63,9 @@ class RandomTensorGenerator:
         logger.debug(f"per_block_quant_weight: {per_block_quant_weight.shape}")
         logger.debug(f"per_block_exponent_bias: {per_block_exponent_bias.shape}")
 
-
-
         block_list  = []
         bias_list   = []
+        bias_bias = 2**(self.quant_config["exp_bias_width"] - 1) - 1
 
         for i in range(per_block_quant_weight.shape[0]):
             quant_weight, exponent, mantissa = _minifloat_ieee_quantize_hardware(
@@ -82,12 +81,17 @@ class RandomTensorGenerator:
                 self.quant_config["man_width"],
             )
             block_list.append(bin_block.tolist())
-            bias_list.append(int(per_block_exponent_bias[i]))
+            bias_list.append(int(per_block_exponent_bias[i]) + bias_bias)
             # note here the block_mantissa was represented as unsigned integer
             # the exponent was represented as signed integer
-        logger.debug(f"block_list: {block_list}")
-        logger.debug(f"bias_list: {bias_list}")
-
+        # logger.debug(f"block_list: {block_list}")
+        # logger.debug(f"bias_list: {bias_list}")
+        for i in range(len(bias_list)):
+            logger.debug(f"Block {i} : [")
+            for ele in block_list[i]:
+                logger.debug(f"0x{ele:X}, ")
+            logger.debug(f"]\n")
+            logger.debug(f"Scale without bias: {bias_list[i] - bias_bias}")
         return block_list, bias_list
 
 
