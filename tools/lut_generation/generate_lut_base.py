@@ -8,7 +8,7 @@ import pdb
 from bitstring import BitArray
 from functools import partial
 from pathlib import Path
-from cfl_cocotb import RTL_PATH
+from cfl_cocotb import SRC_PATH
 from cfl_tools.logger import get_logger
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ class GenerateSVLut:
         self.generate_lut()
         sv_code = self.generate_sv()
         if self.save:
-            p = RTL_PATH / "generated_lut" / "rtl" / f"{self.function_name}_lut.sv"
+            p = SRC_PATH / "generated_lut" / "rtl" / f"{self.function_name}_lut.sv"
             if not p.parent.exists():
                 p.parent.mkdir(parents=True, exist_ok=True)
             with open(p, "w") as file:
@@ -74,25 +74,25 @@ class GenerateSVLut:
 /* verilator lint_off UNUSEDPARAM */
 module {function_name}_lut #(
     parameter IN_ENTRY_WIDTH = {in_entry_width},
-    parameter OUT_ENTRY_WIDTH = {out_entry_width},
+    parameter OUT_ENTRY_WIDTH = {out_entry_width}
 )
 (
 // {quant_info}
-    input logic [IN_ENTRY_WIDTH-1:0] data_in_0, 
-    output logic [OUT_ENTRY_WIDTH-1:0] data_out_0
+    input logic [IN_ENTRY_WIDTH-1:0] data_in, 
+    output logic [OUT_ENTRY_WIDTH-1:0] data_out
 );
 \n"""
         sv_code += "    always_comb begin\n"
-        sv_code += "        case(data_in_0)\n"
+        sv_code += "        case(data_in)\n"
 
         # Adding each case
         for key, value in dicto.items():
             formatted_key = key_format.format(key)
             formatted_value = value_format.format(value)
-            sv_code += f"            {formatted_key}: data_out_0 = {formatted_value};\n"
+            sv_code += f"            {formatted_key}: data_out = {formatted_value};\n"
 
         # Ending the case statement and module
-        sv_code += f"            default: data_out_0 = {out_entry_width}'b0;\n"
+        sv_code += f"            default: data_out = {out_entry_width}'b0;\n"
         sv_code += "        endcase\n"
         sv_code += "    end\n"
         sv_code += "endmodule\n"

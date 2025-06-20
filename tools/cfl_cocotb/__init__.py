@@ -4,5 +4,4 @@ from .fp_generation import FpGenerator
 from .mx_fp_generation import MXBlockFPConverter
 
 from pathlib import Path
-
-RTL_PATH = Path(__file__).parents[2] / "src"
+from .runner import SRC_PATH
