@@ -146,6 +146,7 @@ module fp_vector_sram #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
                 .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
             ) mx_fp_2_fp_convert (

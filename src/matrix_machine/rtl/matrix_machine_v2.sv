@@ -103,7 +103,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     ) matrix_scale_buffer (
         .clk(clk),
         .rst(rst),
-        .data_in        (v_scale),
+        .data_in        (m_scale),
         .data_in_valid  (stored_m_in_scale_valid),
         .data_in_ready  (stored_m_in_scale_ready),
         .data_out       (stored_m_scale),

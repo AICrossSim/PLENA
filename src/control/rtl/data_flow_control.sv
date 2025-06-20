@@ -514,7 +514,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             recorded_v_load_addr_2  <= exe_stage_op.addr_2;
             
             if (exe_stage_op.m_op != STALL_M) begin
-                recorded_v_load_for_matrix_addr <= exe_stage_op.addr_2;
+                recorded_v_load_for_matrix_addr <= exe_stage_op.addr_1;
             end
 
             if (m_write_request) begin

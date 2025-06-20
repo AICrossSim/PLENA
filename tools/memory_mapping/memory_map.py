@@ -16,12 +16,11 @@ def map_scale_to_value(scale, data_width):
     hex_digits = data_width // 4  # e.g., 32 bits = 8 hex digits
     return f"{scale:0{hex_digits}X}"
 
-def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, directory, hbm_row_width=64):
+def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, hbm_row_width=64):
 
     """
     Maps the quantized blocks and bias to a fake HBM memory structure.
     """
-    print("bias : ", bias)
     num_blocks_per_row = hbm_row_width // block_width
     num_bias_per_row = hbm_row_width // bias_width
 
@@ -30,9 +29,15 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
     
     with open(os.path.join(directory, "hbm_ele.mem"), "w") as f:
         insert_block_row = ""
+        combined_blk = ""
         index_in_row = 0
+        print(blocks)
+        # for i, block in enumerate(reversed(blocks)):
         for i, block in enumerate(blocks):
-            insert_block_row += map_block_to_value(block, element_width)
+            combined_blk = combined_blk + map_block_to_value(block, element_width) 
+            if i % combined_blk_dim == combined_blk_dim - 1:
+                insert_block_row = combined_blk + insert_block_row
+                combined_blk = ""
             index_in_row += 1
             if index_in_row == num_blocks_per_row:
                 f.write("0x" + insert_block_row + "\n")
@@ -41,9 +46,14 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
     # Save Bias to HBM file            
     with open(os.path.join(directory, "hbm_scale.mem"), "w") as f:
         insert_bias_row = ""
+        combined_bias = ""
         index_in_row = 0
+        # for i, b in enumerate(reversed(bias)):
         for i, b in enumerate(bias):
-            insert_bias_row += map_scale_to_value(b, bias_width)
+            combined_bias = combined_bias + map_scale_to_value(b, bias_width)
+            if i % combined_blk_dim == combined_blk_dim - 1:
+                insert_bias_row =  combined_bias + insert_bias_row
+                combined_bias = ""
             index_in_row += 1
             if index_in_row == num_bias_per_row:
                 f.write("0x" + insert_bias_row + "\n")
@@ -79,5 +89,6 @@ if __name__ == "__main__":
                             block_width=(quant_config["exp_width"] + quant_config["man_width"] + 1) * 4,
                             bias=bias,
                             bias_width=quant_config["exp_bias_width"],
+                            combined_blk_dim = 2,
                             directory=fake_hbm_dir,
                             hbm_row_width=256)

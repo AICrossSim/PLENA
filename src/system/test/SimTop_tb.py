@@ -109,19 +109,21 @@ async def record_data_on_trigger(dut, clk, trigger_signal, num_cycles=10, output
 
             if dut.v1_in_valid.value:
                 # for i, v in enumerate(dut.v1_data.value):
+                f.write(f"V1:  {hex(dut.v1_data.value)}\n")
                 converted_v1_data = fp_gen.translate_packed_array_fp(mlen, fp_exp, fp_mant, dut.v1_data.value)
                 f.write(f"V1 Cycle {cycle} - \n")
                 f.write(f"[")
-                for i, v in enumerate(converted_v1_data):
+                for i, v in enumerate(reversed(converted_v1_data)):
                     f.write(f"{v}, ")
                 f.write(f"]\n")
 
             if dut.v2_in_valid.value:
                 # for i, v in enumerate(dut.v2_data.value):
+                f.write(f"V2:  {hex(dut.v2_data.value)}\n")
                 converted_v2_data = fp_gen.translate_packed_array_fp(mlen, fp_exp, fp_mant, dut.v2_data.value)
                 f.write(f"V2 Cycle {cycle} - \n")
                 f.write(f"[")
-                for i, v in enumerate(converted_v2_data):
+                for i, v in enumerate(reversed(converted_v2_data)):
                     f.write(f"{v}, ")
                 f.write(f"]\n")
 

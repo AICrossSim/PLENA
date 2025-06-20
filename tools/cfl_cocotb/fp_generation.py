@@ -212,8 +212,12 @@ class FpGenerator:
 
 if __name__ == "__main__":
     import math
-    exp_width = 4
-    mant_width = 3
+    # exp_width = 7
+    # mant_width = 8
+    # exp_width = 4
+    # mant_width = 3
+    exp_width = 8
+    mant_width = 23
     # TEMP
     # intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
     generator = FpGenerator(exp_width, mant_width)

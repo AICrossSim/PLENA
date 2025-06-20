@@ -104,7 +104,7 @@ module fp_default_pe #(
     );
 
     assign out_bottom_data      = reg_top_data;
-    assign out_right_element    = reg_left_data;
+    assign out_right_data       = reg_left_data;
 
     // ==============================================================================================
     // STAGE 2: Multiplication of the elements from Top and Left, Scale Summation

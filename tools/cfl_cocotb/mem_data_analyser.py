@@ -83,12 +83,13 @@ class MX_FP_mem_data_analyser:
         for i in range(len(loaded_element)):
 
             mxfp_elements = loaded_element[i]
-            if i % 2 == 0:
-                # load upper scale
-                mxfp_scale = (loaded_scale[i // 2] >> scale_per_row_block) & lower_scale_mask
-            else:
+            if i == 0:
                 # load lower scale
                 mxfp_scale = loaded_scale[i // 2] & lower_scale_mask
+            else:
+                # load upper scale
+                mxfp_scale = (loaded_scale[i // 2] >> scale_per_row_block) & lower_scale_mask
+                
             print(f"Element: 0x{mxfp_elements:X}\nScale:   0x{mxfp_scale:X}")
             translated_mxfp_array = self.mxfp_analyser.blockwise_convert_to_float(mxfp_elements, mxfp_scale, self.block_num)
             translated_mxfp_matrix.append(translated_mxfp_array)

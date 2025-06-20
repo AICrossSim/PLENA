@@ -66,8 +66,6 @@ module mx_fp_2_fp_block #(
                 end
                 fp_out[i] = {mxfp_sign[i], exp_out[i], mant_out[i]};
             end
-
-             
         end
         
     endgenerate
