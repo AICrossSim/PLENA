@@ -71,6 +71,7 @@ def _mx_fp_quantize_hardware(
     bm_x = bm_x.reshape(-1, px_shape[-2], px_shape[-1])
     bm_x = bm_x[:, :x_shape[-2], :x_shape[-1]]
 
+
     return bm_x, per_block_fp_exp, per_block_fp_mant, per_block_exponent_bias
 
 def test_bin_mxfp():

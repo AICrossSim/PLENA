@@ -73,6 +73,8 @@ module hbm_controller #(
         hbm_addr_for_scale = offset_addr + SCALE_DATA_OFFSET;
     end
 
+    // TODO: teporary solution for HBM write ready signal, if in the future need a buffer if the critical path happens here.
+    assign hbm_write_ready = 1'b1;
 
     // -----------------------------
     // HBM element connection for TileLink
