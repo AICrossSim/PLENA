@@ -1,4 +1,4 @@
-from rand_gen import RandomTensorGenerator
+from memory_mapping.rand_gen import RandomTensorGenerator
 import torch
 import os
 
@@ -21,6 +21,7 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
     """
     Maps the quantized blocks and bias to a fake HBM memory structure.
     """
+    print("bias : ", bias)
     num_blocks_per_row = hbm_row_width // block_width
     num_bias_per_row = hbm_row_width // bias_width
 
@@ -68,11 +69,11 @@ if __name__ == "__main__":
         filename=filename,
         quant_config=quant_config
     )
+    
+    # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
     rand_gen.tensor_gen()
     weight = rand_gen.tensor_load()
     blocks, bias = rand_gen.quantize_tensor(weight)
-    print(f"Blocks: {blocks}")
-    print(f"Bias: {bias}")
     map_data_to_fake_hbm(   blocks=blocks,
                             element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
                             block_width=(quant_config["exp_width"] + quant_config["man_width"] + 1) * 4,
@@ -80,4 +81,3 @@ if __name__ == "__main__":
                             bias_width=quant_config["exp_bias_width"],
                             directory=fake_hbm_dir,
                             hbm_row_width=256)
-

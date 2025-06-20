@@ -43,7 +43,13 @@ class RandomTensorGenerator:
             return None
 
     def quantize_tensor(self, tensor):
-        quant_weight, per_block_quant_weight, per_block_exponent_bias = _mx_fp_quantize_hardware(
+        '''
+        note in 2d case the tensor of the original shape [shape_1, shape_2]
+        the output bm_x will keep the orignal shape
+        but the per_block * will be packed as showns
+        [shape_1 * shaped_2 // (block_size[0] * block_size[1]), block_size[0] * block_size[1]]
+        '''
+        bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
             tensor,
             width = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
             exponent_width = self.quant_config["exp_width"],
@@ -51,36 +57,30 @@ class RandomTensorGenerator:
             block_size = self.quant_config["block_size"],
             skip_first_dim = self.quant_config["skip_first_dim"],
         )
+        # breakpoint()
 
-        logger.debug(f"quant_weight: {quant_weight.shape}")
-        logger.debug(f"per_block_quant_weight: {per_block_quant_weight.shape}")
-        logger.debug(f"per_block_exponent_bias: {per_block_exponent_bias.shape}")
-
-        per_block_quant_weight  = per_block_quant_weight.transpose(-2, -1)
-        per_block_exponent_bias = per_block_exponent_bias.transpose(-2, -1)
+        logger.debug(f"per_block_mantissa: {per_block_mantissa.shape}")
+        logger.debug(f"per_block_exponent: {per_block_exponent.shape}")
+        logger.debug(f"per_block_quant_bias: {per_block_scaling.shape}")
 
         block_list  = []
-        bias_list   = []
+        scaling_list   = []
 
-        for i in range(per_block_quant_weight.shape[0]):
-            quant_weight, exponent, mantissa = _minifloat_ieee_quantize_hardware(
-                per_block_quant_weight[i],
-                width = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
-                exponent_width  = self.quant_config["exp_width"],
-                exponent_bias   = per_block_exponent_bias[i],
-            )
+        for i in range(per_block_mantissa.shape[0]):
             bin_block = pack_fp_to_bin(
-                exponent,
-                mantissa,
+                per_block_exponent[i],
+                per_block_mantissa[i],
                 self.quant_config["exp_width"],
                 self.quant_config["man_width"],
             )
             block_list.append(bin_block.tolist())
-            bias_list.append(int(per_block_exponent_bias[i]))
+            scaling_list.append(int(per_block_scaling[i]))
             # note here the block_mantissa was represented as unsigned integer
             # the exponent was represented as signed integer
+        logger.debug(f"block_list: {block_list}")
+        logger.debug(f"scaling_list: {scaling_list}")
 
-        return block_list, bias_list
+        return block_list, scaling_list
 
 
 

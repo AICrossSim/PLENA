@@ -70,6 +70,10 @@ def _mx_fp_quantize_hardware(
     bm_x = bm_x.permute(0, 1, 3, 2, 4)
     bm_x = bm_x.reshape(-1, px_shape[-2], px_shape[-1])
     bm_x = bm_x[:, :x_shape[-2], :x_shape[-1]]
+    
+    bias_bias = 2**(exponent_bias_width - 1) - 1
+    per_block_exponent_bias = per_block_exponent_bias + bias_bias
+
 
     return bm_x, per_block_fp_exp, per_block_fp_mant, per_block_exponent_bias
 

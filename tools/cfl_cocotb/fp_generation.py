@@ -212,12 +212,14 @@ class FpGenerator:
 
 if __name__ == "__main__":
     import math
-    exp_width = 7
-    mant_width = 8
+    exp_width = 4
+    mant_width = 3
     # TEMP
     # intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
     generator = FpGenerator(exp_width, mant_width)
     # _, vals = generator.generate_fp_input(10)
     # for val in vals:
     #     print(hex(val))
-    print(generator.full_precision_fp_float_convertion(exp_width, mant_width, 0x7eff))
+    input_val = input("Enter a float value in hex to convert: ")
+    input_val = int(input_val, 16)
+    print(generator.full_precision_fp_float_convertion(exp_width, mant_width, input_val))
