@@ -27,44 +27,36 @@ module mx_fp_2_fp_block #(
             else $error("FP_EXP_WIDTH must be less than MXFP_SCALE_WIDTH");
     end
 
-    localparam int FP_BIAS      = (1 << (FP_EXP_WIDTH - 1)) - 1;
+    localparam int FP_BIAS          = (1 << (FP_EXP_WIDTH - 1)) - 1;
     localparam int ELEMENT_EXP_BIAS = (1 << (MXFP_EXP_WIDTH - 1)) - 1;
-    localparam int SCALE_BIAS   = (1 << ((MXFP_SCALE_WIDTH) - 1)) - 1;
-
-
+    localparam int SCALE_BIAS      = (1 << (MXFP_SCALE_WIDTH - 1)) - 1;
 
     logic [BLOCK_DIM-1:0]                       mxfp_sign;
     logic [BLOCK_DIM-1:0][MXFP_EXP_WIDTH-1:0]   mxfp_exp;
     logic [BLOCK_DIM-1:0][MXFP_MANT_WIDTH-1:0]  mxfp_mant;
-    logic [BLOCK_DIM-1:0][FP_MANT_WIDTH -1:0]   fp_mant;
-    logic [BLOCK_DIM-1:0][FP_EXP_WIDTH -1:0]    fp_exp;    
 
     logic [MXFP_SCALE_WIDTH -1:0]                   fp_exp_base;
 
     logic [BLOCK_DIM-1:0]exp_overflow;
-    logic [BLOCK_DIM-1:0][MXFP_MANT_WIDTH-1:0]  mant_out;
+    logic [BLOCK_DIM-1:0][FP_MANT_WIDTH-1:0]  mant_out;
     logic [BLOCK_DIM-1:0][MXFP_SCALE_WIDTH-1:0] temp_exp;
-    logic [BLOCK_DIM-1:0][MXFP_SCALE_WIDTH-1:0] exp_out;    
+    logic [BLOCK_DIM-1:0][FP_EXP_WIDTH-1:0] exp_out;    
 
     generate;
-        assign fp_exp_base  = scale_in - SCALE_BIAS - ELEMENT_EXP_BIAS + FP_BIAS;
+        assign fp_exp_base  = scale_in - SCALE_BIAS + FP_BIAS;
         for (genvar i = 0; i < BLOCK_DIM; i=i+1) begin
-            // Decompose input MX-FP value
-            assign mxfp_sign[i]     = element_in[i][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH];
-            assign mxfp_exp[i]      = element_in[i][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH - 1 : MXFP_MANT_WIDTH];
-            assign mxfp_mant[i]     = element_in[i][MXFP_MANT_WIDTH - 1 : 0];
-
-
             if (MXFP_MANT_WIDTH >= FP_MANT_WIDTH) begin
                 assign mant_out[i] = mxfp_mant[i][MXFP_MANT_WIDTH - 1 -: FP_MANT_WIDTH];
-            end
-            else begin
+            end else begin
                 assign mant_out[i] = {mxfp_mant[i][MXFP_MANT_WIDTH - 1 : 0], {FP_MANT_WIDTH - MXFP_MANT_WIDTH{1'b0}}};
             end
-
             always_comb begin
-                temp_exp[i] = fp_exp_base + {{(FP_EXP_WIDTH - MXFP_EXP_WIDTH){1'b0}}, mxfp_exp[i]};
-                exp_overflow[i] = |temp_exp[i][MXFP_SCALE_WIDTH - 1 : FP_EXP_WIDTH];
+                // Decompose input MX-FP value
+                mxfp_sign[i]     = element_in[i][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH];
+                mxfp_exp[i]      = element_in[i][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH - 1 : MXFP_MANT_WIDTH];
+                mxfp_mant[i]     = element_in[i][MXFP_MANT_WIDTH - 1 : 0];
+                temp_exp[i]      = fp_exp_base + {{(FP_EXP_WIDTH - MXFP_EXP_WIDTH){1'b0}}, mxfp_exp[i]} - ELEMENT_EXP_BIAS;
+                exp_overflow[i]  = |temp_exp[i][MXFP_SCALE_WIDTH - 1 : FP_EXP_WIDTH];
 
                 if (exp_overflow[i]) begin
                     exp_out[i] = {{(FP_EXP_WIDTH - 1){1'b1}}, 1'b0}; // Max exp val
@@ -72,9 +64,10 @@ module mx_fp_2_fp_block #(
                 else begin
                     exp_out[i] = temp_exp[i][FP_EXP_WIDTH - 1 : 0];
                 end
+                fp_out[i] = {mxfp_sign[i], exp_out[i], mant_out[i]};
             end
 
-            assign fp_out[i] = {mxfp_sign[i], exp_out[i], mant_out[i]};
+             
         end
         
     endgenerate

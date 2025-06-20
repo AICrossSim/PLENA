@@ -64,7 +64,6 @@ def _mx_fp_quantize(
         width=width,
         exponent_width=exponent_width,
     )
-
     per_block_bm_x = per_block_bm_x * 2**per_block_exponent_bias
 
     bm_x = per_block_bm_x.reshape(x_shape[0], x_shape[1], -1, block_size[0], block_size[1])

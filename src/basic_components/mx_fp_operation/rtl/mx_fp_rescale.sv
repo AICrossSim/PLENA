@@ -46,14 +46,14 @@ module mx_fp_rescale #(
                 .OUT_EXP_WIDTH  (OUT_MXFP_EXP_WIDTH),
                 .OUT_MANT_WIDTH (OUT_MXFP_MANT_WIDTH)
             ) mxfp_round (
-                .data_in    (element_in),
-                .scale_in      (scale_in),
-                .data_out   (p0_rounded_element),
-                .scale_out     (p0_rounded_scale)
+                .data_in        (element_in),
+                .scale_in       (scale_in),
+                .data_out       (p0_rounded_element),
+                .scale_out      (p0_rounded_scale)
             );
         end else begin : no_round
-            assign p0_rounded_element = element_in;
-            assign p0_rounded_scale = scale_in;
+            assign p0_rounded_element   = element_in;
+            assign p0_rounded_scale     = scale_in;
         end
 
     endgenerate
@@ -71,7 +71,7 @@ module mx_fp_rescale #(
     );
 
     always @(posedge clk) begin
-        if (!rst) begin
+        if (rst) begin
             p1_rounded_element <= 'b0;
             p1_rounded_scale <= 'b0;
         end else begin

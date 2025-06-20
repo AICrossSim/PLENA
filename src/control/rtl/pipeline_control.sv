@@ -47,6 +47,7 @@ module pipeline_control #(
     input       logic           m_load_in_process,
     input       logic           v_load_in_process,
     input       logic           sfu_in_use,
+    input       logic           m_complete_acc_writeback,
 
     // Current control operation
     output      logic           pipeline_stall_req,
@@ -80,6 +81,10 @@ module pipeline_control #(
     import pipeline_pkg::*;
     logic pipeline_stall;
     logic stall_for_prefetch;
+
+
+    logic m_accumulate_in_progress; // Flag to indicate if the accumulation in matrix machine is in progress.
+
     // Decision for pipeline stall
     always_comb begin
         if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M)) begin
@@ -88,8 +93,8 @@ module pipeline_control #(
         end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall   = 1'b1;            
-        end else if ((m_load_in_process) & (determine_stage_op.m_op != STALL_M)) begin
-            // Condition 2: When prefetching instruction is in processed or matrix at the loading stage, another matrix-related instruction is not allowed.
+        end else if ((m_load_in_process | m_accumulate_in_progress) & (determine_stage_op.m_op != STALL_M)) begin
+            // Condition 2: When prefetching instruction is in processed or matrix at the loading stage / writing back, another matrix-related instruction is not allowed.
             pipeline_stall   = 1'b1;            
         end else if ((v_load_in_process) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
             // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
@@ -109,7 +114,7 @@ module pipeline_control #(
         end else if (sfu_in_use & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
             // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
             pipeline_stall = 1'b1;
-        end else if (stall_for_mem_dependency) begin
+        end else if (mem_vwrite_stall_req) begin
             // Unconditionally stall the overall pipeline.
             pipeline_stall   = 1'b1;                
         end else begin
@@ -121,7 +126,6 @@ module pipeline_control #(
 
     // Memory Monitor
     logic           mem_vwrite_stall_req;
-    logic           stall_for_mem_dependency;
 
     addr_monitor #(
         .ADDR_WIDTH(FIXED_DATA_WIDTH),
@@ -129,15 +133,14 @@ module pipeline_control #(
     ) addr_monitor_inst (
         .clk(clk),
         .rst(rst),
-        .check_stage_op         (check_stage_op),
+        .determine_stage_op     (determine_stage_op),
         .exe_stage_op           (exe_stage_op),
-        .fixed_addr_1           (fixed_addr_1),
-        .fixed_addr_2           (fixed_addr_2),
         .v_sram_addr_a          (v_sram_addr_a),
         .v_sram_addr_b          (v_sram_addr_b),
         .v_sram_wen_a           (v_sram_wen_a),
         .v_sram_wen_b           (v_sram_wen_b),
-        .stall_req              (mem_vwrite_stall_req)
+        .stall_req              (mem_vwrite_stall_req),
+        .sys_pipe_stall         (stall_in_process)
     );
 
     // Merge the decoded op with the register read outcome.
@@ -175,10 +178,10 @@ module pipeline_control #(
                 w_from_m            : 1'b0
             };
             stall_in_process            <= 1'b0;
-            stall_for_mem_dependency    <= 1'b0;
+            m_accumulate_in_progress    <= 1'b0;
 
         end else begin
-
+            
             mem_write_control <= '{
                 w_m_sram_en           : mem_write_req.wreq_m_sram,
                 w_s_sram_port_a_en    : mem_write_req.wreq_s_sram_port_a,
@@ -192,17 +195,15 @@ module pipeline_control #(
                 stall_in_process <= 1'b0;
             end
 
-            stall_for_mem_dependency <= mem_vwrite_stall_req;
-
-            if (!pipeline_stall) begin
+            if (recover_from_stall) begin
+                // Recover from Stall
+                determine_stage_op          <= recorded_check_stage_op;
+                exe_stage_op                <= determine_stage_op;
+            end else if (!pipeline_stall) begin
                 // Normal Execution
                 reg_rd_stage_op             <= decode_stage_op;
                 delayed_reg_rd_stage_op     <= reg_rd_stage_op;
                 determine_stage_op          <= check_stage_op;
-                exe_stage_op                <= determine_stage_op;
-            end else if (recover_from_stall) begin
-                // Recover from Stall
-                determine_stage_op          <= recorded_check_stage_op;
                 exe_stage_op                <= determine_stage_op;
             end else begin
                 // Stall Execution
@@ -212,6 +213,15 @@ module pipeline_control #(
             if (start_of_stall) begin
                 recorded_check_stage_op <= check_stage_op;
                 delayed_reg_rd_stage_op <= invalid_op_bubble;
+            end else if (recover_from_stall) begin
+                recorded_check_stage_op <= invalid_op_bubble;
+            end
+
+            // Accumulation in progress
+            if (exe_stage_op.m_op == MM_O || exe_stage_op.m_op == MV_O) begin
+                m_accumulate_in_progress <= 1'b1;
+            end else if(m_complete_acc_writeback) begin
+                m_accumulate_in_progress <= 1'b0;
             end
             
         end

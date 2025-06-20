@@ -41,12 +41,12 @@ module fp_systolic_data_streamer #(
             store_counter   <= '0;
             stream_in_valid <= '0;
         end else begin
-            for (int i = 0; i < COMPUTE_DIM; i++) begin
-                if ((store_counter == i & data_in_valid)) begin
-                    data_array_queue[store_counter]    <= data_in;
-                    store_counter <= store_counter + 'b1;
-                end else begin
-                    if (data_out_ready) begin
+            if (data_in_valid & stream_in_ready) begin
+                for (int i = 0; i < COMPUTE_DIM; i++) begin
+                    if ((store_counter == i)) begin
+                        data_array_queue[store_counter]    <= data_in;
+                        store_counter       <= store_counter + 'b1;
+                    end else begin
                         data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
                     end
                 end
@@ -56,14 +56,12 @@ module fp_systolic_data_streamer #(
     end
 
     always_comb begin
-        if (stream_in_ready) begin
-            for (int i = 0; i < COMPUTE_DIM; i++) begin
-                stream_data_out[i] = data_array_queue[i][0];
-            end
+        for (int i = 0; i < COMPUTE_DIM; i++) begin
+            stream_data_out[i] = data_array_queue[i][0];
         end
     end
-    assign data_in_ready = stream_in_ready;
 
+    assign data_in_ready = stream_in_ready;
     logic data_element_out_valid, data_scale_out_valid;
     logic data_element_out_ready, data_scale_out_ready;
 

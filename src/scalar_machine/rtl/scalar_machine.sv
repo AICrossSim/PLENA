@@ -14,10 +14,8 @@ Status      : Under Testing
 
 module scalar_machine import precision_pkg::*;  #(
     // Simulation Purpose
-    `ifdef SIMULATION
-        parameter string FP_MEM_INIT_FILE = "",
-        parameter string FIXED_MEM_INIT_FILE = ""
-    `endif
+    parameter string FP_MEM_INIT_FILE = "",
+    parameter string FIXED_MEM_INIT_FILE = ""
 ) (
     input   logic clk,
     input   logic rst,

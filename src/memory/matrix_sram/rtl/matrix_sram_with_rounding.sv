@@ -7,6 +7,7 @@ Description :
             : This module supports parallel row / column read and write.
             : The addressing mode is Little Endian.
             ：The units for the address is Byte
+            : Note the read process take 2 cycles to complete.
 Status      : Passed Simple Row/Col Read/Write Tests
 */
 

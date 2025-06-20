@@ -48,7 +48,7 @@ logic [SubSRAM_Amount-1:0] individual_subs_sram_write_response ;
 logic [SubSRAM_Amount-1:0] individual_subs_sram_read_valid ;
 logic read_data_valid;
 logic wen;
-logic [AddrLen-1:0] sram_waddr_delayed;
+logic [AddrLen-1:0] sram_waddr_delayed, sram_raddr_delayed;
 
 // Control Signals
 always_comb begin
@@ -59,6 +59,7 @@ end
 always_ff @(posedge clk) begin
     wen <= wen_req;
     sram_waddr_delayed <= sram_waddr;
+    sram_raddr_delayed <= sram_raddr;
 end
 
 // Instantiate the sub SRAMs
@@ -96,7 +97,7 @@ wdata_transform #(
     .clk            (clk),
     .wreq           (wen_req),
     .in_data        (write_data),
-    .addr           (sram_waddr),
+    .addr           (sram_waddr_delayed),
     .sub_sram_wdata (sub_sram_wdata)
 );
 
@@ -108,7 +109,7 @@ rdata_transform #(
     .Parallel_Rd_Dim(Parallel_Rd_Dim)
 ) rdata_transform_init (
     .in_data        (sub_sram_rdata),
-    .sram_addr      (sram_raddr),
+    .sram_addr      (sram_raddr_delayed),
     .read_data_valid(read_data_valid),
     .out_data       (out_data)
 );

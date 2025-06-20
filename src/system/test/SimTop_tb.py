@@ -23,7 +23,7 @@ from functools import partial
 import random
 import argparse
 from pathlib import Path
-
+from cfl_cocotb.fp_generation import FpGenerator
 
 # parser = argparse.ArgumentParser(description="Greet someone.")
 # parser.add_argument("--benchmark", type=str, default="general")
@@ -35,11 +35,23 @@ current_path = Path(__file__).resolve().parent
 
 testcase_name       = "projection"
 instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
-hbm_element_file    = f"{current_path}/workload/hbm_ele.mem"
-hbm_scale_file      = f"{current_path}/workload/hbm_scale.mem"
+hbm_element_file    = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
+hbm_scale_file      = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
+hbm_write_element_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_ele.mem"
+hbm_write_element_v_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_ele.mem"
+hbm_write_scale_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_scale.mem"
+hbm_write_scale_v_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_scale.mem"
+vector_mem_result_file = f"{current_path.parent.parent.parent}/test/result_mem/vector_result.mem"
 fp_mem_file         = f"{current_path}/workload/fp.mem"
 fixed_mem_file      = f"{current_path}/workload/fixed.mem"
 INSTRUCTION_LENGTH = 16
+
+fp_exp = 7
+fp_mant = 8
+mlen = 8
+fp_gen = FpGenerator(fp_exp, fp_mant)
+
+
 
 
 class SimTOP(Testbench):
@@ -81,13 +93,39 @@ class SimTOP(Testbench):
 
 @cocotb.test()
 async def test(dut):
-    # cocotb.start_soon(check_signal(dut))
+    cocotb.start_soon(record_data_on_trigger(dut=dut.dut.matrix_machine_init.matrix_compute_unit, clk=dut.clk, trigger_signal=dut.dut.matrix_machine_init.matrix_compute_unit.v1_in_valid, output_file=f"{current_path}/log/recorded_data.txt"))
     tb = SimTOP(dut, hbm_element_file, hbm_scale_file, instr_file)
     await tb.run_test()
 
-async def check_signal(dut):
-    await Timer(40, units="ns")
 
+@cocotb.coroutine
+async def record_data_on_trigger(dut, clk, trigger_signal, num_cycles=10, output_file="recorded_data.txt"):
+    await RisingEdge(trigger_signal)
+    dut._log.info("Trigger detected. Recording begins.")
+
+    with open(output_file, "w") as f:
+        for cycle in range(num_cycles):
+            await RisingEdge(clk)
+
+            if dut.v1_in_valid.value:
+                # for i, v in enumerate(dut.v1_data.value):
+                converted_v1_data = fp_gen.translate_packed_array_fp(mlen, fp_exp, fp_mant, dut.v1_data.value)
+                f.write(f"V1 Cycle {cycle} - \n")
+                f.write(f"[")
+                for i, v in enumerate(converted_v1_data):
+                    f.write(f"{v}, ")
+                f.write(f"]\n")
+
+            if dut.v2_in_valid.value:
+                # for i, v in enumerate(dut.v2_data.value):
+                converted_v2_data = fp_gen.translate_packed_array_fp(mlen, fp_exp, fp_mant, dut.v2_data.value)
+                f.write(f"V2 Cycle {cycle} - \n")
+                f.write(f"[")
+                for i, v in enumerate(converted_v2_data):
+                    f.write(f"{v}, ")
+                f.write(f"]\n")
+
+    dut._log.info(f"Recording complete. Data saved to {output_file}")
 
 @pytest.mark.dev
 def SimToP_test():
@@ -122,7 +160,12 @@ def SimToP_test():
                 "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{hbm_element_file}\"",
                 "FAKE_HBM_SCALE_INIT_FILE": f"\"{hbm_scale_file}\"",
                 "FP_MEM_INIT_FILE": f"\"{fp_mem_file}\"",
-                "FIXED_MEM_INIT_FILE": f"\"{fixed_mem_file}\""
+                "FIXED_MEM_INIT_FILE": f"\"{fixed_mem_file}\"",
+                "VECTOR_MEM_RESULT_FILE": f"\"{vector_mem_result_file}\"",
+                "FAKE_HBM_ELEMENT_WRITE_M_FILE": f"\"{hbm_write_element_m_file}\"",
+                "FAKE_HBM_ELEMENT_WRITE_V_FILE": f"\"{hbm_write_element_v_file}\"",
+                "FAKE_HBM_SCALE_WRITE_M_FILE": f"\"{hbm_write_scale_m_file}\"",
+                "FAKE_HBM_SCALE_WRITE_V_FILE": f"\"{hbm_write_scale_v_file}\""
             }
         ],
         trace = True,

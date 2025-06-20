@@ -217,9 +217,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         end
     end
 
-
     logic [MLEN-1:0] [M_FP_EXP_WIDTH + M_FP_MANT_WIDTH : 0]     stored_result_v;
-    logic [MLEN-1:0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0]     quantized_result_v;
+    logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]     quantized_result_v;
     logic stored_result_valid, stored_result_ready;
 
     skid_buffer #(
@@ -238,29 +237,29 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Quantize into Required Precision for Storage
     generate;
         for (genvar i = 0; i < MLEN; i++) begin : gen_quantize
-            fp_quantizer #(
-                .IN_EXP_WIDTH(M_FP_EXP_WIDTH),
-                .IN_MANT_WIDTH(M_FP_MANT_WIDTH),
-                .OUT_EXP_WIDTH(S_FP_EXP_WIDTH),
-                .OUT_MANT_WIDTH(S_FP_MANT_WIDTH)
-            ) quantizer_inst (
-                .in_fp(stored_result_v[i]),
-                .out_fp(quantized_result_v[i])
+            fp_ieee_casting #(
+                .IN_EXP_WIDTH   (M_FP_EXP_WIDTH),
+                .IN_MANT_WIDTH  (M_FP_MANT_WIDTH),
+                .OUT_EXP_WIDTH  (V_FP_EXP_WIDTH),
+                .OUT_MANT_WIDTH (V_FP_MANT_WIDTH)
+            ) cast_inst (
+                .data_in      (stored_result_v[i]),
+                .data_out     (quantized_result_v[i])
             );
         end
     endgenerate
 
     skid_buffer #(
-        .DATA_WIDTH(MLEN * (S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1))
+        .DATA_WIDTH     (MLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
     ) quantized_result_buffer (
         .clk(clk),
         .rst(rst),
-        .data_in(quantized_result_v),
-        .data_in_valid(stored_result_valid),
-        .data_in_ready(stored_result_ready),
-        .data_out(out_v_fp),
-        .data_out_valid(out_valid),
-        .data_out_ready(out_ready)
+        .data_in        (quantized_result_v),
+        .data_in_valid  (stored_result_valid),
+        .data_in_ready  (stored_result_ready),
+        .data_out       (out_v_fp),
+        .data_out_valid (out_valid),
+        .data_out_ready (out_ready)
     );
 
 endmodule
