@@ -72,6 +72,7 @@ if __name__ == "__main__":
     # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
     rand_gen.tensor_gen()
     weight = rand_gen.tensor_load()
+    print("weight", weight)
     blocks, bias = rand_gen.quantize_tensor(weight)
     map_data_to_fake_hbm(   blocks=blocks,
                             element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
