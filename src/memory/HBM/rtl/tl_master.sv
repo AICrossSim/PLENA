@@ -35,10 +35,12 @@ module tl_master #(
   // Status Indicators
   output logic fetch_data_valid,
   output logic complete_fetch,
+  output logic ready_to_write,
 
   `TL_DECLARE_HOST_PORT(DataWidth, AddrWidth, SourceWidth, SinkWidth, host)
 );
 
+  localparam WRITE_SIZE = $clog2(DataWidth / 8);
   import tl_pkg::*;
 
   `TL_DECLARE(DataWidth, AddrWidth, SourceWidth, SinkWidth, host);
@@ -65,6 +67,7 @@ module tl_master #(
   int continuous_write_counter;
   logic previous_d_valid;
 
+  assign ready_to_write = host_a_ready;
   // FSM State register
   always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -98,7 +101,7 @@ module tl_master #(
       end
 
       // Increment the continuous write counter
-      if (state == SEND_WREQ && host_a_ready && write_en) begin
+      if (state == SEND_WREQ && write_en && host_a_ready) begin
         continuous_write_counter <= continuous_write_counter + 1;
       end else if (state == IDLE) begin
         continuous_write_counter <= 0; // Reset counter when idle
@@ -116,17 +119,20 @@ module tl_master #(
         IDLE: begin
           host_a_valid   = 1'b0;
           if (req_en) begin
-            if (write_en) begin
-              next_a_opcode = PutFullData; // PutFullData
-              next_addr   = addr;
-              next_wdata  = write_data;
-              next_state  = SEND_WREQ;
-            end else begin
-              next_a_opcode = Get; // Get
-              next_addr   = addr;
-              next_state  = SEND_RREQ;
-            end
-          end 
+            next_a_opcode = Get; // Get
+            next_addr   = addr;
+            next_state  = SEND_RREQ;
+          end else if (write_en) begin
+            next_a_opcode = PutFullData;
+            next_addr   = addr;
+            next_wdata  = write_data;
+            next_state  = SEND_WREQ;
+          end else begin
+            next_a_opcode = PutFullData;
+            next_addr   = '0;
+            next_wdata  = '0;
+            next_state  = IDLE;
+          end
         end
 
         SEND_RREQ: begin
@@ -146,15 +152,18 @@ module tl_master #(
         SEND_WREQ: begin
           host_a_valid   = write_en;
           host_a.opcode  = next_a_opcode;
+          host_a.size    = WRITE_SIZE;
           if (previous_state == IDLE) begin
             host_a.data    = next_wdata;
           end else begin
             host_a.data    = write_data; // Use the latest write data
           end
           host_a.address = next_addr + continuous_write_counter * DataWidth / 8;
-          if (host_a_ready & continuous_write_counter == WRITE_AMOUNT - 1) begin
+          if (continuous_write_counter == WRITE_AMOUNT - 1 && host_a_ready) begin
             next_state = IDLE;
-          end 
+          end else begin
+            next_state = SEND_WREQ;
+          end
         end
 
 

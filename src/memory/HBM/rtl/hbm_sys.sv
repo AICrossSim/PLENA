@@ -227,7 +227,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(HBM_V_Prefetch_Amount)
+        .LOAD_AMOUNT(HBM_V_Prefetch_Amount),
+        .WRITE_AMOUNT(HBM_V_Writeback_Amount)
     ) vector_hbm_controller_init (
         .clk(clk),
         .rst(rst),

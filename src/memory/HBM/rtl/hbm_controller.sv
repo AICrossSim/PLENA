@@ -27,6 +27,7 @@ module hbm_controller #(
     parameter int   SourceWidth = 4, 
     parameter int   SinkWidth = 4,   
     parameter int   LOAD_AMOUNT = 4,
+    parameter int   WRITE_AMOUNT = 4,
     parameter SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
@@ -64,6 +65,7 @@ module hbm_controller #(
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_ele;
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_scale;
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  offset_addr;
+    logic ele_ready_to_write, scale_ready_to_write;
 
 
     // Address for element and scale
@@ -81,7 +83,7 @@ module hbm_controller #(
     end
 
     // TODO: teporary solution for HBM write ready signal, if in the future need a buffer if the critical path happens here.
-    assign hbm_write_ready = 1'b1;
+    assign hbm_write_ready = ele_ready_to_write && scale_ready_to_write;
 
     // -----------------------------
     // HBM element connection for TileLink
@@ -96,7 +98,8 @@ module hbm_controller #(
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(LOAD_AMOUNT)
+        .LOAD_AMOUNT(LOAD_AMOUNT),
+        .WRITE_AMOUNT(WRITE_AMOUNT)
     ) element_master (
         .clk(clk),
         .rst(rst),
@@ -109,6 +112,7 @@ module hbm_controller #(
         .write_data             (hbm_write_element),
         .write_mask             (hbm_ele_write_mask),
         .fetch_data_valid       (prefetch_data_valid),
+        .ready_to_write         (ele_ready_to_write),
         `TL_CONNECT_HOST_PORT   (host, tl_element)
     );
 
@@ -140,7 +144,8 @@ module hbm_controller #(
         .AddrWidth(HBM_ADDR_WIDTH),
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(LOAD_AMOUNT)
+        .LOAD_AMOUNT(LOAD_AMOUNT),
+        .WRITE_AMOUNT(WRITE_AMOUNT)
     ) scale_master (
         .clk(clk),
         .rst(rst),
@@ -149,6 +154,7 @@ module hbm_controller #(
         .addr               (hbm_raddr_for_scale),
         .fetch_data         (prefetch_scale),
         .fetch_data_ready   (prefetch_scale_data_ready),
+        .ready_to_write     (scale_ready_to_write),
         .write_data         (hbm_write_scale),
         .write_mask         (hbm_scale_write_mask),
         `TL_CONNECT_HOST_PORT(host, tl_scale)

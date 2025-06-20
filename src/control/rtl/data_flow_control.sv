@@ -90,7 +90,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     localparam M_LD_COUNT_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
     localparam M_PF_COUNT_WIDTH = $clog2(HBM_M_Prefetch_Amount);
     localparam V_PF_COUNT_WIDTH = $clog2(HBM_V_Prefetch_Amount);
-    localparam H_WR_COUNT_WIDTH = $clog2(HBM_V_Writeback_Amount);
+    localparam HBM_WRITE_AMOUNT = HBM_V_Writeback_Amount + 2;   // 2 for 
+    localparam H_WR_COUNT_WIDTH = $clog2(HBM_WRITE_AMOUNT);
 
 
     // Memory Execution Control and Dependency Monitor
@@ -473,11 +474,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 hbm_write_counter           <= 'b0;
                 v_v_b_load                  <= 1'b0;
                 v_sram_mxfp_req_b           <= 1'b1;
-            end else if (continuous_write_to_hbm && hbm_write_counter < HBM_V_Writeback_Amount && hbm_ready_to_write) begin
+            end else if (continuous_write_to_hbm && hbm_write_counter < HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Intermediate HBM Writeback to the scratchpad sram
                 v_sram_mxfp_req_b           <= 1'b1;
                 hbm_write_counter           <= hbm_write_counter + 'b1;
-            end else if (hbm_write_counter == HBM_V_Writeback_Amount && hbm_ready_to_write) begin
+            end else if (hbm_write_counter == HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Finish HBM Writeback, reset the counter
                 v_sram_mxfp_req_b           <= 1'b0;
                 continuous_write_to_hbm <= 1'b0;

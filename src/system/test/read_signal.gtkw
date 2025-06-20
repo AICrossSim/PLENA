@@ -1,22 +1,24 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jun 20 11:27:30 2025
+[*] Fri Jun 20 14:48:59 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri Jun 20 11:26:19 2025"
-[dumpfile_size] 86257829
+[dumpfile_mtime] "Fri Jun 20 14:47:37 2025"
+[dumpfile_size] 86501743
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 936300
+[timestart] 0
 [size] 3428 1359
 [pos] 137373 149931
-*-16.919439 1520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.919439 1598500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
+[treeopen] SimTop.dut.hbm_interface_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
-[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.
-[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.scale_master.
+[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.
+[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.
+[treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.data_upsizer.
 [treeopen] SimTop.dut.matrix_machine_init.gen_mxfp_2_fp_convert[0].
 [treeopen] SimTop.dut.matrix_machine_init.gen_quantize[0].
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].
@@ -36,9 +38,9 @@
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[1].
 [treeopen] SimTop.dut.matrix_sram.output_rescale[0].
 [treeopen] SimTop.dut.matrix_sram.output_rescale[0].output_rescale_block[0].
-[treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
+[treeopen] SimTop.fake_hbm_v_element.
 [treeopen] SimTop.fake_hbm_v_element.bram_inst.
 [sst_width] 393
 [signals_width] 358
@@ -63,40 +65,26 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_ins
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.in_left_data[15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.in_top_data[15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[0][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[1][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[2][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[3][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[4][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[5][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[6][15:0]
+SimTop.dut.vector_sram.port_b_fp_out_internal[7][15:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.in_left_ready
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.reg_left_data[15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.reg_top_data[15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.mul_result[15:0]
-SimTop.dut.scalar_machine_init.fixed_reg_file.mem[5][31:0]
-SimTop.dut.vector_sram.translated_port_a_addr[6:0]
-SimTop.dut.vector_sram.port_a_addr[31:0]
-@28
-SimTop.dut.vector_sram.port_a_write_en
-SimTop.dut.vector_sram.port_a_req
-SimTop.dut.exe_stage_op.h_op[1:0]
-SimTop.dut.exe_stage_op.h_op[1:0]
-SimTop.dut.pipeline_control_init.determine_stage_op.h_op[1:0]
-SimTop.dut.port_b_mxfp_out_valid
-SimTop.dut.v_sram_wen_b
-SimTop.dut.v_sram_req_b
-SimTop.dut.data_flow_init.continuous_write_to_hbm
-SimTop.dut.hbm_interface_init.hbm_write_v_en
+SimTop.fake_hbm_v_element.bram_we
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.state[1:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_write_en
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.write_en
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.state[1:0]
 SimTop.dut.hbm_interface_init.hbm_write_v_ready
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_write_ready
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.ele_ready_to_write
 SimTop.dut.data_flow_init.v_sram_mxfp_req_b
-SimTop.dut.port_b_mxfp_out_valid
-SimTop.dut.vector_sram.mxfp_fp_convert_port_b_in_valid[1:0]
-SimTop.dut.vector_sram.port_b_mxfp_req
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.state[1:0]
 @22
-SimTop.dut.hbm_interface_init.hbm_write_v_element[0][7:0]
-SimTop.dut.hbm_interface_init.hbm_write_v_element[1][7:0]
-SimTop.dut.hbm_interface_init.hbm_write_v_element[2][7:0]
-SimTop.dut.hbm_interface_init.hbm_write_v_element[3][7:0]
-SimTop.dut.hbm_interface_init.hbm_write_v_element[4][7:0]
-SimTop.dut.hbm_interface_init.hbm_write_v_element[5][7:0]
-SimTop.dut.hbm_interface_init.hbm_write_v_element[6][7:0]
-@23
-SimTop.dut.hbm_interface_init.hbm_write_v_element[7][7:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.continuous_write_counter[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
