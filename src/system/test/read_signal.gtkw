@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Jun 18 20:29:09 2025
+[*] Fri Jun 20 00:32:34 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed Jun 18 19:29:15 2025"
-[dumpfile_size] 86501073
+[dumpfile_mtime] "Fri Jun 20 00:29:24 2025"
+[dumpfile_size] 86258285
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 443500
+[timestart] 0
 [size] 3428 1359
 [pos] 137373 149931
-*-15.919439 674300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.919439 980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
@@ -17,10 +17,8 @@
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.scale_master.
-[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.gen_mxfp_2_fp_convert[0].
 [treeopen] SimTop.dut.matrix_machine_init.gen_quantize[0].
-[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.
@@ -39,7 +37,6 @@
 [treeopen] SimTop.dut.matrix_sram.output_rescale[0].
 [treeopen] SimTop.dut.matrix_sram.output_rescale[0].output_rescale_block[0].
 [treeopen] SimTop.dut.pipeline_control_init.
-[treeopen] SimTop.dut.scalar_machine_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
 [treeopen] SimTop.fake_hbm_v_element.bram_inst.
@@ -49,6 +46,7 @@
 [sst_vpaned_height] 1029
 @28
 SimTop.dut.clk
+SimTop.dut.pipeline_control_init.pipeline_stall
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.mul_result[15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.acc_result[31:0]
@@ -70,7 +68,17 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_ins
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.reg_left_data[15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.reg_top_data[15:0]
-@23
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.mul_result[15:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[5][31:0]
+SimTop.dut.vector_sram.translated_port_a_addr[6:0]
+SimTop.dut.vector_sram.port_a_addr[31:0]
+@28
+SimTop.dut.vector_sram.port_a_write_en
+SimTop.dut.vector_sram.port_a_req
+SimTop.dut.exe_stage_op.h_op[1:0]
+SimTop.dut.hbm_write_data_valid
+SimTop.dut.exe_stage_op.h_op[1:0]
+@29
+SimTop.dut.pipeline_control_init.determine_stage_op.h_op[1:0]
 [pattern_trace] 1
 [pattern_trace] 0

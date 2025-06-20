@@ -114,7 +114,7 @@ module pipeline_control #(
         end else if (sfu_in_use & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
             // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
             pipeline_stall = 1'b1;
-        end else if (stall_for_mem_dependency) begin
+        end else if (mem_vwrite_stall_req) begin
             // Unconditionally stall the overall pipeline.
             pipeline_stall   = 1'b1;                
         end else begin
@@ -126,7 +126,6 @@ module pipeline_control #(
 
     // Memory Monitor
     logic           mem_vwrite_stall_req;
-    logic           stall_for_mem_dependency;
 
     addr_monitor #(
         .ADDR_WIDTH(FIXED_DATA_WIDTH),
@@ -136,14 +135,12 @@ module pipeline_control #(
         .rst(rst),
         .determine_stage_op     (determine_stage_op),
         .exe_stage_op           (exe_stage_op),
-        // .fixed_addr_1           (fixed_addr_1),
-        // .fixed_addr_2           (fixed_addr_2),
         .v_sram_addr_a          (v_sram_addr_a),
         .v_sram_addr_b          (v_sram_addr_b),
         .v_sram_wen_a           (v_sram_wen_a),
         .v_sram_wen_b           (v_sram_wen_b),
         .stall_req              (mem_vwrite_stall_req),
-        .sys_pipe_stall         (pipeline_stall)
+        .sys_pipe_stall         (stall_in_process)
     );
 
     // Merge the decoded op with the register read outcome.
@@ -181,7 +178,6 @@ module pipeline_control #(
                 w_from_m            : 1'b0
             };
             stall_in_process            <= 1'b0;
-            stall_for_mem_dependency    <= 1'b0;
             m_accumulate_in_progress    <= 1'b0;
 
         end else begin
@@ -198,7 +194,6 @@ module pipeline_control #(
             end else begin
                 stall_in_process <= 1'b0;
             end
-            stall_for_mem_dependency <= mem_vwrite_stall_req;
 
             if (recover_from_stall) begin
                 // Recover from Stall

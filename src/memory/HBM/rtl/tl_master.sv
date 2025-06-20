@@ -16,6 +16,7 @@ module tl_master #(
   parameter int SourceWidth = 1,
   parameter int SinkWidth = 1,
   parameter int LOAD_AMOUNT = 1, 
+  parameter int WRITE_AMOUNT = 1,
   localparam int MASK_WIDTH = DataWidth / 8
 )(
   input  logic clk,
@@ -44,10 +45,10 @@ module tl_master #(
   `TL_BIND_HOST_PORT(host, host);
 
   typedef enum logic [1:0] {
-    IDLE, SEND_REQ, WAIT_RESP
+    IDLE, SEND_RREQ, SEND_WREQ, WAIT_RESP
   } state_t;
 
-  state_t state, next_state;
+  state_t state, next_state, previous_state;
   tl_a_op_e next_a_opcode;
   logic [AddrWidth-1:0] next_addr;
   logic [DataWidth-1:0] next_wdata;
@@ -61,17 +62,20 @@ module tl_master #(
 
   // Continuous Loading
   int continuous_prefetch_counter;
+  int continuous_write_counter;
   logic previous_d_valid;
 
   // FSM State register
   always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
       state <= IDLE;
+      previous_state <= IDLE;
       r_fetch_data <= '0;
       r_fetch_data_valid <= 1'b0;
       continuous_prefetch_counter <= 0;
       previous_d_valid <= 1'b0;
     end else begin
+      previous_state <= state;
       state <= next_state;
       previous_d_valid <= host_d_valid;
 
@@ -85,12 +89,19 @@ module tl_master #(
       end
 
       // Increment the continuous prefetch counter
-      if (state == SEND_REQ && next_state == WAIT_RESP) begin
+      if (state == SEND_RREQ && next_state == WAIT_RESP) begin
         continuous_prefetch_counter <= 0; // Reset counter when waiting for response
-      end else if (state == SEND_REQ && host_a_ready) begin
+      end else if (state == SEND_RREQ && host_a_ready) begin
         continuous_prefetch_counter <= continuous_prefetch_counter + 1;
       end else if (state == IDLE) begin
         continuous_prefetch_counter <= 0; // Reset counter when idle
+      end
+
+      // Increment the continuous write counter
+      if (state == SEND_WREQ && host_a_ready && write_en) begin
+        continuous_write_counter <= continuous_write_counter + 1;
+      end else if (state == IDLE) begin
+        continuous_write_counter <= 0; // Reset counter when idle
       end
     end
   end
@@ -99,13 +110,8 @@ module tl_master #(
   
   // FSM combinational logic
   always_comb begin
-    if (rst) begin
-      next_state = IDLE;
-      
-    end else begin
-      host_d_ready  = fetch_data_ready;
-      host_a.mask    = write_mask;
-      // next_state = state;
+      host_d_ready    = fetch_data_ready;
+      host_a.mask     = write_mask;
       case (state)
         IDLE: begin
           host_a_valid   = 1'b0;
@@ -114,31 +120,43 @@ module tl_master #(
               next_a_opcode = PutFullData; // PutFullData
               next_addr   = addr;
               next_wdata  = write_data;
-              next_state  = SEND_REQ;
+              next_state  = SEND_WREQ;
             end else begin
               next_a_opcode = Get; // Get
               next_addr   = addr;
-              next_state  = SEND_REQ;
+              next_state  = SEND_RREQ;
             end
           end 
         end
 
-        SEND_REQ: begin
+        SEND_RREQ: begin
           host_a_valid   = 1'b1;
           host_a.opcode  = next_a_opcode;
-          if (next_a_opcode == PutFullData) begin // PutFullData
-            host_a.data = next_wdata;
-          end
           if (host_a_ready & continuous_prefetch_counter == LOAD_AMOUNT - 1) begin
             host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8;
             next_state = WAIT_RESP;
           end else if (host_a_ready) begin
             host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8;
-            next_state = SEND_REQ;
+            next_state = SEND_RREQ;
           end else begin
-            next_state = SEND_REQ;
+            next_state = SEND_RREQ;
           end
         end
+
+        SEND_WREQ: begin
+          host_a_valid   = write_en;
+          host_a.opcode  = next_a_opcode;
+          if (previous_state == IDLE) begin
+            host_a.data    = next_wdata;
+          end else begin
+            host_a.data    = write_data; // Use the latest write data
+          end
+          host_a.address = next_addr + continuous_write_counter * DataWidth / 8;
+          if (host_a_ready & continuous_write_counter == WRITE_AMOUNT - 1) begin
+            next_state = IDLE;
+          end 
+        end
+
 
         WAIT_RESP: begin
           host_a_valid   = 1'b0;
@@ -159,6 +177,5 @@ module tl_master #(
           next_state     = IDLE;
         end
       endcase
-    end
   end
 endmodule

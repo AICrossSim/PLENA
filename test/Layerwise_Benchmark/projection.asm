@@ -24,15 +24,3 @@ M_TMM_O x5, x1, x1;
 S_ADDI_FIX x4, x0, 0;
 
 H_STORE_V x5, x4, x1;
-
-S_ADDI_FIX x4, x4, 8;
-
-H_STORE_V x5, x4, x1;
-
-S_ADDI_FIX x4, x4, 8;
-
-H_STORE_V x5, x4, x1;
-
-S_ADDI_FIX x4, x4, 8;
-
-H_STORE_V x5, x4, x1;

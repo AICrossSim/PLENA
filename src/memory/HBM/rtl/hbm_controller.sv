@@ -43,7 +43,6 @@ module hbm_controller #(
     
     // HBM data writing
     input   logic                                   hbm_write_en,
-    input   logic                                   hbm_write_valid,
     output  logic                                   hbm_write_ready,
     input   logic   [ELE_WIDTH - 1 : 0]             hbm_write_element,
     input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,

@@ -90,6 +90,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     localparam M_LD_COUNT_WIDTH = $clog2(MATRIX_LOAD_ITERATION);
     localparam M_PF_COUNT_WIDTH = $clog2(HBM_M_Prefetch_Amount);
     localparam V_PF_COUNT_WIDTH = $clog2(HBM_V_Prefetch_Amount);
+    localparam H_WR_COUNT_WIDTH = $clog2(HBM_V_Writeback_Amount);
 
 
     // Memory Execution Control and Dependency Monitor
@@ -167,7 +168,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             m_sram_waddr = 'b0;
         end
 
-
     end
 
     // -----------------------------
@@ -228,7 +228,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 continuous_load_m_en    <= 1'b1;
             end else if (continuous_load_m_en) begin
                 if (m_m_ready) begin
-
                     // TODO : Not a good way to handle this case, maybe rewrite later.
                     if (p1_prefetch_data_state & !m_prefetch_data_not_ready) begin
                         m_m_valid <= 1'b1;
@@ -292,7 +291,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
 
     // Assuming the read cycle is 1 cycle for both ports.
     // Port A ->  R: Matrix Multiplicand Vector & Vector Operand (RS1)                          W: Vector Result from either Matrix or Vector Machine, 
-    // Port B ->  R: Vector Operand (RS2)  or HBM Write Data                                    W: Vector Prefetch
+    // Port B ->  R: Vector Operand (RS2)  or Load HBM Write Data                                    W: Vector Prefetch
     // For Port A, if loading it to the matrix machine, this takes extra cycle as we need to quantise the fp data (activation) into MX-FP format.
 
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
@@ -301,10 +300,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
     logic [FIXED_DATA_WIDTH - 1 : 0] hbm_waddr;
     logic port_b_prefetch_ready;
-    logic continuous_v_prefetch_en, continuous_load_v_for_matrix_en, continuous_v_write_from_matrix_en;
+    logic continuous_v_prefetch_en, continuous_load_v_for_matrix_en, continuous_v_write_from_matrix_en, continuous_write_to_hbm;
     logic [M_LD_COUNT_WIDTH : 0] v_sram_load_for_matrix_counter, v_sram_write_from_matrix_counter;
     logic load_for_gemv_en;
     logic [V_PF_COUNT_WIDTH : 0] v_sram_prefetch_counter;
+    logic [H_WR_COUNT_WIDTH : 0] hbm_write_counter;
     logic v_v_a_load, v_v_b_load;
     logic end_of_load_v_for_matrix;
     
@@ -371,6 +371,10 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             continuous_load_v_for_matrix_en     <= 1'b0;
             v_v_out_ready                   <= 1'b0;
             m_complete_acc_writeback        <= 1'b0;
+            hbm_write_counter               <= 'b0;
+            v_sram_load_for_matrix_counter  <= 'b0;
+            v_sram_write_from_matrix_counter <= 'b0;
+
         end else begin
             v_v_out_ready               <= 1'b1;
             v_v_a_valid                 <= v_v_a_load;
@@ -467,22 +471,37 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 hbm_load_write_data <= 1'b0;
                 v_sram_req_b        <= 1'b1;
             end else if (exe_stage_op.h_op == STORE_V & hbm_ready_to_write) begin
+                // Start HBM Writeback to the scratchpad sram
+                continuous_write_to_hbm   <= 1'b1;
+                hbm_write_counter         <= 'b0;
                 v_v_b_load          <= 1'b0;
                 hbm_load_write_data <= 1'b1;
                 v_sram_req_b        <= 1'b1;
+            end else if (continuous_write_to_hbm && hbm_write_counter < HBM_V_Writeback_Amount && hbm_ready_to_write) begin
+                // Intermediate HBM Writeback to the scratchpad sram
+                hbm_load_write_data <= 1'b1;
+                v_sram_req_b        <= 1'b1;
+                hbm_write_counter   <= hbm_write_counter + 'b1;
+            end else if (hbm_write_counter == HBM_V_Writeback_Amount && hbm_ready_to_write) begin
+                // Finish HBM Writeback, reset the counter
+                hbm_load_write_data <= 1'b0;
+                v_sram_req_b        <= 1'b0;
+                continuous_write_to_hbm <= 1'b0;
+                hbm_write_counter   <= 'b0;
             end else if (mem_write_control.w_s_sram_port_b_en && prefetch_v_valid) begin
-                // HBM Fetch to the scratchpad sram
+                // Start HBM Fetch to the scratchpad sram
                 continuous_v_prefetch_en <= 1'b1;
                 v_v_b_load                      <= 1'b0;
                 hbm_load_write_data             <= 1'b0;
                 hbm_v_req_prefetch_data         <= 1'b1;
                 v_sram_req_b                    <= 1'b1;
             end else if (continuous_v_prefetch_en & v_sram_prefetch_counter < HBM_V_Prefetch_Amount & v_sram_wen_b) begin
+                 // Intermediate HBM Fetch to the scratchpad sram
                 hbm_v_req_prefetch_data         <= 1'b1;
                 v_sram_req_b                    <= 1'b1;
                 v_sram_prefetch_counter         <= v_sram_prefetch_counter + 'b1;
             end else if (v_sram_prefetch_counter == HBM_V_Prefetch_Amount) begin
-                // Prefetching finished, reset the counter
+                // Finish Prefetching, reset the counter
                 hbm_v_req_prefetch_data         <= 1'b0;
                 v_sram_req_b                    <= 1'b0;
                 continuous_v_prefetch_en        <= 1'b0;

@@ -35,7 +35,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // Write Back to HBM
     input   logic                                 hbm_write_v_en,
     output  logic                                 hbm_write_v_ready,
-    input   logic                                 hbm_write_v_valid,
     input  logic   [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    hbm_write_v_element,
     input  logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]              hbm_write_v_scale,
 
@@ -151,7 +150,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .hbm_prefetch_en                    (m_hbm_prefetch_en),
         .hbm_addr                           (hbm_addr_out),
         .hbm_write_en                       (),
-        .hbm_write_valid                    (),
         .hbm_write_ready                    (),
         .hbm_write_element                  (),
         .hbm_write_scale                    (),
@@ -238,7 +236,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .hbm_prefetch_en                    (v_hbm_prefetch_en),
         .hbm_addr                           (hbm_addr_out),
         .hbm_write_en                       (hbm_write_v_en),
-        .hbm_write_valid                    (hbm_write_v_valid),
         .hbm_write_ready                    (hbm_write_v_ready),
         .hbm_write_element                  (hbm_write_v_element),
         .hbm_write_scale                    (hbm_write_v_scale),

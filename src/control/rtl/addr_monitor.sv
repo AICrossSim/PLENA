@@ -17,11 +17,7 @@ module addr_monitor#(
 
     // Execution Operation
     input   OP_BUNDLE determine_stage_op,  
-    input   OP_BUNDLE exe_stage_op,  
-
-    // // ---------- Monitor Operand Read Signals -----------
-    // input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
-    // input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_2,
+    input   OP_BUNDLE exe_stage_op,
 
     // ---------- Monitor SRAM Write Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_a,
