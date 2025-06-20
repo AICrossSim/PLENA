@@ -1,0 +1,242 @@
+import sys
+import torch
+import pdb
+import torch.nn as nn
+import torch.nn.functional as F
+import pdb
+from bitstring import BitArray
+from functools import partial
+from pathlib import Path
+
+FUNCTION_TABLE = {
+    "silu": nn.SiLU(),
+    "elu": nn.ELU(),
+    "sigmoid": nn.Sigmoid(),
+    "logsigmoid": nn.LogSigmoid(),
+    "softshrink": nn.Softshrink(),
+    "gelu": nn.GELU(),
+    "exp": torch.exp,
+    "power2": lambda x: torch.pow(2, x),
+    "softmax": torch.exp,
+    "isqrt": torch.sqrt,
+}
+
+class GenerateSVLut:
+    def __init__(self, function_name, parameter, path):
+        assert (
+            function_name in FUNCTION_TABLE
+        ), f"Function {function_name} not found in FUNCTION_TABLE"
+        self.f = FUNCTION_TABLE[function_name]
+        self.parameter = parameter
+        self.path = path
+
+    def quant_profile(self, bin_in):
+        bin_out = bin_in
+        return bin_out
+
+    def generate_lut_address(self):
+        return NotImplementedError
+
+    def generate_lut(self, lut_address: list):
+        lut = {}
+        for i in lut_address:
+            bin_out = self.quant_profile(i)
+            lut[i] = bin_out
+        return lut
+
+    def generate_sv(self,lut):
+        self.generate_lut()
+        return NotImplementedError
+
+    def pipeline(self):
+        lut_address = self.generate_lut_address(self)
+        lut = self.generate_lut(lut_address)
+        sv = self.generate_sv(lut)
+
+def generate_lookup(data_width: int, f_width: int, function: str, type="hex"):
+    f = FUNCTION_TABLE[function]
+    lut = {
+        "data_width": data_width,
+        "f_width": f_width,
+        "func": FUNCTION_TABLE[function],
+    }
+    # entries = 2 ** data_width
+    minval = float(-(2 ** (data_width - f_width - 1)))
+    maxval = (2 ** (data_width - 1) - 1) * 2 ** (-f_width)
+    i = minval
+    quanter = make_quantizer(data_width, f_width)
+    count = 0
+    iarr = []
+    while i <= maxval:
+        count += 1
+        iarr.append(i)
+        val = quanter(f(torch.tensor(i)))  # entry in the lookup table
+        lut[doubletofx(data_width=data_width, f_width=f_width, num=i, type=type)] = (
+            doubletofx(
+                data_width=data_width, f_width=f_width, num=val.item(), type=type
+            )
+        )
+        i += 2 ** -(f_width)
+    return lut
+
+
+def aligned_generate_lookup(
+    in_data_width,
+    in_f_width,
+    data_width: int,
+    f_width: int,
+    function: str,
+    type="hex",
+    constant_mult=1,
+    floor=False,
+):
+    f = FUNCTION_TABLE[function]
+    lut = {
+        "data_width": data_width,
+        "f_width": f_width,
+        "in_data_width": data_width,
+        "in_f_width": f_width,
+        "func": FUNCTION_TABLE[function],
+    }
+    # entries = 2 ** data_width
+    minval = float(-(2 ** (in_data_width - in_f_width - 1)))
+    maxval = (2 ** (in_data_width - 1) - 1) * 2 ** (-in_f_width)
+    inp_quanter = make_quantizer(in_data_width, in_f_width, floor)
+    quanter = make_quantizer(data_width, f_width, floor)
+    count = 0
+    iarr = []
+    pi = float(0)
+    while pi <= maxval:
+        count += 1
+        iarr.append(pi)
+        val = quanter(f(torch.tensor(pi * constant_mult)))  # entry in the lookup table
+        lut[
+            doubletofx(data_width=in_data_width, f_width=in_f_width, num=pi, type=type)
+        ] = doubletofx(
+            data_width=data_width, f_width=f_width, num=val.item(), type=type
+        )
+        pi += 2 ** -(in_f_width)
+
+    if function not in ["isqrt"]:
+        i = minval
+        while i <= -1 * 2 ** -(in_f_width):
+            count += 1
+            iarr.append(i)
+            val = quanter(
+                f(torch.tensor(i * constant_mult))
+            )  # entry in the lookup table
+            lut[
+                doubletofx(
+                    data_width=in_data_width, f_width=in_f_width, num=i, type=type
+                )
+            ] = doubletofx(
+                data_width=data_width, f_width=f_width, num=val.item(), type=type
+            )
+            i += 2 ** -(in_f_width)
+
+    iarr = [(x * 2 ** (in_f_width)) for x in iarr]
+    # print(iarr)
+    return lut
+
+def testlookup(lut):
+    d = lut["data_width"]
+    f = lut["f_width"]
+    func = lut["func"]
+    idwidth = lut["in_data_width"]
+    ifracwidth = lut["in_f_width"]
+    quanter = make_quantizer(d, f)
+    for k, v in lut.items():
+        if v == d or v == f or v == func or v == idwidth or v == ifracwidth:
+            continue
+        inp = fxtodouble(idwidth, ifracwidth, k)
+        outactual = func(torch.tensor(inp))
+        outactual = quanter(outactual).item()
+        outlut = fxtodouble(d, f, v)
+        failed = abs(outactual - outlut) > 0.001
+        if failed:
+            print("bin val", k)
+            print("to double", inp)
+            print("double from nn silu", outactual)
+            print(f"double from lut {outlut}, bin from lut {v}")
+            print("\n")
+
+
+def lookup_to_file(
+    in_data_width,
+    in_f_width,
+    data_width: int,
+    f_width: int,
+    function: str,
+    file_path=None,
+):
+    dicto = aligned_generate_lookup(
+        in_data_width=in_data_width,
+        in_f_width=in_f_width,
+        data_width=data_width,
+        f_width=f_width,
+        function=function,
+        type="bin",
+    )
+    dicto = {
+        k: v
+        for k, v in dicto.items()
+        if k not in ["data_width", "f_width", "func", "in_data_width", "in_f_width"]
+    }
+    with open(file_path, "w") as file:
+        # Write values to the file separated by spaces
+        file.write("\n".join(str(value) for value in dicto.values()))
+        file.write("\n")
+
+
+
+
+def inttobit(data_width:int, num: float, signed: bool = True):
+    intbits = BitArray(int=num, length=data_width) if signed else BitArray(uint=num, length=data_width)
+    return intbits
+
+
+def generate_sv_lut(
+    function_name,
+    in_data_width,
+    in_f_width,
+    data_width,
+    f_width,
+    path=None,  # maybe not accept path as a parameter due to redundantly-generated exp_lut
+    path_with_dtype=False,
+    constant_mult=1,
+    floor=False,
+):
+    assert (
+        function_name in FUNCTION_TABLE
+    ), f"Function {function_name} not found in FUNCTION_TABLE"
+
+    if path_with_dtype:
+        end = f"_{data_width}_{f_width}"
+    else:
+        end = ""
+
+    p = Path(__file__).parents[1] / "generated_lut" / "rtl"
+    lookup_to_sv_file(
+        in_data_width,
+        in_f_width,
+        data_width,
+        f_width,
+        function_name,
+        str(p / f"{function_name}_lut{end}.sv"),
+        path_with_dtype=path_with_dtype,
+        constant_mult=constant_mult,
+        floor=floor,
+    )
+
+
+if __name__ == "__main__":
+    dwidths = [12]
+    for func, _ in FUNCTION_TABLE.items():
+        generate_sv_lut(func, 8, 4, data_width=8, f_width=4, path_with_dtype=False)
+
+    # for k, v in FUNCTION_TABLE.items():
+    # generate_sv_lut(k, 16, 8, 16, 8, dir="/home/bardia/code/adls/project/report_test", path_with_dtype=True)
+
+    # dicto = aligned_generate_lookup(in_data_width=16, in_f_width=8, data_width=8, f_width=4, function='exp', type="bin")
+    # # dicto = {k: v for k, v in dicto.items() if k not in ['data_width', 'f_width', 'func', 'in_data_width', 'in_f_width']}
+    # testlookup(dicto)
