@@ -41,13 +41,6 @@ class FPCPMultTB(CombinationalTestbench):
         torch_a = torch.randn(num) * 10 - 5
         torch_b = torch.randn(num) * 10 - 5
 
-        a = torch.tensor([0.75, -1.25, 0.0, 0.5])
-        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(
-            a, 8, 4)
-        result = pack_fp_to_bin(a_exp, a_mant, 4, 3)
-        breakpoint()
-        
-
         width = q_config["mant_width"] + q_config["exp_width"]
         exponent_width = q_config["exp_width"]
 
@@ -65,6 +58,7 @@ class FPCPMultTB(CombinationalTestbench):
         self.log.debug(f"debug_out : {debug_out}")
         self.log.debug(f"debug_exp : {debug_exp}")
         self.log.debug(f"debug_mant : {debug_mant}")
+        _minifloat_ieee_quantize_hardware(torch.tensor([196]), 4,3)
         qout, out_exp, out_mant = _minifloat_ieee_quantize_hardware(out, out_width, out_exponent_width)
 
         inputs_a = pack_fp_to_bin(a_exp, a_mant, q_config["exp_width"], q_config["mant_width"])
@@ -87,15 +81,15 @@ class FPCPMultTB(CombinationalTestbench):
     def check_output(self, input, output):
         self.log.debug(f"Expected result : {input}, got: {int(output)}")
         self.log.debug(f"----------------{self.dut}---------")
-        get_dut_attributes(self.dut, self.log, "signed_integer")
-        self.log.debug(f"----------------{self.dut.fp_casting}---------")
-        get_dut_attributes(self.dut.fp_casting, self.log, None)
-        self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
-        get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
-        self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
-        get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
-        self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
-        get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
+        get_dut_attributes(self.dut, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting}---------")
+        # get_dut_attributes(self.dut.fp_casting, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
+        # get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
+        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
+        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
 
         assert input == output, f"Expected {input}, but got {int(output)}"
 
@@ -103,7 +97,7 @@ class FPCPMultTB(CombinationalTestbench):
 async def test_fp_cp_mult(dut):
     set_excepthook()
     tb = FPCPMultTB(dut)
-    tb.log.setLevel(logging.DEBUG)
+    tb.log.setLevel(logging.INFO)
     await tb.run_test(10)
     # try:
     #     tb = FPCPMultTB(dut)
@@ -127,8 +121,8 @@ def test_simple_fp_addition():
             str(SRC_PATH / "basic_components/buffer")
         ],
         module_param_list=[
-            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            # {"EXP_WIDTH" : 3, "MANT_WIDTH" : 4, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            # {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 3, "EXT_EXP_WIDTH" : 1},
             # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
         ],
         trace = False,

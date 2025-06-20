@@ -77,10 +77,10 @@ module fp_ieee_exponent_casting #(
     assign out_exp = in_exp - SHIFT_EXP;
 
     always_comb begin
-        if (in_exp <= EXP_LOWER_BOUND) begin
+        if (in_exp < EXP_LOWER_BOUND) begin
             data_out = {1'b0, {OUT_EXP_WIDTH{1'b0}}, {MANT_WIDTH{1'b0}}};
         end
-        else if (in_exp >= EXP_UPPER_BOUND) begin
+        else if (in_exp > EXP_UPPER_BOUND) begin
             data_out = {data_in[IN_EXP_WIDTH + MANT_WIDTH], {(OUT_EXP_WIDTH-1){1'b1}}, 1'b0, {MANT_WIDTH{1'b1}}};
         end
         else begin
