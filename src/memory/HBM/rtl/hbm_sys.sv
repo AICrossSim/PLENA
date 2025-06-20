@@ -90,7 +90,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // -----------------------------
     // HBM Address Mapping
     // -----------------------------
-    logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out;
+    logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out, recorded_hbm_waddr_out;
     address_mapper #(
         .ADDR_WIDTH         (ADDR_WIDTH),
         .ADR_OPERAND_WIDTH  (ADR_OPERAND_WIDTH),
@@ -99,7 +99,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
-        .mapp_addr_en   (hbm_write_v_en || (exe_stage_op.h_op == PREFETCH_V) || (exe_stage_op.h_op == PREFETCH_M)),
+        .mapp_addr_en   (exe_stage_op.h_op != STALL_H),
         .set_addr_en    (exe_stage_op.c_op == SET_ADDR_REG),
         .addr_in_a      (exe_stage_op.addr_1),
         .addr_in_b      (exe_stage_op.addr_2),
@@ -108,6 +108,13 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .write_operand  (exe_stage_op.fixed_rd),
         .hbm_addr_out   (hbm_addr_out)
     );
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            recorded_hbm_waddr_out <= {HBM_ADDR_WIDTH{1'b0}};
+        end else if (exe_stage_op.h_op == STORE_V) begin
+            recorded_hbm_waddr_out <= hbm_addr_out;
+        end
+    end
 
 
     // -----------------------------
@@ -148,11 +155,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .prefetch_element_data_ready        (prefetch_m_element_ready),
         .prefetch_scale_data_ready          (prefetch_m_scale_ready),
         .hbm_prefetch_en                    (m_hbm_prefetch_en),
-        .hbm_addr                           (hbm_addr_out),
-        .hbm_write_en                       (),
-        .hbm_write_ready                    (),
-        .hbm_write_element                  (),
-        .hbm_write_scale                    (),
+        .hbm_raddr                          (hbm_addr_out),
         `TL_CONNECT_HOST_PORT(host_element, m_tl_element),
         `TL_CONNECT_HOST_PORT(host_scale, m_tl_scale)
     );
@@ -234,11 +237,12 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .prefetch_element_data_ready        (prefetch_v_element_ready),
         .prefetch_scale_data_ready          (prefetch_v_scale_ready),
         .hbm_prefetch_en                    (v_hbm_prefetch_en),
-        .hbm_addr                           (hbm_addr_out),
+        .hbm_raddr                          (hbm_addr_out),
         .hbm_write_en                       (hbm_write_v_en),
         .hbm_write_ready                    (hbm_write_v_ready),
         .hbm_write_element                  (hbm_write_v_element),
         .hbm_write_scale                    (hbm_write_v_scale),
+        .hbm_waddr                          (recorded_hbm_waddr_out),
         `TL_CONNECT_HOST_PORT(host_element, v_tl_element),
         `TL_CONNECT_HOST_PORT(host_scale, v_tl_scale)
     );

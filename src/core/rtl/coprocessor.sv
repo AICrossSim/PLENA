@@ -71,7 +71,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic hbm_v_prefetch_valid, hbm_v_prefetch_en;
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_m_element;
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetch_m_scale;
-    logic hbm_write_data_valid, hbm_write_data_ready;
+    logic hbm_ready_to_write;
     logic hbm_m_prefetch_in_progress, hbm_v_prefetch_in_progress;
     logic hbm_m_req_prefetch_data, hbm_v_req_prefetch_data;
 
@@ -182,6 +182,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .v_sram_addr_a              (v_sram_addr_a),
         .v_sram_mask_a              (v_sram_mask_a),
         .select_write_data_a        (select_write_data_a),
+        .v_sram_mxfp_req_b          (v_sram_mxfp_req_b),
         .v_sram_req_b               (v_sram_req_b),
         .v_sram_wen_b               (v_sram_wen_b),
         .v_sram_addr_b              (v_sram_addr_b),
@@ -189,8 +190,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .v_prefetch_data_not_ready  (v_prefetch_data_not_ready),
         .prefetch_m_valid           (hbm_m_prefetch_valid),
         .prefetch_v_valid           (hbm_v_prefetch_valid),
-        .hbm_ready_to_write         (hbm_write_data_ready),
-        .hbm_write_data_valid       (hbm_write_data_valid),
+        .hbm_ready_to_write         (hbm_ready_to_write),
         .hbm_m_req_prefetch_data    (hbm_m_req_prefetch_data),
         .hbm_v_req_prefetch_data    (hbm_v_req_prefetch_data)
     );
@@ -212,13 +212,14 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_s_out_valid,    v_s_out_ready;
 
     logic select_write_data_a;
-    logic v_sram_req_a, v_sram_req_b;
+    logic v_sram_req_a, v_sram_req_b, v_sram_mxfp_req_b;
     logic v_sram_wen_a, v_sram_wen_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
     logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_out;
+    logic port_b_mxfp_out_valid;
 
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_a_out_fp;
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_b_out_fp;
@@ -371,8 +372,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_a_v_fp_in     (v_out_fp),
         .port_a_mask_in     (v_sram_mask_a),
         .port_a_v_fp_out    (v_port_a_out_fp),
-        // .port_a_element_out (v_element_port_a_out),
-        // .port_a_scale_out   (v_scale_port_a_out),
         .port_b_req         (v_sram_req_b),
         .port_b_write_en    (v_sram_wen_b),
         .port_b_addr        (v_sram_addr_b),
@@ -380,8 +379,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_b_mask_in     (v_sram_mask_b),
         .port_b_element_in  (v_element_port_b_in),
         .port_b_scale_in    (v_scale_port_b_in),
+        .port_b_mxfp_req    (v_sram_mxfp_req_b),
         .port_b_element_out (v_element_port_b_out),
         .port_b_scale_out   (v_scale_port_b_out),
+        .port_b_mxfp_out_valid(port_b_mxfp_out_valid),
         .prefetch_en        (exe_stage_op.h_op == PREFETCH_V),
         .prefetch_addr      (exe_stage_op.addr_2),
         .data_not_ready     (v_prefetch_data_not_ready)
@@ -415,8 +416,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .prefetch_v_valid       (hbm_v_prefetch_valid),
         .prefetch_v_element     (v_element_port_b_in),
         .prefetch_v_scale       (v_scale_port_b_in),
-        .hbm_write_v_en         (hbm_write_data_valid),
-        .hbm_write_v_ready      (hbm_write_data_ready),
+        .hbm_write_v_en         (port_b_mxfp_out_valid),
+        .hbm_write_v_ready      (hbm_ready_to_write),
         .hbm_write_v_element    (v_element_port_b_out),
         .hbm_write_v_scale      (v_scale_port_b_out),
         .prefetch_m_in_progress (hbm_m_prefetch_in_progress),

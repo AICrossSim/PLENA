@@ -39,13 +39,14 @@ module hbm_controller #(
     input   logic                                   prefetch_element_data_ready,
     input   logic                                   prefetch_scale_data_ready,
     input   logic                                   hbm_prefetch_en,
-    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_addr, // Address for prefetching data
+    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_raddr,
     
     // HBM data writing
     input   logic                                   hbm_write_en,
     output  logic                                   hbm_write_ready,
     input   logic   [ELE_WIDTH - 1 : 0]             hbm_write_element,
     input   logic   [SCALE_WIDTH - 1 : 0]           hbm_write_scale,
+    input   logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_waddr,
 
     // TL Interface
     `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,   HBM_ADDR_WIDTH, SourceWidth, SinkWidth, host_element),
@@ -60,18 +61,27 @@ module hbm_controller #(
     logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
     logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
 
-    logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_addr_for_ele;
-    logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_addr_for_scale;
+    logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_ele;
+    logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_scale;
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  offset_addr;
 
 
     // Address for element and scale
     always_comb begin
-        offset_addr = hbm_addr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
-        hbm_addr_for_ele   = hbm_addr;
-        hbm_addr_for_scale = offset_addr + SCALE_DATA_OFFSET;
+        if (hbm_write_en) begin
+            offset_addr = hbm_waddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
+            hbm_raddr_for_ele   = hbm_waddr;
+            hbm_raddr_for_scale = offset_addr + SCALE_DATA_OFFSET;
+        end else begin
+            offset_addr = hbm_raddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
+            hbm_raddr_for_ele   = hbm_raddr;
+            hbm_raddr_for_scale = offset_addr + SCALE_DATA_OFFSET;
+        end
+
     end
 
+    // TODO: teporary solution for HBM write ready signal, if in the future need a buffer if the critical path happens here.
+    assign hbm_write_ready = 1'b1;
 
     // -----------------------------
     // HBM element connection for TileLink
@@ -93,7 +103,7 @@ module hbm_controller #(
         // Control signals
         .req_en                 (hbm_prefetch_en),
         .write_en               (hbm_write_en),
-        .addr                   (hbm_addr_for_ele),
+        .addr                   (hbm_raddr_for_ele),
         .fetch_data             (prefetch_element),
         .fetch_data_ready       (prefetch_element_data_ready),
         .write_data             (hbm_write_element),
@@ -136,7 +146,7 @@ module hbm_controller #(
         .rst(rst),
         .req_en             (hbm_prefetch_en),
         .write_en           (hbm_write_en),
-        .addr               (hbm_addr_for_scale),
+        .addr               (hbm_raddr_for_scale),
         .fetch_data         (prefetch_scale),
         .fetch_data_ready   (prefetch_scale_data_ready),
         .write_data         (hbm_write_scale),

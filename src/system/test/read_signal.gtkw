@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jun 20 00:32:34 2025
+[*] Fri Jun 20 11:27:30 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri Jun 20 00:29:24 2025"
-[dumpfile_size] 86258285
+[dumpfile_mtime] "Fri Jun 20 11:26:19 2025"
+[dumpfile_size] 86257829
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
+[timestart] 936300
 [size] 3428 1359
 [pos] 137373 149931
-*-17.919439 980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.919439 1520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
@@ -76,9 +76,27 @@ SimTop.dut.vector_sram.port_a_addr[31:0]
 SimTop.dut.vector_sram.port_a_write_en
 SimTop.dut.vector_sram.port_a_req
 SimTop.dut.exe_stage_op.h_op[1:0]
-SimTop.dut.hbm_write_data_valid
 SimTop.dut.exe_stage_op.h_op[1:0]
-@29
 SimTop.dut.pipeline_control_init.determine_stage_op.h_op[1:0]
+SimTop.dut.port_b_mxfp_out_valid
+SimTop.dut.v_sram_wen_b
+SimTop.dut.v_sram_req_b
+SimTop.dut.data_flow_init.continuous_write_to_hbm
+SimTop.dut.hbm_interface_init.hbm_write_v_en
+SimTop.dut.hbm_interface_init.hbm_write_v_ready
+SimTop.dut.data_flow_init.v_sram_mxfp_req_b
+SimTop.dut.port_b_mxfp_out_valid
+SimTop.dut.vector_sram.mxfp_fp_convert_port_b_in_valid[1:0]
+SimTop.dut.vector_sram.port_b_mxfp_req
+@22
+SimTop.dut.hbm_interface_init.hbm_write_v_element[0][7:0]
+SimTop.dut.hbm_interface_init.hbm_write_v_element[1][7:0]
+SimTop.dut.hbm_interface_init.hbm_write_v_element[2][7:0]
+SimTop.dut.hbm_interface_init.hbm_write_v_element[3][7:0]
+SimTop.dut.hbm_interface_init.hbm_write_v_element[4][7:0]
+SimTop.dut.hbm_interface_init.hbm_write_v_element[5][7:0]
+SimTop.dut.hbm_interface_init.hbm_write_v_element[6][7:0]
+@23
+SimTop.dut.hbm_interface_init.hbm_write_v_element[7][7:0]
 [pattern_trace] 1
 [pattern_trace] 0
