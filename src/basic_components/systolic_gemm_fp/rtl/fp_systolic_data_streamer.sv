@@ -98,14 +98,14 @@ module fp_systolic_data_streamer #(
                             end
                         end
                     end
-
                 end
-
                 CLEARING: begin
-                    for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                    if (stream_in_ready) begin
+                        for (int i = 0; i < COMPUTE_DIM; i++) begin
+                            data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                        end
+                        clear_counter <= clear_counter + 'b1;     
                     end
-                    clear_counter <= clear_counter + 'b1;
                     stream_in_valid <= 1'b1;
                 end
             endcase

@@ -179,12 +179,11 @@ module fp_systolic_mcu #(
             gemm_result_valid       <= 'b0;
             ready_to_load_output    <= 1'b0;
         end else begin
-
             if (complete_loading & control_in_exe == MM_O) begin
                 feed_counter        <= '0;
                 start_feed_count    <= 1'b1;
             end else if (start_feed_count) begin
-                if (feed_counter == COMPUTE_DIM - 1) begin
+                if (feed_counter == 2 * COMPUTE_DIM) begin
                     feed_counter    <= '0;
                     start_feed_count <= 1'b0;
                     ready_to_load_output <= 1'b1;

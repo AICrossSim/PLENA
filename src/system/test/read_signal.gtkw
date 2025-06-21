@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jun 21 21:34:39 2025
+[*] Sat Jun 21 23:25:12 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sat Jun 21 21:16:54 2025"
-[dumpfile_size] 308547004
+[dumpfile_mtime] "Sat Jun 21 23:21:05 2025"
+[dumpfile_size] 308534883
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
+[timestart] 580800
 [size] 3428 1359
 [pos] 137373 149931
-*-17.114536 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.114536 1020000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
@@ -84,6 +84,7 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out_valid
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.state[1:0]
 @22
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[0][15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[1][15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[2][15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[3][15:0]
@@ -111,7 +112,14 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[1][15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[2][15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[3][15:0]
-@29
+@28
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_in_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_in_valid
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_in_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.clear_counter[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.state[1:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.next_state[1:0]
+@29
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.rst
 [pattern_trace] 1
 [pattern_trace] 0
