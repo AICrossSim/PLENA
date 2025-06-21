@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jun 20 22:33:16 2025
+[*] Sat Jun 21 01:12:19 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri Jun 20 22:22:50 2025"
-[dumpfile_size] 87265494
+[dumpfile_mtime] "Fri Jun 20 22:36:27 2025"
+[dumpfile_size] 87199140
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 525400
+[timestart] 44400
 [size] 3428 1359
 [pos] 137373 149931
-*-15.919439 900000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.919439 900000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
@@ -70,17 +70,5 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_ins
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.reg_mul_result[15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.acc_result[31:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.stored_result[31:0]
-@28
-SimTop.dut.vector_sram.port_a_req
-@22
-SimTop.dut.vector_sram.port_a_addr[31:0]
-@28
-SimTop.dut.exe_stage_op.m_op[2:0]
-SimTop.dut.data_flow_init.continuous_load_v_for_matrix_en
-@22
-SimTop.dut.exe_stage_op.addr_2[31:0]
-SimTop.dut.exe_stage_op.addr_1[31:0]
-@23
-SimTop.dut.matrix_sram.sram_raddr[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

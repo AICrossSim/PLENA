@@ -69,7 +69,8 @@ module fp_systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]     array_top_in_data;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]     array_left_in_data;
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] sa_m_result;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gebm_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
@@ -201,8 +202,6 @@ module fp_systolic_mcu #(
     end
 
 
-
-
     // -----------------------------
     // Systolic Array Computation Unit
     // -----------------------------
@@ -287,7 +286,7 @@ module fp_systolic_mcu #(
                 .in_top_v_data      (v2_data[i * M +: M]),
                 .in_top_v_valid     (v2_data_for_mv_in_valid[i]),
                 .in_top_v_ready     (v2_data_for_mv_in_ready[i]),
-                .m_out_fp           (gemm_result[i]),
+                .m_out_fp           (sa_m_result[i]),
                 .m_out_ready        (gemm_result_ready[i]),
                 .v_out_fp           (gemv_result[i]),
                 .v_out_ready        (gemv_result_ready[i])
@@ -296,28 +295,48 @@ module fp_systolic_mcu #(
     endgenerate
 
     // -----------------------------
+    // Summation Across the Systolic Array
+    // -----------------------------
+
+    sum_across_sa #(
+        .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH),
+        .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
+        .COMPUTE_DIM(COMPUTE_DIM),
+        .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT)
+    ) sa_sum_across_inst (
+        .clk(clk),
+        .rst(rst),
+        .m_in_data(sa_m_result),
+        .in_valid(gemm_result_valid),
+        .in_ready(gemm_result_ready),
+        .m_out_data(gebm_result),
+        .out_valid(),
+        .out_ready(v_result_ready)
+    );
+
+
+    // -----------------------------
     // Storing the computed result and write to the Vector SRAM
     // -----------------------------
 
-
-    systolic_result_collector #(
-        .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
-        .COMPUTE_DIM(M),
-        .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-        .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
-    ) sa_result_collector_inst (
-        .clk(clk),
-        .rst(rst),
-        .control            (gemm_en),
-        .gemm_result        (gemm_result),
-        .gemm_result_valid  (gemm_result_valid),
-        .gemm_result_ready  (gemm_result_ready),
-        .gemv_result        (gemv_result),
-        .gemv_result_valid  (gemv_result_valid),
-        .gemv_result_ready  (gemv_result_ready),
-        .out_fp             (v_result),
-        .out_result_valid   (v_result_valid),
-        .out_result_fetch   (v_result_ready)
-    );
+    // systolic_result_collector #(
+    //     .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
+    //     .COMPUTE_DIM(M),
+    //     .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
+    //     .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
+    // ) sa_result_collector_inst (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .control            (gemm_en),
+    //     .gemm_result        (gebm_result),
+    //     .gemm_result_valid  (gemm_result_valid),
+    //     .gemm_result_ready  (gemm_result_ready),
+    //     .gemv_result        (gemv_result),
+    //     .gemv_result_valid  (gemv_result_valid),
+    //     .gemv_result_ready  (gemv_result_ready),
+    //     .out_fp             (v_result),
+    //     .out_result_valid   (v_result_valid),
+    //     .out_result_fetch   (v_result_ready)
+    // );
 
 endmodule

@@ -141,6 +141,7 @@ def SimToP_test():
             "../../../src/basic_components/fp_operation",
             "../../../src/basic_components/conversion",
             "../../../src/basic_components/buffer",
+            "../../../src/basic_components/gemv",
             "../../../src/basic_components/fixed_operation",
             "../../../src/basic_components/systolic_gemm_fp",
             "../../../src/frontend",
