@@ -27,11 +27,20 @@ module fp_systolic_data_streamer #(
     input   logic data_out_ready
 );
     localparam COUNTER_BIT_WIDTH = $clog2(COMPUTE_DIM);
-    logic [COUNTER_BIT_WIDTH - 1 : 0] store_counter;
+    logic [COUNTER_BIT_WIDTH : 0] store_counter;
+    logic [COUNTER_BIT_WIDTH : 0] clear_counter;
 
     logic [COMPUTE_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]       data_array_queue [COMPUTE_DIM - 1 : 0];
     logic [COMPUTE_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]       stream_data_out;
     logic stream_in_ready,     stream_in_valid;
+
+    typedef enum logic [1:0] { 
+        IDLE = 2'b00,
+        FILLING = 2'b01,
+        CLEARING = 2'b10
+    } stream_state_t;
+
+    stream_state_t state, next_state;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -39,19 +48,52 @@ module fp_systolic_data_streamer #(
                 data_array_queue[i] <= '0;
             end
             store_counter   <= '0;
+            clear_counter   <= '0;
             stream_in_valid <= '0;
+            state           <= IDLE;
         end else begin
-            if (data_in_valid & stream_in_ready) begin
-                for (int i = 0; i < COMPUTE_DIM; i++) begin
-                    if ((store_counter == i)) begin
-                        data_array_queue[store_counter]    <= data_in;
-                        store_counter       <= store_counter + 'b1;
+            state <= next_state;
+            case (state)
+                IDLE: begin
+                    stream_in_valid <= 1'b0;
+                    if (data_in_valid & stream_in_ready) begin
+                        for (int i = 0; i < COMPUTE_DIM; i++) begin
+                            if ((store_counter == i)) begin
+                                data_array_queue[store_counter]     <= data_in;
+                                store_counter                       <= store_counter + 'b1;
+                            end else begin
+                                data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                            end
+                        end
+                    end
+                    stream_in_valid <= data_in_valid & stream_in_ready;
+                end
+                FILLING: begin
+                    if (store_counter == COMPUTE_DIM) begin
+                        store_counter <= '0;
                     end else begin
+                        if (data_in_valid & stream_in_ready) begin
+                            for (int i = 0; i < COMPUTE_DIM; i++) begin
+                                if ((store_counter == i)) begin
+                                    data_array_queue[store_counter]     <= data_in;
+                                    store_counter                       <= store_counter + 'b1;
+                                end else begin
+                                    data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                                end
+                            end
+                        end
+                    end
+                    stream_in_valid <= data_in_valid;
+                end
+
+                CLEARING: begin
+                    for (int i = 0; i < COMPUTE_DIM; i++) begin
                         data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
                     end
+                    clear_counter <= clear_counter + 'b1;
+                    stream_in_valid <= 1'b1;
                 end
-            end
-            stream_in_valid <= data_in_valid;
+            endcase
         end
     end
 
@@ -59,6 +101,38 @@ module fp_systolic_data_streamer #(
         for (int i = 0; i < COMPUTE_DIM; i++) begin
             stream_data_out[i] = data_array_queue[i][0];
         end
+        case (state)
+            IDLE: begin
+                if (data_in_valid) begin
+                    next_state = FILLING;
+                end else begin
+                    next_state = IDLE;
+                end
+            end
+            FILLING: begin
+                if (store_counter == COMPUTE_DIM) begin 
+                    if (data_in_valid & stream_in_ready) begin
+                        next_state = FILLING;
+                    end else begin
+                        next_state = CLEARING;
+                    end
+                end else begin
+                    next_state = FILLING;
+                end
+            end
+            CLEARING: begin
+                if (data_in_valid & stream_in_ready) begin
+                    next_state = FILLING;
+                end else if (clear_counter == COMPUTE_DIM) begin
+                    next_state = IDLE;
+                end else begin
+                    next_state = CLEARING;
+                end
+            end
+            default: begin
+                next_state = IDLE;
+            end
+        endcase
     end
 
     assign data_in_ready = stream_in_ready;
