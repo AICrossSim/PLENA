@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jun 21 14:24:00 2025
+[*] Sat Jun 21 21:34:39 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sat Jun 21 14:11:11 2025"
-[dumpfile_size] 94296083
+[dumpfile_mtime] "Sat Jun 21 21:16:54 2025"
+[dumpfile_size] 308547004
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 101300
+[timestart] 0
 [size] 3428 1359
 [pos] 137373 149931
-*-16.919439 680000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.114536 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
@@ -91,18 +91,27 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_ins
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_left_valid
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_left_data[15:0]
+@28
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.mult_in_a_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.mult_in_b_valid
+@22
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_left_data[15:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_top_data[15:0]
 @28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_mul_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_top_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.clear_counter[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.store_counter[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_in_valid
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_sum_across_inst.m_out_data[0][1][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_left_data[15:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_left_valid
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_top_data[15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_in[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_in[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_in[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_in[3][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out[3][15:0]
 @29
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_top_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_in_ready
 [pattern_trace] 1
 [pattern_trace] 0

@@ -17,13 +17,13 @@ module fp_first_row_pe #(
 
     input logic clk,
     input logic rst,
-
     input logic control, // 0 for GEMV, 1 for GEMM
 
     // Input from Top
     input  logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0] in_top_data,
     input  logic in_top_valid,
     output logic in_top_ready,
+    input  logic system_top_valid,
 
     // Input from Vector
     input  logic [FP_MANT_WIDTH + FP_EXP_WIDTH  : 0] in_top_v_data,
@@ -33,6 +33,7 @@ module fp_first_row_pe #(
     // Input from Left
     input  logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0] in_left_data,
     input  logic in_left_valid,
+    input  logic system_left_valid,
     output logic in_left_ready,
 
     // Output to Bottom
@@ -125,9 +126,11 @@ module fp_first_row_pe #(
         .in_top_data        (pe_in_top_data),
         .in_top_valid       (pe_in_top_valid),
         .in_top_ready       (pe_in_top_ready),
+        .system_top_valid   (system_top_valid),
         .in_left_data       (pe_in_left_data),
         .in_left_valid      (pe_in_left_valid),
         .in_left_ready      (pe_in_left_ready),
+        .system_left_valid  (system_left_valid),
         .out_bottom_data    (pe_out_bottom_data),
         .out_bottom_valid   (pe_out_bottom_valid),
         .out_bottom_ready   (pe_out_bottom_ready),

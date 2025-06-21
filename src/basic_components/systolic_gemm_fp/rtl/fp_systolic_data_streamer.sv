@@ -33,6 +33,8 @@ module fp_systolic_data_streamer #(
     logic [COMPUTE_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]       data_array_queue [COMPUTE_DIM - 1 : 0];
     logic [COMPUTE_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]       stream_data_out;
     logic stream_in_ready,     stream_in_valid;
+    logic stream_in_valid_hold;
+    logic p1_stream_in_ready;
 
     typedef enum logic [1:0] { 
         IDLE = 2'b00,
@@ -49,13 +51,16 @@ module fp_systolic_data_streamer #(
             end
             store_counter   <= '0;
             clear_counter   <= '0;
-            stream_in_valid <= '0;
+            stream_in_valid <= 1'b1;
             state           <= IDLE;
+            p1_stream_in_ready <= 1'b0;
+            stream_in_valid_hold <= 1'b0;
         end else begin
             state <= next_state;
+            p1_stream_in_ready <= stream_in_ready;
             case (state)
                 IDLE: begin
-                    stream_in_valid <= 1'b0;
+                    stream_in_valid <= 1'b1;
                     if (data_in_valid & stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
                             if ((store_counter == i)) begin
@@ -66,7 +71,6 @@ module fp_systolic_data_streamer #(
                             end
                         end
                     end
-                    stream_in_valid <= data_in_valid & stream_in_ready;
                 end
                 FILLING: begin
                     if (store_counter == COMPUTE_DIM) begin
@@ -81,9 +85,20 @@ module fp_systolic_data_streamer #(
                                     data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
                                 end
                             end
+                            stream_in_valid <= 1'b1;
+                        end else begin
+                            if (stream_in_valid & !stream_in_ready) begin
+                                stream_in_valid <= 1'b1;
+                                stream_in_valid_hold <= 1'b1;
+                            end else if (p1_stream_in_ready & stream_in_ready) begin
+                                stream_in_valid <= 1'b0;
+                                stream_in_valid_hold <= 1'b0;
+                            end else begin
+                                stream_in_valid <= stream_in_valid_hold;
+                            end
                         end
                     end
-                    stream_in_valid <= data_in_valid;
+
                 end
 
                 CLEARING: begin
@@ -103,7 +118,7 @@ module fp_systolic_data_streamer #(
         end
         case (state)
             IDLE: begin
-                if (data_in_valid) begin
+                if (data_in_valid & stream_in_ready) begin
                     next_state = FILLING;
                 end else begin
                     next_state = IDLE;

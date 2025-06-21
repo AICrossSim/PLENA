@@ -23,11 +23,13 @@ module fp_default_pe #(
     input  logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0] in_top_data,
     input  logic in_top_valid,
     output logic in_top_ready,
+    input  logic system_top_valid,
     
     // Input from Left
     input  logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0] in_left_data,
     input  logic in_left_valid,
     output logic in_left_ready,
+    input  logic system_left_valid,
 
     // Output to Bottom
     output logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0] out_bottom_data,
@@ -85,6 +87,18 @@ module fp_default_pe #(
         .data_out_ready (stored_left_ready)
     );
 
+    // assign stored_top_ready = out_bottom_ready;
+    // assign stored_left_ready = out_right_ready;
+    // assign out_bottom_valid = stored_top_valid;
+    // assign out_right_valid = stored_left_valid;
+
+    assign out_bottom_data      = reg_top_data;
+    assign out_right_data       = reg_left_data;
+
+    // // The mult is not related to the output data transfer, as long as the data is valid.
+    // assign mult_in_a_valid = system_top_valid;
+    // assign mult_in_b_valid = system_left_valid;
+
     split_n #(
         .N(2)
     ) split_top (
@@ -103,8 +117,7 @@ module fp_default_pe #(
         .data_out_ready({out_right_ready, mult_in_b_ready})
     );
 
-    assign out_bottom_data      = reg_top_data;
-    assign out_right_data       = reg_left_data;
+
 
     // ==============================================================================================
     // STAGE 2: Multiplication of the elements from Top and Left, Scale Summation
