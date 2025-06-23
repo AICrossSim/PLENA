@@ -80,13 +80,13 @@ module fp_systolic_array #(
         .data_out_ready(distributed_in_top_v_ready)
     );
 
-    logic rowwise_data_transfer_valid [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
-    logic rowwise_data_transfer_ready [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]   rowwise_data_transfer_data           [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
+    logic [COMPUTE_DIM - 1:0][COMPUTE_DIM :0] rowwise_data_transfer_valid;
+    logic [COMPUTE_DIM - 1:0][COMPUTE_DIM :0] rowwise_data_transfer_ready;
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]  rowwise_data_transfer_data       [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
 
-    logic columnwise_data_transfer_valid [COMPUTE_DIM :0][COMPUTE_DIM - 1:0];
-    logic columnwise_data_transfer_ready [COMPUTE_DIM :0][COMPUTE_DIM - 1:0];
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]    columnwise_data_transfer_data    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
+    logic [COMPUTE_DIM :0][COMPUTE_DIM - 1:0] columnwise_data_transfer_valid;
+    logic [COMPUTE_DIM :0][COMPUTE_DIM - 1:0] columnwise_data_transfer_ready;
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]  columnwise_data_transfer_data    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
 
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_ready;
@@ -206,6 +206,6 @@ module fp_systolic_array #(
 
     assign result_ready     = (out_result_ready) ? {(COMPUTE_DIM * COMPUTE_DIM){1'b1}} : result_ready;
     assign v_out_fp         = m_out_fp[0];
-    assign out_result_ready = control ? m_out_ready : v_out_ready;
+    assign out_result_ready = (control == 1'b0) ? m_out_ready : v_out_ready;
 
 endmodule

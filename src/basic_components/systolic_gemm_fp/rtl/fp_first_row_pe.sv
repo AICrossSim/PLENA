@@ -76,7 +76,7 @@ module fp_first_row_pe #(
         pe_in_top_valid = in_top_valid;
         in_top_ready = pe_in_top_ready;
         
-        if (control == 1'b1) begin
+        if (control == 1'b0) begin
             // GEMM
             pe_in_left_data     = in_left_data;
             pe_in_left_valid    = in_left_valid;
@@ -96,7 +96,8 @@ module fp_first_row_pe #(
             // GEMV
             pe_in_left_data     = in_top_v_data;
             pe_in_left_valid    = in_top_v_valid;
-            in_top_v_ready      = pe_in_left_ready;
+            in_left_ready       = pe_in_left_ready; // Forced to make the systolic array keep moving.
+            in_top_v_ready      = pe_in_top_ready;
             // Bottom
             out_bottom_data     = 'b0;
             out_bottom_valid    = 1'b0;

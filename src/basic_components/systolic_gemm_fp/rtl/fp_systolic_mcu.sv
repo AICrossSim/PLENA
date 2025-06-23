@@ -20,6 +20,7 @@ module fp_systolic_mcu #(
     parameter ACC_FP_MANT_WIDTH   = 7,
     parameter PROD_EXT_EXP_WIDTH  = 0,
     parameter PROD_EXT_MANT_WIDTH = 0, 
+    parameter SYSTOLIC_PROCESSING_OVERHEAD = 4,
     // Dimension
     parameter   M                     = 4,
     parameter   N                     = 4,
@@ -71,10 +72,10 @@ module fp_systolic_mcu #(
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] sa_m_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gebm_result;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_w_ready;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_w_ready;
     
     // -----------------------------
     // Control and Status Tracking
@@ -83,7 +84,7 @@ module fp_systolic_mcu #(
     logic   load_array_data;
     logic   complete_loading;
     M_OP    control_in_exe;
-    logic   gemm_en;
+    logic   sa_control;
     logic   output_reset;
 
 
@@ -127,7 +128,7 @@ module fp_systolic_mcu #(
                 complete_v2_load <= 1'b0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_O) || (control_in_exe == MM_O)) & gemm_result_valid & gemm_result_ready;
+            output_reset <= ((control_in_exe == MV_O) || (control_in_exe == MM_O)) & (gemm_result_valid || gemv_result_valid);
         end
     end
 
@@ -167,7 +168,7 @@ module fp_systolic_mcu #(
         end
     end
 
-    assign gemm_en = ((control_in_exe == MM) || (control_in_exe == MM_O));
+    assign sa_control = ((control_in_exe == MV) || (control_in_exe == MV_O)); // 0 for GEMM, 1 for GEMV
     logic start_feed_count;
     logic ready_to_load_output;
 
@@ -183,7 +184,7 @@ module fp_systolic_mcu #(
                 feed_counter        <= '0;
                 start_feed_count    <= 1'b1;
             end else if (start_feed_count) begin
-                if (feed_counter == 2 * COMPUTE_DIM) begin
+                if (feed_counter == 2 * COMPUTE_DIM + SYSTOLIC_PROCESSING_OVERHEAD) begin
                     feed_counter    <= '0;
                     start_feed_count <= 1'b0;
                     ready_to_load_output <= 1'b1;
@@ -195,8 +196,8 @@ module fp_systolic_mcu #(
                 start_feed_count <= 1'b0;
                 ready_to_load_output <= 1'b0;
             end
-            gemv_result_valid <= (gemv_result_ready & (control_in_exe == MV_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_ready & (control_in_exe == MM_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 
@@ -275,7 +276,7 @@ module fp_systolic_mcu #(
             ) systolic_array_inst (
                 .clk(clk),
                 .rst(rst | output_reset),
-                .control            (gemm_en),
+                .control            (sa_control),
                 .in_top_data        (array_top_in_data[i]),
                 .in_top_valid       (array_top_in_valid[i]),
                 .in_top_ready       (array_top_in_ready[i]),
@@ -286,9 +287,9 @@ module fp_systolic_mcu #(
                 .in_top_v_valid     (v2_data_for_mv_in_valid[i]),
                 .in_top_v_ready     (v2_data_for_mv_in_ready[i]),
                 .m_out_fp           (sa_m_result[i]),
-                .m_out_ready        (gemm_result_ready[i]),
+                .m_out_ready        (gemm_result_w_ready[i]),
                 .v_out_fp           (gemv_result[i]),
-                .v_out_ready        (gemv_result_ready[i])
+                .v_out_ready        (gemv_result_w_ready[i])
             );
         end
     endgenerate
@@ -307,7 +308,7 @@ module fp_systolic_mcu #(
         .rst(rst),
         .m_in_data(sa_m_result),
         .in_valid(gemm_result_valid),
-        .in_ready(gemm_result_ready),
+        .in_ready(gemm_result_w_ready),
         .m_out_data(gebm_result),
         .out_valid(),
         .out_ready(v_result_ready)
@@ -326,13 +327,13 @@ module fp_systolic_mcu #(
     // ) sa_result_collector_inst (
     //     .clk(clk),
     //     .rst(rst),
-    //     .control            (gemm_en),
+    //     .control            (sa_control),
     //     .gemm_result        (gebm_result),
     //     .gemm_result_valid  (gemm_result_valid),
-    //     .gemm_result_ready  (gemm_result_ready),
+    //     .gemm_result_w_ready  (gemm_result_w_ready),
     //     .gemv_result        (gemv_result),
     //     .gemv_result_valid  (gemv_result_valid),
-    //     .gemv_result_ready  (gemv_result_ready),
+    //     .gemv_result_w_ready  (gemv_result_w_ready),
     //     .out_fp             (v_result),
     //     .out_result_valid   (v_result_valid),
     //     .out_result_fetch   (v_result_ready)
