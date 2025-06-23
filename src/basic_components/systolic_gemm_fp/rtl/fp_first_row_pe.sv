@@ -60,11 +60,11 @@ module fp_first_row_pe #(
 
     always_comb begin
         // For Top level, Same as the default PE
+        pe_out_result_ready = out_result_ready;
         if (control == 1'b0) begin
             // GEMM
             pe_in_top_data      = in_top_data;
             pe_in_left_data     = in_left_data;
-
             // Bottom
             out_bottom_data     = pe_out_bottom_data;
             // Right

@@ -48,46 +48,10 @@ module fp_default_pe #(
 
     logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0]    reg_top_data;      
     logic [FP_MANT_WIDTH + FP_EXP_WIDTH : 0]    reg_left_data;
-    logic stored_top_valid, stored_left_valid;
-    logic stored_top_ready, stored_left_ready;
-    logic mult_in_a_valid, mult_in_b_valid;
-    logic mult_in_a_ready, mult_in_b_ready;
 
     // ==============================================================================================
     // STAGE 1: Pass Data from Top and Left to the Bottom and Right
     // ==============================================================================================
-
-    // skid_buffer #(
-    //     .DATA_WIDTH(FP_MANT_WIDTH + FP_EXP_WIDTH + 1)
-    // ) skid_buffer_top (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .data_in        (in_top_data),
-    //     .data_in_valid  (in_top_valid),
-    //     .data_in_ready  (in_top_ready),
-    //     .data_out       (reg_top_data),
-    //     .data_out_valid (stored_top_valid),
-    //     .data_out_ready (stored_top_ready)
-    // );
-
-    // skid_buffer #(
-    //     .DATA_WIDTH(FP_MANT_WIDTH + FP_EXP_WIDTH + 1)
-    // ) skid_buffer_left (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .data_in        (in_left_data),
-    //     .data_in_valid  (in_left_valid),
-    //     .data_in_ready  (in_left_ready),
-    //     .data_out       (reg_left_data),
-    //     .data_out_valid (stored_left_valid),
-    //     .data_out_ready (stored_left_ready)
-    // );
-
-    // assign stored_top_ready = out_bottom_ready;
-    // assign stored_left_ready = out_right_ready;
-    // assign out_bottom_valid = stored_top_valid;
-    // assign out_right_valid = stored_left_valid;
-
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -103,31 +67,8 @@ module fp_default_pe #(
         end
     end
 
-
     assign out_bottom_data      = reg_top_data;
     assign out_right_data       = reg_left_data;
-
-    // // The mult is not related to the output data transfer, as long as the data is valid.
-    // assign mult_in_a_valid = system_top_valid;
-    // assign mult_in_b_valid = system_left_valid;
-
-    // split_n #(
-    //     .N(2)
-    // ) split_top (
-    //     .data_in_valid(stored_top_valid),
-    //     .data_in_ready(stored_top_ready),
-    //     .data_out_valid({out_bottom_valid, mult_in_a_valid}),
-    //     .data_out_ready({out_bottom_ready, mult_in_a_ready})
-    // );
-
-    // split_n #(
-    //     .N(2)
-    // ) split_left (
-    //     .data_in_valid(stored_left_valid),
-    //     .data_in_ready(stored_left_ready),
-    //     .data_out_valid({out_right_valid, mult_in_b_valid}),
-    //     .data_out_ready({out_right_ready, mult_in_b_ready})
-    // );
 
 
 
@@ -136,15 +77,8 @@ module fp_default_pe #(
     // ==============================================================================================
 
     logic [FP_MANT_WIDTH + FP_EXP_WIDTH + PROD_EXT_EXP_WIDTH + PROD_EXT_MANT_WIDTH : 0] mul_result, reg_mul_result;
-    // logic reg_mul_in_valid, reg_mul_in_ready;
     logic reg_mul_out_valid, reg_mul_out_ready;
     
-    // join2 #() join_mult (
-    //     .data_in_valid({mult_in_a_valid, mult_in_b_valid}),
-    //     .data_in_ready({mult_in_a_ready, mult_in_b_ready}),
-    //     .data_out_valid(reg_mul_in_valid),
-    //     .data_out_ready(reg_mul_in_ready)
-    // );
 
     fp_cp_mult #(
         .MANT_WIDTH     (FP_MANT_WIDTH),
