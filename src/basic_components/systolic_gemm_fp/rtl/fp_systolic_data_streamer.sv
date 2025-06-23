@@ -108,7 +108,16 @@ module fp_systolic_data_streamer #(
                         end
                         clear_counter <= clear_counter + 'b1;   
                         stream_in_valid <= 1'b1;  
+                        if (stream_in_valid_hold) begin
+                            stream_in_valid_hold <= 1'b0;
+                        end
+                        if (clear_counter == COMPUTE_DIM) begin
+                            clear_counter <= '0;
+                        end
                     end else begin
+                        if (stream_in_valid) begin
+                            stream_in_valid_hold <= 1'b1;
+                        end
                         stream_in_valid <= 1'b0;
                     end
                     

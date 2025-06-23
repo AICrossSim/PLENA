@@ -1,15 +1,15 @@
 [*]
-[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Mon Jun 23 15:01:09 2025
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Mon Jun 23 21:04:07 2025
 [*]
-[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Mon Jun 23 13:13:51 2025"
-[dumpfile_size] 309994079
-[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 403100
-[size] 1920 1080
-[pos] 118573 139581
-*-17.114536 660000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Mon Jun 23 20:49:37 2025"
+[dumpfile_size] 78205533
+[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[timestart] 0
+[size] 3428 1359
+[pos] 117330 139522
+*-17.114536 960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.decoder_init.
@@ -27,6 +27,7 @@
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.
+[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.
@@ -49,66 +50,43 @@
 [sst_width] 380
 [signals_width] 341
 [sst_expanded] 1
-[sst_vpaned_height] 798
+[sst_vpaned_height] 1042
 @28
 SimTop.dut.clk
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_top_valid
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_top_data[15:0]
 @28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_valid
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].top_streamer.state[1:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_valid
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].top_streamer.data_out[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_data[3][15:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].top_streamer.data_out_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].top_streamer.stream_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].top_streamer.data_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.in_left_valid
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_left_data[15:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.mult_in_a_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.mult_in_b_valid
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_left_data[15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_top_data[15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.stored_result[31:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[1].genblk1.first_row_pe_init.default_pe_inst.reg_mul_in_valid
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_sum_across_inst.accumulated_data[0][1][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_sum_across_inst.accumulated_data[0][2][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_sum_across_inst.accumulated_data[1][0][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_sum_across_inst.accumulated_data[0][0][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.reg_left_data[15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.reg_top_data[15:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.reg_mul_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.in_left_valid
-@22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.in_top_data[15:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.in_top_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_pe_init.default_pe_inst.in_left_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out_valid
 SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_valid
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.distributed_in_left_valid[3:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.distributed_in_top_valid[3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_data[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_data[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_data[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_data[3][15:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.mult_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_in_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.data_out_ready
 @22
-SimTop.dut.matrix_machine_init.v_fp_in[0][15:0]
-SimTop.dut.matrix_machine_init.v_fp_in[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_data_out[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_data_out[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_data_out[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_data_out[3][15:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.out_bottom_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.in_top_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.in_left_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[0].genblk1.default_pe_init.out_right_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[3].genblk1.default_pe_init.out_right_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_data_out_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.stream_in_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.state[1:0]
 @29
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[3].pe_col[3].genblk1.default_pe_init.in_left_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.clear_counter[2:0]
+@28
+SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].left_streamer.rst
 [pattern_trace] 1
 [pattern_trace] 0
