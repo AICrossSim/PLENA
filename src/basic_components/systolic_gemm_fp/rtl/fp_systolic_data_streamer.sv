@@ -52,7 +52,7 @@ module fp_systolic_data_streamer #(
             end
             store_counter   <= '0;
             clear_counter   <= '0;
-            stream_in_valid <= 1'b1;
+            stream_in_valid <= 1'b0;
             state           <= IDLE;
             p1_stream_in_ready <= 1'b0;
             stream_in_valid_hold <= 1'b0;
@@ -61,7 +61,6 @@ module fp_systolic_data_streamer #(
             p1_stream_in_ready <= stream_in_ready;
             case (state)
                 IDLE: begin
-                    stream_in_valid <= 1'b1;
                     if (data_in_valid & stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
                             if ((store_counter == i)) begin
@@ -71,37 +70,37 @@ module fp_systolic_data_streamer #(
                                 data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
                             end
                         end
+                        stream_in_valid <= 1'b1;
+                    end else begin
+                        stream_in_valid <= 1'b0;
                     end
                 end
                 FILLING: begin
-                    if (store_counter == COMPUTE_DIM) begin
-                        store_counter <= '0;
-                    end else begin
-                        if (data_in_valid & stream_in_ready) begin
-                            for (int i = 0; i < COMPUTE_DIM; i++) begin
-                                if ((store_counter == i)) begin
-                                    data_array_queue[store_counter]     <= data_in;
-                                    store_counter                       <= store_counter + 'b1;
-                                end else begin
-                                    data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
-                                end
-                            end
-                            stream_in_valid <= 1'b1;
-                            if (stream_in_valid_hold) begin
-                                stream_in_valid_hold <= 1'b0;
-                            end
-                        end else begin
-                            if (stream_in_valid & !stream_in_ready) begin
-                                stream_in_valid_hold <= 1'b1;
-                            end else if (stream_in_valid_hold & stream_in_ready) begin
-                                stream_in_valid_hold <= 1'b0;
+                    if (data_in_valid & stream_in_ready) begin
+                        for (int i = 0; i < COMPUTE_DIM; i++) begin
+                            if ((store_counter == i)) begin
+                                data_array_queue[store_counter]     <= data_in;
+                                store_counter                       <= store_counter + 'b1;
                             end else begin
-                                stream_in_valid <= 1'b0;
+                                data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
                             end
+                        end
+                        stream_in_valid <= 1'b1;
+                        if (stream_in_valid_hold) begin
+                            stream_in_valid_hold <= 1'b0;
+                        end
+                    end else begin
+                        if (stream_in_valid & !stream_in_ready) begin
+                            stream_in_valid_hold <= 1'b1;
+                        end else if (stream_in_valid_hold & stream_in_ready) begin
+                            stream_in_valid_hold <= 1'b0;
+                        end else begin
+                            stream_in_valid <= 1'b0;
                         end
                     end
                 end
                 CLEARING: begin
+                    store_counter <= '0;
                     if (stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
                             data_array_queue[i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
@@ -139,12 +138,8 @@ module fp_systolic_data_streamer #(
                 end
             end
             FILLING: begin
-                if (store_counter == COMPUTE_DIM) begin 
-                    if (data_in_valid & stream_in_ready) begin
-                        next_state = FILLING;
-                    end else begin
-                        next_state = CLEARING;
-                    end
+                if (store_counter == COMPUTE_DIM - 1 & stream_in_ready) begin 
+                    next_state = CLEARING;
                 end else begin
                     next_state = FILLING;
                 end

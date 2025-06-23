@@ -61,6 +61,7 @@ module fp_systolic_array #(
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_ready;
     logic mult_valid, mult_ready;
+    logic system_right_shift_valid, system_down_shift_valid;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] pe_compute_ready;
 
 
@@ -71,6 +72,8 @@ module fp_systolic_array #(
             assign rowwise_data_transfer_data       [i][0]  = in_left_data[i];
         end
         assign mult_ready = &pe_compute_ready;
+        assign system_down_shift_valid = in_top_valid & in_top_ready;
+        assign system_right_shift_valid = in_left_valid & in_left_ready;
     endgenerate
 
 
@@ -91,9 +94,9 @@ module fp_systolic_array #(
                         .rst(rst),
                         .control(control),
                         .in_top_data        (columnwise_data_transfer_data[i][j]),
-                        .system_top_valid   (in_top_valid),
+                        .system_top_valid   (system_down_shift_valid),
                         .in_left_data       (rowwise_data_transfer_data[i][j]),
-                        .system_left_valid  (in_left_valid),
+                        .system_left_valid  (system_right_shift_valid),
                         .mult_valid         (mult_valid),
                         .mult_ready         (pe_compute_ready[i][j]),
                         .in_top_v_data      (in_top_v_data[j]),
@@ -114,9 +117,9 @@ module fp_systolic_array #(
                         .clk(clk),
                         .rst(rst),
                         .in_top_data        (columnwise_data_transfer_data[i][j]),
-                        .system_top_valid   (in_top_valid),
+                        .system_top_valid   (system_down_shift_valid),
                         .in_left_data       (rowwise_data_transfer_data[i][j]),
-                        .system_left_valid  (in_left_valid),
+                        .system_left_valid  (system_right_shift_valid),
                         .mult_valid         (mult_valid),
                         .mult_ready         (pe_compute_ready[i][j]),
                         .out_bottom_data    (columnwise_data_transfer_data[i + 1][j]),
