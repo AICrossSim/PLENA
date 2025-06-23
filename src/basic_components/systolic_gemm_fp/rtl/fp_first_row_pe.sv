@@ -72,9 +72,10 @@ module fp_first_row_pe #(
 
     always_comb begin
         // For Top level, Same as the default PE
-        pe_in_top_data = in_top_data;
-        pe_in_top_valid = in_top_valid;
-        in_top_ready = pe_in_top_ready;
+        pe_in_top_data      = in_top_data;
+        pe_in_top_valid     = in_top_valid;
+        in_top_ready        = pe_in_top_ready;
+        pe_out_result_ready = out_result_ready;
         
         if (control == 1'b0) begin
             // GEMM
@@ -91,7 +92,7 @@ module fp_first_row_pe #(
             pe_out_right_ready  = out_right_ready;
             // Result
             out_fp              = pe_out_fp;
-            pe_out_result_ready = out_result_ready;
+            
         end else begin
             // GEMV
             pe_in_left_data     = in_top_v_data;
@@ -108,7 +109,6 @@ module fp_first_row_pe #(
             pe_out_right_ready  = 1'b1;
             // Result
             out_fp              = pe_out_fp;
-            pe_out_result_ready = out_result_ready;
         end
 
     end

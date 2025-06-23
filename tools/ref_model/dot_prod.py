@@ -29,3 +29,8 @@ data_b = [
 activation = torch.tensor(data_b)
 output = torch.matmul(activation, weight.T)
 pretty_print_matrix(output, precision=4)
+
+test1 = torch.tensor([-0.5170,  0.3029,  1.3407,  0.0218])
+test2 = torch.tensor([-2.4076, -0.0330, -0.3837,  2.1279])
+
+print(f"result: {torch.dot(test1, test2)}")

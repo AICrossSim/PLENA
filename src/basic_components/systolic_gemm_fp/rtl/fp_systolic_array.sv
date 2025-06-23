@@ -136,13 +136,11 @@ module fp_systolic_array #(
                         .in_top_data    (columnwise_data_transfer_data[i][j]),
                         .in_top_valid   (columnwise_data_transfer_valid[i][j]),
                         .in_top_ready   (columnwise_data_transfer_ready[i][j]),
-                        .system_top_valid(in_top_valid),
 
                         // Input from Left Array
                         .in_left_data   (rowwise_data_transfer_data[i][j]),
                         .in_left_valid  (rowwise_data_transfer_valid[i][j]),
                         .in_left_ready  (rowwise_data_transfer_ready[i][j]),
-                        .system_left_valid(in_left_valid),
 
                         // Input from Vector Array
                         .in_top_v_data      (in_top_v_data[j]),
