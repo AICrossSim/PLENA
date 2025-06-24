@@ -187,8 +187,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .ACC_FP_EXP_WIDTH   (M_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (M_FP_MANT_WIDTH),
         .M                  (BATCH_SIZE),
-        .N                  (BATCH_SIZE),
-        .K                  (MLEN)
+        .K                  (MLEN),
+        .N                  (BATCH_SIZE)
     ) matrix_compute_unit (
         .clk                (clk),
         .rst                (rst),
@@ -234,20 +234,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready     (stored_result_ready)
     );
 
-    // Quantize into Required Precision for Storage
-    generate;
-        for (genvar i = 0; i < MLEN; i++) begin : gen_quantize
-            fp_ieee_casting #(
-                .IN_EXP_WIDTH   (M_FP_EXP_WIDTH),
-                .IN_MANT_WIDTH  (M_FP_MANT_WIDTH),
-                .OUT_EXP_WIDTH  (V_FP_EXP_WIDTH),
-                .OUT_MANT_WIDTH (V_FP_MANT_WIDTH)
-            ) cast_inst (
-                .data_in      (stored_result_v[i]),
-                .data_out     (quantized_result_v[i])
-            );
-        end
-    endgenerate
+
 
     skid_buffer #(
         .DATA_WIDTH     (MLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
