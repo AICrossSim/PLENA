@@ -19,9 +19,9 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     input   logic   rst,
 
     // Execution Control
-    input   M_OP    matrix_opcode,
-    output logic    load_in_progress,
-    input  logic    [ADDR_WIDTH-1:0]                                        addr_in,
+    input  OP_BUNDLE    exe_stage_op,
+    output logic        load_in_progress,
+    output logic        stall_for_addr,
 
     // Matix - row-major order
     input  logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]          m_element,
@@ -35,7 +35,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output logic                   v_ready,
 
     // Output
-    input  logic result_waddr_update,
     output logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]    out_v_fp,
     output logic                                                    out_valid,
     input  logic                                                    out_ready,
@@ -44,25 +43,52 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 );
 
     import pipeline_pkg::*;
-
-    // -----------------------------
-    // Data Flow Management
-    // -----------------------------
-
     logic [ADDR_WIDTH-1:0] recorded_m_waddr;
 
-    // Preparation Units 
+    // -----------------------------
+    // Control Signals
+    // -----------------------------
+
+    M_OP    matrix_opcode; 
+    logic    [ADDR_WIDTH-1:0]  addr_in;
+    logic    result_waddr_update;
+
+    assign matrix_opcode        = exe_stage_op.m_op;
+    assign addr_in              = exe_stage_op.addr_2;
+    assign result_waddr_update  = exe_stage_op.result_waddr_update;
+
+    // -----------------------------
+    // Address Management
+    // -----------------------------
+    // Storing the address written back to the vector SRAM
+
     always_ff @(posedge clk) begin
         if (rst) begin
             recorded_m_waddr <= 'b0;
         end else begin
             // Set result waddr 
-            if (result_waddr_update)begin
+            if (matrix_opcode == MM_WO)begin
                 recorded_m_waddr <= addr_in;
             end
         end
     end
 
+    // Load Accumulation Address
+    logic [ADDR_WIDTH-1:0] acc_addr;
+    logic acc_addr_valid, acc_addr_ready;
+    fifo #(
+        .DATA_WIDTH(ADDR_WIDTH),
+        .FIFO_DEPTH(MATRIX_ACC_ADR_DEPTH)
+    ) m_acc_addr_fifo (
+        .clk(clk),
+        .rst(rst),
+        .data_in        (exe_stage_op.addr_2),
+        .data_in_valid  (exe_stage_op.result_waddr_update),
+        .data_in_ready  (stall_for_addr),
+        .data_out       (acc_addr),
+        .data_out_valid (acc_addr_valid),
+        .data_out_ready (acc_addr_ready)
+    );
 
     // -----------------------------
     // Data Preparation
@@ -187,12 +213,15 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .ACC_FP_EXP_WIDTH   (M_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (M_FP_MANT_WIDTH),
         .M                  (BATCH_SIZE),
-        .N                  (BATCH_SIZE),
-        .K                  (MLEN)
+        .K                  (MLEN),
+        .N                  (BATCH_SIZE)
     ) matrix_compute_unit (
         .clk                (clk),
         .rst                (rst),
         .control            (matrix_opcode),
+        .acc_waddr          (acc_adder),
+        .acc_waddr_valid    (acc_addr_valid),
+        .acc_waddr_ready    (acc_addr_ready),
         .v1_data            (converted_m_data_out),
         .v1_in_valid        (converted_m_valid),
         .v1_in_ready        (converted_m_ready),
@@ -233,21 +262,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_valid     (stored_result_valid),
         .data_out_ready     (stored_result_ready)
     );
-
-    // Quantize into Required Precision for Storage
-    generate;
-        for (genvar i = 0; i < MLEN; i++) begin : gen_quantize
-            fp_ieee_casting #(
-                .IN_EXP_WIDTH   (M_FP_EXP_WIDTH),
-                .IN_MANT_WIDTH  (M_FP_MANT_WIDTH),
-                .OUT_EXP_WIDTH  (V_FP_EXP_WIDTH),
-                .OUT_MANT_WIDTH (V_FP_MANT_WIDTH)
-            ) cast_inst (
-                .data_in      (stored_result_v[i]),
-                .data_out     (quantized_result_v[i])
-            );
-        end
-    endgenerate
 
     skid_buffer #(
         .DATA_WIDTH     (MLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))

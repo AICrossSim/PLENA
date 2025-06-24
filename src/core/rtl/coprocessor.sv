@@ -239,10 +239,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         ) matrix_machine_init (
             .clk(clk),
             .rst(rst),
-            .matrix_opcode          (exe_stage_op.m_op),
+            .exe_stage_op           (exe_stage_op),
             .load_in_progress       (m_in_prep),
-            .addr_in                (exe_stage_op.addr_2),
-            .result_waddr_update    (exe_stage_op.update_m_waddr),
             .m_element              (fetched_m_element),
             .m_scale                (fetched_m_scale),
             .m_valid                (m_m_valid),

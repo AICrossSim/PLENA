@@ -23,6 +23,7 @@
         parameter   HBM_SCALE_WIDTH                 = 256;
         parameter   FIXED_SRAM_DEPTH                = 32;
         parameter   FP_SRAM_DEPTH                   = 32;
+        parameter   MATRIX_ACC_ADR_DEPTH            = 8;
     endpackage
 
     package simulation_pkg;
