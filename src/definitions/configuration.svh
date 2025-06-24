@@ -23,6 +23,7 @@
         parameter   HBM_SCALE_WIDTH                 = 256;
         parameter   FIXED_SRAM_DEPTH                = 32;
         parameter   FP_SRAM_DEPTH                   = 32;
+        parameter   MATRIX_ACC_ADR_DEPTH            = 8;
     endpackage
 
     package simulation_pkg;
@@ -78,7 +79,7 @@ package pipeline_pkg;
     parameter   MATRIX_LOADING_CYCLES          = 2;
     parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
     parameter   MATRIX_W_OFFSET_CYCLES         = 8;
-    parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 4;
+    parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
     parameter   VECTOR_MAX_CYCLES              = 6;
     parameter   VECTOR_BASIC_CYCLES            = 1;
     parameter   VECTOR_EXP_CYCLES              = 6;

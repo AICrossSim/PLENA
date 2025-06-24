@@ -356,7 +356,7 @@ module fp_systolic_mcu #(
         end
     end
 
-    generate;
+    generate
         if (K > GEBM_OUT_DIM) begin
             logic [K - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
             logic [K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]      quantised_result_v, stored_quantized_result;
@@ -364,7 +364,7 @@ module fp_systolic_mcu #(
             always_comb begin
                 if (sa_control == 1'b0) begin
                     // GEMM
-                    stored_result_v = {gebm_result, {(K - GEBM_OUT_DIM){1'b0}}};
+                    stored_result_v = {{((K - GEBM_OUT_DIM) * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)){1'b0}}, gebm_result};
                 end else begin
                     // GEMV
                     stored_result_v = gemv_result;
