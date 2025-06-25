@@ -7,7 +7,7 @@ Description :
 Status      : Under Development
 */
 
-module mxfp_default_pe #(
+module mxfp_blockwise_sa #(
     // MX-FP Data Format
     parameter MXFP_T_EXP_WIDTH      = 4,
     parameter MXFP_T_MANT_WIDTH     = 3,
@@ -47,7 +47,7 @@ module mxfp_default_pe #(
     output logic [MXFP_SCALE_WIDTH - 1 : 0] out_right_scale,
 
     // Output Result
-    output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
+    output logic [BLOCK_DIM - 1 : 0][BLOCK_DIM - 1 : 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
     input  logic out_result_ready
 );
 
