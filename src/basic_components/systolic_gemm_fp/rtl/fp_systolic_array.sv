@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : Systolic Array
+Module      : FP Systolic Array
 Timing      : Sequential
 Description : It can be used for both GEMM and GEMV operations.
 Status      : Under Development

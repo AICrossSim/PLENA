@@ -1,16 +1,18 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : Systolic Array
+Module      : MXFP Systolic Array
 Timing      : Sequential
 Description : It can be used for both GEMM and GEMV operations.
 Status      : Under Development
 */
 
-module systolic_array #(
+module mxfp_systolic_array #(
     // MX-FP Data Format
-    parameter MXFP_EXP_WIDTH        = 4,
-    parameter MXFP_MANT_WIDTH       = 3,
+    parameter MXFP_T_EXP_WIDTH      = 4,
+    parameter MXFP_T_MANT_WIDTH     = 3,
+    parameter MXFP_L_EXP_WIDTH      = 4,
+    parameter MXFP_L_MANT_WIDTH     = 3,
     parameter MXFP_SCALE_WIDTH      = 8,
     parameter BLOCK_DIM             = 4,
     // Accumulator Data Format
@@ -26,31 +28,29 @@ module systolic_array #(
     input   logic control,
 
     // Input from Top Array
-    input   logic [COMPUTE_DIM - 1: 0] [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_top_element,
-    input   logic [BLOCK_NUM - 1: 0] [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
+    input   logic [COMPUTE_DIM - 1: 0] [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
+    input   logic [BLOCK_NUM - 1: 0]   [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
     input   logic in_top_valid,
     output  logic in_top_ready,
 
     // Input from Left Array
-    input   logic [COMPUTE_DIM - 1: 0] [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_left_element,
-    input   logic [BLOCK_NUM - 1: 0] [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
+    input   logic [COMPUTE_DIM - 1: 0] [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
+    input   logic [BLOCK_NUM - 1: 0]   [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input   logic in_left_valid,
     output  logic in_left_ready,
 
     // Input from Vector Array
-    input   logic [COMPUTE_DIM - 1: 0] [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_top_v_element,
-    input   logic [BLOCK_NUM - 1: 0] [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+    input   logic [COMPUTE_DIM - 1: 0] [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_left_v_element,
+    input   logic [BLOCK_NUM - 1: 0] [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
     input   logic in_top_v_valid,
     output  logic in_top_v_ready,
 
     // Output GEMM
     output  logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] m_out_fp,
-    output  logic m_out_valid,
     input   logic m_out_ready,
 
     // Output GEMV
     output  logic [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] v_out_fp,
-    output  logic v_out_valid,
     input   logic v_out_ready
     
 );
@@ -63,47 +63,10 @@ module systolic_array #(
         end
     end
 
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_valid;
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_ready;
-    logic [COMPUTE_DIM - 1:0] distributed_in_left_valid;
-    logic [COMPUTE_DIM - 1:0] distributed_in_left_ready;
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_v_valid;
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_v_ready;
 
-    split_n #(
-        .N(COMPUTE_DIM)
-    ) split_top (
-        .data_in_valid(in_top_valid),
-        .data_in_ready(in_top_ready),
-        .data_out_valid(distributed_in_top_valid),
-        .data_out_ready(distributed_in_top_ready)
-    );
-
-    split_n #(
-        .N(COMPUTE_DIM)
-    ) split_left (
-        .data_in_valid(in_left_valid),
-        .data_in_ready(in_left_ready),
-        .data_out_valid(distributed_in_left_valid),
-        .data_out_ready(distributed_in_left_ready)
-    );
-
-    split_n #(
-        .N(COMPUTE_DIM)
-    ) split_top_v (
-        .data_in_valid(in_top_v_valid),
-        .data_in_ready(in_top_v_ready),
-        .data_out_valid(distributed_in_top_v_valid),
-        .data_out_ready(distributed_in_top_v_ready)
-    );
-
-    logic rowwise_data_transfer_valid [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
-    logic rowwise_data_transfer_ready [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
     logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0]    rowwise_data_transfer_element   [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
     logic [MXFP_SCALE_WIDTH - 1 : 0]                rowwise_data_transfer_scale     [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
 
-    logic columnwise_data_transfer_valid [COMPUTE_DIM :0][COMPUTE_DIM - 1:0];
-    logic columnwise_data_transfer_ready [COMPUTE_DIM :0][COMPUTE_DIM - 1:0];
     logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0]    columnwise_data_transfer_element    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
     logic [MXFP_SCALE_WIDTH - 1 : 0]                columnwise_data_transfer_scale      [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
 
@@ -111,6 +74,10 @@ module systolic_array #(
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_valid;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_ready;
 
+    logic mult_valid, mult_ready;
+    logic system_right_shift_valid, system_down_shift_valid;
+    logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] pe_compute_ready;
+    
     // Fill the Front Top Row and Left Column with the input data
     generate;
         for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : fill_with_input_data
@@ -166,8 +133,8 @@ module systolic_array #(
                         .in_left_ready  (rowwise_data_transfer_ready[i][j]),
 
                         // Input from Vector Array
-                        .in_top_v_element   (in_top_v_element[j]),
-                        .in_top_v_scale     (in_top_v_scale[j]),
+                        .in_left_v_element   (in_left_v_element[j]),
+                        .in_left_v_scale     (in_left_v_scale[j]),
                         .in_top_v_valid     (distributed_in_top_v_valid[j]),
                         .in_top_v_ready     (distributed_in_top_v_ready[j]),
 

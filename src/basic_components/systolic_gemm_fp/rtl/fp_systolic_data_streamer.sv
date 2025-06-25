@@ -35,7 +35,6 @@ module fp_systolic_data_streamer #(
     logic stream_in_ready,     stream_in_valid;
     logic stream_in_valid_hold;
     logic stream_data_out_valid;
-    logic p1_stream_in_ready;
 
     typedef enum logic [1:0] { 
         IDLE = 2'b00,
@@ -55,12 +54,10 @@ module fp_systolic_data_streamer #(
             stream_in_valid <= 1'b0;
             state           <= IDLE;
             p1_state        <= IDLE;
-            p1_stream_in_ready <= 1'b0;
             stream_in_valid_hold <= 1'b0;
         end else begin
             state <= next_state;
             p1_state <= state;
-            p1_stream_in_ready <= stream_in_ready;
             case (state)
                 IDLE: begin
                     if (data_in_valid & stream_in_ready) begin

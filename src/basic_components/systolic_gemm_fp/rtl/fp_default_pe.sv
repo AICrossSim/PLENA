@@ -117,7 +117,7 @@ module fp_default_pe #(
         .IN_MANT_WIDTH      (FP_MANT_WIDTH + PROD_EXT_MANT_WIDTH),
         .OUT_EXP_WIDTH      (ACC_FP_EXP_WIDTH),
         .OUT_MANT_WIDTH     (ACC_FP_MANT_WIDTH)
-    ) mx_fp_to_fp (
+    ) fp_dequant_init (
         .in_fp          (reg_mul_result),
         .out_fp         (shifted_result)
     );
