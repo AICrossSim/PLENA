@@ -217,8 +217,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
-    logic [VLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_out;
+    logic [VLEN-1:0]             [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                           v_scale_port_b_out;
+    logic [VLEN-1:0]             [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]                 v_element_port_a_out;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                           v_scale_port_a_out;
     logic port_b_mxfp_out_valid;
 
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_a_out_fp;
@@ -245,7 +247,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .m_scale                (fetched_m_scale),
             .m_valid                (m_m_valid),
             .m_ready                (m_m_ready),
-            .v_fp_in                (v_port_a_out_fp),
+            .v_element              (v_element_port_a_out),
+            .v_scale                (v_scale_port_a_out),
             .v_valid                (m_v_valid),
             .v_ready                (m_v_ready),
             .out_v_fp               (m_out_v_fp),
@@ -320,8 +323,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Matrix SRAM 
     matrix_sram_with_rounding #(
-        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+        .MXFP_EXP_WIDTH     (LOW_MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH    (LOW_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .MLEN               (MLEN),
         .BLOCK_DIM          (BLOCK_DIM),
@@ -347,8 +350,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Vector SRAM
     fp_vector_sram #(
-        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+        .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .EXP_WIDTH          (V_FP_EXP_WIDTH),
         .MANT_WIDTH         (V_FP_MANT_WIDTH),
@@ -370,6 +373,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_a_v_fp_in     (v_out_fp),
         .port_a_mask_in     (v_sram_mask_a),
         .port_a_v_fp_out    (v_port_a_out_fp),
+        .port_a_element_out (v_element_port_a_out),
+        .port_a_scale_out   (v_scale_port_a_out),
         .port_b_req         (v_sram_req_b),
         .port_b_write_en    (v_sram_wen_b),
         .port_b_addr        (v_sram_addr_b),

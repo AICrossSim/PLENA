@@ -44,11 +44,13 @@ module fp_vector_sram #(
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_a_addr,
     input   logic control, // 0 for Vector Machine, 1 for Matrix Machine
     // FP Data Connection
-    input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_in,
-    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_in,
-    input   logic [VLEN - 1 : 0]                                        port_a_mask_in,
-    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_out,
-    output  logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_out,
+    input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_in,
+    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_m_fp_in,
+    input   logic [VLEN - 1 : 0]                                                    port_a_mask_in,
+    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_out,
+
+    output  logic [MLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_a_element_out,
+    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_a_scale_out,
 
     // Port B
     input   logic port_b_req,
@@ -120,15 +122,58 @@ module fp_vector_sram #(
 
     always_comb begin
         if (control == 1'b0) begin
-            // Vector Machine Mode
+            // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal = port_a_v_fp_in;
             port_a_v_fp_out = port_a_fp_out_internal;
+        end 
+    end
+
+    // Convert FP Data to MX-FP Data for HBM write
+    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
+    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
+    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_valid;
+    logic port_a_mxfp_out_valid;
+    logic mxfp_fp_convert_port_a_ready;
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            mxfp_fp_convert_port_a_in_valid <= '0;
+            mxfp_fp_convert_port_a_ready <= 1'b0;
         end else begin
-            // Matrix Machine Mode
-            port_a_fp_in_internal = {{REPL_COUNT{1'b0}}, port_a_m_fp_in}; // Use Matrix FP Input
-            port_a_m_fp_out = port_a_fp_out_internal[VLEN - 1:0]; // Ensure the output is within VLEN
+            mxfp_fp_convert_port_a_in_valid <= (control == 1'b0 && port_a_req) ? {BLOCK_NUM{1'b1}} : '0;
+            mxfp_fp_convert_port_a_ready <= 1'b1;
         end
     end
+
+    for (genvar j = 0; j < BLOCK_NUM; j++) begin
+        fp_2_mx_fp_block #(
+            .BLOCK_DIM          (BLOCK_DIM),
+            .FP_MANT_WIDTH      (MANT_WIDTH),
+            .FP_EXP_WIDTH       (EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+        ) fp_2_mx_port_a_convert_init(
+            .clk(clk),
+            .rst(rst),
+            .data_in                (port_a_fp_out_internal[(j+1) * BLOCK_DIM - 1 : j * BLOCK_DIM]),
+            .data_in_valid          (mxfp_fp_convert_port_a_in_valid),
+            .data_in_ready          (),
+            .element_data_out       (port_a_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
+            .scale_data_out         (port_a_scale_out[j]),
+            .mx_fp_data_out_valid   (mxfp_fp_convert_port_a_out_valid[j]),
+            .mx_fp_data_out_ready   (mxfp_fp_convert_port_a_out_ready[j])
+        );
+    end
+
+    join_n #(
+        .NUM_HANDSHAKES(BLOCK_NUM)
+    ) mxfp_fp_convert_port_a_join (
+        .data_in_valid(mxfp_fp_convert_port_a_out_valid),
+        .data_in_ready(mxfp_fp_convert_port_a_out_ready),
+        .data_out_valid(port_a_mxfp_out_valid),
+        .data_out_ready(mxfp_fp_convert_port_b_ready)
+    );
 
 
     // -----------------------------
@@ -142,7 +187,7 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_out;
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
-            mx_fp_2_fp_block #(
+            mx_fp_2_fp_port_b_block #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
                 .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
@@ -162,14 +207,14 @@ module fp_vector_sram #(
     logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_in_valid;
     logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_ready;
     logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_valid;
-    logic mxfp_fp_convert_ready;
+    logic mxfp_fp_convert_port_b_ready;
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             mxfp_fp_convert_port_b_in_valid <= '0;
-            mxfp_fp_convert_ready <= 1'b0;
+            mxfp_fp_convert_port_b_ready <= 1'b0;
         end else begin
             mxfp_fp_convert_port_b_in_valid <= port_b_mxfp_req ? {BLOCK_NUM{1'b1}} : '0;
-            mxfp_fp_convert_ready <= 1'b1;
+            mxfp_fp_convert_port_b_ready <= 1'b1;
         end
     end
 
@@ -200,7 +245,7 @@ module fp_vector_sram #(
         .data_in_valid(mxfp_fp_convert_port_b_out_valid),
         .data_in_ready(mxfp_fp_convert_port_b_out_ready),
         .data_out_valid(port_b_mxfp_out_valid),
-        .data_out_ready(mxfp_fp_convert_ready)
+        .data_out_ready(mxfp_fp_convert_port_b_ready)
     );
 
 // Main Storage in FP format

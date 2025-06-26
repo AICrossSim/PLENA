@@ -217,8 +217,8 @@ module pipeline_control #(
                 recorded_check_stage_op <= invalid_op_bubble;
             end
 
-            // Accumulation in progress
-            if (exe_stage_op.m_op == MM_O || exe_stage_op.m_op == MV_O) begin
+            // Accumulation in progress TODO
+            if (exe_stage_op.m_op == MM_WO || exe_stage_op.m_op == MV_O) begin
                 m_accumulate_in_progress <= 1'b1;
             end else if(m_complete_acc_writeback) begin
                 m_accumulate_in_progress <= 1'b0;

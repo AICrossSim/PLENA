@@ -12,7 +12,7 @@ Description : It supports both for GEMM and GEMV operations.
 Status      : Under Development
 */
 
-module systolic_mcu #(
+module mxfp_systolic_mcu #(
     // MX-FP Data Format
     parameter MXFP_T_EXP_WIDTH      = 4,
     parameter MXFP_T_MANT_WIDTH     = 3,
@@ -32,6 +32,10 @@ module systolic_mcu #(
     input   logic clk,
     input   logic rst,
     input   M_OP  control,      // 0 for GEMV, 1 for GEMM
+    input   logic [ACC_ADDR_WIDTH - 1 : 0] acc_waddr,
+    input   logic fetch_next_acc_waddr_valid,
+    output  logic fetch_next_acc_waddr_ready,
+    
     // Multiplicant Matrix 1
     input   logic [K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] v1_element,
     input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v1_scale,
@@ -45,7 +49,7 @@ module systolic_mcu #(
     // Vector Product Output
     output  logic [M - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] v_result,
     output  logic v_result_valid,
-    input   logic v_result_ready,
+    // input   logic v_result_ready,
     output  logic load_in_progress
 );
 
@@ -125,7 +129,7 @@ module systolic_mcu #(
         end
     end
 
-    assign gemm_en = ((control_under_exe == MM) || (control_under_exe == MM_O));
+    assign gemm_en = ((control_under_exe == MM_IC) || (control_under_exe == MM_PS));
 
     localparam COUNTER_BIT_WIDTH = $clog2(K);
     logic [COUNTER_BIT_WIDTH : 0] v1_load_counter;
@@ -174,6 +178,18 @@ module systolic_mcu #(
         end
     end
 
+    // TODO: Write back
+    logic result_fetch_ready;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            result_fetch_ready <= 1'b0;
+        end else if (control_under_exe == MM_WO) begin
+            result_fetch_ready <= 1'b1;
+        end else if (control_under_exe == STALL_M) begin
+            result_fetch_ready <= 1'b0;
+        end
+    end
+
 
     // -----------------------------
     // Systolic Array Computation Unit
@@ -209,7 +225,7 @@ module systolic_mcu #(
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
             systolic_data_streamer #(
-                .MXFP_EXP_WIDTH     (MXFP_T)EXP_WIDTH),
+                .MXFP_EXP_WIDTH     (MXFP_T_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_T_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
@@ -230,8 +246,8 @@ module systolic_mcu #(
             );
 
             systolic_data_streamer #(
-                .MXFP_EXP_WIDTH     (MXFP_T_EXP_WIDTH),
-                .MXFP_MANT_WIDTH    (MXFP_T_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (MXFP_L_EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (MXFP_L_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
@@ -286,28 +302,172 @@ module systolic_mcu #(
         end
     endgenerate
 
+logic gebm_result_valid, gebm_result_ready;
+
+    sum_across_sa #(
+        .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH),
+        .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
+        .COMPUTE_DIM(COMPUTE_DIM),
+        .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT)
+    ) sa_sum_across_inst (
+        .clk(clk),
+        .rst(rst),
+        .m_in_data  (sa_m_result),
+        .in_valid   (gemm_result_valid),
+        .in_ready   (gemm_result_w_ready),
+        .m_out_data (gebm_result),
+        .out_valid  (gebm_result_valid),
+        .out_ready  (gebm_result_ready)
+    );
+
+    // -----------------------------
+    // Quantize into Required Precision for Storage (Vector SRAM)
+    // -----------------------------
+    // Note, the reason for K dim is because, it need to be used for both GEMM and GEMV
+
+    localparam GEBM_OUT_DIM = COMPUTE_DIM * COMPUTE_DIM;
+    logic quantise_data_in_valid, quantise_data_in_ready;
+    logic quantised_result_valid, quantised_result_ready;
+    logic block_data_in_valid, block_data_in_ready;
+    logic unrolled_data_out_valid, unrolled_data_out_ready;
+    logic result_data_valid, result_data_ready;
+    logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] result_data, unrolled_data_out;
+
+    always_comb begin
+        if (sa_control == 1'b0) begin
+            // GEMM
+            quantise_data_in_valid  = gebm_result_valid;
+            gebm_result_ready       = quantise_data_in_ready;
+            block_data_in_valid     = quantised_result_valid;
+            quantised_result_ready  = block_data_in_ready;
+            result_data             = unrolled_data_out;
+            result_data_valid       = unrolled_data_out_valid;
+            unrolled_data_out_ready = result_data_ready;
+        end else begin
+            // GEMV
+            quantise_data_in_valid  = gemv_result_valid;
+            gemv_result_w_ready     = quantise_data_in_ready;
+            block_data_in_valid     = 1'b0;
+            result_data             = stored_quantized_result;
+            result_data_valid       = quantised_result_valid;
+            quantised_result_ready  = result_data_ready;
+        end
+    end
+
+    generate
+        if (K > GEBM_OUT_DIM) begin
+            logic [K - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
+            logic [K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]      quantised_result_v, stored_quantized_result;
+            
+            always_comb begin
+                if (sa_control == 1'b0) begin
+                    // GEMM
+                    stored_result_v = {{((K - GEBM_OUT_DIM) * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)){1'b0}}, gebm_result};
+                end else begin
+                    // GEMV
+                    stored_result_v = gemv_result;
+                end
+            end
+
+            for (genvar i = 0; i < K; i++) begin : gen_quantize
+                fp_ieee_casting #(
+                    .IN_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
+                    .IN_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                    .OUT_EXP_WIDTH  (FP_EXP_WIDTH),
+                    .OUT_MANT_WIDTH (FP_MANT_WIDTH)
+                ) cast_inst (
+                    .data_in      (stored_result_v[i]),
+                    .data_out     (quantised_result_v[i])
+                );
+            end
+
+            skid_buffer #(
+                .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
+            ) quantized_result_buffer (
+                .clk(clk),
+                .rst(rst),
+                .data_in        (quantised_result_v),
+                .data_in_valid  (quantise_data_in_valid),
+                .data_in_ready  (quantise_data_in_ready),
+                .data_out       (stored_quantized_result),
+                .data_out_valid (quantised_result_valid),
+                .data_out_ready (quantised_result_ready)
+            );
+
+        end else begin
+            logic [GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
+            logic [GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1 ) - 1 : 0] quantised_result_v, stored_quantized_result;
+            always_comb begin
+                if (sa_control == 1'b0) begin
+                    // GEMM
+                    stored_result_v = gebm_result;
+                end else begin
+                    // GEMV
+                    stored_result_v = {gemv_result, {(GEBM_OUT_DIM - K){1'b0}}};
+                end
+            end
+
+            for (genvar i = 0; i < GEBM_OUT_DIM; i++) begin : gen_quantize
+                fp_ieee_casting #(
+                    .IN_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
+                    .IN_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                    .OUT_EXP_WIDTH  (FP_EXP_WIDTH),
+                    .OUT_MANT_WIDTH (FP_MANT_WIDTH)
+                ) cast_inst (
+                    .data_in      (stored_result_v[i]),
+                    .data_out     (quantised_result_v[i])
+                );
+            end
+
+            skid_buffer #(
+                .DATA_WIDTH(GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
+            ) quantized_result_buffer (
+                .clk(clk),
+                .rst(rst),
+                .data_in        (quantised_result_v),
+                .data_in_valid  (quantise_data_in_valid),
+                .data_in_ready  (quantise_data_in_ready),
+                .data_out       (stored_quantized_result),
+                .data_out_valid (quantised_result_valid),
+                .data_out_ready (quantised_result_ready)
+            );
+
+        end
+    endgenerate
+
     // -----------------------------
     // Storing the computed result and write to the Vector SRAM
     // -----------------------------
-
-    sa_result_collector #(
-        .SYS_ARRAY_AMOUNT(SYS_ARRAY_AMOUNT),
-        .COMPUTE_DIM(M),
-        .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-        .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH)
-    ) sa_result_collector_inst (
+    block_data_buffer #(
+        .M(M),
+        .N(N),
+        .K(K),
+        .FP_EXP_WIDTH(FP_EXP_WIDTH),
+        .FP_MANT_WIDTH(FP_MANT_WIDTH)
+    ) hold_and_unroll_for_gemm (
         .clk(clk),
-        .rst(rst),
-        .control            (gemm_en),
-        .gemm_result        (gemm_result),
-        .gemm_result_valid  (gemm_result_valid),
-        .gemm_result_ready  (gemm_result_ready),
-        .gemv_result        (gemv_result),
-        .gemv_result_valid  (gemv_result_valid),
-        .gemv_result_ready  (gemv_result_ready),
-        .out_fp             (v_result),
-        .out_result_valid   (v_result_valid),
-        .out_result_ready   (v_result_ready)
+        .rst(rst | output_reset),
+        .acc_waddr(acc_waddr),
+        .acc_waddr_valid        (fetch_next_acc_waddr_valid),
+        .acc_waddr_ready        (fetch_next_acc_waddr_ready),
+        .block_data_in          (stored_quantized_result),
+        .block_data_valid       (block_data_in_valid),
+        .block_data_ready       (block_data_in_ready),
+        .unrolled_data_out      (unrolled_data_out),
+        .unrolled_data_out_valid(unrolled_data_out_valid),
+        .unrolled_data_out_ready(unrolled_data_out_ready)
     );
 
+    skid_buffer #(
+        .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
+    ) result_buffer (
+        .clk(clk),
+        .rst(rst),
+        .data_in        (result_data),
+        .data_in_valid  (result_data_valid),
+        .data_in_ready  (result_data_ready),
+        .data_out       (v_result),
+        .data_out_valid (v_result_valid),
+        .data_out_ready (v_result_ready)
+    );
 endmodule

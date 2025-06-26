@@ -54,14 +54,14 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
         S_ADDI_FIX x7, x0, Br * i;          reset x7,x8 to block size of Q, K for indexing d/i
         S_ADDI_FIX x8, x0, Bc * i;
         ; LOOP d/i - 1; not the last loop
-            H_PREFETCH_V x6, x4, ADR[Q];
-            H_PREFETCH_M x6, x5, ADR[K];
+            H_PREFETCH_V_C x6, x4, ADR[Q];
+            H_PREFETCH_M_C x6, x5, ADR[K];
             M_BMM 0, x6, x6
             S_ADDI_FIX x4, x4, x7;              x4 = x4 + x7        
             S_ADDI_FIX x5, x5, x8;              x5 = x5 + x8
         ; LOOP d/i; last loop   
-            H_PREFETCH_V x6, x4, ADR[Q];
-            H_PREFETCH_M x6, x5, ADR[K];
+            H_PREFETCH_V_C x6, x4, ADR[Q];
+            H_PREFETCH_M_C x6, x5, ADR[K];
             M_BMM_O x6, x6, x6;                 store S in Q to VSRAM[1]
             S_ADDI_FIX x4, x4, x7;                      
             S_ADDI_FIX x5, x5, x8;           
@@ -119,9 +119,9 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
         S_MUL_FIX  x7, x6, Bc * Br;         set x7 pointing to O in V_RAM
 
         ; LOOP N/Bc;
-            H_PREFETCH_M x6, x4, ADR[V];
+            H_PREFETCH_M_C x6, x4, ADR[V];
             M_BMM_O x6, x6, x6;             x6 (p@v) = x6 (p V_RAM) @ x6 (v S_RAM)
-            H_PREFETCH_M x7, x5, ADR[O];    load previous O matrix
+            H_PREFETCH_M_C x7, x5, ADR[O];    load previous O matrix
 
             S_ADDI_FIX x3, x0, 0;           use this to index row
             ; LOOP Br;

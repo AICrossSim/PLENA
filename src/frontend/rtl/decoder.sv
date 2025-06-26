@@ -223,7 +223,7 @@ always_ff @(posedge clk) begin
         imm                             <= 'b0;
     end else if (!pipeline_stall) begin
         rd_operand_ready <= 1'b0;
-        decode_stage_op.m_transposed_read     <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_BMM || decode_instr_info.opcode == M_BMM_O) ? 1'b1 : 1'b0;
+        decode_stage_op.m_transposed_read     <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_MM_IC || decode_instr_info.opcode == M_MM_PS) ? 1'b1 : 1'b0; // TODO
         decode_stage_op.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_LD_F) ? 1'b1 : 1'b0;
         decode_stage_op.update_m_waddr        <= 1'b0;
         decode_stage_op.update_v_waddr        <= 1'b0;
@@ -439,9 +439,9 @@ always_ff @(posedge clk) begin
                 decode_stage_op.s_fp_op         <= STALL_S_FP;
                 exe_fixed_op                    <= PASS_ADDR_2;
                 decode_stage_op.c_op            <= STALL_C;
-                decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M)      ? PREFETCH_M    :
-                                            (decode_instr_info.opcode == H_PREFETCH_V)      ? PREFETCH_V    :
-                                            (decode_instr_info.opcode == H_STORE_V)         ? STORE_V       : STALL_H;
+                decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_C)      ? PREFETCH_M    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_C)      ? PREFETCH_V    :
+                                            (decode_instr_info.opcode == H_STORE_V_C)         ? STORE_V       : STALL_H;
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;
