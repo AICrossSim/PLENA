@@ -7,9 +7,9 @@ Description : This module receives data and repeats it N times.
 */
 
 module duplicate_data_section #(
-    parameter DATA_SEC_WIDTH = 4,
     parameter REPEAT = 2,
     parameter BITSTREAM_WIDTH = 12,
+    parameter DATA_SEC_WIDTH = BITSTREAM_WIDTH,
     localparam SEC_NUM = BITSTREAM_WIDTH / DATA_SEC_WIDTH
 ) (
     input   logic   [BITSTREAM_WIDTH-1:0] in_data,

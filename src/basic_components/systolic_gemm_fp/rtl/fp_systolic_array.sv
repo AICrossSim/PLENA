@@ -79,8 +79,8 @@ module fp_systolic_array #(
 
     // Computation
     generate;
-        for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : pe_row
-            for (genvar j = 0; j < COMPUTE_DIM; j = j + 1) begin : pe_col
+        for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : row_inx
+            for (genvar j = 0; j < COMPUTE_DIM; j = j + 1) begin : col_idx
                 if (i == 0) begin
                     fp_first_row_pe #(
                         .FP_EXP_WIDTH       (FP_EXP_WIDTH),
@@ -103,7 +103,7 @@ module fp_systolic_array #(
                         .out_bottom_data    (columnwise_data_transfer_data[i+1][j]),
                         .out_right_data     (rowwise_data_transfer_data[i][j+1]),
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_ready   (result_ready[i][j])
+                        .out_result_ready   (out_result_ready)
                     );
                 end else begin
                     fp_default_pe #(
@@ -125,14 +125,13 @@ module fp_systolic_array #(
                         .out_bottom_data    (columnwise_data_transfer_data[i + 1][j]),
                         .out_right_data     (rowwise_data_transfer_data[i][j + 1]),
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_ready   (result_ready[i][j])
+                        .out_result_ready   (out_result_ready)
                     );
                 end
             end
         end
     endgenerate
 
-    assign result_ready     = (out_result_ready) ? {(COMPUTE_DIM * COMPUTE_DIM){1'b1}} : result_ready;
     assign v_out_fp         = m_out_fp[0];
     assign out_result_ready = (control == 1'b0) ? m_out_ready : v_out_ready;
 

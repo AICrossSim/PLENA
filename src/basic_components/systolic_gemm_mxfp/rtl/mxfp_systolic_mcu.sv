@@ -14,13 +14,15 @@ Status      : Under Development
 
 module systolic_mcu #(
     // MX-FP Data Format
-    parameter   MXFP_EXP_WIDTH        = 4,
-    parameter   MXFP_MANT_WIDTH       = 3,
-    parameter   MXFP_SCALE_WIDTH      = 8,
-    parameter   BLOCK_DIM             = 4,
+    parameter MXFP_T_EXP_WIDTH      = 4,
+    parameter MXFP_T_MANT_WIDTH     = 3,
+    parameter MXFP_L_EXP_WIDTH      = 4,
+    parameter MXFP_L_MANT_WIDTH     = 3,
+    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter BLOCK_DIM             = 4,
     // Accumulator Data Format
-    parameter   ACC_FP_EXP_WIDTH      = 8,
-    parameter   ACC_FP_MANT_WIDTH     = 7,
+    parameter ACC_FP_EXP_WIDTH      = 8,
+    parameter ACC_FP_MANT_WIDTH     = 7,
     // Dimension
     parameter   M                     = 4,
     parameter   N                     = 4,
@@ -70,10 +72,10 @@ module systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_top_in_valid, array_top_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] array_top_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]           array_top_in_scale;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] array_left_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]           array_left_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] array_top_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               array_top_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0] array_left_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               array_left_in_scale;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
@@ -207,8 +209,8 @@ module systolic_mcu #(
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
             systolic_data_streamer #(
-                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (MXFP_T)EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (MXFP_T_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
@@ -228,8 +230,8 @@ module systolic_mcu #(
             );
 
             systolic_data_streamer #(
-                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (MXFP_T_EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (MXFP_T_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
@@ -249,8 +251,10 @@ module systolic_mcu #(
             );
 
             systolic_array #(
-                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+                .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
+                .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
+                .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
+                .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
