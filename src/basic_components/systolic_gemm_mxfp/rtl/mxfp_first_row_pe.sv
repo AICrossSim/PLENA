@@ -124,6 +124,8 @@ module mxfp_first_row_pe #(
         .in_left_element        (pe_in_left_element),
         .in_left_scale          (pe_in_left_scale),
         .system_left_valid      (system_left_valid),
+        .mult_valid             (mult_valid),
+        .mult_ready             (mult_ready),
         .out_bottom_element     (pe_out_bottom_element),
         .out_bottom_scale       (pe_out_bottom_scale),
         .out_right_element      (pe_out_right_element),

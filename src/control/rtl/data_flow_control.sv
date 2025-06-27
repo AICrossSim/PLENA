@@ -154,7 +154,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             m_sram_raddr_offset = 'b0;
         end
 
-        if (mem_stage_op.m_op == MV || mem_stage_op.m_op == MV_O || continuous_load_m_en) begin
+        if (mem_stage_op.m_op != STALL_M || continuous_load_m_en) begin
             m_sram_raddr = recorded_m_load_addr + m_sram_raddr_offset;
         end else begin
             m_sram_raddr = 'b0;
@@ -305,6 +305,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic [H_WR_COUNT_WIDTH : 0] hbm_write_counter;
     logic v_v_a_load, v_v_b_load;
     logic end_of_load_v_for_matrix;
+    logic p1_vport_a_load_valid, p2_vport_a_load_valid;
     
     always_comb begin
         // Port A Addr Mangement
@@ -358,6 +359,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             recorded_m_write_addr           <= 'b0;
             recorded_v_write_addr           <= 'b0;
             load_for_gemv_en                <= 1'b0;
+            p1_vport_a_load_valid            <= 1'b0;
+            p2_vport_a_load_valid            <= 1'b0;
             m_v_valid                       <= 1'b0;
             m_v_load                        <= 1'b0;
             v_v_a_load                      <= 1'b0;
@@ -380,9 +383,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             v_v_a_valid                 <= v_v_a_load;
             v_v_b_valid                 <= v_v_b_load;
             m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
-            m_v_valid <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!v_prefetch_data_not_ready);
+            p1_vport_a_load_valid       <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!v_prefetch_data_not_ready);
             m_complete_acc_writeback    <= (v_sram_write_from_matrix_counter == MATRIX_LOAD_ITERATION - 1) & 
                                             continuous_v_write_from_matrix_en & m_out_valid;
+            p2_vport_a_load_valid       <= p1_vport_a_load_valid;
+            m_v_valid                   <= p2_vport_a_load_valid;
             //Port A
             if(exe_stage_op.m_op != STALL_M && m_v_ready) begin
                 // Read Vector from SRAM

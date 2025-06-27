@@ -199,7 +199,8 @@ module mxfp_systolic_data_streamer #(
         .data_out_valid({stream_elem_in_valid, stream_scale_in_valid}),
         .data_out_ready({stream_elem_in_ready, stream_scale_in_ready})
     );   
-
+    
+    assign data_in_ready = stream_in_ready;
     logic data_element_out_valid, data_scale_out_valid;
     logic data_element_out_ready, data_scale_out_ready;
 

@@ -171,7 +171,6 @@ module mxfp_systolic_mcu #(
         end
     end
 
-
     always_comb begin
         if (control_in_exe == MV || control_in_exe == MV_O) begin
             v2_in_ready = v2_for_mv_in_ready;

@@ -79,8 +79,8 @@ if __name__ == "__main__":
     filename = "test_projection_data.pt"
     torch.manual_seed(52)
     quant_config_high = {
-        "exp_width": 4,
-        "man_width": 3,
+        "exp_width": 1,
+        "man_width": 2,
         "exp_bias_width": 8,
         "block_size": [1, 4],
         "skip_first_dim": False,
@@ -107,8 +107,8 @@ if __name__ == "__main__":
                             hbm_row_width=256)
 
     quant_config_low = {
-        "exp_width": 1,
-        "man_width": 2,
+        "exp_width": 4,
+        "man_width": 3,
         "exp_bias_width": 8,
         "block_size": [1, 4],
         "skip_first_dim": False,

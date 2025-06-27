@@ -23,20 +23,20 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // Data to Matrix SRAM
     input   logic prefetch_m_ready,
     output  logic prefetch_m_valid,
-    output  logic [MLEN -1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]      prefetch_m_element,
-    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                          prefetch_m_scale,
+    output  logic [MLEN -1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]            prefetch_m_element,
+    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                              prefetch_m_scale,
 
     // Data to Vector SRAM
     input   logic prefetch_v_ready,
     output  logic prefetch_v_valid,
-    output  logic [VLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]         prefetch_v_element,
-    output  logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                           prefetch_v_scale,
+    output  logic [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]           prefetch_v_element,
+    output  logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                               prefetch_v_scale,
 
     // Write Back to HBM
     input   logic                                 hbm_write_v_en,
     output  logic                                 hbm_write_v_ready,
-    input  logic   [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]    hbm_write_v_element,
-    input  logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]              hbm_write_v_scale,
+    input   logic   [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]    hbm_write_v_element,
+    input   logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                        hbm_write_v_scale,
 
     // Status Tracking
     output logic prefetch_m_in_progress,

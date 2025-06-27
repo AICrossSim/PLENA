@@ -93,7 +93,8 @@ class SimTOP(Testbench):
 
 @cocotb.test()
 async def test(dut):
-    cocotb.start_soon(record_data_on_trigger(dut=dut.dut.matrix_machine_init.matrix_compute_unit, clk=dut.clk, trigger_signal=dut.dut.matrix_machine_init.matrix_compute_unit.v1_in_valid, output_file=f"{current_path}/log/recorded_data.txt"))
+    # cocotb.start_soon(record_data_on_trigger(dut=dut.dut.matrix_machine_init.matrix_compute_unit, clk=dut.clk, trigger_signal=dut.dut.matrix_machine_init.matrix_compute_unit.v1_in_valid, output_file=f"{current_path}/log/recorded_data.txt"))
+    # cocotb.start_soon()
     tb = SimTOP(dut, hbm_element_file, hbm_scale_file, instr_file)
     await tb.run_test()
 

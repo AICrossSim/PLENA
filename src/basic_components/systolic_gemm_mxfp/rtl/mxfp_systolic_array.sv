@@ -77,6 +77,12 @@ module mxfp_systolic_array #(
     logic system_right_shift_valid, system_down_shift_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] pe_compute_ready;
 
+    join2 #() mult_signal_join (
+        .data_in_valid({in_top_valid, in_left_valid}),
+        .data_in_ready({in_top_ready, in_left_ready}),
+        .data_out_valid(mult_valid),
+        .data_out_ready(mult_ready)
+    );
 
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i = i + 1) begin : fill_with_input_data
@@ -88,6 +94,9 @@ module mxfp_systolic_array #(
             assign vert_transfer_elem[i][0]      = in_left_element[i];
             assign vert_transfer_scale[i][0]     = in_left_scale[i];
         end
+        assign mult_ready = &pe_compute_ready;
+        assign system_down_shift_valid = in_top_valid & in_top_ready;
+        assign system_right_shift_valid = in_left_valid & in_left_ready;
     endgenerate
 
 
@@ -110,30 +119,20 @@ module mxfp_systolic_array #(
                         .clk(clk),
                         .rst(rst),
                         .control(control),
-
-                        // Input from Top Array
-                        .in_top_element (hori_transfer_elem[i][j]),
-                        .in_top_scale   (hori_transfer_scale[i][j]),
-                        .system_top_valid (in_top_valid),
-
-                        // Input from Left Array
-                        .in_left_element(vert_transfer_elem[i][j]),
-                        .in_left_scale  (vert_transfer_scale[i][j]),
-                        .system_left_valid (in_left_valid),
-
-                        // Input from Vector Array
-                        .in_left_v_element   (in_left_v_element[j]),
-                        .in_left_v_scale     (in_left_v_scale[j]),
-
-                        // Output to Bottom
+                        .in_top_element     (hori_transfer_elem[i][j]),
+                        .in_top_scale       (hori_transfer_scale[i][j]),
+                        .system_top_valid   (system_down_shift_valid),
+                        .in_left_element    (vert_transfer_elem[i][j]),
+                        .in_left_scale      (vert_transfer_scale[i][j]),
+                        .system_left_valid  (system_right_shift_valid),
+                        .mult_valid         (mult_valid),
+                        .mult_ready         (pe_compute_ready[i][j]),
+                        .in_left_v_element  (in_left_v_element[j]),
+                        .in_left_v_scale    (in_left_v_scale[j]),
                         .out_bottom_element (hori_transfer_elem[i+1][j]),
                         .out_bottom_scale   (hori_transfer_scale[i+1][j]),
-
-                        // Output to Right
                         .out_right_element  (vert_transfer_elem[i][j+1]),
                         .out_right_scale    (vert_transfer_scale[i][j+1]),
-
-                        // Output Result
                         .out_fp             (m_out_fp[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
@@ -150,26 +149,16 @@ module mxfp_systolic_array #(
                     ) default_pe_init (
                         .clk(clk),
                         .rst(rst),
-
-                        // Input from Top Array
-                        .in_top_element (hori_transfer_elem[i][j]),
-                        .in_top_scale   (hori_transfer_scale[i][j]),
-                        .system_top_valid (in_top_valid),
-
-                        // Input from Left Array
-                        .in_left_element(vert_transfer_elem[i][j]),
-                        .in_left_scale  (vert_transfer_scale[i][j]),
-                        .system_left_valid (in_left_valid),
-
-                        // Output to Bottom
+                        .in_top_element     (hori_transfer_elem[i][j]),
+                        .in_top_scale       (hori_transfer_scale[i][j]),
+                        .system_top_valid   (in_top_valid),
+                        .in_left_element    (vert_transfer_elem[i][j]),
+                        .in_left_scale      (vert_transfer_scale[i][j]),
+                        .system_left_valid  (in_left_valid),
                         .out_bottom_element (hori_transfer_elem[i + 1][j]),
                         .out_bottom_scale   (hori_transfer_scale[i + 1][j]),
-
-                        // Output to Right
                         .out_right_element  (vert_transfer_elem[i][j + 1]),
                         .out_right_scale    (vert_transfer_scale[i][j + 1]),
-
-                        // Output Result
                         .out_fp             (m_out_fp[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );

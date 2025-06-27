@@ -5,7 +5,7 @@ package precision_pkg;
     parameter   HIGH_MXFP_MANT_WIDTH            = 3;
     parameter   HIGH_MXFP_EXP_WIDTH             = 4;
     parameter   LOW_MXFP_MANT_WIDTH             = 2;
-    parameter   LOW_MXFP_EXP_WIDTH              = 2;
+    parameter   LOW_MXFP_EXP_WIDTH              = 1;
     parameter   MXFP_SCALE_WIDTH                = 8;
     parameter   BLOCK_DIM                       = 4;
     parameter   V_FP_EXP_WIDTH                  = 7;
