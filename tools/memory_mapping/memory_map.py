@@ -16,7 +16,7 @@ def map_scale_to_value(scale, data_width):
     hex_digits = data_width // 4  # e.g., 32 bits = 8 hex digits
     return f"{scale:0{hex_digits}X}"
 
-def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, hbm_row_width=64):
+def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
 
     """
     Maps the quantized blocks and bias to a fake HBM memory structure.
@@ -27,7 +27,15 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
     if not os.path.exists(directory):
         os.makedirs(directory)
     
-    with open(os.path.join(directory, "hbm_ele.mem"), "w") as f:
+    if not append:
+        # Clear existing files if not appending
+        with open(os.path.join(directory, "hbm_ele.mem"), "w") as f:
+            f.write("")
+        with open(os.path.join(directory, "hbm_scale.mem"), "w") as f:
+            f.write("")
+
+
+    with open(os.path.join(directory, "hbm_ele.mem"), "a") as f:
         insert_block_row = ""
         combined_blk = ""
         index_in_row = 0
@@ -44,7 +52,7 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
                 insert_block_row = ""
                 index_in_row = 0
     # Save Bias to HBM file            
-    with open(os.path.join(directory, "hbm_scale.mem"), "w") as f:
+    with open(os.path.join(directory, "hbm_scale.mem"), "a") as f:
         insert_bias_row = ""
         combined_bias = ""
         index_in_row = 0
@@ -59,6 +67,10 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
                 f.write("0x" + insert_bias_row + "\n")
                 insert_bias_row = ""
                 index_in_row = 0
+        if 0 < index_in_row < num_bias_per_row:
+            # If the last row is not full, pad it with zeros
+            insert_bias_row = "0" * (num_bias_per_row - index_in_row) * (bias_width // 4) + insert_bias_row
+            f.write("0x" + insert_bias_row + "\n")
 
 
 if __name__ == "__main__":
@@ -66,29 +78,53 @@ if __name__ == "__main__":
     fake_hbm_dir = "../../test/load_mem"
     filename = "test_projection_data.pt"
     torch.manual_seed(52)
-    quant_config = {
+    quant_config_high = {
         "exp_width": 4,
         "man_width": 3,
-        "exp_bias_width": 16,
+        "exp_bias_width": 8,
         "block_size": [1, 4],
         "skip_first_dim": False,
     }
-    rand_gen = RandomTensorGenerator(
+    rand_gen_high = RandomTensorGenerator(
         shape=(16, 8),
         directory=directory,
         filename=filename,
-        quant_config=quant_config
+        quant_config=quant_config_high
     )
     
     # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
-    rand_gen.tensor_gen()
-    weight = rand_gen.tensor_load()
-    blocks, bias = rand_gen.quantize_tensor(weight)
+    rand_gen_high.tensor_gen()
+    weight = rand_gen_high.tensor_load()
+    blocks, bias = rand_gen_high.quantize_tensor(weight[:8, :])
     map_data_to_fake_hbm(   blocks=blocks,
-                            element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
-                            block_width=(quant_config["exp_width"] + quant_config["man_width"] + 1) * 4,
+                            element_width=quant_config_high["exp_width"] + quant_config_high["man_width"] + 1,
+                            block_width=(quant_config_high["exp_width"] + quant_config_high["man_width"] + 1) * 4,
                             bias=bias,
-                            bias_width=quant_config["exp_bias_width"],
+                            bias_width=quant_config_high["exp_bias_width"],
+                            combined_blk_dim = 2,
+                            directory=fake_hbm_dir,
+                            append=False,
+                            hbm_row_width=256)
+
+    quant_config_low = {
+        "exp_width": 1,
+        "man_width": 2,
+        "exp_bias_width": 8,
+        "block_size": [1, 4],
+        "skip_first_dim": False,
+    }
+    rand_gen_low = RandomTensorGenerator(
+        shape=(8, 8),
+        directory=directory,
+        filename=filename,
+        quant_config=quant_config_low
+    )
+    blocks, bias = rand_gen_low.quantize_tensor(weight[8:, :])
+    map_data_to_fake_hbm(   blocks=blocks,
+                            element_width=quant_config_low["exp_width"] + quant_config_low["man_width"] + 1,
+                            block_width=(quant_config_low["exp_width"] + quant_config_low["man_width"] + 1) * 4,
+                            bias=bias,
+                            bias_width=quant_config_low["exp_bias_width"],
                             combined_blk_dim = 2,
                             directory=fake_hbm_dir,
                             hbm_row_width=256)

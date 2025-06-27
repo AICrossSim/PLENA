@@ -51,13 +51,12 @@ class RandomTensorGenerator:
         '''
         bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
             tensor,
-            width = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
-            exponent_width = self.quant_config["exp_width"],
+            width               = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
+            exponent_width      = self.quant_config["exp_width"],
             exponent_bias_width = self.quant_config["exp_bias_width"],
-            block_size = self.quant_config["block_size"],
-            skip_first_dim = self.quant_config["skip_first_dim"],
+            block_size          = self.quant_config["block_size"],
+            skip_first_dim      = self.quant_config["skip_first_dim"],
         )
-        # breakpoint()
 
         logger.debug(f"per_block_mantissa: {per_block_mantissa.shape}")
         logger.debug(f"per_block_exponent: {per_block_exponent.shape}")

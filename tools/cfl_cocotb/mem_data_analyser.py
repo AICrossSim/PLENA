@@ -117,7 +117,8 @@ if __name__ == "__main__":
     hbm_width = 256
     mxfp_exp_width = 4
     mxfp_ele_mant = 3
-    mxfp_scale_width = 16
+    mxfp_scale_width = 8
+
     blocksize = 4
     num_per_row = hbm_width // (mxfp_exp_width + mxfp_ele_mant + 1)
     directory = "../../test/load_mem"
