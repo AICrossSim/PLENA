@@ -69,15 +69,15 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // HBM Control
     logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
     logic hbm_v_prefetch_valid, hbm_v_prefetch_en;
-    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_m_element;
-    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                      prefetch_m_scale;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]        prefetch_m_element;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                                prefetch_m_scale;
     logic hbm_ready_to_write;
     logic hbm_m_prefetch_in_progress, hbm_v_prefetch_in_progress;
     logic hbm_m_req_prefetch_data, hbm_v_req_prefetch_data;
 
     // Vector SRAM
-    logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element_port_b_in;
-    logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                      v_scale_port_b_in;
+    logic [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]       v_element_port_b_in;
+    logic [VLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                                 v_scale_port_b_in;
     
     // Scalar Machine Control
     logic [IMM_WIDTH - 1 : 0] s_imm;
@@ -200,9 +200,9 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
  
     // Matrix
-    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    fetched_m_element;
-    logic [BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]               fetched_m_scale;
-    logic [MLEN-1:0][S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]                                m_out_v_fp;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]    fetched_m_element;
+    logic [BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                       fetched_m_scale;
+    logic [MLEN-1:0][S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]                                        m_out_v_fp;
 
     // Vector
     logic v_v_a_valid,      v_v_a_ready;

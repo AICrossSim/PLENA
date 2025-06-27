@@ -46,15 +46,6 @@ module fp_systolic_array #(
     input   logic v_out_ready
 );
 
-
-    join2 #() mult_signal_join (
-        .data_in_valid({in_top_valid, in_left_valid}),
-        .data_in_ready({in_top_ready, in_left_ready}),
-        .data_out_valid(mult_valid),
-        .data_out_ready(mult_ready)
-    );
-
-
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]  rowwise_data_transfer_data       [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]  columnwise_data_transfer_data    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
 
@@ -63,6 +54,13 @@ module fp_systolic_array #(
     logic mult_valid, mult_ready;
     logic system_right_shift_valid, system_down_shift_valid;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] pe_compute_ready;
+
+    join2 #() mult_signal_join (
+        .data_in_valid({in_top_valid, in_left_valid}),
+        .data_in_ready({in_top_ready, in_left_ready}),
+        .data_out_valid(mult_valid),
+        .data_out_ready(mult_ready)
+    );
 
 
     // Fill the Front Top Row and Left Column with the input data

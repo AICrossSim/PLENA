@@ -70,9 +70,6 @@ logic [BLOCK_DIM - 1:0][BLOCK_DIM - 1:0] pe_compute_ready;
 logic [BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]  first_row_scale;
 logic [BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]  first_col_scale;
 
-assign first_row_scale[0] = in_top_scale;
-assign first_col_scale[0] = in_left_scale;
-
 always_ff @(posedge clk) begin
     if (rst) begin
         first_col_scale <= 'b0;
@@ -82,6 +79,8 @@ always_ff @(posedge clk) begin
             first_row_scale[i + 1] <= first_row_scale[i];
             first_col_scale[i + 1] <= first_col_scale[i];
         end
+        first_row_scale[0] <= in_top_scale;
+        first_col_scale[0] <= in_left_scale;
     end
 end
 
@@ -98,7 +97,7 @@ endgenerate
 logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] duplicated_left_v_scale;
 duplicate_data_section #(
     .REPEAT(BLOCK_DIM),
-    .DATA_WIDTH(MXFP_SCALE_WIDTH)
+    .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH)
 ) duplicate_left_scale (
     .in_data(in_left_v_scale),
     .out_data(duplicated_left_v_scale)
@@ -106,7 +105,7 @@ duplicate_data_section #(
 
 generate;
     for (genvar i = 0; i < BLOCK_DIM; i = i+1)begin : row_inx
-        for (genvar j = 0; j < COMPUTE_DIM; j = j + 1) begin : col_idx
+        for (genvar j = 0; j < BLOCK_DIM; j = j + 1) begin : col_idx
             if (i == 0) begin
                 mxfp_first_row_pe #(
                     .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
@@ -128,33 +127,6 @@ generate;
                     .in_left_element        (hori_transfer_elem[i][j]),
                     .in_left_scale          (hori_transfer_scale[i][j]),
                     .system_left_valid      (system_left_valid),
-                    .mult_valid             (mult_valid),
-                    .mult_ready             (pe_compute_ready[i][j]),
-                    .out_bottom_element     (vert_transfer_elem[i + 1][j]),
-                    .out_bottom_scale       (vert_transfer_scale[i + 1][j]),
-                    .out_right_element      (hori_transfer_elem[i][j + 1]),
-                    .out_right_scale        (hori_transfer_scale[i][j + 1]),
-                    .out_fp                 (out_fp[i][j]),
-                    .out_result_ready       (out_result_ready)
-                );
-            end else if (control == 1'b1) begin
-                mxfp_first_row_pe #(
-                    .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
-                    .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
-                    .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
-                    .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
-                    .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
-                    .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
-                    .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
-                ) pe (
-                    .clk(clk),
-                    .rst(rst),
-                    .in_top_element         (vert_transfer_elem[i][j]),
-                    .in_top_scale           (vert_transfer_scale[i][j]),
-                    .system_top_valid       (system_top_valid),
-                    .in_left_v_element      (hori_transfer_elem[i][j]),
-                    .in_left_v_scale        (hori_transfer_scale[i][j]),
-                    .system_left_v_valid    (system_left_v_valid),
                     .mult_valid             (mult_valid),
                     .mult_ready             (pe_compute_ready[i][j]),
                     .out_bottom_element     (vert_transfer_elem[i + 1][j]),

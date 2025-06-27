@@ -23,19 +23,19 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // Data to Matrix SRAM
     input   logic prefetch_m_ready,
     output  logic prefetch_m_valid,
-    output  logic [MLEN -1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_m_element,
-    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                prefetch_m_scale,
+    output  logic [MLEN -1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]      prefetch_m_element,
+    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                          prefetch_m_scale,
 
     // Data to Vector SRAM
     input   logic prefetch_v_ready,
     output  logic prefetch_v_valid,
-    output  logic [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      prefetch_v_element,
-    output  logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                prefetch_v_scale,
+    output  logic [VLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]         prefetch_v_element,
+    output  logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                           prefetch_v_scale,
 
     // Write Back to HBM
     input   logic                                 hbm_write_v_en,
     output  logic                                 hbm_write_v_ready,
-    input  logic   [VLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]    hbm_write_v_element,
+    input  logic   [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]    hbm_write_v_element,
     input  logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]              hbm_write_v_scale,
 
     // Status Tracking
@@ -122,7 +122,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // -----------------------------
     
     // Prefetching Control
-    logic [MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] m_hbm_element_out;
+    logic [MLEN * (LOW_MXFP_EXP_WIDTH + LOW_MXFP_MANT_WIDTH + 1) - 1 : 0] m_hbm_element_out;
     logic [MLEN * M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
     logic m_hbm_prefetch_valid;
 
@@ -134,18 +134,18 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     `TL_BIND_HOST_PORT(host_m_scale, m_tl_scale);
 
     hbm_controller #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .BLOCK_DIM(BLOCK_DIM),
-        .DATA_DIM(MLEN),
-        .HBM_ADDR_WIDTH(HBM_ADDR_WIDTH),
-        .ON_CHIP_ADDR_WIDTH(ADDR_WIDTH),
-        .HBM_ELE_WIDTH(HBM_ELE_WIDTH),
-        .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH),
-        .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(HBM_M_Prefetch_Amount)
+        .MXFP_EXP_WIDTH         (LOW_MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH        (LOW_MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
+        .BLOCK_DIM              (BLOCK_DIM),
+        .DATA_DIM               (MLEN),
+        .HBM_ADDR_WIDTH         (HBM_ADDR_WIDTH),
+        .ON_CHIP_ADDR_WIDTH     (ADDR_WIDTH),
+        .HBM_ELE_WIDTH          (HBM_ELE_WIDTH),
+        .HBM_SCALE_WIDTH        (HBM_SCALE_WIDTH),
+        .SourceWidth            (SourceWidth),
+        .SinkWidth              (SinkWidth),
+        .LOAD_AMOUNT            (HBM_M_Prefetch_Amount)
     ) matrix_hbm_controller_init (
         .clk(clk),
         .rst(rst),
@@ -164,7 +164,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic stored_prefetch_m_scale_valid, stored_prefetch_m_scale_ready;
 
     skid_buffer #(
-        .DATA_WIDTH(MLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
+        .DATA_WIDTH(MLEN * (LOW_MXFP_EXP_WIDTH + LOW_MXFP_MANT_WIDTH + 1))
     ) matrix_sram_prefetch_buffer (
         .clk(clk),
         .rst(rst),
@@ -205,7 +205,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // HBM Control Signal between Arbiter and Controller
 
     // Prefetching Control
-    logic [VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) - 1 : 0] v_hbm_element_out;
+    logic [VLEN * (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) - 1 : 0] v_hbm_element_out;
     logic [VLEN * V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
     logic v_hbm_prefetch_valid;
 
@@ -217,18 +217,18 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     `TL_BIND_HOST_PORT(host_v_scale, v_tl_scale);
 
     hbm_controller #(
-        .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-        .BLOCK_DIM(BLOCK_DIM),
-        .DATA_DIM(VLEN),
-        .HBM_ADDR_WIDTH(HBM_ADDR_WIDTH),
-        .HBM_ELE_WIDTH(HBM_ELE_WIDTH),
-        .HBM_SCALE_WIDTH(HBM_SCALE_WIDTH),
-        .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(HBM_V_Prefetch_Amount),
-        .WRITE_AMOUNT(HBM_V_Writeback_Amount)
+        .MXFP_EXP_WIDTH         (HIGH_MXFP_EXP_WIDTH),
+        .MXFP_MANT_WIDTH        (HIGH_MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
+        .BLOCK_DIM              (BLOCK_DIM),
+        .DATA_DIM               (VLEN),
+        .HBM_ADDR_WIDTH         (HBM_ADDR_WIDTH),
+        .HBM_ELE_WIDTH          (HBM_ELE_WIDTH),
+        .HBM_SCALE_WIDTH        (HBM_SCALE_WIDTH),
+        .SourceWidth            (SourceWidth),
+        .SinkWidth              (SinkWidth),
+        .LOAD_AMOUNT            (HBM_V_Prefetch_Amount),
+        .WRITE_AMOUNT           (HBM_V_Writeback_Amount)
     ) vector_hbm_controller_init (
         .clk(clk),
         .rst(rst),
@@ -252,7 +252,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic stored_prefetch_v_scale_valid, stored_prefetch_v_scale_ready;
 
     skid_buffer #(
-        .DATA_WIDTH(VLEN * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
+        .DATA_WIDTH(VLEN * (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1))
     ) vector_sram_prefetch_ele_buffer (
         .clk(clk),
         .rst(rst),
@@ -283,6 +283,5 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .data_out_valid(prefetch_v_valid),
         .data_out_ready(prefetch_v_ready)
     );
-
 
 endmodule

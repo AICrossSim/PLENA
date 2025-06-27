@@ -8,7 +8,7 @@ Description : It is used to prepare the data input to the systolic array compute
 Status      : Under Development
 */
 
-module systolic_data_streamer #(
+module mxfp_systolic_data_streamer #(
     // MX-FP Data Format
     parameter MXFP_EXP_WIDTH        = 4,
     parameter MXFP_MANT_WIDTH       = 3,
@@ -48,6 +48,8 @@ module systolic_data_streamer #(
     logic stream_elem_in_ready,     stream_elem_in_valid;
     logic stream_scale_in_ready,    stream_scale_in_valid;
     logic stream_in_ready,          stream_in_valid;
+    logic stream_in_valid_hold;
+    logic stream_data_out_valid;
 
     typedef enum logic [1:0] { 
         IDLE = 2'b00,
@@ -83,7 +85,7 @@ module systolic_data_streamer #(
                                 end
                                 store_counter                       <= store_counter + 'b1;
                             end else begin
-                                data_elem_array_queue [i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                                data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                                 data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                             end
                         end
@@ -102,7 +104,7 @@ module systolic_data_streamer #(
                                 end
                                 store_counter                       <= store_counter + 'b1;
                             end else begin
-                                data_elem_array_queue [i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                                data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                                 data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                             end
                         end
@@ -124,7 +126,7 @@ module systolic_data_streamer #(
                     store_counter <= '0;
                     if (stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
-                            data_elem_array_queue [i] <= (data_array_queue[i] >> (FP_EXP_WIDTH + FP_MANT_WIDTH + 1));
+                            data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                             data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                         end
                         clear_counter <= clear_counter + 'b1;   

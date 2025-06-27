@@ -42,8 +42,8 @@ module mxfp_systolic_array #(
     // Input from Vector Array
     input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_v_element,
     input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
-    input   logic in_top_v_valid,
-    output  logic in_top_v_ready,
+    input   logic in_left_v_valid,
+    output  logic in_left_v_ready,
 
     // Output GEMM
     output  logic [COMPUTE_DIM - 1: 0]  [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] m_out_fp,
@@ -69,7 +69,7 @@ module mxfp_systolic_array #(
     logic [BLOCK_DIM * ( MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1 ) - 1 : 0]    hori_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
     logic [MXFP_SCALE_WIDTH - 1 : 0]                                            hori_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
 
-    logic [BLOCK_NUM- 1: 0][BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][[BLOCK_DIM - 1: 0]][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
+    logic [BLOCK_NUM- 1: 0][BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_ready;
 
@@ -114,10 +114,12 @@ module mxfp_systolic_array #(
                         // Input from Top Array
                         .in_top_element (hori_transfer_elem[i][j]),
                         .in_top_scale   (hori_transfer_scale[i][j]),
+                        .system_top_valid (in_top_valid),
 
                         // Input from Left Array
                         .in_left_element(vert_transfer_elem[i][j]),
                         .in_left_scale  (vert_transfer_scale[i][j]),
+                        .system_left_valid (in_left_valid),
 
                         // Input from Vector Array
                         .in_left_v_element   (in_left_v_element[j]),
@@ -152,30 +154,23 @@ module mxfp_systolic_array #(
                         // Input from Top Array
                         .in_top_element (hori_transfer_elem[i][j]),
                         .in_top_scale   (hori_transfer_scale[i][j]),
-                        .in_top_valid   (columnwise_data_transfer_valid[i][j]),
-                        .in_top_ready   (columnwise_data_transfer_ready[i][j]),
+                        .system_top_valid (in_top_valid),
 
                         // Input from Left Array
                         .in_left_element(vert_transfer_elem[i][j]),
                         .in_left_scale  (vert_transfer_scale[i][j]),
-                        .in_left_valid  (rowwise_data_transfer_valid[i][j]),
-                        .in_left_ready  (rowwise_data_transfer_ready[i][j]),
+                        .system_left_valid (in_left_valid),
 
                         // Output to Bottom
                         .out_bottom_element (hori_transfer_elem[i + 1][j]),
                         .out_bottom_scale   (hori_transfer_scale[i + 1][j]),
-                        .out_bottom_valid   (columnwise_data_transfer_valid[i + 1][j]),
-                        .out_bottom_ready   (columnwise_data_transfer_ready[i + 1][j]),
 
                         // Output to Right
                         .out_right_element  (vert_transfer_elem[i][j + 1]),
                         .out_right_scale    (vert_transfer_scale[i][j + 1]),
-                        .out_right_valid    (rowwise_data_transfer_valid[i][j + 1]),
-                        .out_right_ready    (rowwise_data_transfer_ready[i][j + 1]),
 
                         // Output Result
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_valid   (result_valid[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
                 end

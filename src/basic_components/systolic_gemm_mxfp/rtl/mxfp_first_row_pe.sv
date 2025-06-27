@@ -33,7 +33,7 @@ module mxfp_first_row_pe #(
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
 
     // Input from Left
-    input  logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] in_left_element,
+    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input  logic system_left_valid,
 
@@ -42,11 +42,11 @@ module mxfp_first_row_pe #(
     output  logic mult_ready,
 
     // Output to Bottom
-    output logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] out_bottom_element,
+    output logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] out_bottom_element,
     output logic [MXFP_SCALE_WIDTH - 1 : 0] out_bottom_scale,
 
     // Output to Right
-    output logic [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] out_right_element,
+    output logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] out_right_element,
     output logic [MXFP_SCALE_WIDTH - 1 : 0] out_right_scale,
     // Output Result
     output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
@@ -70,7 +70,7 @@ module mxfp_first_row_pe #(
     logic [MXFP_SCALE_WIDTH - 1 : 0] pe_out_right_scale;
 
     logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] pe_out_fp;
-    logic pe_out_result_valid, pe_out_result_ready;
+    logic pe_out_result_ready;
 
     always_comb begin
         // For Top level, Same as the default PE
@@ -106,34 +106,29 @@ module mxfp_first_row_pe #(
     end
 
     // Declare the default PE
-    default_pe #(
-        .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+    mxfp_default_pe #(
+        .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
+        .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
+        .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
+        .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
     ) default_pe_inst (
         .clk(clk),
         .rst(rst),
-        .in_top_element     (pe_in_top_element),
-        .in_top_scale       (pe_in_top_scale),
-        .in_top_valid       (pe_in_top_valid),
-        .in_top_ready       (pe_in_top_ready),
-        .in_left_element    (pe_in_left_element),
-        .in_left_scale      (pe_in_left_scale),
-        .in_left_valid      (pe_in_left_valid),
-        .in_left_ready      (pe_in_left_ready),
-        .out_bottom_element (pe_out_bottom_element),
-        .out_bottom_scale   (pe_out_bottom_scale),
-        .out_bottom_valid   (pe_out_bottom_valid),
-        .out_bottom_ready   (pe_out_bottom_ready),
-        .out_right_element  (pe_out_right_element),
-        .out_right_scale    (pe_out_right_scale),
-        .out_right_valid    (pe_out_right_valid),
-        .out_right_ready    (pe_out_right_ready),
-        .out_fp             (pe_out_fp),
-        .out_result_valid   (pe_out_result_valid),
-        .out_result_ready   (pe_out_result_ready)
+        .in_top_element         (pe_in_top_element),
+        .in_top_scale           (pe_in_top_scale),
+        .system_top_valid       (system_top_valid),
+        .in_left_element        (pe_in_left_element),
+        .in_left_scale          (pe_in_left_scale),
+        .system_left_valid      (system_left_valid),
+        .out_bottom_element     (pe_out_bottom_element),
+        .out_bottom_scale       (pe_out_bottom_scale),
+        .out_right_element      (pe_out_right_element),
+        .out_right_scale        (pe_out_right_scale),
+        .out_fp                 (pe_out_fp),
+        .out_result_ready       (pe_out_result_ready)
     );
 
 endmodule

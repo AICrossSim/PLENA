@@ -56,7 +56,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     assign matrix_opcode        = exe_stage_op.m_op;
     assign addr_in              = exe_stage_op.addr_2;
-    assign result_waddr_update  = exe_stage_op.result_waddr_update;
+    assign result_waddr_update  = exe_stage_op.update_m_waddr;
 
     // -----------------------------
     // Address Management
@@ -79,12 +79,12 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     logic acc_addr_valid, acc_addr_ready;
     fifo #(
         .DATA_WIDTH(ADDR_WIDTH),
-        .FIFO_DEPTH(MATRIX_ACC_ADR_DEPTH)
+        .DEPTH(MATRIX_ACC_ADR_DEPTH)
     ) m_acc_addr_fifo (
         .clk(clk),
         .rst(rst),
         .data_in        (exe_stage_op.addr_2),
-        .data_in_valid  (exe_stage_op.result_waddr_update),
+        .data_in_valid  (exe_stage_op.update_m_waddr),
         .data_in_ready  (stall_for_addr),
         .data_out       (acc_addr),
         .data_out_valid (acc_addr_valid),
@@ -96,12 +96,13 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
 
     // Data from Matrix SRAM Buffering
-    logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     stored_m_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]         stored_m_scale;
+    logic [MLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]     stored_m_element;
+    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                 stored_m_scale;
     logic stored_m_in_ele_ready, stored_m_in_scale_ready;
     logic stored_m_in_ele_valid, stored_m_in_scale_valid;
     logic stored_m_ele_ready, stored_m_scale_ready;
     logic stored_m_ele_valid, stored_m_scale_valid;
+    logic stored_m_valid, stored_m_ready;
 
     split_n #(
         .N(2)
@@ -113,7 +114,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     skid_buffer #(
-        .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
+        .DATA_WIDTH(MLEN * (LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH + 1))
     ) matrix_element_buffer (
         .clk(clk),
         .rst(rst),
@@ -166,7 +167,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // );
 
     // Data from Matrix SRAM Buffering
-    logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     stored_v_element;
+    logic [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]     stored_v_element;
     logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]         stored_v_scale;
     logic stored_v_in_ele_ready, stored_v_in_scale_ready;
     logic stored_v_in_ele_valid, stored_v_in_scale_valid;
@@ -183,7 +184,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     skid_buffer #(
-        .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
+        .DATA_WIDTH(VLEN * (HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH + 1))
     ) vector_element_buffer (
         .clk(clk),
         .rst(rst),
@@ -228,15 +229,19 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
     // Systolic Matrix Compute Unit
     // -----------------------------
+
     mxfp_systolic_mcu #(
-        .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
-        .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
-        .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
-        .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
+        .FP_EXP_WIDTH       (V_FP_EXP_WIDTH),
+        .FP_MANT_WIDTH      (V_FP_MANT_WIDTH),
+        .MXFP_T_EXP_WIDTH   (LOW_MXFP_EXP_WIDTH),
+        .MXFP_T_MANT_WIDTH  (LOW_MXFP_MANT_WIDTH),
+        .MXFP_L_EXP_WIDTH   (HIGH_MXFP_EXP_WIDTH),
+        .MXFP_L_MANT_WIDTH  (HIGH_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .BLOCK_DIM          (BLOCK_DIM),
         .ACC_FP_EXP_WIDTH   (M_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (M_FP_MANT_WIDTH),
+        .SYSTOLIC_PROCESSING_OVERHEAD (SYSTOLIC_PROCESSING_OVERHEAD),
         .M                  (BATCH_SIZE),
         .K                  (MLEN),
         .N                  (BATCH_SIZE)
@@ -245,17 +250,19 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .rst                (rst),
         .control            (matrix_opcode),
         .acc_waddr          (acc_adder),
-        .acc_waddr_valid    (acc_addr_valid),
-        .acc_waddr_ready    (acc_addr_ready),
-        .v1_data            (converted_m_data_out),
-        .v1_in_valid        (converted_m_valid),
-        .v1_in_ready        (converted_m_ready),
-        .v2_data            (stored_v_data),
+        .fetch_next_acc_waddr_valid  (acc_addr_valid),
+        .fetch_next_acc_waddr_ready  (acc_addr_ready),
+        .v1_element         (stored_m_element),
+        .v1_scale           (stored_m_scale),
+        .v1_in_valid        (stored_m_valid),
+        .v1_in_ready        (stored_m_ready),
+        .v2_element         (stored_v_element),
+        .v2_scale           (stored_v_scale),   
         .v2_in_valid        (stored_v_valid),
         .v2_in_ready        (stored_v_ready),
         .v_result           (result_v),
         .v_result_valid     (result_in_valid),
-        // .v_result_ready     (result_in_ready),
+        .v_result_ready     (result_in_ready),
         .load_in_progress   (load_in_progress)
     );
 

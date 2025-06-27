@@ -187,14 +187,14 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_out;
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
-            mx_fp_2_fp_port_b_block #(
+            mx_fp_2_fp_block #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
                 .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
-            ) mx_fp_2_fp_convert (
+            ) port_b_mx_fp_2_fp_convert (
                 .element_in     (port_b_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (port_b_scale_in[i]),
                 .fp_out         (converted_b_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])

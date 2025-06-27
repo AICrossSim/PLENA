@@ -14,7 +14,6 @@ module mxfp_default_pe #(
     parameter MXFP_L_EXP_WIDTH      = 4,
     parameter MXFP_L_MANT_WIDTH     = 3,
     parameter MXFP_SCALE_WIDTH      = 8,
-    parameter BLOCK_DIM             = 4,
 
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
@@ -25,12 +24,12 @@ module mxfp_default_pe #(
     input logic rst,
 
     // Input from Top
-    input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
+    input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
     input  logic system_top_valid,
 
     // Input from Left
-    input  logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
+    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input  logic system_left_valid,
 
@@ -39,11 +38,11 @@ module mxfp_default_pe #(
     output  logic mult_ready,
 
     // Output to Bottom
-    output logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] out_bottom_element,
+    output logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] out_bottom_element,
     output logic [MXFP_SCALE_WIDTH - 1 : 0] out_bottom_scale,
 
     // Output to Right
-    output logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] out_right_element,
+    output logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] out_right_element,
     output logic [MXFP_SCALE_WIDTH - 1 : 0] out_right_scale,
 
     // Output Result
@@ -56,9 +55,9 @@ module mxfp_default_pe #(
     // ==============================================================================================
     localparam SCALE_BIAS = (1 << (MXFP_SCALE_WIDTH - 1)) - 1;
 
-    logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0]    reg_top_element;
+    logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0]    reg_top_element;
     logic [MXFP_SCALE_WIDTH - 1 : 0]                    reg_top_scale;            
-    logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0]    reg_left_element;
+    logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0]    reg_left_element;
     logic [MXFP_SCALE_WIDTH - 1 : 0]                    reg_left_scale;
 
     // ==============================================================================================
@@ -67,9 +66,9 @@ module mxfp_default_pe #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            reg_top_element  <= {MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1{1'b0}};
+            reg_top_element  <= {MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1{1'b0}};
             reg_top_scale    <= {MXFP_SCALE_WIDTH{1'b0}};
-            reg_left_element <= {MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1{1'b0}};
+            reg_left_element <= {MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1{1'b0}};
             reg_left_scale   <= {MXFP_SCALE_WIDTH{1'b0}};
         end else begin
             if (system_top_valid) begin
@@ -77,15 +76,12 @@ module mxfp_default_pe #(
                 reg_top_scale   <= in_top_scale;
             end 
 
-            if (in_left_valid) begin
+            if (system_left_valid) begin
                 reg_left_element <= in_left_element;
                 reg_left_scale   <= in_left_scale;
             end
         end
     end
-
-    assign in_top_ready  = out_bottom_ready;
-    assign in_left_ready = out_right_ready; // Directly Connect to avoid unnecessary stalling for the PE the middle of the array, where the valid signals not arrived together.
 
     assign out_bottom_element   =   reg_top_element;
     assign out_bottom_scale     =   reg_top_scale;
@@ -96,23 +92,24 @@ module mxfp_default_pe #(
     // ==============================================================================================
     // STAGE 2: Multiplication of the elements from Top and Left, Scale Summation
     // ==============================================================================================
-    localparam EXT_MANT_WIDTH = ACC_FP_MANT_WIDTH - MXFP_MANT_WIDTH;
-    localparam EXT_EXP_WIDTH = ACC_FP_EXP_WIDTH - MXFP_EXP_WIDTH;
+    // Note: Here we assum Left is higher precision.
+    localparam EXT_MANT_WIDTH = ACC_FP_MANT_WIDTH - MXFP_L_MANT_WIDTH;
+    localparam EXT_EXP_WIDTH =  ACC_FP_EXP_WIDTH  - MXFP_L_EXP_WIDTH;
 
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] mul_result, reg_mul_result;
     logic reg_mul_in_valid;
     logic reg_mul_out_valid;
     logic [MXFP_SCALE_WIDTH - 1 : 0] reg_mul_scale;
 
-    assign reg_mul_in_valid = stored_top_valid & stored_left_valid;
+    assign reg_mul_in_valid = mult_valid;
 
     fp_cp_asym_mult #(
-        .EXP_WIDTH_A(MXFP_T_EXP_WIDTH),
-        .MANT_WIDTH_A(MXFP_T_MANT_WIDTH),
-        .EXP_WIDTH_B(MXFP_L_EXP_WIDTH),
-        .MANT_WIDTH_B(MXFP_L_MANT_WIDTH),
-        .EXT_EXP_WIDTH(EXT_EXP_WIDTH),
-        .EXT_MANT_WIDTH(EXT_MANT_WIDTH)
+        .EXP_WIDTH_A    (MXFP_T_EXP_WIDTH),
+        .MANT_WIDTH_A   (MXFP_T_MANT_WIDTH),
+        .EXP_WIDTH_B    (MXFP_L_EXP_WIDTH),
+        .MANT_WIDTH_B   (MXFP_L_MANT_WIDTH),
+        .EXT_EXP_WIDTH  (EXT_EXP_WIDTH),
+        .EXT_MANT_WIDTH (EXT_MANT_WIDTH)
     ) element_mult (
         .data_a (reg_top_element),
         .data_b (reg_left_element),

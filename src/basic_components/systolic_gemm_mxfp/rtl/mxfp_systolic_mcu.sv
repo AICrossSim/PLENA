@@ -14,6 +14,8 @@ Status      : Under Development
 
 module mxfp_systolic_mcu #(
     // MX-FP Data Format
+    parameter FP_EXP_WIDTH          = 8,
+    parameter FP_MANT_WIDTH         = 7,
     parameter MXFP_T_EXP_WIDTH      = 4,
     parameter MXFP_T_MANT_WIDTH     = 3,
     parameter MXFP_L_EXP_WIDTH      = 4,
@@ -23,11 +25,14 @@ module mxfp_systolic_mcu #(
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
     parameter ACC_FP_MANT_WIDTH     = 7,
+    parameter SYSTOLIC_PROCESSING_OVERHEAD = 4,
     // Dimension
     parameter   M                     = 4,
     parameter   N                     = 4,
     parameter   K                     = 8, 
-    localparam  ROW_BLOCK_NUM         = K / BLOCK_DIM
+    localparam  ROW_BLOCK_NUM         = K / BLOCK_DIM,
+    localparam ACC_NUM = K / M,
+    localparam ACC_ADDR_WIDTH = $clog2(ACC_NUM)
 )(
     input   logic clk,
     input   logic rst,
@@ -36,20 +41,20 @@ module mxfp_systolic_mcu #(
     input   logic fetch_next_acc_waddr_valid,
     output  logic fetch_next_acc_waddr_ready,
     
-    // Multiplicant Matrix 1
-    input   logic [K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] v1_element,
+    // Multiplicant Matrix 1 TOP
+    input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
     input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v1_scale,
     input   logic v1_in_valid,
     output  logic v1_in_ready,
-    // Multiplier   Matrix 2
-    input   logic [K - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] v2_element,
+    // Multiplier   Matrix 2 LEFT
+    input   logic [K - 1 : 0][MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0] v2_element,
     input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v2_scale,
     input   logic v2_in_valid,
     output  logic v2_in_ready,
     // Vector Product Output
     output  logic [M - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] v_result,
     output  logic v_result_valid,
-    // input   logic v_result_ready,
+    input   logic v_result_ready,
     output  logic load_in_progress
 );
 
@@ -85,7 +90,7 @@ module mxfp_systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_w_ready;
     
     // -----------------------------
     // Control and Status Tracking
@@ -93,80 +98,51 @@ module mxfp_systolic_mcu #(
 
     logic   load_array_data;
     logic   complete_loading;
-    M_OP    control_under_exe, control_in_queue;
-    logic   gemm_en;
+    M_OP    control_in_exe;
+    logic   sa_control;
+    logic   output_reset;
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            control_under_exe    <= STALL_M; 
-            control_in_queue     <= STALL_M;
-            load_in_progress     <= 1'b0;
-        end else begin
-            if ((control_under_exe == STALL_M) & (control != STALL_M)) begin
-                control_under_exe <= control;
-                load_in_progress <= 1'b1;
-            end else if ((control_under_exe != STALL_M) & (control != STALL_M)) begin
-                control_in_queue <= control;
-                load_in_progress <= 1'b1;
-            end else if (complete_loading) begin
-                if (control_in_queue == STALL_M) begin
-                    control_under_exe <= STALL_M;
-                end else begin
-                    control_under_exe <= control_in_queue;
-                end
-                load_in_progress <= 1'b0;
-            end
-        end
-    end
-
-    always_comb begin
-        if (control_under_exe == MV || control_under_exe == MV_O) begin
-            v2_in_ready = v2_for_mv_in_ready;
-            v2_for_mv_in_valid = v2_in_valid;
-        end else begin
-            v2_in_ready = v2_for_mm_in_ready;
-            v2_for_mm_in_valid = v2_in_valid;
-        end
-    end
-
-    assign gemm_en = ((control_under_exe == MM_IC) || (control_under_exe == MM_PS));
-
+    
     localparam COUNTER_BIT_WIDTH = $clog2(K);
     logic [COUNTER_BIT_WIDTH : 0] v1_load_counter;
     logic [COUNTER_BIT_WIDTH : 0] v2_load_counter;
+    logic [COUNTER_BIT_WIDTH : 0] feed_counter;
     logic complete_v1_load, complete_v2_load;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            v1_load_counter <= '0;
-            complete_v1_load <= 1'b0;
-        end else if (v1_in_valid & v1_in_ready) begin
-            if (v1_load_counter == K - 1) begin
-                v1_load_counter <= '0;
-                complete_v1_load <= 1'b1;
-            end else begin
-                v1_load_counter <= v1_load_counter + 'b1;
+            v1_load_counter     <= '0;
+            complete_v1_load    <= 1'b0;
+            v2_load_counter     <= '0;
+            complete_v2_load    <= 1'b0;
+            output_reset        <= 1'b0;
+        end else begin
+            // Counter for v1
+            if (v1_in_valid & v1_in_ready) begin
+                if (v1_load_counter == M - 1) begin
+                    v1_load_counter <= '0;
+                    complete_v1_load <= 1'b1;
+                end else begin
+                    v1_load_counter <= v1_load_counter + 'b1;
+                    complete_v1_load <= 1'b0;
+                end
+            end else if (complete_loading) begin
                 complete_v1_load <= 1'b0;
             end
-        end else if (complete_loading) begin
-            complete_v1_load <= 1'b0;
-        end
-    end
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            v2_load_counter <= '0;
-            complete_v2_load <= 1'b0;
-        end else if (v2_in_valid & v2_in_ready) begin
-            if (v2_load_counter == K - 1) begin
-                v2_load_counter <= '0;
-                complete_v2_load <= 1'b1;
-            end else begin
-                v2_load_counter <= v2_load_counter + 'b1;
+            // Counter for v2
+            if (v2_in_valid & v2_in_ready) begin
+                if (v2_load_counter == M - 1) begin
+                    v2_load_counter <= '0;
+                    complete_v2_load <= 1'b1;
+                end else begin
+                    v2_load_counter <= v2_load_counter + 'b1;
+                    complete_v2_load <= 1'b0;
+                end
+            end else if (complete_loading) begin
                 complete_v2_load <= 1'b0;
             end
-        end else if (complete_loading) begin
-            complete_v2_load <= 1'b0;
+            // Output Reset
+            output_reset <= ((control_in_exe == MV_O & gemv_result_valid) || (control_in_exe == MM_WO & gemm_result_valid));
         end
     end
 
@@ -178,18 +154,66 @@ module mxfp_systolic_mcu #(
         end
     end
 
-    // TODO: Write back
-    logic result_fetch_ready;
     always_ff @(posedge clk) begin
         if (rst) begin
-            result_fetch_ready <= 1'b0;
-        end else if (control_under_exe == MM_WO) begin
-            result_fetch_ready <= 1'b1;
-        end else if (control_under_exe == STALL_M) begin
-            result_fetch_ready <= 1'b0;
+            control_in_exe          <= STALL_M; 
+            load_in_progress        <= 1'b0;
+        end else begin
+            if ((control_in_exe == STALL_M) & (control != STALL_M)) begin
+                control_in_exe <= control;
+                load_in_progress <= 1'b1;
+            end else if ((control_in_exe != STALL_M) & (control != STALL_M)) begin
+                load_in_progress <= 1'b1;
+                control_in_exe <= control;
+            end else if (complete_loading) begin
+                load_in_progress <= 1'b0;
+            end
         end
     end
 
+
+    always_comb begin
+        if (control_in_exe == MV || control_in_exe == MV_O) begin
+            v2_in_ready = v2_for_mv_in_ready;
+            v2_for_mv_in_valid = v2_in_valid;
+        end else begin
+            v2_in_ready = v2_for_mm_in_ready;
+            v2_for_mm_in_valid = v2_in_valid;
+        end
+    end
+
+    assign  sa_control = ((control_in_exe == MV) || (control_in_exe == MV_O)); // 0 for GEMM, 1 for GEMV
+    logic   start_feed_count;
+    logic   ready_to_load_output;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            feed_counter            <= '0;
+            start_feed_count        <= 1'b0;
+            gemv_result_valid       <= 'b0;
+            gemm_result_valid       <= 'b0;
+            ready_to_load_output    <= 1'b0;
+        end else begin
+            if (complete_loading & control_in_exe == MM_WO) begin
+                feed_counter        <= '0;
+                start_feed_count    <= 1'b1;
+            end else if (start_feed_count) begin
+                if (feed_counter == 2 * COMPUTE_DIM + SYSTOLIC_PROCESSING_OVERHEAD) begin
+                    feed_counter    <= '0;
+                    start_feed_count <= 1'b0;
+                    ready_to_load_output <= 1'b1;
+                end else begin
+                    feed_counter <= feed_counter + 'b1;
+                    ready_to_load_output <= 1'b0;
+                end
+            end else begin
+                start_feed_count <= 1'b0;
+                ready_to_load_output <= 1'b0;
+            end
+            gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+        end
+    end
 
     // -----------------------------
     // Systolic Array Computation Unit
@@ -224,7 +248,7 @@ module mxfp_systolic_mcu #(
         );
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
-            systolic_data_streamer #(
+            mxfp_systolic_data_streamer #(
                 .MXFP_EXP_WIDTH     (MXFP_T_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_T_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
@@ -245,7 +269,7 @@ module mxfp_systolic_mcu #(
                 .data_out_ready (array_top_in_ready[i])
             );
 
-            systolic_data_streamer #(
+            mxfp_systolic_data_streamer #(
                 .MXFP_EXP_WIDTH     (MXFP_L_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_L_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
@@ -266,7 +290,7 @@ module mxfp_systolic_mcu #(
                 .data_out_ready (array_left_in_ready[i])
             );
 
-            systolic_array #(
+            mxfp_systolic_array #(
                 .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
                 .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
                 .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
@@ -288,16 +312,14 @@ module mxfp_systolic_mcu #(
                 .in_left_scale      (array_left_in_scale[i]),
                 .in_left_valid      (array_left_in_valid[i]),
                 .in_left_ready      (array_left_in_ready[i]),
-                .in_top_v_element   (v2_element[i * M +: M]),
-                .in_top_v_scale     (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
-                .in_top_v_valid     (v2_data_for_mv_in_valid[i]),
-                .in_top_v_ready     (v2_data_for_mv_in_ready[i]),
+                .in_left_v_element   (v2_element[i * M +: M]),
+                .in_left_v_scale     (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .in_left_v_valid     (v2_data_for_mv_in_valid[i]),
+                .in_left_v_ready     (v2_data_for_mv_in_ready[i]),
                 .m_out_fp           (gemm_result[i]),
-                .m_out_valid        (gemm_result_valid[i]),
                 .m_out_ready        (gemm_result_ready[i]),
                 .v_out_fp           (gemv_result[i]),
-                .v_out_valid        (gemv_result_valid[i]),
-                .v_out_ready        (gemv_result_ready[i])
+                .v_out_ready        (gemv_result_w_ready[i])
             );
         end
     endgenerate

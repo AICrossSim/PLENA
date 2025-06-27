@@ -20,8 +20,8 @@ module fp_cp_asym_mult #(
     parameter int EXT_MANT_WIDTH    = 0,
     // Need to increase exp width by 1 to handle overflow
     parameter int EXT_EXP_WIDTH     = 0,
-    localparam int OUT_EXP_WIDTH    = (IN_EXP_WIDTH_A > IN_EXP_WIDTH_B ? IN_EXP_WIDTH_A : IN_EXP_WIDTH_B),
-    localparam int OUT_MANT_WIDTH   = (IN_MANT_WIDTH_A > IN_MANT_WIDTH_B ? IN_MANT_WIDTH_A : IN_MANT_WIDTH_B)
+    localparam int OUT_EXP_WIDTH    = (EXP_WIDTH_A > EXP_WIDTH_B   ? EXP_WIDTH_A : EXP_WIDTH_B),
+    localparam int OUT_MANT_WIDTH   = (MANT_WIDTH_A > MANT_WIDTH_B ? MANT_WIDTH_A : MANT_WIDTH_B)
 )(
     input  logic [EXP_WIDTH_A + MANT_WIDTH_A : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH_B + MANT_WIDTH_B : 0] data_b,
@@ -76,12 +76,11 @@ module fp_cp_asym_mult #(
     // Instantiate fp_mult
     fp_asym_mult #(
         .IN_EXP_WIDTH_A(IN_EXP_WIDTH_A),
-        .IN_FIX_WIDTH_A(IN_FIX_WIDTH_A),
+        .IN_FIX_WIDTH_A(IN_FIXED_WIDTH_A),
         .IN_FIX_FRAC_WIDTH_A(IN_FIXED_FRAC_WIDTH_A),
         .IN_EXP_WIDTH_B(IN_EXP_WIDTH_B),
-        .IN_FIX_WIDTH_B(IN_FIX_WIDTH_B),
+        .IN_FIX_WIDTH_B(IN_FIXED_WIDTH_B),
         .IN_FIX_FRAC_WIDTH_B(IN_FIXED_FRAC_WIDTH_B),
-        .IN_FIX_FRAC_WIDTH(IN_FIXED_FRAC_WIDTH),
         .OUT_FIX_FRAC_WIDTH(MULT_OUT_FIXED_FRAC_WIDTH)
     ) fp_mult_inst (
         .exp_a(signed_exp_a),
@@ -106,10 +105,10 @@ module fp_cp_asym_mult #(
     );
 
     fp_ieee_casting #(
-        .IN_EXP_WIDTH(NORMALIZE_OUT_EXP_WIDTH),
-        .IN_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH),
-        .OUT_EXP_WIDTH(EXP_WIDTH + EXT_EXP_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH + EXT_MANT_WIDTH)
+        .IN_EXP_WIDTH   (NORMALIZE_OUT_EXP_WIDTH),
+        .IN_MANT_WIDTH  (NORMALIZE_OUT_MANT_WIDTH),
+        .OUT_EXP_WIDTH  (OUT_EXP_WIDTH + EXT_EXP_WIDTH),
+        .OUT_MANT_WIDTH (OUT_MANT_WIDTH + EXT_MANT_WIDTH)
     ) fp_casting (
         .data_in(normalized_data),
         .data_out(data_out)
