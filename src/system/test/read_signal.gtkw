@@ -1,17 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jun 27 21:04:58 2025
+[*] Sat Jun 28 00:55:53 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri Jun 27 20:41:14 2025"
-[dumpfile_size] 92914916
+[dumpfile_mtime] "Sat Jun 28 00:49:24 2025"
+[dumpfile_size] 96801956
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 520100
+[timestart] 0
 [size] 3428 1359
 [pos] 117330 139522
-*-16.114536 960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.114536 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
+[treeopen] SimTop.dut.hbm_interface_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.
@@ -100,8 +101,42 @@ SimTop.dut.matrix_machine_init.v_element[7][7:0]
 @28
 SimTop.dut.matrix_machine_init.v_valid
 @22
-SimTop.dut.vector_sram.port_a_addr[31:0]
-@29
-SimTop.dut.vector_sram.port_a_req
+SimTop.dut.matrix_machine_init.v_scale[0][7:0]
+SimTop.dut.matrix_machine_init.v_scale[1][7:0]
+SimTop.dut.vector_sram.port_b_element_in[0][7:0]
+SimTop.dut.vector_sram.port_b_element_in[1][7:0]
+SimTop.dut.vector_sram.port_b_element_in[2][7:0]
+SimTop.dut.vector_sram.port_b_element_in[3][7:0]
+SimTop.dut.vector_sram.port_b_element_in[4][7:0]
+SimTop.dut.vector_sram.port_b_element_in[5][7:0]
+SimTop.dut.vector_sram.port_b_element_in[6][7:0]
+SimTop.dut.vector_sram.port_b_element_in[7][7:0]
+@28
+SimTop.dut.vector_sram.port_b_req
+SimTop.dut.vector_sram.port_b_write_en
+@22
+SimTop.dut.vector_sram.port_b_scale_in[0][7:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.offset_addr[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_raddr[63:0]
+SimTop.dut.hbm_interface_init.hbm_addr_out[63:0]
+SimTop.dut.hbm_interface_init.exe_stage_op.addr_1[31:0]
+SimTop.dut.hbm_interface_init.exe_stage_op.addr_2[31:0]
+@28
+SimTop.dut.hbm_interface_init.exe_stage_op.h_op[1:0]
+@22
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.ELE_SCALE_ADR_RATIO[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_EXP_WIDTH[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_MANT_WIDTH[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_MANT_WIDTH[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_SCALE_WIDTH[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_raddr_for_ele[63:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_raddr_for_scale[63:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.HIGHEST_MXFP_EXP_WIDTH[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.HIGHEST_MXFP_MANT_WIDTH[31:0]
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_EXP_WIDTH[31:0]
+@23
+SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_MANT_WIDTH[31:0]
+@22
+SimTop.dut.vector_sram.port_b_scale_in[1][7:0]
 [pattern_trace] 1
 [pattern_trace] 0

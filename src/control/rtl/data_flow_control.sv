@@ -407,12 +407,10 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                         continuous_load_v_for_matrix_en <= 1'b0;
                     end else begin
                         if (!v_prefetch_data_not_ready & m_v_load_cond) begin
-
                             if (load_for_gemv_en) begin
                                 m_v_load    <= 1'b0;
                                 m_sram_req  <= 1'b0;
                                 v_sram_load_for_matrix_counter <= 'b0;
-
                             end else begin
                                 m_v_load    <= 1'b1;
                                 m_sram_req  <= 1'b1;
@@ -426,6 +424,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                     end 
                 end
             end else if (exe_stage_op.v_ele_op != STALL_V_ELEMENT || exe_stage_op.v_reduct_op != STALL_V_REDUCT) begin
+                // TODO: Need to introduce v_prefetch_data_not_ready
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b1;
                 v_sram_req_a    <= 1'b1;
@@ -471,8 +470,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             //Port B
             if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // Read Port activated
-                v_v_b_load          <= 1'b1;
-                v_sram_req_b        <= 1'b1;
+                v_v_b_load                  <= 1'b1;
             end else if (exe_stage_op.h_op == STORE_V & hbm_ready_to_write) begin
                 // Start HBM Writeback to the scratchpad sram
                 continuous_write_to_hbm     <= 1'b1;
@@ -482,35 +480,38 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end else if (continuous_write_to_hbm && hbm_write_counter < HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Intermediate HBM Writeback to the scratchpad sram
                 v_sram_mxfp_req_b           <= 1'b1;
+                v_v_b_load                  <= 1'b1;
                 hbm_write_counter           <= hbm_write_counter + 'b1;
             end else if (hbm_write_counter == HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Finish HBM Writeback, reset the counter
                 v_sram_mxfp_req_b           <= 1'b0;
-                continuous_write_to_hbm <= 1'b0;
-                hbm_write_counter   <= 'b0;
+                v_v_b_load                  <= 1'b0;
+                continuous_write_to_hbm     <= 1'b0;
+                hbm_write_counter           <= 'b0;
             end else if (mem_write_control.w_s_sram_port_b_en && prefetch_v_valid) begin
                 // Start HBM Fetch to the scratchpad sram
-                continuous_v_prefetch_en <= 1'b1;
+                continuous_v_prefetch_en        <= 1'b1;
                 v_v_b_load                      <= 1'b0;
                 hbm_v_req_prefetch_data         <= 1'b1;
-                v_sram_req_b                    <= 1'b1;
             end else if (continuous_v_prefetch_en & v_sram_prefetch_counter < HBM_V_Prefetch_Amount & v_sram_wen_b) begin
                  // Intermediate HBM Fetch to the scratchpad sram
                 hbm_v_req_prefetch_data         <= 1'b1;
-                v_sram_req_b                    <= 1'b1;
                 v_sram_prefetch_counter         <= v_sram_prefetch_counter + 'b1;
             end else if (v_sram_prefetch_counter == HBM_V_Prefetch_Amount) begin
                 // Finish Prefetching, reset the counter
                 hbm_v_req_prefetch_data         <= 1'b0;
-                v_sram_req_b                    <= 1'b0;
                 continuous_v_prefetch_en        <= 1'b0;
                 v_sram_prefetch_counter         <= 'b0;
-            end else if (hbm_v_req_prefetch_data && prefetch_v_valid) begin
+            end  else begin
+                
+            end
+
+            if (hbm_v_req_prefetch_data && prefetch_v_valid) begin
+                v_sram_req_b            <= 1'b1;
+            end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 v_sram_req_b            <= 1'b1;
             end else begin
-                // No SRAM access
                 v_sram_req_b            <= 1'b0;
-                v_v_b_load              <= 1'b0;
             end
 
             v_sram_wen_b            <= (hbm_v_req_prefetch_data && prefetch_v_valid);

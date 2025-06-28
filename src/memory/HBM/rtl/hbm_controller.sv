@@ -13,6 +13,8 @@ module hbm_controller #(
     parameter int MXFP_EXP_WIDTH     = 4,
     parameter int MXFP_MANT_WIDTH    = 3,
     parameter int MXFP_SCALE_WIDTH   = 16,
+    parameter int LOWEST_MXFP_EXP_WIDTH = 4,
+    parameter int LOWEST_MXFP_MANT_WIDTH = 3,
     parameter int BLOCK_DIM          = 4,
 
     parameter int   DATA_DIM          = 8,
@@ -57,7 +59,7 @@ module hbm_controller #(
     localparam int ELE_MASK_WIDTH   = ELE_WIDTH / 8;
     localparam int SCALE_MASK_WIDTH = SCALE_WIDTH / 8;
 
-    localparam int ELE_SCALE_ADR_RATIO = $clog2((MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * BLOCK_DIM / MXFP_SCALE_WIDTH);
+    localparam int ELE_SCALE_ADR_RATIO = $clog2((LOWEST_MXFP_EXP_WIDTH + LOWEST_MXFP_MANT_WIDTH + 1) * BLOCK_DIM / MXFP_SCALE_WIDTH);
 
     logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
     logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
