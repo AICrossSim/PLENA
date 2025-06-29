@@ -154,6 +154,7 @@ module mxfp_systolic_top_streamer #(
                         data_elem_array_queue <= next_data_elem_array_queue;
                         data_scale_array_queue <= next_data_scale_array_queue;
                         stream_in_valid <= 1'b1;
+                        store_counter <= 'b1;
                     end else begin
                         stream_in_valid <= 1'b0;
                     end
@@ -166,6 +167,7 @@ module mxfp_systolic_top_streamer #(
                         if (stream_in_valid_hold) begin
                             stream_in_valid_hold <= 1'b0;
                         end
+                        store_counter                       <= store_counter + 'b1;
                     end else begin
                         if (stream_in_valid & !stream_in_ready) begin
                             stream_in_valid_hold <= 1'b1;
@@ -179,8 +181,8 @@ module mxfp_systolic_top_streamer #(
                 CLEARING: begin
                     store_counter <= '0;
                     if (stream_in_ready) begin
-                        data_elem_array_queue <= next_data_elem_array_queue;
-                        data_scale_array_queue <= next_data_scale_array_queue;
+                        data_elem_array_queue   <= next_data_elem_array_queue;
+                        data_scale_array_queue  <= next_data_scale_array_queue;
                         clear_counter <= clear_counter + 'b1;   
                         stream_in_valid <= 1'b1;  
                         if (stream_in_valid_hold) begin

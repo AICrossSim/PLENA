@@ -60,11 +60,10 @@ module mxfp_first_row_mini_systolic_array #(
 );
 
 
-
-logic [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]  vert_transfer_elem     [BLOCK_DIM - 1:0][BLOCK_DIM :0];
-logic [MXFP_SCALE_WIDTH - 1 : 0]                  vert_transfer_scale    [BLOCK_DIM : 0][BLOCK_DIM - 1:0];
-logic [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]  hori_transfer_elem        [BLOCK_DIM : 0][BLOCK_DIM - 1:0];
-logic [MXFP_SCALE_WIDTH - 1 : 0]                  hori_transfer_scale       [BLOCK_DIM - 1:0][BLOCK_DIM :0];
+logic [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]  vert_transfer_elem        [BLOCK_DIM : 0][BLOCK_DIM - 1:0];
+logic [MXFP_SCALE_WIDTH - 1 : 0]                  vert_transfer_scale       [BLOCK_DIM : 0][BLOCK_DIM - 1:0];
+logic [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]  hori_transfer_elem        [BLOCK_DIM - 1:0][BLOCK_DIM : 0];
+logic [MXFP_SCALE_WIDTH - 1 : 0]                  hori_transfer_scale       [BLOCK_DIM - 1:0][BLOCK_DIM : 0];
 logic [BLOCK_DIM - 1:0][BLOCK_DIM - 1:0] pe_compute_ready;
 
 logic [BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]  first_row_scale;
@@ -87,9 +86,9 @@ end
 generate;
     for (genvar i = 0; i < BLOCK_DIM; i = i + 1) begin : fill_with_input_data
         assign vert_transfer_elem[0][i]     = in_top_element[i];
+        assign vert_transfer_scale[0][i]    = (control == 1'b1) ? first_row_scale[i] : in_top_scale;
         assign hori_transfer_elem[i][0]     = in_left_element[i];
-        assign vert_transfer_scale[0][i]    = (control == 1'b0) ? first_row_scale[i] : in_top_scale;
-        assign hori_transfer_scale[i][0]    = (control == 1'b0) ? first_col_scale[i] : in_left_scale;
+        assign hori_transfer_scale[i][0]    = (control == 1'b1) ? first_col_scale[i] : in_left_scale;
     end
     assign mult_ready = &pe_compute_ready;
 endgenerate
@@ -174,7 +173,7 @@ generate;
     // Data Transfer Out from the mini systolic array.
     for (genvar i = 0; i < BLOCK_DIM; i = i + 1) begin : fill_output_data
         assign out_bottom_element[i] = vert_transfer_elem[i][BLOCK_DIM];
-        assign out_right_element[i] = hori_transfer_elem[BLOCK_DIM][i];
+        assign out_right_element[i]  = hori_transfer_elem[BLOCK_DIM][i];
     end
     assign out_bottom_scale   = vert_transfer_scale [BLOCK_DIM][0];
     assign out_right_scale    = hori_transfer_scale  [0][BLOCK_DIM];

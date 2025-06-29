@@ -34,7 +34,7 @@ module mxfp_systolic_array #(
     output  logic in_top_ready,
 
     // Input from Left Array
-    input   logic [COMPUTE_DIM - 1: 0]  [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_element,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_element,
     input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input   logic in_left_valid,
     output  logic in_left_ready,
@@ -63,17 +63,19 @@ module mxfp_systolic_array #(
     end
 
 
-    logic [BLOCK_DIM * ( MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1 ) - 1 : 0]    vert_transfer_elem      [BLOCK_NUM - 1:0][BLOCK_NUM :0];
-    logic [MXFP_SCALE_WIDTH - 1 : 0]                                            vert_transfer_scale     [BLOCK_NUM - 1:0][BLOCK_NUM :0];
+    logic [BLOCK_DIM * ( MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1 ) - 1 : 0]    ho_transfer_elem      [BLOCK_NUM - 1:0][BLOCK_NUM :0];
+    logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ho_transfer_scale     [BLOCK_NUM - 1:0][BLOCK_NUM :0];
 
-    logic [BLOCK_DIM * ( MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1 ) - 1 : 0]    hori_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
-    logic [MXFP_SCALE_WIDTH - 1 : 0]                                            hori_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
+    logic [BLOCK_DIM * ( MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1 ) - 1 : 0]    ve_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
+    logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ve_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
 
     logic [BLOCK_NUM- 1: 0][BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_ready;
 
     logic mult_valid, mult_ready;
+    logic p1_mult_valid, p1_mult_ready;
+
     logic system_right_shift_valid, system_down_shift_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] pe_compute_ready;
 
@@ -84,22 +86,29 @@ module mxfp_systolic_array #(
         .data_out_ready(mult_ready)
     );
 
+    // assign mult_ready = p1_mult_ready;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            p1_mult_valid <= 1'b0;
+        end else begin
+            p1_mult_valid <= mult_valid;
+        end
+    end
+
     generate;
         for (genvar i = 0; i < BLOCK_NUM; i = i + 1) begin : fill_with_input_data
             // Fill the Top Row
-            assign hori_transfer_elem[0][i]      = in_top_element[i];
-            assign hori_transfer_scale[0][i]     = in_top_scale[i];
+            assign ve_transfer_elem [0][i]     = in_top_element [i];
+            assign ve_transfer_scale[0][i]     = in_top_scale   [i];
 
             // Fill the Left Column
-            assign vert_transfer_elem[i][0]      = in_left_element[i];
-            assign vert_transfer_scale[i][0]     = in_left_scale[i];
+            assign ho_transfer_elem[i][0]      = in_left_element[i];
+            assign ho_transfer_scale[i][0]     = in_left_scale  [i];
         end
         assign mult_ready = &pe_compute_ready;
-        assign system_down_shift_valid = in_top_valid & in_top_ready;
+        assign system_down_shift_valid  = in_top_valid  & in_top_ready;
         assign system_right_shift_valid = in_left_valid & in_left_ready;
     endgenerate
-
-
 
     // Computation
     generate;
@@ -115,24 +124,24 @@ module mxfp_systolic_array #(
                         .BLOCK_DIM          (BLOCK_DIM),
                         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                         .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
-                    ) first_row_pe_init (
+                    ) first_row_mini_sys_init (
                         .clk(clk),
                         .rst(rst),
                         .control(control),
-                        .in_top_element     (hori_transfer_elem[i][j]),
-                        .in_top_scale       (hori_transfer_scale[i][j]),
+                        .in_top_element     (ve_transfer_elem[i][j]),
+                        .in_top_scale       (ve_transfer_scale[i][j]),
                         .system_top_valid   (system_down_shift_valid),
-                        .in_left_element    (vert_transfer_elem[i][j]),
-                        .in_left_scale      (vert_transfer_scale[i][j]),
+                        .in_left_element    (ho_transfer_elem[i][j]),
+                        .in_left_scale      (ho_transfer_scale[i][j]),
                         .system_left_valid  (system_right_shift_valid),
-                        .mult_valid         (mult_valid),
+                        .mult_valid         (p1_mult_valid),
                         .mult_ready         (pe_compute_ready[i][j]),
                         .in_left_v_element  (in_left_v_element[j]),
                         .in_left_v_scale    (in_left_v_scale[j]),
-                        .out_bottom_element (hori_transfer_elem[i+1][j]),
-                        .out_bottom_scale   (hori_transfer_scale[i+1][j]),
-                        .out_right_element  (vert_transfer_elem[i][j+1]),
-                        .out_right_scale    (vert_transfer_scale[i][j+1]),
+                        .out_bottom_element (ve_transfer_elem[i+1][j]),
+                        .out_bottom_scale   (ve_transfer_scale[i+1][j]),
+                        .out_right_element  (ho_transfer_elem[i][j+1]),
+                        .out_right_scale    (ho_transfer_scale[i][j+1]),
                         .out_fp             (m_out_fp[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
@@ -146,19 +155,21 @@ module mxfp_systolic_array #(
                         .BLOCK_DIM          (BLOCK_DIM),
                         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                         .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
-                    ) default_pe_init (
+                    ) default_mini_sys_init (
                         .clk(clk),
                         .rst(rst),
-                        .in_top_element     (hori_transfer_elem[i][j]),
-                        .in_top_scale       (hori_transfer_scale[i][j]),
+                        .in_top_element     (ve_transfer_elem[i][j]),
+                        .in_top_scale       (ve_transfer_scale[i][j]),
                         .system_top_valid   (in_top_valid),
-                        .in_left_element    (vert_transfer_elem[i][j]),
-                        .in_left_scale      (vert_transfer_scale[i][j]),
+                        .in_left_element    (ho_transfer_elem[i][j]),
+                        .in_left_scale      (ho_transfer_scale[i][j]),
                         .system_left_valid  (in_left_valid),
-                        .out_bottom_element (hori_transfer_elem[i + 1][j]),
-                        .out_bottom_scale   (hori_transfer_scale[i + 1][j]),
-                        .out_right_element  (vert_transfer_elem[i][j + 1]),
-                        .out_right_scale    (vert_transfer_scale[i][j + 1]),
+                        .mult_valid         (p1_mult_valid),
+                        .mult_ready         (pe_compute_ready[i][j]),
+                        .out_bottom_element (ve_transfer_elem[i + 1][j]),
+                        .out_bottom_scale   (ve_transfer_scale[i + 1][j]),
+                        .out_right_element  (ho_transfer_elem[i][j + 1]),
+                        .out_right_scale    (ho_transfer_scale[i][j + 1]),
                         .out_fp             (m_out_fp[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
