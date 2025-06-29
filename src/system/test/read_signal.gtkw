@@ -1,22 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jun 28 00:55:53 2025
+[*] Sat Jun 28 23:58:56 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Sat Jun 28 00:49:24 2025"
-[dumpfile_size] 96801956
+[dumpfile_mtime] "Sat Jun 28 22:37:15 2025"
+[dumpfile_size] 96797297
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
-[pos] 117330 139522
-*-16.114536 380000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 150066 172258
+*-17.114536 920000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.hbm_interface_init.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.data_upsizer.
+[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.
@@ -40,103 +40,39 @@
 [sst_vpaned_height] 1042
 @28
 SimTop.dut.clk
-SimTop.dut.exe_stage_op.h_op[1:0]
-SimTop.dut.exe_stage_op.m_op[2:0]
-SimTop.dut.pipeline_control_init.pipeline_stall
-@22
-SimTop.dut.vector_sram.port_b_element_in[0][7:0]
-SimTop.dut.vector_sram.port_b_element_in[1][7:0]
-SimTop.dut.vector_sram.port_b_element_in[2][7:0]
-SimTop.dut.vector_sram.port_b_element_in[3][7:0]
-SimTop.dut.vector_sram.port_b_element_in[4][7:0]
-SimTop.dut.vector_sram.port_b_element_in[5][7:0]
-SimTop.dut.vector_sram.port_b_element_in[6][7:0]
-SimTop.dut.vector_sram.port_b_element_in[7][7:0]
-@28
-SimTop.dut.vector_sram.port_b_write_en
-@22
-SimTop.dut.hbm_interface_init.v_hbm_element_out[63:0]
-@28
 SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
-SimTop.dut.pipeline_control_init.m_accumulate_in_progress
-SimTop.dut.pipeline_control_init.m_load_in_process
-SimTop.dut.matrix_machine_init.load_in_progress
-SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_loading
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_load_counter[3:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_load_counter[3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[0][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[1][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[2][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[3][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[4][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[5][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[6][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[7][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_scale[0][7:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_scale[1][7:0]
 @28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_in_valid
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.mult_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[1].systolic_array_inst.mult_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_left_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_ready[1:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_valid[1:0]
 @22
-SimTop.dut.matrix_machine_init.m_element[0][3:0]
-SimTop.dut.matrix_machine_init.m_element[1][3:0]
-SimTop.dut.matrix_machine_init.m_element[2][3:0]
-SimTop.dut.matrix_machine_init.m_element[3][3:0]
-SimTop.dut.matrix_machine_init.m_element[4][3:0]
-SimTop.dut.matrix_machine_init.m_element[5][3:0]
-SimTop.dut.matrix_machine_init.m_element[6][3:0]
-SimTop.dut.matrix_machine_init.m_element[7][3:0]
-SimTop.dut.matrix_machine_init.m_scale[0][7:0]
-SimTop.dut.matrix_machine_init.m_scale[1][7:0]
-@28
-SimTop.dut.matrix_machine_init.m_valid
-@22
-SimTop.dut.matrix_sram.sram_raddr[31:0]
-SimTop.dut.scalar_machine_init.fixed_reg_file.mem[1][31:0]
-SimTop.dut.matrix_sram.sram_waddr[31:0]
-SimTop.dut.matrix_machine_init.v_element[0][7:0]
-SimTop.dut.matrix_machine_init.v_element[1][7:0]
-SimTop.dut.matrix_machine_init.v_element[2][7:0]
-SimTop.dut.matrix_machine_init.v_element[3][7:0]
-SimTop.dut.matrix_machine_init.v_element[4][7:0]
-SimTop.dut.matrix_machine_init.v_element[5][7:0]
-SimTop.dut.matrix_machine_init.v_element[6][7:0]
-SimTop.dut.matrix_machine_init.v_element[7][7:0]
-@28
-SimTop.dut.matrix_machine_init.v_valid
-@22
-SimTop.dut.matrix_machine_init.v_scale[0][7:0]
-SimTop.dut.matrix_machine_init.v_scale[1][7:0]
-SimTop.dut.vector_sram.port_b_element_in[0][7:0]
-SimTop.dut.vector_sram.port_b_element_in[1][7:0]
-SimTop.dut.vector_sram.port_b_element_in[2][7:0]
-SimTop.dut.vector_sram.port_b_element_in[3][7:0]
-SimTop.dut.vector_sram.port_b_element_in[4][7:0]
-SimTop.dut.vector_sram.port_b_element_in[5][7:0]
-SimTop.dut.vector_sram.port_b_element_in[6][7:0]
-SimTop.dut.vector_sram.port_b_element_in[7][7:0]
-@28
-SimTop.dut.vector_sram.port_b_req
-SimTop.dut.vector_sram.port_b_write_en
-@22
-SimTop.dut.vector_sram.port_b_scale_in[0][7:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.offset_addr[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_raddr[63:0]
-SimTop.dut.hbm_interface_init.hbm_addr_out[63:0]
-SimTop.dut.hbm_interface_init.exe_stage_op.addr_1[31:0]
-SimTop.dut.hbm_interface_init.exe_stage_op.addr_2[31:0]
-@28
-SimTop.dut.hbm_interface_init.exe_stage_op.h_op[1:0]
-@22
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.ELE_SCALE_ADR_RATIO[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_EXP_WIDTH[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_MANT_WIDTH[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_MANT_WIDTH[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_SCALE_WIDTH[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_raddr_for_ele[63:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.hbm_raddr_for_scale[63:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.HIGHEST_MXFP_EXP_WIDTH[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.HIGHEST_MXFP_MANT_WIDTH[31:0]
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_EXP_WIDTH[31:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[0][0][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[0][1][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[0][2][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[0][3][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[1][0][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[1][1][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[1][2][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_element[1][3][3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_scale[0][0][7:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_scale[0][1][7:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_scale[1][0][7:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_scale[1][1][7:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.M[31:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.COMPUTE_DIM[31:0]
 @23
-SimTop.dut.hbm_interface_init.vector_hbm_controller_init.MXFP_MANT_WIDTH[31:0]
-@22
-SimTop.dut.vector_sram.port_b_scale_in[1][7:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.ROW_BLOCK_NUM[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

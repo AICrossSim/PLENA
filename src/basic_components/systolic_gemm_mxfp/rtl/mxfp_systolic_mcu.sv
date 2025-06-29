@@ -31,8 +31,8 @@ module mxfp_systolic_mcu #(
     parameter   N                     = 4,
     parameter   K                     = 8, 
     localparam  ROW_BLOCK_NUM         = K / BLOCK_DIM,
-    localparam ACC_NUM = K / M,
-    localparam ACC_ADDR_WIDTH = $clog2(ACC_NUM)
+    localparam  ACC_NUM = K / M,
+    localparam  ACC_ADDR_WIDTH = $clog2(ACC_NUM)
 )(
     input   logic clk,
     input   logic rst,
@@ -43,12 +43,12 @@ module mxfp_systolic_mcu #(
     
     // Multiplicant Matrix 1 TOP
     input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
-    input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v1_scale,
+    input   logic [K - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 v1_scale,
     input   logic v1_in_valid,
     output  logic v1_in_ready,
     // Multiplier   Matrix 2 LEFT
     input   logic [K - 1 : 0][MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0] v2_element,
-    input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] v2_scale,
+    input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]     v2_scale,
     input   logic v2_in_valid,
     output  logic v2_in_ready,
     // Vector Product Output
@@ -67,6 +67,7 @@ module mxfp_systolic_mcu #(
 
     localparam SYS_ARRAY_AMOUNT = K / M;
     localparam COMPUTE_DIM = M;
+    localparam BLOCK_NUM_PER_ARRAY = ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT;
 
     // -----------------------------
     // Data Wires Declaration
@@ -81,10 +82,10 @@ module mxfp_systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_top_in_valid, array_top_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] array_top_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               array_top_in_scale;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0] array_left_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               array_left_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
@@ -247,7 +248,7 @@ module mxfp_systolic_mcu #(
         );
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
-            mxfp_systolic_data_streamer #(
+            mxfp_systolic_top_streamer #(
                 .MXFP_EXP_WIDTH     (MXFP_T_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_T_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
@@ -259,7 +260,7 @@ module mxfp_systolic_mcu #(
                 .clk(clk),
                 .rst(rst),
                 .data_elem_in   (v1_element[i * M +: M]),
-                .data_scale_in  (v1_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .data_scale_in  (v1_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
                 .data_in_valid  (v1_data_in_valid[i]),
                 .data_in_ready  (v1_data_in_ready[i]),
                 .data_elem_out  (array_top_in_element[i]),
@@ -268,7 +269,7 @@ module mxfp_systolic_mcu #(
                 .data_out_ready (array_top_in_ready[i])
             );
 
-            mxfp_systolic_data_streamer #(
+            mxfp_systolic_left_streamer #(
                 .MXFP_EXP_WIDTH     (MXFP_L_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_L_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),

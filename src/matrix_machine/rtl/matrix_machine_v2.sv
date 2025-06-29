@@ -25,13 +25,13 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Matix - row-major order
     input  logic [MLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]          m_element,
-    input  logic [BLOCK_NUM-1:0]            [MXFP_SCALE_WIDTH-1:0]                  m_scale,
+    input  logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                                  m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
     // Vector - row-major order
     input  logic [MLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]        v_element,
-    input  logic [BLOCK_NUM-1:0]            [MXFP_SCALE_WIDTH-1:0]                  v_scale,
+    input  logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                             v_scale,
     input  logic                   v_valid,
     output logic                   v_ready,
 
@@ -97,7 +97,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Data from Matrix SRAM Buffering
     logic [MLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]     stored_m_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                 stored_m_scale;
+    logic [MLEN-1:0]        [MXFP_SCALE_WIDTH-1:0]                      stored_m_scale;
     logic stored_m_in_ele_ready, stored_m_in_scale_ready;
     logic stored_m_in_ele_valid, stored_m_in_scale_valid;
     logic stored_m_ele_ready, stored_m_scale_ready;
@@ -127,7 +127,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     skid_buffer #(
-        .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(MLEN * MXFP_SCALE_WIDTH)
     ) matrix_scale_buffer (
         .clk(clk),
         .rst(rst),
@@ -147,24 +147,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_valid(stored_m_valid),
         .data_out_ready(stored_m_ready)
     );
-
-
-    // Data from Vector SRAM Buffering
-    // logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   stored_v_data;
-    // logic stored_v_valid, stored_v_ready;
-
-    // skid_buffer #(
-    //     .DATA_WIDTH(MLEN * (V_FP_MANT_WIDTH + V_FP_EXP_WIDTH + 1))
-    // ) vector_element_buffer (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .data_in        (v_fp_in),
-    //     .data_in_valid  (v_valid),
-    //     .data_in_ready  (v_ready),
-    //     .data_out       (stored_v_data),
-    //     .data_out_valid (stored_v_valid),
-    //     .data_out_ready (stored_v_ready)
-    // );
 
     // Data from Matrix SRAM Buffering
     logic [VLEN-1:0] [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]     stored_v_element;
@@ -218,17 +200,13 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready(stored_v_ready)
     );
 
-
-
-
-
-    // Result Buffering
-    logic [MLEN-1:0] [M_FP_EXP_WIDTH + M_FP_MANT_WIDTH : 0]   result_v;
-    logic result_in_valid, result_in_ready;
-
     // -----------------------------
     // Systolic Matrix Compute Unit
     // -----------------------------
+    
+    // Result Buffering
+    logic [MLEN-1:0] [M_FP_EXP_WIDTH + M_FP_MANT_WIDTH : 0]   result_v;
+    logic result_in_valid, result_in_ready;
 
     mxfp_systolic_mcu #(
         .FP_EXP_WIDTH       (V_FP_EXP_WIDTH),

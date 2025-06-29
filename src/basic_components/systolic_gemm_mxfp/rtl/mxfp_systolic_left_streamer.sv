@@ -1,14 +1,14 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : Systolic Array Data Streamer
+Module      : Systolic Array LEFT Data Streamer
 Timing      : Sequential
 Description : It is used to prepare the data input to the systolic array compute unit.
             : It assume the loaded data is in little endian format.
 Status      : Under Development
 */
 
-module mxfp_systolic_data_streamer #(
+module mxfp_systolic_left_streamer #(
     // MX-FP Data Format
     parameter MXFP_EXP_WIDTH        = 4,
     parameter MXFP_MANT_WIDTH       = 3,
@@ -29,8 +29,8 @@ module mxfp_systolic_data_streamer #(
     input   logic data_in_valid,
     output  logic data_in_ready,
     // Data Output
-    output  logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] data_elem_out,
-    output  logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] data_scale_out,
+    output  logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_out,
+    output  logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_out,
     output  logic data_out_valid,
     input   logic data_out_ready
 );
@@ -43,8 +43,8 @@ module mxfp_systolic_data_streamer #(
 
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_array_queue  [COMPUTE_DIM - 1 : 0];
     logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue [COMPUTE_DIM - 1 : 0];
-    logic [COMPUTE_DIM - 1 : 0] [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  stream_elem_out;
-    logic [COMPUTE_DIM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]            stream_scale_out;
+    logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   stream_elem_out;
+    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               stream_scale_out;
     logic stream_elem_in_ready,     stream_elem_in_valid;
     logic stream_scale_in_ready,    stream_scale_in_valid;
     logic stream_in_ready,          stream_in_valid;
@@ -218,7 +218,7 @@ module mxfp_systolic_data_streamer #(
     );
 
     skid_buffer #(
-        .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(COMPUTE_DIM * MXFP_SCALE_WIDTH)
     ) skid_buffer_scale (
         .clk(clk),
         .rst(rst),

@@ -201,7 +201,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
  
     // Matrix
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]    fetched_m_element;
-    logic [BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                       fetched_m_scale;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                            fetched_m_scale;
     logic [MLEN-1:0][S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]                                        m_out_v_fp;
 
     // Vector
@@ -322,10 +322,11 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
 
     // Matrix SRAM 
-    matrix_sram_with_rounding #(
+    matrix_sram_without_rounding #(
         .MXFP_EXP_WIDTH     (LOW_MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH    (LOW_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+        .FIXED_DATA_WIDTH   (ON_CHIP_ADDR_WIDTH),
         .MLEN               (MLEN),
         .BLOCK_DIM          (BLOCK_DIM),
         .SRAM_DEPTH         (MATRIX_SRAM_DEPTH),
