@@ -2,10 +2,12 @@
 
 /*
 Module      : MX-FP Rescale Unit
-Timing      : Sequential, Takes x cycles to compute the dot product
+Timing      : Sequential, Takes 1 cycles to rescale
 Description : e1s1, e2s2, e3s3, e4s4 - > {e1, e2, e3, e4} s
             : Format a block of elements, rescale them to have the same scale.
-Status      : Under Development
+Status      : Passed Simple Tests
+            : Note that the output scale is the maximum scale of the input elements.
+            : The output element is in MX-FP format.
 */
 
 module mx_fp_rescale #(

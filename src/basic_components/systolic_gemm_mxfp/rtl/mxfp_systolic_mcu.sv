@@ -43,7 +43,7 @@ module mxfp_systolic_mcu #(
     
     // Multiplicant Matrix 1 TOP
     input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
-    input   logic [K - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 v1_scale,
+    input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]     v1_scale,
     input   logic v1_in_valid,
     output  logic v1_in_ready,
     // Multiplier   Matrix 2 LEFT
@@ -199,8 +199,8 @@ module mxfp_systolic_mcu #(
                 start_feed_count    <= 1'b1;
             end else if (start_feed_count) begin
                 if (feed_counter == 2 * COMPUTE_DIM + SYSTOLIC_PROCESSING_OVERHEAD) begin
-                    feed_counter    <= '0;
-                    start_feed_count <= 1'b0;
+                    feed_counter        <= '0;
+                    start_feed_count    <= 1'b0;
                     ready_to_load_output <= 1'b1;
                 end else begin
                     feed_counter <= feed_counter + 'b1;
@@ -269,7 +269,7 @@ module mxfp_systolic_mcu #(
                 .data_out_ready (array_top_in_ready[i])
             );
 
-            mxfp_systolic_left_streamer #(
+            mxfp_systolic_top_streamer #(
                 .MXFP_EXP_WIDTH     (MXFP_L_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_L_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
@@ -281,7 +281,7 @@ module mxfp_systolic_mcu #(
                 .clk(clk),
                 .rst(rst),
                 .data_elem_in   (v2_element[i * M +: M]),
-                .data_scale_in  (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .data_scale_in  (v2_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
                 .data_in_ready  (v2_data_for_mm_in_ready[i]),
                 .data_elem_out  (array_left_in_element[i]),

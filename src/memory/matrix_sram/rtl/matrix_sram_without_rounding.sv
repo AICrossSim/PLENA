@@ -97,6 +97,11 @@ always_ff @(posedge clk) begin
     end
 end
 
+// -----------------------------
+// Memory Storage (Element and Scale)
+// -----------------------------
+
+
 // scale duplication
 logic scale_write_response, element_write_response;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
@@ -151,8 +156,24 @@ biaccess_sram #(
 );
 
 // -----------------------------
-assign element_out = loaded_element_out;
-assign scale_out = loaded_scale_out;
+// Output Data
+// -----------------------------
+
+logic rd_data_valid;
+always_ff @(posedge clk) begin
+    if (rst) begin
+        element_out <= '0;
+        scale_out <= '0;
+        rd_data_valid <= 1'b0;
+    end else begin
+        rd_data_valid <= req;
+        if (rd_data_valid) begin
+            element_out <= loaded_element_out;
+            scale_out <= loaded_scale_out;
+        end
+    end
+end
+
 
 
 endmodule
