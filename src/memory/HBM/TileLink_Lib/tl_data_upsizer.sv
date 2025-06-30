@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
 
 // An adpater that expands DataWidth.
 // This module performs sideband communication using source, so it increases SourceWidth.

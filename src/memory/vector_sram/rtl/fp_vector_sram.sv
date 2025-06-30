@@ -24,15 +24,18 @@ module fp_vector_sram #(
     // Dimension
     parameter   VLEN              = 8,   
     parameter   MLEN              = 8, 
-    parameter   BLOCK_DIM         = 4,                                
-    localparam  BLOCK_NUM         = VLEN / BLOCK_DIM,
+    parameter   BLOCK_DIM         = 4,
+    localparam  M_BLOCK_NUM         = MLEN / BLOCK_DIM,                                
+    localparam  V_BLOCK_NUM         = VLEN / BLOCK_DIM,
 
     // SRAM
     parameter   SRAM_DEPTH          = 128,
     parameter   ON_CHIP_ADDR_WIDTH  = 32,
-    parameter   PREFETCH_AMOUNT     = 4,
+    parameter   PREFETCH_AMOUNT     = 4
     // For Debugging
-    parameter string MEM_RESULT_FILE = ""
+    `ifdef SIMULATION
+        ,parameter string MEM_RESULT_FILE = ""
+    `endif
 
 )(
     input   logic clk,
@@ -50,7 +53,7 @@ module fp_vector_sram #(
     output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_out,
 
     output  logic [MLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_a_element_out,
-    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_a_scale_out,
+    output  logic [M_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]                  port_a_scale_out,
 
     // Port B
     input   logic port_b_req,
@@ -61,12 +64,12 @@ module fp_vector_sram #(
     input   logic [VLEN - 1 : 0]                                                    port_b_mask_in,
     // MX-FP Connection
     input   logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_b_element_in,
-    input   logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_b_scale_in,
+    input   logic [V_BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_b_scale_in,
     input   logic port_b_mxfp_req,
     output  logic port_b_mxfp_out_valid,
 
     output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_b_element_out,
-    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_b_scale_out,
+    output  logic [V_BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_b_scale_out,
 
     // Status Tracking for Prefetch
     input   logic prefetch_en,
@@ -105,8 +108,8 @@ module fp_vector_sram #(
         if (rst) begin
             mem_data_tag <= {{SRAM_DEPTH{1'b1}}};
         end else if (prefetch_en) begin
-            for (int i = translated_prefetch_addr; i < translated_prefetch_addr + PREFETCH_AMOUNT; i++) begin
-                mem_data_tag[i] <= 1'b0;
+            for (int i = 0; i < PREFETCH_AMOUNT; i++) begin
+                mem_data_tag[translated_prefetch_addr + i] <= 1'b0;
             end
         end else if (port_b_write_en) begin
             mem_data_tag[translated_port_b_addr] <= 1'b1;
@@ -129,23 +132,24 @@ module fp_vector_sram #(
     end
 
     // Convert FP Data to MX-FP Data for HBM write
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_valid;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_valid;
     logic port_a_mxfp_out_valid;
     logic mxfp_fp_convert_port_a_ready;
+    
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             mxfp_fp_convert_port_a_in_valid <= '0;
             mxfp_fp_convert_port_a_ready <= 1'b0;
         end else begin
-            mxfp_fp_convert_port_a_in_valid <= (control == 1'b0 && port_a_req) ? {BLOCK_NUM{1'b1}} : '0;
+            mxfp_fp_convert_port_a_in_valid <= (control == 1'b0 && port_a_req) ? {V_BLOCK_NUM{1'b1}} : '0;
             mxfp_fp_convert_port_a_ready <= 1'b1;
         end
     end
 
-    for (genvar j = 0; j < BLOCK_NUM; j++) begin
+    for (genvar j = 0; j < M_BLOCK_NUM; j++) begin
         fp_2_mx_fp_block #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
@@ -156,10 +160,10 @@ module fp_vector_sram #(
         ) fp_2_mx_port_a_convert_init(
             .clk(clk),
             .rst(rst),
-            .data_in                (port_a_fp_out_internal[(j+1) * BLOCK_DIM - 1 : j * BLOCK_DIM]),
-            .data_in_valid          (mxfp_fp_convert_port_a_in_valid),
+            .data_in                (port_a_fp_out_internal[j * BLOCK_DIM +: BLOCK_DIM]),
+            .data_in_valid          (mxfp_fp_convert_port_a_in_valid[j]),
             .data_in_ready          (),
-            .element_data_out       (port_a_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
+            .element_data_out       (port_a_element_out[j * BLOCK_DIM +: BLOCK_DIM]),
             .scale_data_out         (port_a_scale_out[j]),
             .mx_fp_data_out_valid   (mxfp_fp_convert_port_a_out_valid[j]),
             .mx_fp_data_out_ready   (mxfp_fp_convert_port_a_out_ready[j])
@@ -167,26 +171,26 @@ module fp_vector_sram #(
     end
 
     join_n #(
-        .NUM_HANDSHAKES(BLOCK_NUM)
+        .NUM_HANDSHAKES(V_BLOCK_NUM)
     ) mxfp_fp_convert_port_a_join (
         .data_in_valid(mxfp_fp_convert_port_a_out_valid),
         .data_in_ready(mxfp_fp_convert_port_a_out_ready),
         .data_out_valid(port_a_mxfp_out_valid),
-        .data_out_ready(mxfp_fp_convert_port_b_ready)
+        .data_out_ready(mxfp_fp_convert_port_a_ready)
     );
 
 
     // -----------------------------
     // Port B Management
     // -----------------------------
-    
+    logic   mxfp_fp_convert_port_b_ready;
     assign port_b_fp_out = port_b_fp_out_internal;
 
     // Convert MX-FP Data to FP Data for HBM Prefetch
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_in;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_out;
     generate;
-        for (genvar i = 0; i < BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
+        for (genvar i = 0; i < V_BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
             mx_fp_2_fp_block #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
@@ -204,21 +208,22 @@ module fp_vector_sram #(
 
 
     // Convert FP Data to MX-FP Data for HBM write
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_in_valid;
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_ready;
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_valid;
-    logic mxfp_fp_convert_port_b_ready;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_in_valid;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_ready;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_valid;
+
+
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             mxfp_fp_convert_port_b_in_valid <= '0;
             mxfp_fp_convert_port_b_ready <= 1'b0;
         end else begin
-            mxfp_fp_convert_port_b_in_valid <= port_b_mxfp_req ? {BLOCK_NUM{1'b1}} : '0;
+            mxfp_fp_convert_port_b_in_valid <= port_b_mxfp_req ? {V_BLOCK_NUM{1'b1}} : '0;
             mxfp_fp_convert_port_b_ready <= 1'b1;
         end
     end
 
-    for (genvar j = 0; j < BLOCK_NUM; j++) begin
+    for (genvar j = 0; j < V_BLOCK_NUM; j++) begin
         fp_2_mx_fp_block #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
@@ -230,7 +235,7 @@ module fp_vector_sram #(
             .clk(clk),
             .rst(rst),
             .data_in(port_b_fp_out_internal[(j+1) * BLOCK_DIM - 1 : j * BLOCK_DIM]),
-            .data_in_valid(mxfp_fp_convert_port_b_in_valid),
+            .data_in_valid(mxfp_fp_convert_port_b_in_valid[j]),
             .data_in_ready(),
             .element_data_out(port_b_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
             .scale_data_out(port_b_scale_out[j]),
@@ -240,7 +245,7 @@ module fp_vector_sram #(
     end
 
     join_n #(
-        .NUM_HANDSHAKES(BLOCK_NUM)
+        .NUM_HANDSHAKES(V_BLOCK_NUM)
     ) mxfp_fp_convert_join (
         .data_in_valid(mxfp_fp_convert_port_b_out_valid),
         .data_in_ready(mxfp_fp_convert_port_b_out_ready),
@@ -252,11 +257,13 @@ module fp_vector_sram #(
 prim_generic_ram_2p #(
     .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
     .Depth(SRAM_DEPTH),
-    .DataBitsPerMask((EXP_WIDTH + MANT_WIDTH + 1)),
+    .DataBitsPerMask((EXP_WIDTH + MANT_WIDTH + 1))
+    `ifdef SIMULATION
+    ,
     .ResultFile(MEM_RESULT_FILE)
+    `endif
 ) element_storage (
-    .clk_a_i(clk),
-    .clk_b_i(clk),
+    .clk_i(clk),
 
     .a_req_i        (port_a_req),
     .a_write_i      (port_a_write_en),

@@ -72,6 +72,7 @@ module mxfp_systolic_array #(
     logic [BLOCK_NUM- 1: 0][BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_ready;
+    logic out_result_ready;
 
     logic mult_valid, mult_ready;
     logic p1_mult_valid, p1_mult_ready;

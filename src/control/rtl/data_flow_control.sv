@@ -401,7 +401,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end else if (continuous_load_v_for_matrix_en) begin
                 if (m_v_ready) begin
                     if (!load_for_gemv_en & end_of_load_v_for_matrix) begin
-                        m_sram_req <= 1'b0;
+                        v_sram_req_a <= 1'b0;
                         m_v_load   <= 1'b0;
                         v_sram_load_for_matrix_counter <= 'b0;
                         continuous_load_v_for_matrix_en <= 1'b0;
@@ -409,11 +409,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                         if (!v_prefetch_data_not_ready & m_v_load_cond) begin
                             if (load_for_gemv_en) begin
                                 m_v_load    <= 1'b0;
-                                m_sram_req  <= 1'b0;
+                                v_sram_req_a  <= 1'b0;
                                 v_sram_load_for_matrix_counter <= 'b0;
                             end else begin
                                 m_v_load    <= 1'b1;
-                                m_sram_req  <= 1'b1;
+                                v_sram_req_a  <= 1'b1;
                                 v_sram_load_for_matrix_counter <= v_sram_load_for_matrix_counter + 1'b1;
                             end
                         end else begin

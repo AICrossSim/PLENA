@@ -1,4 +1,6 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
 
 module tl_source_shifter #(
   parameter  int unsigned HostSourceWidth = 4,

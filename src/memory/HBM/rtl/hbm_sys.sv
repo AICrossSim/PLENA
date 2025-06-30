@@ -1,5 +1,8 @@
 `timescale 1ns / 1ps
-
+`include "tl_util.svh"
+`include "tl_pkg.svh"
+`include "configuration.svh"
+`include "operation.svh"
 /*
 Module      : HBM System
 Description : 
@@ -123,7 +126,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     
     // Prefetching Control
     logic [MLEN * (LOW_MXFP_EXP_WIDTH + LOW_MXFP_MANT_WIDTH + 1) - 1 : 0] m_hbm_element_out;
-    logic [MLEN * M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
+    logic [M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
     logic m_hbm_prefetch_valid;
 
     // Buffering Control
@@ -208,7 +211,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     // Prefetching Control
     logic [VLEN * (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) - 1 : 0] v_hbm_element_out;
-    logic [VLEN * V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
+    logic [V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
     logic v_hbm_prefetch_valid;
 
     // Buffering Control

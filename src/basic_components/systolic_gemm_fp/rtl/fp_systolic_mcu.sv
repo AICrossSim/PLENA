@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-
+`include "operation.svh"
 /*
 Module      : Systolic Array Based Matrix Compute Unit (MCU)
 Timing      : Sequential
@@ -49,7 +49,7 @@ module fp_systolic_mcu #(
     input   logic v_result_ready,
     output  logic load_in_progress
 );
-
+    
     initial begin
         if (M != N) begin
             $error("Systolic MCU only supports M == N, but got M = %0d, N = %0d", M, N);
@@ -134,7 +134,7 @@ module fp_systolic_mcu #(
                 complete_v2_load <= 1'b0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_O) || (control_in_exe == MM_O)) & (gemm_result_valid || gemv_result_valid);
+            output_reset <= ((control_in_exe == MV_O) || (control_in_exe == MM_WO)) & (gemm_result_valid || gemv_result_valid);
         end
     end
 
@@ -186,7 +186,7 @@ module fp_systolic_mcu #(
             gemm_result_valid       <= 'b0;
             ready_to_load_output    <= 1'b0;
         end else begin
-            if (complete_loading & control_in_exe == MM_O) begin
+            if (complete_loading & control_in_exe == MM_WO) begin
                 feed_counter        <= '0;
                 start_feed_count    <= 1'b1;
             end else if (start_feed_count) begin
@@ -203,7 +203,7 @@ module fp_systolic_mcu #(
                 ready_to_load_output <= 1'b0;
             end
             gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 
@@ -335,32 +335,11 @@ module fp_systolic_mcu #(
     logic result_data_valid, result_data_ready;
     logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] result_data, unrolled_data_out;
 
-    always_comb begin
-        if (sa_control == 1'b0) begin
-            // GEMM
-            quantise_data_in_valid  = gebm_result_valid;
-            gebm_result_ready       = quantise_data_in_ready;
-            block_data_in_valid     = quantised_result_valid;
-            quantised_result_ready  = block_data_in_ready;
-            result_data             = unrolled_data_out;
-            result_data_valid       = unrolled_data_out_valid;
-            unrolled_data_out_ready = result_data_ready;
-        end else begin
-            // GEMV
-            quantise_data_in_valid  = gemv_result_valid;
-            gemv_result_w_ready     = quantise_data_in_ready;
-            block_data_in_valid     = 1'b0;
-            result_data             = stored_quantized_result;
-            result_data_valid       = quantised_result_valid;
-            quantised_result_ready  = result_data_ready;
-        end
-    end
-
+    localparam MAX_K_GEBM_OUT_DIM = (K > GEBM_OUT_DIM) ? K : GEBM_OUT_DIM;
+    logic [MAX_K_GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
+    logic [MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]      quantised_result_v, stored_quantized_result;
     generate
         if (K > GEBM_OUT_DIM) begin
-            logic [K - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
-            logic [K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]      quantised_result_v, stored_quantized_result;
-            
             always_comb begin
                 if (sa_control == 1'b0) begin
                     // GEMM
@@ -397,8 +376,6 @@ module fp_systolic_mcu #(
             );
 
         end else begin
-            logic [GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
-            logic [GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1 ) - 1 : 0] quantised_result_v, stored_quantized_result;
             always_comb begin
                 if (sa_control == 1'b0) begin
                     // GEMM
@@ -436,6 +413,29 @@ module fp_systolic_mcu #(
 
         end
     endgenerate
+
+    always_comb begin
+        if (sa_control == 1'b0) begin
+            // GEMM
+            quantise_data_in_valid  = gebm_result_valid;
+            gebm_result_ready       = quantise_data_in_ready;
+            block_data_in_valid     = quantised_result_valid;
+            quantised_result_ready  = block_data_in_ready;
+            result_data             = unrolled_data_out;
+            result_data_valid       = unrolled_data_out_valid;
+            unrolled_data_out_ready = result_data_ready;
+        end else begin
+            // GEMV
+            quantise_data_in_valid  = gemv_result_valid;
+            gemv_result_w_ready     = quantise_data_in_ready;
+            block_data_in_valid     = 1'b0;
+            result_data             = stored_quantized_result;
+            result_data_valid       = quantised_result_valid;
+            quantised_result_ready  = result_data_ready;
+        end
+    end
+
+
 
     // -----------------------------
     // Storing the computed result and write to the Vector SRAM

@@ -81,10 +81,10 @@ module pipeline_control #(
     import pipeline_pkg::*;
     logic pipeline_stall;
     logic stall_for_prefetch;
-
-
+    logic           mem_vwrite_stall_req;
     logic m_accumulate_in_progress; // Flag to indicate if the accumulation in matrix machine is in progress.
-
+    logic stall_in_process, recover_from_stall, start_of_stall;
+    
     // Decision for pipeline stall
     always_comb begin
         if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M)) begin
@@ -125,7 +125,7 @@ module pipeline_control #(
     assign pipeline_stall_req = pipeline_stall || stall_in_process; // Extra stall cycle in order to execute the previously unexecuted operation.
 
     // Memory Monitor
-    logic           mem_vwrite_stall_req;
+
 
     addr_monitor #(
         .ADDR_WIDTH(FIXED_DATA_WIDTH),
@@ -164,7 +164,7 @@ module pipeline_control #(
         check_stage_op.update_m_waddr  = delayed_reg_rd_stage_op.update_m_waddr;
         check_stage_op.update_v_waddr  = delayed_reg_rd_stage_op.update_v_waddr;
     end
-    logic stall_in_process, recover_from_stall, start_of_stall;
+
     assign recover_from_stall = (!pipeline_stall) && stall_in_process;
     assign start_of_stall = pipeline_stall && !stall_in_process;
 

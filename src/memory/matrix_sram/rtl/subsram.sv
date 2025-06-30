@@ -64,10 +64,8 @@ always @(posedge clk) begin
     if (wen) begin
         mem[waddr]      <= wdata;
         write_response  <= 1'b1;
-        read_data_valid <= 1'b0;
     end else begin
         write_response  <= 1'b0;
-        read_data_valid <= 1'b0;
     end
 end
 

@@ -34,7 +34,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output  logic                   v_b_ready,
 
     // Scalar Value
-    input   logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH -1 : 0] s_in,
+    input   logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0] s_in,
     input   logic                   s_in_valid,
     output  logic                   s_in_ready,
     input   logic [FP_OPERAND_WIDTH - 1 : 0]        s_wtarget,
@@ -51,7 +51,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
     output  logic                                                                   v_wreq,
 
-    output  logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH - 1 : 0]                        s_out,
+    output  logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]                            s_out,
     output  logic                                                                   s_out_valid,
     input   logic                                                                   s_out_ready,
     output  logic  [FP_OPERAND_WIDTH - 1 : 0]                                       s_out_rd
@@ -78,10 +78,30 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     logic v_port_a_valid, v_port_a_ready;
     logic v_port_b_valid, v_port_b_ready;
 
-
     // Data Preparation Stage
     logic complete_element_prepare, complete_reduct_prepare;
     logic next_preparation_stage;
+
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prepared_v_a;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prepared_v_b;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] unpacked_v_s;
+
+    logic s_acc_in_valid, s_acc_in_ready;
+    logic red_v_in_a_valid, red_v_in_a_ready;
+    logic red_v_in_b_valid, red_v_in_b_ready;
+    logic red_v_in_valid, red_v_in_ready;
+    logic red_v_out_valid, red_v_out_ready;
+    logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0] s_acc_in;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] red_v_out;
+
+    logic element_v_in_a_valid, element_v_in_a_ready;
+    logic element_v_in_b_valid, element_v_in_b_ready;
+    logic element_v_out_valid, element_v_out_ready;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]   result_v_out;
+    
+    logic [ADDR_WIDTH-1:0] stored_result_waddr;
+    logic compute_result_valid;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -168,9 +188,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     end
 
 
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prepared_v_a;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prepared_v_b;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] unpacked_v_s;
 
     assign s_in_ready = v_b_ready;
 
@@ -237,7 +254,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
     
 
-
     // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
     always_comb begin
         if (recorded_element_v_control != STALL_V_ELEMENT & recorded_element_v_control != LD_V_ELEMENT) begin
@@ -268,11 +284,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Elementwise Compute Unit
     //----------------------------//
 
-    logic element_v_in_a_valid, element_v_in_a_ready;
-    logic element_v_in_b_valid, element_v_in_b_ready;
-    logic element_v_out_valid, element_v_out_ready;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]   result_v_out;
 
     fp_elementwise_compute_unit #(
         .EXP_WIDTH(V_FP_EXP_WIDTH),
@@ -304,8 +315,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         TODO: add other non linear function result selection here.
     */
 
-    logic [ADDR_WIDTH-1:0] stored_result_waddr;
-    logic compute_result_valid;
+
     assign element_v_out_ready = v_out_ready;
     always_comb begin
         if (
@@ -354,15 +364,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     //----------------------------//
     // Reduction Compute Unit
     //----------------------------//
-
-    logic red_v_in_a_valid, red_v_in_a_ready;
-    logic red_v_in_b_valid, red_v_in_b_ready;
-    logic red_v_in_valid, red_v_in_ready;
-    logic red_v_out_valid, red_v_out_ready;
-    logic s_acc_in_valid, s_acc_in_ready;
-    logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0] s_acc_in;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] red_v_out;
-
 
     join_n #(
         .NUM_HANDSHAKES (3)

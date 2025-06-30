@@ -1,4 +1,6 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
 
 // This module terminates a TL-C link and converts it to a TL-UH link.
 // It assumes the device-going link has properties like memory.

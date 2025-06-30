@@ -51,6 +51,7 @@ module fp_systolic_array #(
 
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_ready;
+    logic out_result_ready;
     logic mult_valid, mult_ready;
     logic system_right_shift_valid, system_down_shift_valid;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] pe_compute_ready;

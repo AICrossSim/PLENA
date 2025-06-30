@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
-
+`include "tl_pkg.svh"
 // An adpater that shrinks MaxSize by fragmenting multi-beat bursts into multiple transactions.
 //
 // Requires device to reply in FIFO order.

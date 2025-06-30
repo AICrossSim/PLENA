@@ -30,3 +30,5 @@ Coprocessor_Vivado_Prj/
 *.mem
 
 *.pt
+
+analyzed/

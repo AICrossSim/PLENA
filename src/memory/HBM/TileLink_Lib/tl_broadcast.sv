@@ -1,4 +1,6 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
 
 module tl_broadcast import tl_pkg::*; #(
   parameter  int unsigned AddrWidth = 56,

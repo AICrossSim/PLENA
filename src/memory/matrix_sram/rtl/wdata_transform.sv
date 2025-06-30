@@ -7,7 +7,8 @@ module wdata_transform #(
     parameter  MLEN = 8,                                             // The TileSize of the matrix.
     parameter  Parallel_Rd_Dim = 2,                                  // The number of row/col read in parallel
     localparam  AdrWidth                   = $clog2(SRAM_DEPTH),      // Address Space for the SRAM
-    localparam  SubSRAM_Amount               = MLEN / Parallel_Rd_Dim // The dimension of the sub SRAM, or the TileSize of the matrix.
+    localparam  SubSRAM_Amount               = MLEN / Parallel_Rd_Dim, // The dimension of the sub SRAM, or the TileSize of the matrix.
+    localparam  ElementWidth                 = DataWidth * (Parallel_Rd_Dim ** 2) // The width of each element in the sub SRAM
     
 ) (
     input  logic clk,
@@ -20,7 +21,7 @@ module wdata_transform #(
 // -----
 // Params
 // -----
-localparam  ElementWidth                 = DataWidth * (Parallel_Rd_Dim ** 2); // The width of each element in the sub SRAM
+
 localparam  ElementRowWidth              = DataWidth * Parallel_Rd_Dim; // The width of each row in the sub SRAM
 localparam  Parallel_Rd_Index_Width      = $clog2(MLEN/Parallel_Rd_Dim);
 localparam  SubSRAM_Index_Width          = $clog2(SubSRAM_Amount); // The width of the parallel read index

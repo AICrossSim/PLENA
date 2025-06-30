@@ -29,7 +29,7 @@ module fix_with_shift_2_fp #(
     localparam RND_BITS = FIXED_DATA_WIDTH-FP_MANT_WIDTH;
 
     // Count leading zeros, align input.
-    logic [$clog2(FIXED_DATA_WIDTH):0] lz_num;
+    logic [$clog2(FIXED_DATA_WIDTH + 1) - 1 : 0] lz_num;
     logic [FIXED_DATA_WIDTH-1:0] aligned_data;
 
     clz_int #(

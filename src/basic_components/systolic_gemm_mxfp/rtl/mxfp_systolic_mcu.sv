@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-
+`include "operation.svh"
 /*
 Module      : Systolic Array Based Matrix Compute Unit (MCU)
 Timing      : Sequential
@@ -52,7 +52,7 @@ module mxfp_systolic_mcu #(
     input   logic v2_in_valid,
     output  logic v2_in_ready,
     // Vector Product Output
-    output  logic [M - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] v_result,
+    output  logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] v_result,
     output  logic v_result_valid,
     input   logic v_result_ready,
     output  logic load_in_progress
@@ -82,13 +82,18 @@ module mxfp_systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_top_in_valid, array_top_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_left_v_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_v_in_scale;
+
+    assign array_left_v_in_element  = v2_element;
+    assign array_left_v_in_scale    = v2_scale;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_w_ready;
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_w_ready;
@@ -312,8 +317,8 @@ module mxfp_systolic_mcu #(
                 .in_left_scale      (array_left_in_scale[i]),
                 .in_left_valid      (array_left_in_valid[i]),
                 .in_left_ready      (array_left_in_ready[i]),
-                .in_left_v_element  (v2_element[i * M +: M]),
-                .in_left_v_scale    (v2_scale[i * (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT) +: (ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT)]),
+                .in_left_v_element  (array_left_v_in_element[i]),
+                .in_left_v_scale    (array_left_v_in_scale[i]),
                 .in_left_v_valid    (v2_data_for_mv_in_valid[i]),
                 .in_left_v_ready    (v2_data_for_mv_in_ready[i]),
                 .m_out_fp           (gemm_result[i]),
@@ -355,32 +360,12 @@ logic gebm_result_valid, gebm_result_ready;
     logic result_data_valid, result_data_ready;
     logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] result_data, unrolled_data_out;
 
-    always_comb begin
-        if (sa_control == 1'b0) begin
-            // GEMM
-            quantise_data_in_valid  = gebm_result_valid;
-            gebm_result_ready       = quantise_data_in_ready;
-            block_data_in_valid     = quantised_result_valid;
-            quantised_result_ready  = block_data_in_ready;
-            result_data             = unrolled_data_out;
-            result_data_valid       = unrolled_data_out_valid;
-            unrolled_data_out_ready = result_data_ready;
-        end else begin
-            // GEMV
-            quantise_data_in_valid  = gemv_result_valid;
-            gemv_result_w_ready     = quantise_data_in_ready;
-            block_data_in_valid     = 1'b0;
-            result_data             = stored_quantized_result;
-            result_data_valid       = quantised_result_valid;
-            quantised_result_ready  = result_data_ready;
-        end
-    end
-
+    localparam MAX_K_GEBM_OUT_DIM = (K > GEBM_OUT_DIM) ? K : GEBM_OUT_DIM;
+    logic [MAX_K_GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
+    logic [MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]      quantised_result_v, stored_quantized_result;
+   
     generate
         if (K > GEBM_OUT_DIM) begin
-            logic [K - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
-            logic [K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]      quantised_result_v, stored_quantized_result;
-            
             always_comb begin
                 if (sa_control == 1'b0) begin
                     // GEMM
@@ -417,8 +402,6 @@ logic gebm_result_valid, gebm_result_ready;
             );
 
         end else begin
-            logic [GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result_v;
-            logic [GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1 ) - 1 : 0] quantised_result_v, stored_quantized_result;
             always_comb begin
                 if (sa_control == 1'b0) begin
                     // GEMM
@@ -456,6 +439,27 @@ logic gebm_result_valid, gebm_result_ready;
 
         end
     endgenerate
+
+    always_comb begin
+        if (sa_control == 1'b0) begin
+            // GEMM
+            quantise_data_in_valid  = gebm_result_valid;
+            gebm_result_ready       = quantise_data_in_ready;
+            block_data_in_valid     = quantised_result_valid;
+            quantised_result_ready  = block_data_in_ready;
+            result_data             = unrolled_data_out;
+            result_data_valid       = unrolled_data_out_valid;
+            unrolled_data_out_ready = result_data_ready;
+        end else begin
+            // GEMV
+            quantise_data_in_valid  = gemv_result_valid;
+            gemv_result_w_ready     = quantise_data_in_ready;
+            block_data_in_valid     = 1'b0;
+            result_data             = stored_quantized_result;
+            result_data_valid       = quantised_result_valid;
+            quantised_result_ready  = result_data_ready;
+        end
+    end
 
     // -----------------------------
     // Storing the computed result and write to the Vector SRAM

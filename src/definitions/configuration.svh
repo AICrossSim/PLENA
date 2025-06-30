@@ -1,6 +1,6 @@
 `ifndef CONFIGURATION_SVH
 `define CONFIGURATION_SVH
-
+`include "global_define.vh"
 `ifdef SIMULATION
     package configuration_pkg;
         parameter   BATCH_SIZE                      = 4;
@@ -32,11 +32,14 @@
     endpackage
 `elsif ASIC_ESTIMATION
     package configuration_pkg;
-        parameter   BATCH_SIZE                      = 32;
-        parameter   MLEN                            = 32;
-        parameter   Matrix_Parallel_Rd_Dim          = 16;
+        parameter   BATCH_SIZE                      = 4;
+        parameter   MLEN                            = 8;
+        parameter   Matrix_Parallel_Rd_Dim          = 1; // Forced to be 1 at the moment for systolic array.
+        parameter   HBM_M_Prefetch_Amount           = 8;
+        parameter   HBM_V_Prefetch_Amount           = 8;
+        parameter   HBM_V_Writeback_Amount          = 8;
         parameter   MATRIX_SRAM_DEPTH               = 128;
-        parameter   VLEN                            = 32;
+        parameter   VLEN                            = 8;
         parameter   SCRATCHPAD_SRAM_DEPTH           = 128;
         parameter   INST_BUFF_DEPTH                 = 8;
         parameter   ON_CHIP_ADDR_WIDTH              = 32;
@@ -45,10 +48,11 @@
         parameter   HBM_ADDR_REG_NUM                = 8;
         parameter   SourceWidth                     = 1;
         parameter   SinkWidth                       = 1;
-        parameter   HBM_ELE_WIDTH                   = 8192;
-        parameter   HBM_SCALE_WIDTH                 = 4096;
+        parameter   HBM_ELE_WIDTH                   = 256;
+        parameter   HBM_SCALE_WIDTH                 = 256;
         parameter   FIXED_SRAM_DEPTH                = 32;
         parameter   FP_SRAM_DEPTH                   = 32;
+        parameter   MATRIX_ACC_ADR_DEPTH            = 8;
     endpackage
 `elsif FPGA_ESTIMATION
     package configuration_pkg;

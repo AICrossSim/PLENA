@@ -63,8 +63,11 @@ initial begin
   if (show_mem_paths) $display("%m");
 `endif
 
+`ifdef SIMULATION
   if (MemInitFile != "") begin : gen_meminit
       $display("Initializing memory %m from file '%s'.", MemInitFile);
       $readmemh(MemInitFile, mem);
   end
+`endif
+
 end

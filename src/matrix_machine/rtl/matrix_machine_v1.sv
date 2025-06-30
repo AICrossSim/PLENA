@@ -13,7 +13,9 @@ Status      : Passed Simple Tests
 
 module matrix_machine_v1 import precision_pkg::*; import configuration_pkg::*; #(
     localparam  BLOCK_NUM       = MLEN / BLOCK_DIM,
-    localparam  ADDR_WIDTH      = ON_CHIP_ADDR_WIDTH
+    localparam  ADDR_WIDTH      = ON_CHIP_ADDR_WIDTH,
+    localparam  MXFP_MANT_WIDTH = 4,
+    localparam  MXFP_EXP_WIDTH  = 3
 ) (
     input   logic   clk,
     input   logic   rst,
@@ -76,6 +78,8 @@ M_OP    recorded_m_op;
 logic [ADDR_WIDTH-1:0] recorded_m_waddr;
 logic collect_m_valid, collect_m_ready;
 logic stored_v_valid, stored_v_ready;
+logic stored_o_ele_valid, stored_o_scale_valid;
+logic stored_o_valid, stored_o_ready;
 
 // Preparation Units 
 always_ff @(posedge clk) begin
@@ -264,8 +268,7 @@ logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]       stored_o_scale;
 logic stored_o_in_ele_ready, stored_o_in_scale_ready;
 logic stored_o_in_ele_valid, stored_o_in_scale_valid;
 logic stored_o_ele_ready, stored_o_scale_ready;
-logic stored_o_ele_valid, stored_o_scale_valid;
-logic stored_o_valid, stored_o_ready;
+
 
 split_n #(
     .N(2)
@@ -374,6 +377,8 @@ logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     acc_elem
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     result_element;
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     result_scale;
+logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_element;
+logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale;
 logic result_from_acc_valid, result_from_acc_ready;
 
 // Assuming there is no case that MV is followed by MV_O, where both might write to the sram at the same time.
