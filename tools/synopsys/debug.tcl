@@ -44,16 +44,13 @@ puts "\n=== Analyze RTL Files ==="
 # Define directories to search
 set dir_list [list \
     "definitions" \
-    "basic_components/mx_int_operation/rtl" \
     "basic_components/mx_fp_operation/rtl" \
-    "basic_components/linear_operation/rtl" \
     "basic_components/fp_operation/rtl" \
     "basic_components/fixed_operation/rtl" \
     "basic_components/conversion/rtl" \
     "basic_components/common/rtl" \
     "basic_components/cast/rtl" \
     "basic_components/buffer/rtl" \
-    "basic_components/systolic_gemm_fp/rtl" \
     "basic_components/systolic_gemm_mxfp/rtl" \
     "memory/matrix_sram/rtl" \
     "memory/vector_sram/rtl" \
