@@ -58,6 +58,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     assign addr_in              = exe_stage_op.addr_2;
     assign result_waddr_update  = exe_stage_op.update_m_waddr;
 
+    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BATCH_SIZE);
+
     // -----------------------------
     // Address Management
     // -----------------------------
@@ -90,6 +92,9 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_valid (acc_addr_valid),
         .data_out_ready (acc_addr_ready)
     );
+
+    // Load Block Data Address
+    logic [ACC_ADDR_WIDTH-1:0] acc_waddr;
 
     // -----------------------------
     // Data Preparation

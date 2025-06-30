@@ -39,7 +39,7 @@ module fp_ieee_normalize #(
     logic sign_bit;
 
     logic [IN_FIXED_WIDTH-1:0] abs_mant;
-    logic [$clog2(IN_FIXED_WIDTH)-1:0] leading_zeros;
+    logic [$clog2(IN_FIXED_WIDTH + 1)-1:0] leading_zeros;
     logic [IN_FIXED_WIDTH-1:0] unnormed_mantissa;
     
 

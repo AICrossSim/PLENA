@@ -62,14 +62,12 @@ module mxfp_systolic_array #(
         end
     end
 
-
     logic [BLOCK_DIM * ( MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1 ) - 1 : 0]    ho_transfer_elem      [BLOCK_NUM - 1:0][BLOCK_NUM :0];
     logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ho_transfer_scale     [BLOCK_NUM - 1:0][BLOCK_NUM :0];
-
     logic [BLOCK_DIM * ( MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1 ) - 1 : 0]    ve_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
     logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ve_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
 
-    logic [BLOCK_NUM- 1: 0][BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM - 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
+    logic [BLOCK_NUM- 1: 0] [BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM * (ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH + 1 ) - 1 : 0] result_values;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_ready;
     logic out_result_ready;
@@ -103,7 +101,7 @@ module mxfp_systolic_array #(
             assign ve_transfer_scale[0][i]     = in_top_scale   [i];
 
             // Fill the Left Column
-            assign ho_transfer_elem[i][0]      = in_left_element[i];
+            assign ho_transfer_elem [i][0]     = in_left_element[i];
             assign ho_transfer_scale[i][0]     = in_left_scale  [i];
         end
         assign mult_ready = &pe_compute_ready;
@@ -143,7 +141,7 @@ module mxfp_systolic_array #(
                         .out_bottom_scale   (ve_transfer_scale[i+1][j]),
                         .out_right_element  (ho_transfer_elem[i][j+1]),
                         .out_right_scale    (ho_transfer_scale[i][j+1]),
-                        .out_fp             (m_out_fp[i][j]),
+                        .out_fp             (result_values[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
                 end else begin
@@ -171,7 +169,7 @@ module mxfp_systolic_array #(
                         .out_bottom_scale   (ve_transfer_scale[i + 1][j]),
                         .out_right_element  (ho_transfer_elem[i][j + 1]),
                         .out_right_scale    (ho_transfer_scale[i][j + 1]),
-                        .out_fp             (m_out_fp[i][j]),
+                        .out_fp             (result_values[i][j]),
                         .out_result_ready   (result_ready[i][j])
                     );
                 end
@@ -185,5 +183,17 @@ module mxfp_systolic_array #(
     assign v_out_valid      = out_result_valid;
     assign v_out_fp         = m_out_fp[0];
     assign out_result_ready = control ? m_out_ready : v_out_ready;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            m_out_fp <= '0;
+        end else begin
+            for (int i = 0; i < COMPUTE_DIM; i++) begin
+                for (int j = 0; j < BLOCK_NUM; j++) begin
+                 m_out_fp[i][j * BLOCK_DIM +: BLOCK_DIM] <= result_values[i % BLOCK_DIM][j][i];
+                end
+            end
+        end
+    end
 
 endmodule

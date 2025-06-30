@@ -31,8 +31,8 @@ module block_data_buffer #(
     output  logic acc_waddr_ready,
     input   logic block_data_valid,
     output  logic block_data_ready,
-    // Output, outputting [M] results for K cycles
-    output  logic [M-1:0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] unrolled_data_out,
+    // Output, outputting [K] results for M cycles
+    output  logic [K-1:0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] unrolled_data_out,
     output  logic unrolled_data_out_valid,
     input   logic unrolled_data_out_ready
 );

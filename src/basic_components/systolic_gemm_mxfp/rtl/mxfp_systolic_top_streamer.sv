@@ -26,7 +26,7 @@ module mxfp_systolic_top_streamer #(
     input   logic transposed, // 0 for 
     // Data Input
     input   logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_in,
-    input   logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_in,
+    input   logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_in,
     input   logic data_in_valid,
     output  logic data_in_ready,
     // Data Output
