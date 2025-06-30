@@ -20,7 +20,7 @@ module fp_asym_mult #(
     parameter int IN_FIX_FRAC_WIDTH_B = IN_FIX_WIDTH_B - 1,
     parameter int OUT_FIX_FRAC_WIDTH = IN_FIX_FRAC_WIDTH_A + IN_FIX_FRAC_WIDTH_B,
     // Amount of bits needed to shift mantissas for alignment
-    localparam int OUT_FIX_WIDTH = 1 + (IN_FIX_WIDTH_A - IN_FIX_FRAC_WIDTH_A - 1) + (IN_FIX_WIDTH_B - IN_FIX_FRAC_WIDTH_B - 1) + OUT_FIX_FRAC_WIDTH,
+    localparam int OUT_FIX_WIDTH = IN_FIX_WIDTH_A + IN_FIX_WIDTH_B - 1,
     localparam int OUT_EXP_WIDTH = (IN_EXP_WIDTH_A > IN_EXP_WIDTH_B ? IN_EXP_WIDTH_A : IN_EXP_WIDTH_B) + 1
 )(
     input  logic signed [IN_EXP_WIDTH_A - 1:0] exp_a,
