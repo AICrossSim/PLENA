@@ -80,7 +80,7 @@ class MXBlockFPConverter:
     def blockwise_convert_to_float(self, elements, scales, block_num):
         scale_array     = split_bitstream_equal(scales, self.scale_width)
         elements_array  = split_bitstream_equal(elements, (self.elem_exp_width + self.elem_mant_width + 1) * self.block_size)
-        
+
         if len(scale_array) < block_num:
             for i in range(len(scale_array), block_num):
                 scale_array.insert(0, 0)  # Padding with zero if not enough scales
@@ -94,6 +94,8 @@ class MXBlockFPConverter:
         extracted_elements = split_bitstream_equal(elements, (self.elem_exp_width + self.elem_mant_width + 1) )
         result_fp = []
         for element in extracted_elements:
+            print(f"Element: {element}, Scale: {true_scale}")
+            print(self.fp_gen.full_precision_fp_float_convertion(self.elem_exp_width, self.elem_mant_width, element))
             result_fp.append(true_scale * self.fp_gen.full_precision_fp_float_convertion(self.elem_exp_width, self.elem_mant_width, element))
         return result_fp
 

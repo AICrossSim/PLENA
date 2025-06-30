@@ -46,6 +46,7 @@ class MX_FP_mem_data_analyser:
                                                 elem_mant_width=mxfp_mant_width,
                                                 scale_width=mxfp_scale_width,
                                                 block_size=blocksize)
+        self.mem_ratio = (mxfp_exp_width + mxfp_mant_width + 1) * self.blocksize // self.mxfp_scale_width
     
     def read_mxfp_mem(self, start_index=0, end_index=None):
         loaded_element = []
@@ -61,7 +62,7 @@ class MX_FP_mem_data_analyser:
         with open(self.scale_directory, 'r') as file:
             hex_values = file.readlines()
             for i, line in enumerate(hex_values):
-                if i < start_index or (end_index is not None and i >= end_index // 2): # TODO: need to be optimised. current only support the case where block size * element = scale width * 2
+                if i < start_index or (end_index is not None and i >= end_index // self.mem_ratio and i != 0): # TODO: need to be optimised. current only support the case where block size * element = scale width * 2
                     continue
                 line = line.strip()
                 loaded_scale.append(int(line, 16))
@@ -79,7 +80,6 @@ class MX_FP_mem_data_analyser:
         print(f"Scale per row block: {scale_per_row_block}")
         lower_scale_mask = (1 << scale_per_row_block) - 1
         print(f"Lower scale mask: {lower_scale_mask:#0{scale_per_row_block + 2}x}")
-
         for i in range(len(loaded_element)):
 
             mxfp_elements = loaded_element[i]
@@ -115,14 +115,14 @@ if __name__ == "__main__":
     # fp_values = analyser.extract_result_fp(start_index=8, end_index=12)  # Adjust indices as needed
     # print(fp_values)
     hbm_width = 256
-    mxfp_exp_width = 4
-    mxfp_ele_mant = 3
+    mxfp_exp_width = 1
+    mxfp_ele_mant = 2
     mxfp_scale_width = 8
 
     blocksize = 4
     num_per_row = hbm_width // (mxfp_exp_width + mxfp_ele_mant + 1)
     directory = "../../test/load_mem"
     analyser = MX_FP_mem_data_analyser(mxfp_exp_width, mxfp_ele_mant, mxfp_scale_width, blocksize, num_per_row, directory)
-    mxfp_values = analyser.extract_result_mxfp(start_index=0, end_index=2)  # Adjust indices as needed
+    mxfp_values = analyser.extract_result_mxfp(start_index=0, end_index=1)  # Adjust indices as needed
     print(mxfp_values)
     analyser.visualise_mxfp_in_mem(mxfp_values)
