@@ -24,13 +24,13 @@ module mxfp_systolic_left_streamer #(
     input   logic clk,
     input   logic rst,
     // Data Input
-    input   logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] data_elem_in,
-    input   logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] data_scale_in,
+    input   logic [COMPUTE_DIM - 1 : 0] [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] data_elem_in,
+    input   logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0] data_scale_in,
     input   logic data_in_valid,
     output  logic data_in_ready,
     // Data Output
-    output  logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_out,
-    output  logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_out,
+    output  logic [COMPUTE_DIM - 1 : 0] [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_out,
+    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]               data_scale_out,
     output  logic data_out_valid,
     input   logic data_out_ready
 );

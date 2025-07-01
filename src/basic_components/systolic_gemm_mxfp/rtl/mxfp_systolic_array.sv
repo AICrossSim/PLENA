@@ -182,7 +182,7 @@ module mxfp_systolic_array #(
     assign m_out_valid      = out_result_valid;
     assign v_out_valid      = out_result_valid;
     assign v_out_fp         = m_out_fp[0];
-    assign out_result_ready = control ? m_out_ready : v_out_ready;
+    assign out_result_ready = (control == 1'b0) ? m_out_ready : v_out_ready;
 
     always_ff @(posedge clk) begin
         if (rst) begin

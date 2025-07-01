@@ -216,7 +216,7 @@ module mxfp_systolic_mcu #(
                 ready_to_load_output <= 1'b0;
             end
             gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_IC) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 
@@ -274,7 +274,7 @@ module mxfp_systolic_mcu #(
                 .data_out_ready (array_top_in_ready[i])
             );
 
-            mxfp_systolic_top_streamer #(
+            mxfp_systolic_left_streamer #(
                 .MXFP_EXP_WIDTH     (MXFP_L_EXP_WIDTH),
                 .MXFP_MANT_WIDTH    (MXFP_L_MANT_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
@@ -366,6 +366,28 @@ module mxfp_systolic_mcu #(
     logic [MAX_K_GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0]    stored_result_v;
     logic [MAX_K_GEBM_OUT_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]            quantised_result_v;
     logic [MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0] stored_quantized_result;
+
+    always_comb begin
+        if (sa_control == 1'b0) begin
+            // GEMM
+            quantise_data_in_valid  = gebm_result_valid;
+            gebm_result_ready       = quantise_data_in_ready;
+            block_data_in_valid     = quantised_result_valid;
+            quantised_result_ready  = block_data_in_ready;
+            result_data             = unrolled_data_out;
+            result_data_valid       = unrolled_data_out_valid;
+            unrolled_data_out_ready = result_data_ready;
+        end else begin
+            // GEMV
+            quantise_data_in_valid  = gemv_result_valid;
+            gemv_result_w_ready     = quantise_data_in_ready;
+            block_data_in_valid     = 1'b0;
+            result_data             = stored_quantized_result[0 +: K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)];
+            result_data_valid       = quantised_result_valid;
+            quantised_result_ready  = result_data_ready;
+        end
+    end
+
     generate
         if (K > GEBM_OUT_DIM) begin
             always_comb begin
@@ -427,26 +449,6 @@ module mxfp_systolic_mcu #(
         );
     endgenerate
 
-    always_comb begin
-        if (sa_control == 1'b0) begin
-            // GEMM
-            quantise_data_in_valid  = gebm_result_valid;
-            gebm_result_ready       = quantise_data_in_ready;
-            block_data_in_valid     = quantised_result_valid;
-            quantised_result_ready  = block_data_in_ready;
-            result_data             = unrolled_data_out;
-            result_data_valid       = unrolled_data_out_valid;
-            unrolled_data_out_ready = result_data_ready;
-        end else begin
-            // GEMV
-            quantise_data_in_valid  = gemv_result_valid;
-            gemv_result_w_ready     = quantise_data_in_ready;
-            block_data_in_valid     = 1'b0;
-            result_data             = stored_quantized_result[0 +: K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)];
-            result_data_valid       = quantised_result_valid;
-            quantised_result_ready  = result_data_ready;
-        end
-    end
 
     // -----------------------------
     // Storing the computed result and write to the Vector SRAM
