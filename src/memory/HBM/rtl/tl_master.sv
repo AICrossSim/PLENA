@@ -10,19 +10,24 @@ Description :
   - Note that, the req and addr only need to be valid for one cycle
 */
 
-module tl_master #(
+module tl_master import tl_pkg::*; #(
   parameter int DataWidth = 32,
   parameter int AddrWidth = 32,
   parameter int SourceWidth = 1,
   parameter int SinkWidth = 1,
   parameter int LOAD_AMOUNT = 1, 
   parameter int WRITE_AMOUNT = 1,
+  parameter int ONCHIP_ADDR = 32,
   localparam int MASK_WIDTH = DataWidth / 8
 )(
   input  logic clk,
   input  logic rst,
 
   // Control signals
+
+  input  logic stride_mode,   // 0: Default, 1: Strided
+  input  logic [ONCHIP_ADDR-1:0] stride_offset,
+
   input  logic req_en,
   input  logic [AddrWidth-1:0] addr,
   output logic [DataWidth-1:0] fetch_data,
@@ -41,8 +46,7 @@ module tl_master #(
 );
 
   localparam WRITE_SIZE = $clog2(DataWidth / 8);
-  import tl_pkg::*;
-
+  
   `TL_DECLARE(DataWidth, AddrWidth, SourceWidth, SinkWidth, host);
   `TL_BIND_HOST_PORT(host, host);
 
@@ -68,6 +72,11 @@ module tl_master #(
   logic previous_d_valid;
 
   assign ready_to_write = host_a_ready;
+
+  // Stride Setting
+  logic [AddrWidth-1:0] address_offset;
+  assign address_offset = stride_mode ? {{ AddrWidth - ONCHIP_ADDR {1'b0}}, stride_offset} : {{ AddrWidth - 32 {1'b0}}, DataWidth / 8};
+
   // FSM State register
   always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -115,6 +124,7 @@ module tl_master #(
   always_comb begin
       host_d_ready    = fetch_data_ready;
       host_a.mask     = write_mask;
+
       case (state)
         IDLE: begin
           host_a_valid   = 1'b0;
@@ -139,10 +149,10 @@ module tl_master #(
           host_a_valid   = 1'b1;
           host_a.opcode  = next_a_opcode;
           if (host_a_ready & continuous_prefetch_counter == LOAD_AMOUNT - 1) begin
-            host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8;
+            host_a.address = next_addr + continuous_prefetch_counter * address_offset;
             next_state = WAIT_RESP;
           end else if (host_a_ready) begin
-            host_a.address = next_addr + continuous_prefetch_counter * DataWidth / 8;
+            host_a.address = next_addr + continuous_prefetch_counter * address_offset;
             next_state = SEND_RREQ;
           end else begin
             next_state = SEND_RREQ;
@@ -158,7 +168,7 @@ module tl_master #(
           end else begin
             host_a.data    = write_data; // Use the latest write data
           end
-          host_a.address = next_addr + continuous_write_counter * DataWidth / 8;
+          host_a.address = next_addr + continuous_write_counter * address_offset;
           if (continuous_write_counter == WRITE_AMOUNT - 1 && host_a_ready) begin
             next_state = IDLE;
           end else begin

@@ -100,12 +100,13 @@ typedef enum logic [1:0] {
 } C_OP;
 
 typedef enum logic [2:0] {
-    STALL_H      = 2'h0,
-    PREFETCH_M_C = 2'h1,
-    PREFETCH_M_S = 2'h2,
-    PREFETCH_V_C = 2'h3,
-    PREFETCH_V_S = 2'h4,
-    STORE_V      = 2'h5
+    STALL_H      = 3'h0,
+    PREFETCH_M_C = 3'h1,
+    PREFETCH_M_S = 3'h2,
+    PREFETCH_V_C = 3'h3,
+    PREFETCH_V_S = 3'h4,
+    STORE_V_C    = 3'h5,
+    STORE_V_S    = 3'h6
 } H_OP;
 
 function automatic int max(input int a, input int b);

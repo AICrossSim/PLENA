@@ -116,7 +116,7 @@ module addr_monitor#(
                     end
                 end
                 stall_req = |addr_collide_flag;
-            end else if (determine_stage_op.h_op == STORE_V) begin
+            end else if (determine_stage_op.h_op == STORE_V_C ||determine_stage_op.h_op == STORE_V_S ) begin
                 // One port of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin

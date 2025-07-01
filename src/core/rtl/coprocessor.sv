@@ -90,7 +90,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Matrix
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]    fetched_m_element;
-    logic [M_BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                       fetched_m_scale;
+    logic [M_BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                     fetched_m_scale;
     logic [MLEN-1:0][S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]                                        m_out_v_fp;
 
     // Vector
@@ -101,16 +101,20 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_s_out_valid,    v_s_out_ready;
 
     logic select_write_data_a;
-    logic v_sram_req_a, v_sram_req_b, v_sram_mxfp_req_b;
+    logic v_sram_req_a, v_sram_req_b;
+    logic [1:0] v_sram_mxfp_req_b;
     logic v_sram_wen_a, v_sram_wen_b;
     logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
-    logic [VLEN-1:0]             [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]                 v_element_port_b_out;
-    logic [V_BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                           v_scale_port_b_out;
-    logic [MLEN-1:0]             [(HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH):0]                 v_element_port_a_out;
-    logic [M_BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                                           v_scale_port_a_out;
-    logic port_b_mxfp_out_valid;
+    logic [VLEN-1:0]                [HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH:0]                   v_high_element_port_b_out;
+    logic [V_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                           v_high_scale_port_b_out;
+    logic [VLEN-1:0]                [LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH:0]                     v_low_element_port_b_out;
+    logic [V_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                           v_low_scale_port_b_out;
+    logic [MLEN-1:0]                [HIGH_MXFP_MANT_WIDTH + HIGH_MXFP_EXP_WIDTH:0]                   v_element_port_a_out;
+    logic [M_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                           v_scale_port_a_out;
+    logic v_port_b_high_out_valid;
+    logic v_port_b_low_out_valid;
 
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_a_out_fp;
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                v_port_b_out_fp;
@@ -358,8 +362,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Vector SRAM
     fp_vector_sram #(
-        .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
+        .HIGH_MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+        .HIGH_MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
+        .LOW_MXFP_EXP_WIDTH      (LOW_MXFP_EXP_WIDTH),
+        .LOW_MXFP_MANT_WIDTH     (LOW_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .EXP_WIDTH          (V_FP_EXP_WIDTH),
         .MANT_WIDTH         (V_FP_MANT_WIDTH),
@@ -373,11 +379,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             ,
             .MEM_RESULT_FILE    (V_SRAM_RESULT_FILE)
         `endif
-        
     ) vector_sram (
         .clk(clk),
         .rst(rst),
-        .control(select_write_data_a),
+        .control            (select_write_data_a),
         .port_a_req         (v_sram_req_a),
         .port_a_write_en    (v_sram_wen_a),
         .port_a_addr        (v_sram_addr_a),
@@ -395,12 +400,15 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_b_element_in  (v_element_port_b_in),
         .port_b_scale_in    (v_scale_port_b_in),
         .port_b_mxfp_req    (v_sram_mxfp_req_b),
-        .port_b_element_out (v_element_port_b_out),
-        .port_b_scale_out   (v_scale_port_b_out),
-        .port_b_mxfp_out_valid(port_b_mxfp_out_valid),
-        .prefetch_en        (exe_stage_op.h_op == PREFETCH_V_C),
-        .prefetch_addr      (exe_stage_op.addr_2),
-        .data_not_ready     (v_prefetch_data_not_ready)
+        .port_b_mxfp_high_out_valid     (v_port_b_high_out_valid),
+        .port_b_high_element_out        (v_high_element_port_b_out),
+        .port_b_high_scale_out          (v_high_scale_port_b_out),
+        .port_b_mxfp_low_out_valid      (v_port_b_low_out_valid),
+        .port_b_low_element_out         (v_low_element_port_b_out),
+        .port_b_low_scale_out           (v_low_scale_port_b_out),
+        .prefetch_en                    (exe_stage_op.h_op == PREFETCH_V_C),
+        .prefetch_addr                  (exe_stage_op.addr_2),
+        .data_not_ready                 (v_prefetch_data_not_ready)
     );
 
     // -----------------------------
@@ -431,10 +439,13 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .prefetch_v_valid       (hbm_v_prefetch_valid),
         .prefetch_v_element     (v_element_port_b_in),
         .prefetch_v_scale       (v_scale_port_b_in),
-        .hbm_write_v_en         (port_b_mxfp_out_valid),
-        .hbm_write_v_ready      (hbm_ready_to_write),
-        .hbm_write_v_element    (v_element_port_b_out),
-        .hbm_write_v_scale      (v_scale_port_b_out),
+        .hbm_write_high_valid   (v_port_b_high_out_valid),
+        .hbm_write_low_valid    (v_port_b_low_out_valid),
+        .hbm_write_ready        (hbm_ready_to_write),
+        .hbm_write_high_element (v_high_element_port_b_out),
+        .hbm_write_high_scale   (v_high_scale_port_b_out),
+        .hbm_write_low_element  (v_low_element_port_b_out),
+        .hbm_write_low_scale    (v_low_scale_port_b_out),
         .prefetch_m_in_progress (hbm_m_prefetch_in_progress),
         .prefetch_v_in_progress (hbm_v_prefetch_in_progress),
         `TL_CONNECT_HOST_PORT   (host_m_element, m_element),

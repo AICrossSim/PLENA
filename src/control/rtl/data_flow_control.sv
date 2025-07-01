@@ -69,7 +69,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     output      logic select_write_data_a,          
 
     output      logic v_sram_req_b,
-    output      logic v_sram_mxfp_req_b,
+    output      logic [1:0] v_sram_mxfp_req_b,
     output      logic v_sram_wen_b,
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
     output      logic [VLEN-1:0]                    v_sram_mask_b,
@@ -341,7 +341,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             hbm_waddr = 'b0;
         end else if (exe_stage_op.h_op == PREFETCH_V_C) begin
             recorded_v_prefetch_addr = exe_stage_op.addr_2;
-        end else if (exe_stage_op.h_op == STORE_V) begin
+        end else if (exe_stage_op.h_op == STORE_V_S || exe_stage_op.h_op == STORE_V_C) begin
             hbm_waddr = exe_stage_op.addr_2;
         end
     end
@@ -371,7 +371,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             continuous_load_v_for_matrix_en     <= 1'b0;
             v_v_out_ready                   <= 1'b0;
             m_complete_acc_writeback        <= 1'b0;
-            v_sram_mxfp_req_b               <= 1'b0;
+            v_sram_mxfp_req_b               <= 2'b0;
             v_sram_req_b                    <= 1'b0;
             v_sram_req_a                    <= 1'b0;
             hbm_write_counter               <= 'b0;
@@ -471,20 +471,20 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // Read Port activated
                 v_v_b_load                  <= 1'b1;
-            end else if (exe_stage_op.h_op == STORE_V & hbm_ready_to_write) begin
+            end else if ((exe_stage_op.h_op == STORE_V_C || exe_stage_op.h_op == STORE_V_S) & hbm_ready_to_write) begin
                 // Start HBM Writeback to the scratchpad sram
                 continuous_write_to_hbm     <= 1'b1;
                 hbm_write_counter           <= 'b0;
                 v_v_b_load                  <= 1'b0;
-                v_sram_mxfp_req_b           <= 1'b1;
+                v_sram_mxfp_req_b           <= (exe_stage_op.h_op == STORE_V_C) ? 2'b01 : 2'b10; // 01 for C, 10 for S
             end else if (continuous_write_to_hbm && hbm_write_counter < HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Intermediate HBM Writeback to the scratchpad sram
-                v_sram_mxfp_req_b           <= 1'b1;
+                v_sram_mxfp_req_b           <= v_sram_mxfp_req_b;
                 v_v_b_load                  <= 1'b1;
                 hbm_write_counter           <= hbm_write_counter + 'b1;
             end else if (hbm_write_counter == HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Finish HBM Writeback, reset the counter
-                v_sram_mxfp_req_b           <= 1'b0;
+                v_sram_mxfp_req_b           <= 2'b0;
                 v_v_b_load                  <= 1'b0;
                 continuous_write_to_hbm     <= 1'b0;
                 hbm_write_counter           <= 'b0;

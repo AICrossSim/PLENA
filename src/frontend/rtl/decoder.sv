@@ -443,7 +443,8 @@ always_ff @(posedge clk) begin
                                             (decode_instr_info.opcode == H_PREFETCH_M_S)      ? PREFETCH_M_S    :
                                             (decode_instr_info.opcode == H_PREFETCH_V_C)      ? PREFETCH_V_C    :
                                             (decode_instr_info.opcode == H_PREFETCH_V_S)      ? PREFETCH_V_S    :
-                                            (decode_instr_info.opcode == H_STORE_V_C)         ? STORE_V       : STALL_H;
+                                            (decode_instr_info.opcode == H_STORE_V_C)         ? STORE_V_C       : 
+                                            (decode_instr_info.opcode == H_STORE_V_S)         ? STORE_V_S       : STALL_H;
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;
