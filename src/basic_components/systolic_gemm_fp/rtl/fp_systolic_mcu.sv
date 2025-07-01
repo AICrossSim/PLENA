@@ -306,7 +306,7 @@ module fp_systolic_mcu #(
 
     logic gebm_result_valid, gebm_result_ready;
 
-    sum_across_sa #(
+    fp_sum_across_sa #(
         .ACC_FP_MANT_WIDTH(ACC_FP_MANT_WIDTH),
         .ACC_FP_EXP_WIDTH(ACC_FP_EXP_WIDTH),
         .COMPUTE_DIM(COMPUTE_DIM),

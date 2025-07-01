@@ -91,10 +91,10 @@ module fp_adder_tree #(
         ) register_slice (
             .clk           (clk),
             .rst           (rst),                        // Inverted reset
-            .data_in       (sum[i]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
+            .data_in       (sum[i][LEVEL_OUT_DIM * LEVEL_OUT_WIDTH - 1 : 0]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),
-            .data_out      (data_storage[i+1]),
+            .data_out      (data_storage[i+1][LEVEL_OUT_DIM * LEVEL_OUT_WIDTH - 1 : 0]),
             .data_out_valid(valid[i+1]),
             .data_out_ready(ready[i+1])
         );

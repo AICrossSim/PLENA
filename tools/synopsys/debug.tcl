@@ -51,6 +51,7 @@ set dir_list [list \
     "basic_components/common/rtl" \
     "basic_components/cast/rtl" \
     "basic_components/buffer/rtl" \
+    "basic_components/gemv/rtl" \
     "basic_components/systolic_gemm_mxfp/rtl" \
     "memory/matrix_sram/rtl" \
     "memory/vector_sram/rtl" \
@@ -59,6 +60,7 @@ set dir_list [list \
     "memory/HBM/TileLink_Lib" \
     "memory/HBM/xilinx_ip" \
     "matrix_machine/rtl" \
+    "frontend/rtl" \
     "scalar_machine/rtl" \
     "vector_machine/rtl" \
     "control/rtl" \
@@ -124,6 +126,12 @@ elaborate ${top_design}
 puts "\n=== Check Design ==="
 check_design
 check_design > ${outputs}/logs/${top_design}_check.log
+
+#------------------------------
+# Link
+#------------------------------
+link
+
 
 #------------------------------
 # Done

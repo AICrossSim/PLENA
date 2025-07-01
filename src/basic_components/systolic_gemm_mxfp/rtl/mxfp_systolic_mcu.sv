@@ -342,7 +342,7 @@ module mxfp_systolic_mcu #(
     localparam GEBM_OUT_DIM = COMPUTE_DIM * COMPUTE_DIM;
     localparam MAX_K_GEBM_OUT_DIM = (K > GEBM_OUT_DIM) ? K : GEBM_OUT_DIM;
 
-    sum_across_sa #(
+    mxfp_sum_across_sa #(
         .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
         .COMPUTE_DIM        (COMPUTE_DIM),

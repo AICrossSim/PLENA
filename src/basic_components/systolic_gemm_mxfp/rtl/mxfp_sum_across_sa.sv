@@ -5,7 +5,7 @@ Module      : Summation across Systolic Array
 Timing      : Sequential, adder tree.
 */
 
-module sum_across_sa #(
+module mxfp_sum_across_sa #(
     parameter ACC_FP_MANT_WIDTH = 8,
     parameter ACC_FP_EXP_WIDTH = 7,
     parameter COMPUTE_DIM = 8,
