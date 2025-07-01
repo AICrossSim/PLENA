@@ -159,7 +159,7 @@ always_comb begin
     // Instructions that requires three operands. Insert additionally operation to load the third operand, the insertion takes place only when the pipeline is not stalled.
     if (pipeline_stall & recorded_stall_for_read_rd_flag) begin
         stall_for_read_rd   = 1'b1;
-    end else if (rd_operand_ready == 1'b0 & (decode_stage_op.m_op == M_MM_PS || decode_stage_op.m_op == M_TMM_PS || decode_stage_op.m_op == M_MV_O || decode_stage_op.m_op == M_TMV_O)) begin
+    end else if (rd_operand_ready == 1'b0 & (decode_stage_op.m_op == M_MM_PS || decode_stage_op.m_op == M_TMM_PS)) begin
         m_update_waddr          = 1'b1;
         v_update_waddr          = 1'b0;
         stall_for_read_rd_flag  = 1'b1;
@@ -223,7 +223,7 @@ always_ff @(posedge clk) begin
         imm                             <= 'b0;
     end else if (!pipeline_stall) begin
         rd_operand_ready <= 1'b0;
-        decode_stage_op.m_transposed_read     <= (decode_instr_info.opcode == M_MV || decode_instr_info.opcode == M_MV_O || decode_instr_info.opcode == M_MM_IC || decode_instr_info.opcode == M_MM_PS) ? 1'b1 : 1'b0; // TODO
+        decode_stage_op.m_transposed_read     <= (decode_instr_info.opcode == M_TMV || decode_instr_info.opcode == M_TMV_O || decode_instr_info.opcode == M_TMM_IC || decode_instr_info.opcode == M_TMM_PS) ? 1'b1 : 1'b0; // TODO
         decode_stage_op.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_LD_F) ? 1'b1 : 1'b0;
         decode_stage_op.update_m_waddr        <= 1'b0;
         decode_stage_op.update_v_waddr        <= 1'b0;
@@ -456,7 +456,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op          <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op       <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op           <= STALL_S_FP;
-                exe_fixed_op                        <= STALL_S_FIXED;
+                exe_fixed_op                      <= STALL_S_FIXED;
                 decode_stage_op.c_op              <= STALL_C;
                 decode_stage_op.h_op              <= STALL_H;
                 
