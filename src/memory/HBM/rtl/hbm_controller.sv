@@ -11,16 +11,14 @@ Status      : Under Development
 */
 
 module hbm_controller #(
-    parameter int MXFP_EXP_WIDTH     = 4,
-    parameter int MXFP_MANT_WIDTH    = 3,
-    parameter int MXFP_SCALE_WIDTH   = 16,
-    parameter int LOWEST_MXFP_EXP_WIDTH = 4,
-    parameter int LOWEST_MXFP_MANT_WIDTH = 3,
-    parameter int BLOCK_DIM          = 4,
-
+    parameter int   MXFP_EXP_WIDTH     = 4,
+    parameter int   MXFP_MANT_WIDTH    = 3,
+    parameter int   MXFP_SCALE_WIDTH   = 16,
+    parameter int   LOWEST_MXFP_EXP_WIDTH = 4,
+    parameter int   LOWEST_MXFP_MANT_WIDTH = 3,
+    parameter int   BLOCK_DIM          = 4,
     parameter int   DATA_DIM          = 8,
     localparam      BLOCK_NUM       = DATA_DIM / BLOCK_DIM,
-
     localparam int  ELE_WIDTH    =   DATA_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
     localparam int  SCALE_WIDTH  =   BLOCK_NUM * MXFP_SCALE_WIDTH,
     parameter int   HBM_ADDR_WIDTH = 32,
@@ -31,15 +29,18 @@ module hbm_controller #(
     parameter int   SinkWidth = 4,   
     parameter int   LOAD_AMOUNT = 4,
     parameter int   WRITE_AMOUNT = 4,
-    parameter SCALE_DATA_OFFSET = 32'h80000000
+    parameter       SCALE_DATA_OFFSET = 32'h80000000
 )(
     input   logic clk,
     input   logic rst,
+    input   logic stride_mode, // 0: Default, 1: Strided.
+    input   logic   [ON_CHIP_ADDR_WIDTH - 1 : 0]    stride_offset,
 
     // HBM data prefetching
     output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
+
     input   logic                                   prefetch_element_data_ready,
     input   logic                                   prefetch_scale_data_ready,
     input   logic                                   hbm_prefetch_en,
@@ -64,7 +65,6 @@ module hbm_controller #(
 
     logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
     logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
-
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_ele;
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_scale;
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  offset_addr;
@@ -102,11 +102,13 @@ module hbm_controller #(
         .SourceWidth(SourceWidth),
         .SinkWidth(SinkWidth),
         .LOAD_AMOUNT(LOAD_AMOUNT),
-        .WRITE_AMOUNT(WRITE_AMOUNT)
+        .WRITE_AMOUNT(WRITE_AMOUNT),
+        .ONCHIP_ADDR(ON_CHIP_ADDR_WIDTH)
     ) element_master (
         .clk(clk),
         .rst(rst),
-        // Control signals
+        .stride_mode            (stride_mode),
+        .stride_offset          (stride_offset),
         .req_en                 (hbm_prefetch_en),
         .write_en               (hbm_write_en),
         .addr                   (hbm_raddr_for_ele),

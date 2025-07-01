@@ -77,15 +77,16 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     end
 
     // Load Accumulation Address
-    logic [ADDR_WIDTH-1:0] acc_addr;
+    logic [ACC_ADDR_WIDTH-1:0] acc_addr;
     logic acc_addr_valid, acc_addr_ready;
+    
     fifo #(
         .DATA_WIDTH(ADDR_WIDTH),
         .DEPTH(MATRIX_ACC_ADR_DEPTH)
     ) m_acc_addr_fifo (
         .clk(clk),
         .rst(rst),
-        .data_in        (exe_stage_op.addr_2),
+        .data_in        (exe_stage_op.addr_2[ACC_ADDR_WIDTH-1:0]),
         .data_in_valid  (exe_stage_op.update_m_waddr),
         .data_in_ready  (stall_for_addr),
         .data_out       (acc_addr),
@@ -93,8 +94,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready (acc_addr_ready)
     );
 
-    // Load Block Data Address
-    logic [ACC_ADDR_WIDTH-1:0] acc_waddr;
 
     // -----------------------------
     // Data Preparation
@@ -232,7 +231,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .clk                (clk),
         .rst                (rst),
         .control            (matrix_opcode),
-        .acc_waddr          (acc_adder),
+        .acc_waddr          (acc_addr),
         .fetch_next_acc_waddr_valid  (acc_addr_valid),
         .fetch_next_acc_waddr_ready  (acc_addr_ready),
         .v1_element         (stored_m_element),

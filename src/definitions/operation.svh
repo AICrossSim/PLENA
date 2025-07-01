@@ -93,17 +93,20 @@ typedef enum logic [3:0] {
 } S_FIXED_OP;
 
 typedef enum logic [1:0] {
-    STALL_C      = 2'h0,
-    SET_ADDR_REG = 2'h1,
-    SET_M_OFFSET = 2'h2,
-    SET_LUT      = 2'h3
+    STALL_C         = 2'h0,
+    SET_ADDR_REG    = 2'h1,
+    SET_STRIDE_SIZE = 2'h2,
+    SET_LUT         = 2'h3
 } C_OP;
 
-typedef enum logic [1:0] {
-    STALL_H    = 2'h0,
-    PREFETCH_M = 2'h1,
-    PREFETCH_V = 2'h2,
-    STORE_V    = 2'h3
+typedef enum logic [2:0] {
+    STALL_H      = 3'h0,
+    PREFETCH_M_C = 3'h1,
+    PREFETCH_M_S = 3'h2,
+    PREFETCH_V_C = 3'h3,
+    PREFETCH_V_S = 3'h4,
+    STORE_V_C    = 3'h5,
+    STORE_V_S    = 3'h6
 } H_OP;
 
 function automatic int max(input int a, input int b);
@@ -172,8 +175,8 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
 
     // CSR Setting
     C_SET_ADDR_REG      = 6'h2E,
-    C_SET_M_OFFSET      = 6'h2F,
-    C_SET_LUT           = 6'h30
+    C_SET_LUT           = 6'h2F,
+    C_SET_STRIDE_REG    = 6'h30
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] {
