@@ -200,7 +200,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end_of_load_m              <= 1'b0;
         end else begin
             // Address Management
-            if (exe_stage_op.h_op == PREFETCH_M) begin
+            if (exe_stage_op.h_op == PREFETCH_M_C) begin
                 recorded_m_prefetch_addr <= exe_stage_op.addr_2;
             end else if (exe_stage_op.m_op != STALL_M) begin
                 recorded_m_load_addr <= exe_stage_op.addr_2;
@@ -339,7 +339,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (rst) begin
             recorded_v_prefetch_addr = 'b0;
             hbm_waddr = 'b0;
-        end else if (exe_stage_op.h_op == PREFETCH_V) begin
+        end else if (exe_stage_op.h_op == PREFETCH_V_C) begin
             recorded_v_prefetch_addr = exe_stage_op.addr_2;
         end else if (exe_stage_op.h_op == STORE_V) begin
             hbm_waddr = exe_stage_op.addr_2;

@@ -457,9 +457,6 @@ module mxfp_systolic_mcu #(
     // -----------------------------
     // Storing the computed result and write to the Vector SRAM
     // -----------------------------
-    logic  acc_waddr_in_valid, acc_waddr_in_ready;
-    assign fetch_next_acc_waddr_ready = acc_waddr_in_ready & quantise_data_in_valid;
-    assign acc_waddr_in_valid = fetch_next_acc_waddr_valid & quantise_data_in_valid;
 
     block_data_buffer #(
         .M(M),
@@ -471,8 +468,8 @@ module mxfp_systolic_mcu #(
         .clk(clk),
         .rst(rst | output_reset),
         .acc_waddr(acc_waddr),
-        .acc_waddr_valid        (acc_waddr_in_valid),
-        .acc_waddr_ready        (acc_waddr_in_ready),
+        .acc_waddr_valid        (fetch_next_acc_waddr_valid),
+        .acc_waddr_ready        (fetch_next_acc_waddr_ready),
         .block_data_in          (stored_quantized_result[0 +: GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)]),
         .block_data_valid       (block_data_in_valid),
         .block_data_ready       (block_data_in_ready),

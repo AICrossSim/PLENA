@@ -352,7 +352,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .element_in         (prefetch_m_element),
         .scale_in           (prefetch_m_scale),
         .prefetch_addr      (exe_stage_op.addr_2),
-        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M),
+        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M_C),
         .data_not_ready     (m_prefetch_data_not_ready)
     );
 
@@ -398,7 +398,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_b_element_out (v_element_port_b_out),
         .port_b_scale_out   (v_scale_port_b_out),
         .port_b_mxfp_out_valid(port_b_mxfp_out_valid),
-        .prefetch_en        (exe_stage_op.h_op == PREFETCH_V),
+        .prefetch_en        (exe_stage_op.h_op == PREFETCH_V_C),
         .prefetch_addr      (exe_stage_op.addr_2),
         .data_not_ready     (v_prefetch_data_not_ready)
     );

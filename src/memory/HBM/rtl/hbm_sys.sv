@@ -63,8 +63,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
             v_hbm_prefetch_en <= 1'b0;
             m_hbm_prefetch_en <= 1'b0;
         end else begin
-            v_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_V);
-            m_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_M);
+            v_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_V_C);
+            m_hbm_prefetch_en <= (exe_stage_op.h_op == PREFETCH_M_C);
         end
     end
 
@@ -76,12 +76,12 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
             prefetch_m_in_progress <= 1'b0;
             prefetch_v_in_progress <= 1'b0;
         end else begin
-            if (exe_stage_op.h_op == PREFETCH_V) begin
+            if (exe_stage_op.h_op == PREFETCH_V_C) begin
                 prefetch_v_in_progress <= 1'b1;
             end else if (prefetch_v_valid && prefetch_v_ready) begin
                 prefetch_v_in_progress <= 1'b0;
             end
-            if (exe_stage_op.h_op == PREFETCH_M) begin
+            if (exe_stage_op.h_op == PREFETCH_M_C) begin
                 prefetch_m_in_progress <= 1'b1;
             end else if (prefetch_m_valid && prefetch_m_ready) begin
                 prefetch_m_in_progress <= 1'b0;
@@ -89,10 +89,10 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         end
     end
 
-
     // -----------------------------
     // HBM Address Mapping
     // -----------------------------
+
     logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out, recorded_hbm_waddr_out;
     address_mapper #(
         .ADDR_WIDTH         (ADDR_WIDTH),
@@ -119,6 +119,20 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         end
     end
 
+    // -----------------------------
+    // HBM Stride Width Setting
+    // -----------------------------
+    logic [ADDR_WIDTH - 1 : 0] stored_stride_size;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            stored_stride_size <= 'b0;
+        end else begin
+            if (exe_stage_op.c_op == SET_STRIDE_SIZE) begin
+                stored_stride_size <= exe_stage_op.addr_2;
+            end
+        end
+    end
+    
 
     // -----------------------------
     // HBM Prefetching for Matrix SRAM

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Tue Jul  1 10:24:36 2025
+[*] Tue Jul  1 11:05:15 2025
 [*]
 [dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Tue Jul  1 10:14:58 2025"
-[dumpfile_size] 93433372
+[dumpfile_mtime] "Tue Jul  1 10:58:44 2025"
+[dumpfile_size] 93435285
 [savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 878800
+[timestart] 0
 [size] 1920 1080
-[pos] 142954 168270
-*-17.114536 1420000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 139194 166166
+*-20.114536 960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
@@ -27,7 +27,7 @@
 [sst_width] 255
 [signals_width] 341
 [sst_expanded] 1
-[sst_vpaned_height] 783
+[sst_vpaned_height] 787
 @28
 SimTop.dut.clk
 SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
@@ -58,7 +58,34 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.gebm_result_ready
 SimTop.dut.matrix_machine_init.matrix_compute_unit.block_data_in_valid
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.stored_quantized_result[255:0]
-@29
+@28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.quantised_result_ready
+SimTop.dut.matrix_machine_init.acc_addr_ready
+SimTop.dut.matrix_machine_init.acc_addr_valid
+SimTop.dut.matrix_machine_init.exe_stage_op.update_m_waddr
+SimTop.dut.decoder_init.pipeline_stall
+SimTop.dut.decoder_init.rd_operand_ready
+SimTop.dut.decoder_init.stall_for_read_rd
+SimTop.dut.decoder_init.recorded_stall_for_read_rd_flag
+SimTop.dut.matrix_machine_init.matrix_compute_unit.block_data_in_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.block_data_in_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.write_to_buffer_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.acc_waddr[0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.acc_waddr[0]
+@22
+SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[3][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[4][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][3][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[1][0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[1][1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.buffered_data[0][0][15:0]
+@23
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.buffered_data[0][1][15:0]
 [pattern_trace] 1
 [pattern_trace] 0
