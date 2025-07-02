@@ -111,7 +111,7 @@ always_comb begin
         end
 
         // CSR Setting
-        C_SET_ADDR_REG, C_SET_LUT: begin
+        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG: begin
             decode_instruction_type = C;
         end
 

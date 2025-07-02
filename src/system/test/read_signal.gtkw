@@ -1,33 +1,35 @@
 [*]
-[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Tue Jul  1 11:05:15 2025
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Jul  2 11:20:33 2025
 [*]
-[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Tue Jul  1 10:58:44 2025"
-[dumpfile_size] 93435285
-[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Wed Jul  2 11:16:38 2025"
+[dumpfile_size] 98554584
+[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
-[size] 1920 1080
-[pos] 139194 166166
-*-20.114536 960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[size] 3428 1359
+[pos] 139197 166078
+*-18.114536 1100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.adapter_for_element.data_upsize.
-[treeopen] SimTop.dut.hbm_interface_init.matrix_hbm_controller_init.element_master.
+[treeopen] SimTop.dut.decoder_init.
+[treeopen] SimTop.dut.hbm_interface_init.
+[treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.
+[treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.data_upsizer.
-[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_mini_sys_init.row_inx[0].col_idx[0].genblk1.first_row_pe.default_pe_inst.element_mult.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[1].
 [treeopen] SimTop.dut.scalar_machine_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
+[treeopen] SimTop.dut.scalar_machine_init.fixed_scalar_sram.
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
 [treeopen] SimTop.fake_hbm_v_element.bram_inst.
-[sst_width] 255
+[sst_width] 437
 [signals_width] 341
 [sst_expanded] 1
-[sst_vpaned_height] 787
+[sst_vpaned_height] 1028
 @28
 SimTop.dut.clk
 SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
@@ -52,40 +54,30 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.feed_counter[3:0]
 @28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_ready
 SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gebm_result_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.sa_control
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gebm_result_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.block_data_in_valid
+SimTop.dut.exe_stage_op.h_op[2:0]
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.stored_quantized_result[255:0]
+SimTop.dut.hbm_interface_init.v_hbm_element_out[63:0]
+SimTop.dut.hbm_interface_init.m_hbm_element_out[31:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.quantised_result_ready
-SimTop.dut.matrix_machine_init.acc_addr_ready
-SimTop.dut.matrix_machine_init.acc_addr_valid
-SimTop.dut.matrix_machine_init.exe_stage_op.update_m_waddr
-SimTop.dut.decoder_init.pipeline_stall
-SimTop.dut.decoder_init.rd_operand_ready
-SimTop.dut.decoder_init.stall_for_read_rd
-SimTop.dut.decoder_init.recorded_stall_for_read_rd_flag
-SimTop.dut.matrix_machine_init.matrix_compute_unit.block_data_in_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.block_data_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.write_to_buffer_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.acc_waddr[0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.acc_waddr[0]
+SimTop.dut.hbm_interface_init.stride_mode_en
+SimTop.dut.hbm_interface_init.m_hbm_prefetch_valid
+SimTop.dut.hbm_interface_init.v_hbm_prefetch_valid
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[0][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[1][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[2][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[3][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.unrolled_data_out[4][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][0][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][1][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][2][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[0][3][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[1][0][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.block_data_in[1][1][15:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.buffered_data[0][0][15:0]
+SimTop.dut.hbm_interface_init.stored_stride_size[31:0]
+@28
+SimTop.dut.hbm_interface_init.exe_stage_op.c_op[1:0]
+SimTop.dut.decode_stage_op.c_op[1:0]
+@22
+SimTop.dut.decoder_init.decode_instr_info.opcode[5:0]
+@28
+SimTop.dut.decoder_init.stall_for_read_rd
+@22
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[3][31:0]
+@28
+SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.stride_mode
+@22
+SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.DataWidth[31:0]
 @23
-SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.buffered_data[0][1][15:0]
+SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.address_offset[63:0]
 [pattern_trace] 1
 [pattern_trace] 0

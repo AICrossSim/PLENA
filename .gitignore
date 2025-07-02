@@ -16,6 +16,8 @@ build/
 *.str
 *.jou
 
+moduleparamid
+default.svf
 
 Coprocessor_Vivado_Prj/
 
