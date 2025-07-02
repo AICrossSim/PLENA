@@ -53,10 +53,9 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Status Tracking
     logic hbm_in_used;
     logic stall_req_from_fp, fixed_stall_req;
-    logic v_in_prep, m_in_prep;
+    logic v_in_prep, m_in_prep, m_empty_in_progress;
     logic sfu_in_use;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
-    logic m_complete_acc_writeback;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -178,9 +177,9 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .fp_stall_req                   (stall_req_from_fp),
         .fixed_stall_req                (fixed_stall_req),
         .m_load_in_process              (m_in_prep),
+        .m_empty_in_progress            (m_empty_in_progress),
         .v_load_in_process              (v_in_prep),
         .sfu_in_use                     (sfu_in_use),
-        .m_complete_acc_writeback       (m_complete_acc_writeback),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
         .mem_write_control              (mem_write_control)
@@ -201,7 +200,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_v_ready                  (m_v_ready),
         .m_out_valid                (m_out_valid),
         .m_out_ready                (m_out_ready),
-        .m_complete_acc_writeback   (m_complete_acc_writeback),
         .m_write_request            (m_write_request),
         .m_write_addr               (m_waddr),
         .m_sram_raddr               (m_sram_raddr),
@@ -252,6 +250,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .rst(rst),
             .exe_stage_op           (exe_stage_op),
             .load_in_progress       (m_in_prep),
+            .empty_in_progress      (m_empty_in_progress),
             .m_element              (fetched_m_element),
             .m_scale                (fetched_m_scale),
             .m_valid                (m_m_valid),

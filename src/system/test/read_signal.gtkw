@@ -1,27 +1,26 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Jul  2 11:20:33 2025
+[*] Wed Jul  2 22:43:14 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed Jul  2 11:16:38 2025"
-[dumpfile_size] 98554584
+[dumpfile_mtime] "Wed Jul  2 22:36:07 2025"
+[dumpfile_size] 98592296
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
 [timestart] 0
 [size] 3428 1359
 [pos] 139197 166078
-*-18.114536 1100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.114536 1820000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.decoder_init.
-[treeopen] SimTop.dut.hbm_interface_init.
 [treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.
 [treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.data_upsizer.
+[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_mini_sys_init.row_inx[0].col_idx[0].genblk1.first_row_pe.default_pe_inst.element_mult.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[1].
-[treeopen] SimTop.dut.scalar_machine_init.
+[treeopen] SimTop.dut.pipeline_control_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_scalar_sram.
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
@@ -32,7 +31,8 @@
 [sst_vpaned_height] 1028
 @28
 SimTop.dut.clk
-SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
+SimTop.dut.exe_stage_op.m_op[2:0]
+SimTop.dut.matrix_sram.wen
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[1][3:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[2][3:0]
@@ -54,30 +54,21 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.feed_counter[3:0]
 @28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_ready
 SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
-SimTop.dut.exe_stage_op.h_op[2:0]
+SimTop.dut.matrix_sram.wen
+SimTop.dut.matrix_machine_init.m_valid
+SimTop.dut.pipeline_control_init.pipeline_stall
+SimTop.dut.pipeline_control_init.m_load_in_process
+SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.load_in_progress
+SimTop.dut.matrix_machine_init.matrix_compute_unit.control[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
 @22
-SimTop.dut.hbm_interface_init.v_hbm_element_out[63:0]
-SimTop.dut.hbm_interface_init.m_hbm_element_out[31:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.feed_counter[3:0]
 @28
-SimTop.dut.hbm_interface_init.stride_mode_en
-SimTop.dut.hbm_interface_init.m_hbm_prefetch_valid
-SimTop.dut.hbm_interface_init.v_hbm_prefetch_valid
-@22
-SimTop.dut.hbm_interface_init.stored_stride_size[31:0]
-@28
-SimTop.dut.hbm_interface_init.exe_stage_op.c_op[1:0]
-SimTop.dut.decode_stage_op.c_op[1:0]
-@22
-SimTop.dut.decoder_init.decode_instr_info.opcode[5:0]
-@28
-SimTop.dut.decoder_init.stall_for_read_rd
-@22
-SimTop.dut.scalar_machine_init.fixed_reg_file.mem[3][31:0]
-@28
-SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.stride_mode
-@22
-SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.DataWidth[31:0]
-@23
-SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.address_offset[63:0]
+SimTop.dut.m_empty_in_progress
+SimTop.dut.pipeline_control_init.m_empty_in_progress
+SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_loading
+@29
+SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
 [pattern_trace] 1
 [pattern_trace] 0

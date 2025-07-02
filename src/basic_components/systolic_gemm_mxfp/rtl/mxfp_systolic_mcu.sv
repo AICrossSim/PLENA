@@ -55,7 +55,8 @@ module mxfp_systolic_mcu #(
     output  logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]     v_result,
     output  logic v_result_valid,
     input   logic v_result_ready,
-    output  logic load_in_progress
+    output  logic load_in_progress,
+    output  logic empty_in_progress
 );
 
     initial begin
@@ -115,7 +116,6 @@ module mxfp_systolic_mcu #(
     logic [COUNTER_BIT_WIDTH : 0] feed_counter;
     logic complete_v1_load, complete_v2_load;
 
-    logic   start_feed_count;
     logic   ready_to_load_output;
     logic   gemm_result_ready, gemv_result_ready;
 
@@ -152,7 +152,7 @@ module mxfp_systolic_mcu #(
                 complete_v2_load <= 1'b0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_O & gemv_result_valid) || (control_in_exe == MM_WO & gemm_result_valid));
+            output_reset <= ((control_in_exe == MV_O & gemv_result_valid) || (control_in_exe == MM_PS & gemm_result_valid));
         end
     end
 
@@ -169,10 +169,10 @@ module mxfp_systolic_mcu #(
             control_in_exe          <= STALL_M; 
             load_in_progress        <= 1'b0;
         end else begin
-            if ((control_in_exe == STALL_M) & (control != STALL_M)) begin
+            if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO)) begin
                 control_in_exe <= control;
                 load_in_progress <= 1'b1;
-            end else if ((control_in_exe != STALL_M) & (control != STALL_M)) begin
+            end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO)) begin
                 load_in_progress <= 1'b1;
                 control_in_exe <= control;
             end else if (complete_loading) begin
@@ -198,25 +198,25 @@ module mxfp_systolic_mcu #(
     always_ff @(posedge clk) begin
         if (rst) begin
             feed_counter            <= '0;
-            start_feed_count        <= 1'b0;
             gemv_result_valid       <= 'b0;
             gemm_result_valid       <= 'b0;
             ready_to_load_output    <= 1'b0;
+            empty_in_progress       <= 1'b0;
         end else begin
             if (complete_loading & control_in_exe == MM_PS) begin
                 feed_counter        <= '0;
-                start_feed_count    <= 1'b1;
-            end else if (start_feed_count) begin
+                empty_in_progress   <= 1'b1;
+            end else if (empty_in_progress) begin
                 if (feed_counter == 2 * COMPUTE_DIM + SYSTOLIC_PROCESSING_OVERHEAD) begin
                     feed_counter        <= '0;
-                    start_feed_count    <= 1'b0;
+                    empty_in_progress    <= 1'b0;
                     ready_to_load_output <= 1'b1;
                 end else begin
                     feed_counter <= feed_counter + 'b1;
                     ready_to_load_output <= 1'b0;
                 end
             end else begin
-                start_feed_count <= 1'b0;
+                empty_in_progress <= 1'b0;
                 ready_to_load_output <= 1'b0;
             end
             gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_O)  & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;

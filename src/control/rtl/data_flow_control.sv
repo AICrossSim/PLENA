@@ -33,7 +33,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     input       logic m_v_ready,
     input       logic m_out_valid,
     output      logic m_out_ready,
-    output      logic m_complete_acc_writeback,
+    // output      logic m_complete_acc_writeback,
     input       logic m_write_request,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
 
@@ -154,7 +154,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             m_sram_raddr_offset = 'b0;
         end
 
-        if (mem_stage_op.m_op != STALL_M || continuous_load_m_en) begin
+        if ((mem_stage_op.m_op != STALL_M & mem_stage_op.m_op != MM_WO)|| continuous_load_m_en) begin
             m_sram_raddr = recorded_m_load_addr + m_sram_raddr_offset;
         end else begin
             m_sram_raddr = 'b0;
@@ -202,7 +202,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             // Address Management
             if (exe_stage_op.h_op == PREFETCH_M_C) begin
                 recorded_m_prefetch_addr <= exe_stage_op.addr_2;
-            end else if (exe_stage_op.m_op != STALL_M) begin
+            end else if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO) begin
                 recorded_m_load_addr <= exe_stage_op.addr_2;
             end 
             if (!m_prefetch_data_not_ready) begin
@@ -218,7 +218,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end_of_load_m   <= (m_sram_load_counter == MATRIX_LOAD_ITERATION) & (!m_prefetch_data_not_ready) & m_m_ready;
 
             // Matrix SRAM Read Port Control
-            if (exe_stage_op.m_op != STALL_M) begin
+            if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO) begin
                 m_sram_req      <= 1'b1;
                 m_m_load        <= 1'b1;
                 m_sram_transposed_read  <= exe_stage_op.m_transposed_read;
@@ -370,7 +370,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             continuous_v_write_from_matrix_en   <= 1'b0;
             continuous_load_v_for_matrix_en     <= 1'b0;
             v_v_out_ready                   <= 1'b0;
-            m_complete_acc_writeback        <= 1'b0;
+            // m_complete_acc_writeback        <= 1'b0;
             v_sram_mxfp_req_b               <= 2'b0;
             v_sram_req_b                    <= 1'b0;
             v_sram_req_a                    <= 1'b0;
@@ -384,12 +384,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             v_v_b_valid                 <= v_v_b_load;
             m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
             p1_vport_a_load_valid       <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!v_prefetch_data_not_ready);
-            m_complete_acc_writeback    <= (v_sram_write_from_matrix_counter == MATRIX_LOAD_ITERATION - 1) & 
-                                            continuous_v_write_from_matrix_en & m_out_valid;
+            // m_complete_acc_writeback    <= (v_sram_write_from_matrix_counter == MATRIX_LOAD_ITERATION - 1) & 
+            //                                 continuous_v_write_from_matrix_en & m_out_valid;
             p2_vport_a_load_valid       <= p1_vport_a_load_valid;
             m_v_valid                   <= p2_vport_a_load_valid;
             //Port A
-            if(exe_stage_op.m_op != STALL_M && m_v_ready) begin
+            if((exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO) & m_v_ready) begin
                 // Read Vector from SRAM
                 m_v_load        <= 1'b1;
                 v_v_a_load      <= 1'b0;
@@ -519,7 +519,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             recorded_v_load_addr_1  <= exe_stage_op.addr_1;
             recorded_v_load_addr_2  <= exe_stage_op.addr_2;
             
-            if (exe_stage_op.m_op != STALL_M) begin
+            if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO) begin
                 recorded_v_load_for_matrix_addr <= exe_stage_op.addr_1;
             end
 
