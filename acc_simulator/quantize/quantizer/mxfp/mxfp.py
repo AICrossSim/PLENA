@@ -37,14 +37,17 @@ def extract_mxfp_components(
     )
     tensor = tensor.to(torch.bfloat16)
     tensor = flatten_for_quantize(tensor, block_dim)
-    if device == "cpu":
-        scales, elements = mxfp_fake.extract_mxfp_components(
-            tensor, mxfp_meta=mxfp_meta
-        )
-    else:
-        scales, elements = mxfp_kernels.extract_mxfp_components(
-            tensor, mxfp_meta=mxfp_meta
-        )
+    # if device == "cpu":
+    #     scales, elements = mxfp_fake.extract_mxfp_components(
+    #         tensor, mxfp_meta=mxfp_meta
+    #     )
+    # else:
+    #     scales, elements = mxfp_kernels.extract_mxfp_components(
+    #         tensor, mxfp_meta=mxfp_meta
+    #     )
+    scales, elements = mxfp_fake.extract_mxfp_components(
+        tensor, mxfp_meta=mxfp_meta
+    )
     tensor_meta = MXFPTensorMeta(
         device=device,
         dtype=ori_dtype,
@@ -79,14 +82,19 @@ def compose_mxfp_tensor(
     device = tensor_meta.device
     dtype = getattr(torch, tensor_meta.dtype) if dtype is None else dtype
 
-    if device == "cpu":
-        tensor = mxfp_fake.compose_mxfp_tensor(
-            shared_scales=scales,
-            elements=elements,
-            mxfp_meta=tensor_meta.meta,
-        )
-    else:
-        tensor = mxfp_kernels.compose_mxfp_tensor(
+    # if device == "cpu":
+    #     tensor = mxfp_fake.compose_mxfp_tensor(
+    #         shared_scales=scales,
+    #         elements=elements,
+    #         mxfp_meta=tensor_meta.meta,
+    #     )
+    # else:
+    #     tensor = mxfp_kernels.compose_mxfp_tensor(
+    #         shared_scales=scales,
+    #         elements=elements,
+    #         mxfp_meta=tensor_meta.meta,
+    #     )
+    tensor = mxfp_fake.compose_mxfp_tensor(
             shared_scales=scales,
             elements=elements,
             mxfp_meta=tensor_meta.meta,

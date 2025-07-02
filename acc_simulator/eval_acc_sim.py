@@ -40,7 +40,7 @@ from .quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNor
 from .models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
 
 
-from .utils import setup_args_linear_nonlinear, replace_modules
+from .utils import setup_args_linear_nonlinear, replace_modules, create_device_map
 from torch import nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.models.llama.modeling_llama import (
@@ -48,6 +48,7 @@ from transformers.models.llama.modeling_llama import (
     LlamaRMSNorm,
     LlamaMLP
 )
+from accelerate import dispatch_model
 
 
 def print_all_layers(model: nn.Module):
@@ -62,12 +63,13 @@ def print_all_layers(model: nn.Module):
 
 
 def mxfp_lm_eval(
-    model_name: str = "meta-llama/Llama-3.2-1B",
+    model_name: str = "meta-llama/Llama-3.1-70B",
     tasks: Union[str, list[str]] = "wikitext",
     preset: Union[ Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"], None] = "XqWqBqKVq",
     preset_mxfp_X: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
     preset_mxfp_W: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
-    preset_minifloat: Literal["FP8_E4M3", "FP8_E5M2"] = "FP8_E4M3"
+    preset_minifloat: Literal["FP8_E4M3", "FP8_E5M2"] = "FP8_E4M3",
+    model_parallel: bool = True
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -95,16 +97,18 @@ def mxfp_lm_eval(
         print("Using original parameters, no quantization applied.")
 
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print("device is ", device)
     # create the tokenizer and model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
         model_name, torch_dtype=torch.bfloat16, attn_implementation="eager"
     )
-    model = model.to(device)
-
-    print_all_layers(model)
+    if model_parallel:
+        device_map = create_device_map(model, "auto-balanced")
+        model = dispatch_model(model, device_map=device_map)
+    else: 
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = model.to(device)
+    # print_all_layers(model)
     
     # MLP - SILU
     replace_modules(

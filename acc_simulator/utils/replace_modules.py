@@ -1,6 +1,8 @@
 from typing import Optional
 import time
 
+import gc
+import torch
 from torch import nn
 from mase_triton.utils.torch_module import set_layer_by_name
 
@@ -33,6 +35,13 @@ def replace_modules(
         t_layer = time.time()
         new_layer = factory_fn(layer, **kwargs)
         set_layer_by_name(model, name, new_layer)
+
+        # Free memory
+        if any(p.device.type == "cuda" for p in layer.parameters()):
+            del layer
+            torch.cuda.empty_cache()
+            gc.collect()
+
         t_elapsed = time.time() - t_layer
         print(f"Replaced {label}: {name} in {t_elapsed:.2f}s")
         replaced += 1
