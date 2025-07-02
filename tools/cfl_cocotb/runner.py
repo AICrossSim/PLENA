@@ -5,7 +5,7 @@ from pathlib import Path
 from copy import deepcopy
 import re
 import inspect
-from typing import Any
+from typing import Union, Any
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from time import time
 
@@ -132,7 +132,7 @@ from pathlib import Path
 def veri_runner(
     module=None,
     group=None,
-    additional_include_paths: list[str | Path] = None,
+    additional_include_paths: list[Union[str, Path]] = None,
     definitions_path=None,
     module_param_list: list[dict[str, Any]] = [dict()],
     sim: str = "verilator",

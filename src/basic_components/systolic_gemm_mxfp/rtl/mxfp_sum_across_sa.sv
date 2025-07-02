@@ -60,16 +60,18 @@ generate;
             fp_adder_tree #(
                 .VEC_DIM(SYS_ARRAY_AMOUNT),
                 .IN_EXP_WIDTH(ACC_FP_EXP_WIDTH),
-                .IN_MAN_WIDTH(ACC_FP_MANT_WIDTH)
+                .IN_MAN_WIDTH(ACC_FP_MANT_WIDTH),
+                .EXT_MANT_WIDTH_PER_LAYER(0),
+                .EXT_EXP_BITS_PER_LAYER(0)
             ) per_pe_adder_tree (
                 .clk(clk),
                 .rst(rst),
-                .data_in(adder_in_data),
-                .data_in_valid(per_pe_valid[i*COMPUTE_DIM + j]),
-                .data_in_ready(per_pe_ready[i*COMPUTE_DIM + j]),
-                .data_out(accumulated_data[i][j]),
-                .data_out_valid(per_pe_acc_valid[i * COMPUTE_DIM + j]),
-                .data_out_ready(per_pe_acc_ready[i * COMPUTE_DIM + j])
+                .data_in        (adder_in_data),
+                .data_in_valid  (per_pe_valid[i * COMPUTE_DIM + j]),
+                .data_in_ready  (per_pe_ready[i * COMPUTE_DIM + j]),
+                .data_out       (accumulated_data[i][j]),
+                .data_out_valid (per_pe_acc_valid[i * COMPUTE_DIM + j]),
+                .data_out_ready (per_pe_acc_ready[i * COMPUTE_DIM + j])
             );
         end
     end

@@ -81,8 +81,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     logic acc_addr_valid, acc_addr_ready;
     
     fifo #(
-        .DATA_WIDTH(ADDR_WIDTH),
-        .DEPTH(MATRIX_ACC_ADR_DEPTH)
+        .DATA_WIDTH (ACC_ADDR_WIDTH),
+        .DEPTH      (MATRIX_ACC_ADR_DEPTH)
     ) m_acc_addr_fifo (
         .clk(clk),
         .rst(rst),

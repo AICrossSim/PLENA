@@ -38,13 +38,15 @@ module mxfp_systolic_left_streamer #(
     localparam PER_BLOCK_ELE_WIDTH = BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1);
 
     localparam BLOCK_BITWIDTH = $clog2(BLOCK_DIM);
-    logic [COUNTER_BIT_WIDTH : 0] store_counter;
-    logic [COUNTER_BIT_WIDTH : 0] clear_counter;
+    logic [COUNTER_BIT_WIDTH : 0] store_ele_counter;
+    logic [COUNTER_BIT_WIDTH : 0] store_scale_counter;
+    logic [COUNTER_BIT_WIDTH : 0] clear_ele_counter;
+    logic [COUNTER_BIT_WIDTH : 0] clear_scale_counter;
 
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_array_queue  [COMPUTE_DIM - 1 : 0];
-    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue [COMPUTE_DIM - 1 : 0];
+    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue [BLOCK_NUM - 1 : 0];
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   stream_elem_out;
-    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               stream_scale_out;
+    logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 stream_scale_out;
     logic stream_elem_in_ready,     stream_elem_in_valid;
     logic stream_scale_in_ready,    stream_scale_in_valid;
     logic stream_in_ready,          stream_in_valid;
@@ -59,14 +61,17 @@ module mxfp_systolic_left_streamer #(
 
     stream_state_t p1_state, state, next_state;
 
+    assign store_scale_counter = store_ele_counter >> BLOCK_BITWIDTH;
+    assign clear_scale_counter = clear_ele_counter >> BLOCK_BITWIDTH;
+
     always_ff @(posedge clk) begin
         if (rst) begin
             for (int i = 0; i < COMPUTE_DIM; i++) begin
                 data_elem_array_queue   [i] <= '0;
                 data_scale_array_queue  [i] <= '0;
             end
-            store_counter   <= '0;
-            clear_counter   <= '0;
+            store_ele_counter   <= '0;
+            clear_ele_counter   <= '0;
             stream_in_valid <= 1'b0;
             state           <= IDLE;
             p1_state        <= IDLE;
@@ -78,14 +83,20 @@ module mxfp_systolic_left_streamer #(
                 IDLE: begin
                     if (data_in_valid & stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
-                            if ((store_counter == i)) begin
-                                data_elem_array_queue[store_counter] <= data_elem_in;
-                                for (int j = 0; j < COMPUTE_DIM; j++) begin
-                                    data_scale_array_queue[store_counter][j] <= data_scale_in[(j >> BLOCK_BITWIDTH)];
-                                end
-                                store_counter                       <= store_counter + 'b1;
+                            if ((store_ele_counter == i)) begin
+                                data_elem_array_queue[store_ele_counter] <= data_elem_in;
+                                store_ele_counter                       <= store_ele_counter + 'b1;
                             end else begin
                                 data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                                data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                            end
+                        end
+                        for (int i = 0; i < BLOCK_NUM; i++) begin
+                            if ((store_scale_counter == i)) begin
+                                for (int j = 0; j < COMPUTE_DIM; j++) begin
+                                    data_scale_array_queue[i][j] <= data_scale_in[j >> BLOCK_BITWIDTH];
+                                end
+                            end else begin
                                 data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                             end
                         end
@@ -97,17 +108,23 @@ module mxfp_systolic_left_streamer #(
                 FILLING: begin
                     if (data_in_valid & stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
-                            if ((store_counter == i)) begin
-                                data_elem_array_queue[store_counter] <= data_elem_in;
-                                for (int j = 0; j < COMPUTE_DIM; j++) begin
-                                    data_scale_array_queue[store_counter][j] <= data_scale_in[(j >> BLOCK_BITWIDTH)];
-                                end
-                                store_counter                       <= store_counter + 'b1;
+                            if ((store_ele_counter == i)) begin
+                                data_elem_array_queue[store_ele_counter] <= data_elem_in;
+                                store_ele_counter                       <= store_ele_counter + 'b1;
                             end else begin
                                 data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                            end
+                        end
+                        for (int i = 0; i < BLOCK_NUM; i++) begin
+                            if ((store_scale_counter == i)) begin
+                                for (int j = 0; j < COMPUTE_DIM; j++) begin
+                                    data_scale_array_queue[i][j] <= data_scale_in[j >> BLOCK_BITWIDTH];
+                                end
+                            end else begin
                                 data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                             end
                         end
+
                         stream_in_valid <= 1'b1;
                         if (stream_in_valid_hold) begin
                             stream_in_valid_hold <= 1'b0;
@@ -123,19 +140,21 @@ module mxfp_systolic_left_streamer #(
                     end
                 end
                 CLEARING: begin
-                    store_counter <= '0;
+                    store_ele_counter <= '0;
                     if (stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
                             data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        end
+                        for (int i = 0; i < BLOCK_NUM; i++) begin
                             data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                         end
-                        clear_counter <= clear_counter + 'b1;   
+                        clear_ele_counter <= clear_ele_counter + 'b1;   
                         stream_in_valid <= 1'b1;  
                         if (stream_in_valid_hold) begin
                             stream_in_valid_hold <= 1'b0;
                         end
-                        if (clear_counter == COMPUTE_DIM) begin
-                            clear_counter <= '0;
+                        if (clear_ele_counter == COMPUTE_DIM) begin
+                            clear_ele_counter <= '0;
                         end
                     end else begin
                         if (stream_in_valid) begin
@@ -152,6 +171,8 @@ module mxfp_systolic_left_streamer #(
     always_comb begin
         for (int i = 0; i < COMPUTE_DIM; i++) begin
             stream_elem_out[i] = data_elem_array_queue[i][0];
+        end
+        for (int i = 0; i < BLOCK_NUM; i++) begin
             stream_scale_out[i] = data_scale_array_queue[i][0];
         end
         case (state)
@@ -163,7 +184,7 @@ module mxfp_systolic_left_streamer #(
                 end
             end
             FILLING: begin
-                if (store_counter == COMPUTE_DIM & stream_in_ready) begin 
+                if (store_ele_counter == COMPUTE_DIM & stream_in_ready) begin 
                     next_state = CLEARING;
                 end else begin
                     next_state = FILLING;
@@ -172,7 +193,7 @@ module mxfp_systolic_left_streamer #(
             CLEARING: begin
                 if (p1_state != FILLING & data_in_valid & stream_in_ready) begin 
                     next_state = FILLING;
-                end else if (clear_counter == COMPUTE_DIM) begin
+                end else if (clear_ele_counter == COMPUTE_DIM) begin
                     next_state = IDLE;
                 end else begin
                     next_state = CLEARING;
@@ -218,7 +239,7 @@ module mxfp_systolic_left_streamer #(
     );
 
     skid_buffer #(
-        .DATA_WIDTH(COMPUTE_DIM * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
     ) skid_buffer_scale (
         .clk(clk),
         .rst(rst),
