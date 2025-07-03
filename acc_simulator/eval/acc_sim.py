@@ -38,7 +38,7 @@ from lm_eval.utils import make_table
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
-from .expr_utils import *
+from .eval_utils import *
 
 from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
 from torch import nn
