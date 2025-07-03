@@ -1,4 +1,7 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
+`include "prim_util_pkg.svh"
 
 // This module denys all TileLink requests.
 module tl_error_sink import tl_pkg::*; #(

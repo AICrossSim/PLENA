@@ -10,7 +10,7 @@ Description : Adds two FP numbers with different exponents and signs.
 Status      : Passed Simple Tests
 */
 
-module fp_cp_adder #(
+module fp_cp_adder_v2 #(
     parameter int EXP_WIDTH = 5,
     parameter int MANT_WIDTH = 10,
     // Amount of bits needed to shift mantissas for alignment

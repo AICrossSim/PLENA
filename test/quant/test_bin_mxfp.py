@@ -10,12 +10,13 @@ set_excepthook()
 
 if __name__ == "__main__":
     torch.manual_seed(0)
-    weight = torch.randn(6,6)
+    weight = torch.randn(4,8)
+    logger.debug(f"weight: {weight}")
     quant_config = {
         "exp_width": 8,
         "man_width": 8,
-        "exp_bias_width": 8,
-        "block_size": [2, 2],
+        "exp_bias_width": 16,
+        "block_size": [1, 4],
         "skip_first_dim": False,
     }
     quant_weight, per_block_quant_weight, per_block_exponent_bias = _mx_fp_quantize_hardware(

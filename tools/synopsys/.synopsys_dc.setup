@@ -1,0 +1,93 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Library Setup
+# RTL Debug Setup - Minimal library configuration for debugging
+# Purpose: Fast RTL syntax and connectivity checking without full synthesis libraries
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Minimal Library Setup for Debug
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# Only essential libraries for RTL debug
+set link_library        {* dw_foundation.sldb}
+set synthetic_library   {dw_foundation.sldb}
+
+# set_app_var SYNTHESIS_MEMORY_BLACK_BOXING true
+
+# Basic search path for DesignWare
+set search_path [list . ${synopsys_root}/libraries/syn]
+
+# Work library
+define_design_lib WORK -path ./analyzed/WORK
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Debug 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+echo "=========================================="
+echo "RTL Debug Mode - Minimal Library Setup"
+echo "=========================================="
+echo "link_library:      $link_library"
+echo "search_path:       $search_path"
+echo "Mode: RTL Debug (no synthesis libraries)"
+echo "=========================================="
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  History
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+history keep 200
+
+set verilogout_equation false
+set verilogout_no_tri true
+set verilogout_show_unconnected_pins true
+set hdl_naming_threshold 1
+set template_naming_style "%s"
+suppress_message VER-936
+suppress_message VER-130
+suppress_message VER-318
+suppress_message VER-173
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Define naming rule
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+define_name_rules asic_top_rules \
+-allowed "a-zA-Z0-9_()[]" \
+-max_length 16 \
+-case_insensitive \
+-first_restricted "_" \
+-last_restricted "_" \
+-map {{"\*cell\*","U"},{"*-return","RET"}};
+
+define_name_rules asic_core_rules \
+-allowed "a-zA-Z0-9_()[]" \
+-max_length 255 \
+-case_insensitive \
+-last_restricted "_" \
+-first_restricted "_" \
+-map {{"\*cell\*","U"},{"*-return","RET"}};
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Aliases
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+alias h history
+alias rc "report_constraint -all_violators"
+alias rt report_timing
+alias ra report_area
+alias page_on {set sh_enable_page_mode true}
+alias page_off {set sh_enable_page_mode false}
+alias fr "remove_design -designs"
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#  Alib for compile_ultra
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+page_off
+set alib_library_analysis_path ..
+echo "\n\nI am ready...\n"

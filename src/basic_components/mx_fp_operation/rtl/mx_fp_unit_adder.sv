@@ -51,7 +51,7 @@ module mx_fp_unit_adder #(
         end
     end
 
-    fp_cp_adder #(
+    fp_cp_adder_v2 #(
         .EXP_WIDTH(MXFP_EXP_WIDTH),
         .MANT_WIDTH(MXFP_MANT_WIDTH),
         .EXT_MANT_WIDTH(EXT_MANT_WIDTH),

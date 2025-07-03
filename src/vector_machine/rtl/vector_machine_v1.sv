@@ -13,8 +13,12 @@ Status      : Passed Logical Tests
 
 
 module vector_machine_v1 import precision_pkg::*; import configuration_pkg::*; #(
-    localparam  BLOCK_NUM       = VLEN / BLOCK_DIM,
-    localparam   ADDR_WIDTH     = ON_CHIP_ADDR_WIDTH    // Vector write address
+    localparam  BLOCK_NUM           = VLEN / BLOCK_DIM,
+    localparam   ADDR_WIDTH         = ON_CHIP_ADDR_WIDTH,    // Vector write address
+    parameter FP_EXP_WIDTH         = 8,
+    parameter FP_MANT_WIDTH        = 7,
+    parameter MXFP_MANT_WIDTH       = HIGH_MXFP_MANT_WIDTH,
+    parameter MXFP_EXP_WIDTH        = HIGH_MXFP_EXP_WIDTH
 ) (
     input   logic clk,
     input   logic rst,
@@ -88,6 +92,32 @@ logic v_port_b_valid, v_port_b_ready;
 // Data Preparation Stage
 logic complete_element_prepare, complete_reduct_prepare;
 logic next_preparation_stage;
+
+logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] converted_v_a;
+logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] converted_v_b;
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_a;
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_b;
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] unpacked_v_s;
+
+logic red_v_in_a_valid, red_v_in_a_ready;
+logic red_v_in_b_valid, red_v_in_b_ready;
+logic red_v_in_valid, red_v_in_ready;
+logic red_v_out_valid, red_v_out_ready;
+logic s_acc_in_valid, s_acc_in_ready;
+logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] s_acc_in;
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
+
+logic element_v_in_a_valid, element_v_in_a_ready;
+logic element_v_in_b_valid, element_v_in_b_ready;
+logic element_v_out_valid, element_v_out_ready;
+logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] element_v_out;
+
+logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] result_v_out;
+logic compute_result_valid, compute_result_ready;
+logic [BLOCK_NUM-1:0] fp_mxfp_in_valid, fp_mxfp_in_ready;
+logic [BLOCK_NUM-1:0] fp_mxfp_out_valid, fp_mxfp_out_ready;
+logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_EXP_WIDTH + MXFP_MANT_WIDTH) : 0] mx_fp_element;
+logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0] mx_fp_scale;
 
 always_ff @(posedge clk) begin
     if (rst) begin
@@ -174,15 +204,7 @@ always_comb begin
     end
 end
 
-
-
 // MXFP to FP Conversion
-logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] converted_v_a;
-logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0]  [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] converted_v_b;
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_a;
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] prepared_v_b;
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] unpacked_v_s;
-
 assign s_in_ready = v_b_ready;
 generate;
     for (genvar i = 0; i < BLOCK_NUM; i = i + 1)begin
@@ -311,11 +333,6 @@ end
 // Elementwise Compute Unit
 //----------------------------//
 
-logic element_v_in_a_valid, element_v_in_a_ready;
-logic element_v_in_b_valid, element_v_in_b_ready;
-logic element_v_out_valid, element_v_out_ready;
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] element_v_out;
-
 fp_elementwise_compute_unit #(
     .EXP_WIDTH(FP_EXP_WIDTH),
     .MANT_WIDTH(FP_MANT_WIDTH),
@@ -385,12 +402,6 @@ always_comb begin
 end
 
 // Convert FP to MX-FP 2 cycles
-logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] result_v_out;
-logic compute_result_valid, compute_result_ready;
-logic [BLOCK_NUM-1:0] fp_mxfp_in_valid, fp_mxfp_in_ready;
-logic [BLOCK_NUM-1:0] fp_mxfp_out_valid, fp_mxfp_out_ready;
-logic [BLOCK_NUM-1:0] [BLOCK_DIM-1:0] [(MXFP_EXP_WIDTH + MXFP_MANT_WIDTH) : 0] mx_fp_element;
-logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0] mx_fp_scale;
 
 generate;
     split_n #(
@@ -439,15 +450,6 @@ assign v_out_scale      = mx_fp_scale;
 //----------------------------//
 // Reduction Compute Unit
 //----------------------------//
-
-logic red_v_in_a_valid, red_v_in_a_ready;
-logic red_v_in_b_valid, red_v_in_b_ready;
-logic red_v_in_valid, red_v_in_ready;
-logic red_v_out_valid, red_v_out_ready;
-logic s_acc_in_valid, s_acc_in_ready;
-logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] s_acc_in;
-logic [VLEN-1:0] [(FP_EXP_WIDTH + FP_MANT_WIDTH) : 0] red_v_out;
-
 
 join_n #(
     .NUM_HANDSHAKES (3)

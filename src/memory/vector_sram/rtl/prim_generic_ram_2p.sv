@@ -12,13 +12,14 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   parameter  int Width           = 32, // bit
   parameter  int Depth           = 128,
   parameter  int DataBitsPerMask = 1, // Number of data bits per bit of write mask
-  parameter      MemInitFile     = "", // VMEM file to initialize the memory with
-
+  `ifdef SIMULATION
+    parameter  string    MemInitFile     = "", 
+    parameter  string    ResultFile      = "",
+  `endif
   localparam int Aw              = $clog2(Depth),  // derived parameter
   localparam int MaskWidth = Width / DataBitsPerMask
 ) (
-  input clk_a_i,
-  input clk_b_i,
+  input clk_i,
 
   input                    a_req_i,
   input                    a_write_i,
@@ -26,7 +27,6 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   input        [Width-1:0] a_wdata_i,
   input  logic [MaskWidth-1:0] a_wmask_i,
   output logic [Width-1:0] a_rdata_o,
-
 
   input                    b_req_i,
   input                    b_write_i,
@@ -79,36 +79,57 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   // Xilinx FPGA specific Dual-port RAM coding style
   // using always instead of always_ff to avoid 'ICPD  - illegal combination of drivers' error
   // thrown due to 'mem' being driven by two always processes below
-  always @(posedge clk_a_i) begin
-    if (a_req_i) begin
-      if (a_write_i) begin
-        for (int i=0; i < MaskWidth; i = i + 1) begin
+  logic conflict;
+  assign conflict = a_req_i && a_write_i && b_req_i && b_write_i && (a_addr_i == b_addr_i);
+
+  always @(posedge clk_i) begin
+    // READS
+    if (a_req_i && !a_write_i) begin
+      a_rdata_o <= mem[a_addr_i];
+    end
+    if (b_req_i && !b_write_i) begin
+      b_rdata_o <= mem[b_addr_i];
+    end
+
+    // ADDRESS CONFLICT DETECTION
+
+    // WRITES
+    if (!conflict) begin
+      if (a_req_i && a_write_i) begin
+        for (int i = 0; i < MaskWidth; i++) begin
           if (a_wmask[i]) begin
             mem[a_addr_i][i*DataBitsPerMask +: DataBitsPerMask] <=
               a_wdata_i[i*DataBitsPerMask +: DataBitsPerMask];
           end
         end
-      end else begin
-        a_rdata_o <= mem[a_addr_i];
       end
-    end
-  end
 
-  always @(posedge clk_b_i) begin
-    if (b_req_i) begin
-      if (b_write_i) begin
-        for (int i=0; i < MaskWidth; i = i + 1) begin
+      if (b_req_i && b_write_i) begin
+        for (int i = 0; i < MaskWidth; i++) begin
           if (b_wmask[i]) begin
             mem[b_addr_i][i*DataBitsPerMask +: DataBitsPerMask] <=
               b_wdata_i[i*DataBitsPerMask +: DataBitsPerMask];
           end
         end
-      end else begin
-        b_rdata_o <= mem[b_addr_i];
       end
+    end else begin
+      // TODO: 
     end
   end
 
+
   `include "prim_util_memload.svh"
+  
+`ifdef SIMULATION
+    final begin
+        if (ResultFile != "") begin
+            string result_filename;
+            $sformat(result_filename, "%s", ResultFile);
+            $display("Writing result file from: %s", result_filename);
+            $writememh(result_filename, mem);
+        end
+    end
+`endif
+
 `endif
 endmodule

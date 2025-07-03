@@ -2,11 +2,8 @@
 /*
 Module      : fp_ieee_partition
 Timing      : Combinatorial Logic
-Description : Give normalized fp number,
-            : return a sign bit,
-            : 2.MANT_WIDTH of unsigned mantissa (sign, add one?, mantissa)
-            : signed biased exponent of .
-Status      : Under Development
+Description : FP_IEEE_Partition
+            - Splits IEEE floating-point data into a signed mantissa and a signed integer exponent.
 */
 
 module fp_ieee_partition #(
@@ -32,7 +29,7 @@ module fp_ieee_partition #(
     localparam EXP_HIGH = EXP_WIDTH - 1;
 
     always @(*) begin
-        assert (exp_bit != {(EXP_WIDTH-1){1'b1}}) else $warning("we cannot handle inf or nan in our current design");
+        assert (exp_bit != {(EXP_WIDTH){1'b1}}) else $warning("we cannot handle inf or nan of bits: %b in our current design", data_in);
     end
 
     assign signed_exp = signed'(exp_bit) - BIAS;

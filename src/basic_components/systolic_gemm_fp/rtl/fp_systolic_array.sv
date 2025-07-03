@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /*
-Module      : Systolic Array
+Module      : FP Systolic Array
 Timing      : Sequential
 Description : It can be used for both GEMM and GEMV operations.
 Status      : Under Development
@@ -46,79 +46,40 @@ module fp_systolic_array #(
     input   logic v_out_ready
 );
 
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_valid;
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_ready;
-    logic [COMPUTE_DIM - 1:0] distributed_in_left_valid;
-    logic [COMPUTE_DIM - 1:0] distributed_in_left_ready;
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_v_valid;
-    logic [COMPUTE_DIM - 1:0] distributed_in_top_v_ready;
-
-    split_n #(
-        .N(COMPUTE_DIM)
-    ) split_top (
-        .data_in_valid(in_top_valid),
-        .data_in_ready(in_top_ready),
-        .data_out_valid(distributed_in_top_valid),
-        .data_out_ready(distributed_in_top_ready)
-    );
-
-    split_n #(
-        .N(COMPUTE_DIM)
-    ) split_left (
-        .data_in_valid(in_left_valid),
-        .data_in_ready(in_left_ready),
-        .data_out_valid(distributed_in_left_valid),
-        .data_out_ready(distributed_in_left_ready)
-    );
-
-    split_n #(
-        .N(COMPUTE_DIM)
-    ) split_top_v (
-        .data_in_valid(in_top_v_valid),
-        .data_in_ready(in_top_v_ready),
-        .data_out_valid(distributed_in_top_v_valid),
-        .data_out_ready(distributed_in_top_v_ready)
-    );
-
-    logic rowwise_data_transfer_valid [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
-    logic rowwise_data_transfer_ready [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]   rowwise_data_transfer_data           [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
-
-    logic columnwise_data_transfer_valid [COMPUTE_DIM :0][COMPUTE_DIM - 1:0];
-    logic columnwise_data_transfer_ready [COMPUTE_DIM :0][COMPUTE_DIM - 1:0];
-    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]    columnwise_data_transfer_data    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]  rowwise_data_transfer_data       [COMPUTE_DIM - 1:0][COMPUTE_DIM :0];
+    logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0]  columnwise_data_transfer_data    [COMPUTE_DIM : 0][COMPUTE_DIM - 1:0];
 
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] result_values;
     logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] result_ready;
+    logic out_result_ready;
+    logic mult_valid, mult_ready;
+    logic system_right_shift_valid, system_down_shift_valid;
+    logic [COMPUTE_DIM- 1: 0] [COMPUTE_DIM - 1: 0] pe_compute_ready;
+
+    join2 #() mult_signal_join (
+        .data_in_valid({in_top_valid, in_left_valid}),
+        .data_in_ready({in_top_ready, in_left_ready}),
+        .data_out_valid(mult_valid),
+        .data_out_ready(mult_ready)
+    );
+
 
     // Fill the Front Top Row and Left Column with the input data
     generate;
         for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : fill_with_input_data
-            // Fill the Top Row
             assign columnwise_data_transfer_data    [0][i]  = in_top_data[i];
-            assign columnwise_data_transfer_valid   [0][i]  = distributed_in_top_valid[i];
-            assign distributed_in_top_ready[i]              = columnwise_data_transfer_ready[0][i];
-
-            // Fill the Left Column
-            assign rowwise_data_transfer_data[i][0]         = in_left_data[i];
-            assign rowwise_data_transfer_valid[i][0]        = distributed_in_left_valid[i];
-            assign distributed_in_left_ready[i]             = rowwise_data_transfer_ready[i][0];
+            assign rowwise_data_transfer_data       [i][0]  = in_left_data[i];
         end
-    endgenerate
-
-    // Fill the Bottom and Left Most Data Extraction Signals
-    generate;
-        for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : fill_extraction_signals
-            assign rowwise_data_transfer_ready[i][COMPUTE_DIM]      = 1'b1;
-            assign columnwise_data_transfer_ready[COMPUTE_DIM][i]   = 1'b1;
-        end
+        assign mult_ready = &pe_compute_ready;
+        assign system_down_shift_valid = in_top_valid & in_top_ready;
+        assign system_right_shift_valid = in_left_valid & in_left_ready;
     endgenerate
 
 
     // Computation
     generate;
-        for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : pe_row
-            for (genvar j = 0; j < COMPUTE_DIM; j = j + 1) begin : pe_col
+        for (genvar i = 0; i < COMPUTE_DIM; i = i + 1) begin : row_inx
+            for (genvar j = 0; j < COMPUTE_DIM; j = j + 1) begin : col_idx
                 if (i == 0) begin
                     fp_first_row_pe #(
                         .FP_EXP_WIDTH       (FP_EXP_WIDTH),
@@ -131,35 +92,17 @@ module fp_systolic_array #(
                         .clk(clk),
                         .rst(rst),
                         .control(control),
-
-                        // Input from Top Array
-                        .in_top_data    (columnwise_data_transfer_data[i][j]),
-                        .in_top_valid   (columnwise_data_transfer_valid[i][j]),
-                        .in_top_ready   (columnwise_data_transfer_ready[i][j]),
-
-                        // Input from Left Array
-                        .in_left_data   (rowwise_data_transfer_data[i][j]),
-                        .in_left_valid  (rowwise_data_transfer_valid[i][j]),
-                        .in_left_ready  (rowwise_data_transfer_ready[i][j]),
-
-                        // Input from Vector Array
+                        .in_top_data        (columnwise_data_transfer_data[i][j]),
+                        .system_top_valid   (system_down_shift_valid),
+                        .in_left_data       (rowwise_data_transfer_data[i][j]),
+                        .system_left_valid  (system_right_shift_valid),
+                        .mult_valid         (mult_valid),
+                        .mult_ready         (pe_compute_ready[i][j]),
                         .in_top_v_data      (in_top_v_data[j]),
-                        .in_top_v_valid     (distributed_in_top_v_valid[j]),
-                        .in_top_v_ready     (distributed_in_top_v_ready[j]),
-
-                        // Output to Bottom
                         .out_bottom_data    (columnwise_data_transfer_data[i+1][j]),
-                        .out_bottom_valid   (columnwise_data_transfer_valid[i+1][j]),
-                        .out_bottom_ready   (columnwise_data_transfer_ready[i+1][j]),
-
-                        // Output to Right
                         .out_right_data     (rowwise_data_transfer_data[i][j+1]),
-                        .out_right_valid    (rowwise_data_transfer_valid[i][j+1]),
-                        .out_right_ready    (rowwise_data_transfer_ready[i][j+1]),
-
-                        // Output Result
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_ready   (result_ready[i][j])
+                        .out_result_ready   (out_result_ready)
                     );
                 end else begin
                     fp_default_pe #(
@@ -172,38 +115,23 @@ module fp_systolic_array #(
                     ) default_pe_init (
                         .clk(clk),
                         .rst(rst),
-
-                        // Input from Top Array
-                        .in_top_data    (columnwise_data_transfer_data[i][j]),
-                        .in_top_valid   (columnwise_data_transfer_valid[i][j]),
-                        .in_top_ready   (columnwise_data_transfer_ready[i][j]),
-
-                        // Input from Left Array
-                        .in_left_data   (rowwise_data_transfer_data[i][j]),
-                        .in_left_valid  (rowwise_data_transfer_valid[i][j]),
-                        .in_left_ready  (rowwise_data_transfer_ready[i][j]),
-
-                        // Output to Bottom
+                        .in_top_data        (columnwise_data_transfer_data[i][j]),
+                        .system_top_valid   (system_down_shift_valid),
+                        .in_left_data       (rowwise_data_transfer_data[i][j]),
+                        .system_left_valid  (system_right_shift_valid),
+                        .mult_valid         (mult_valid),
+                        .mult_ready         (pe_compute_ready[i][j]),
                         .out_bottom_data    (columnwise_data_transfer_data[i + 1][j]),
-                        .out_bottom_valid   (columnwise_data_transfer_valid[i + 1][j]),
-                        .out_bottom_ready   (columnwise_data_transfer_ready[i + 1][j]),
-
-                        // Output to Right
                         .out_right_data     (rowwise_data_transfer_data[i][j + 1]),
-                        .out_right_valid    (rowwise_data_transfer_valid[i][j + 1]),
-                        .out_right_ready    (rowwise_data_transfer_ready[i][j + 1]),
-
-                        // Output Result
                         .out_fp             (m_out_fp[i][j]),
-                        .out_result_ready   (result_ready[i][j])
+                        .out_result_ready   (out_result_ready)
                     );
                 end
             end
         end
     endgenerate
 
-    assign result_ready     = (out_result_ready) ? {(COMPUTE_DIM * COMPUTE_DIM){1'b1}} : result_ready;
     assign v_out_fp         = m_out_fp[0];
-    assign out_result_ready = control ? m_out_ready : v_out_ready;
+    assign out_result_ready = (control == 1'b0) ? m_out_ready : v_out_ready;
 
 endmodule

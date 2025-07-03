@@ -25,38 +25,40 @@ module mxint_cast #(
     output logic                     data_out_valid,
     input  logic                     data_out_ready
 );
-  //get max_abs_value of input
-  localparam LOG2_WIDTH = $clog2(IN_MAN_WIDTH) + 1;
+    //get max_abs_value of input
+    localparam LOG2_WIDTH = $clog2(IN_MAN_WIDTH) + 1;
 
-  localparam LOSSLESSS_EDATA_WIDTH = 
-    (LOG2_WIDTH > IN_EXP_WIDTH && LOG2_WIDTH > OUT_EXP_WIDTH) ? LOG2_WIDTH + 2 :
-    (IN_EXP_WIDTH > OUT_EXP_WIDTH) ? IN_EXP_WIDTH + 2:
-    OUT_EXP_WIDTH + 2;
+    localparam LOSSLESSS_EDATA_WIDTH = 
+        (LOG2_WIDTH > IN_EXP_WIDTH && LOG2_WIDTH > OUT_EXP_WIDTH) ? LOG2_WIDTH + 2 :
+        (IN_EXP_WIDTH > OUT_EXP_WIDTH) ? IN_EXP_WIDTH + 2:
+        OUT_EXP_WIDTH + 2;
 
-  localparam SHIFT_WIDTH = (OUT_EXP_WIDTH > IN_EXP_WIDTH) ? OUT_EXP_WIDTH + 1 : IN_EXP_WIDTH + 1;
-  localparam SHIFT_DATA_WIDTH = OUT_MAN_WIDTH + 1;
+    localparam SHIFT_WIDTH = (OUT_EXP_WIDTH > IN_EXP_WIDTH) ? OUT_EXP_WIDTH + 1 : IN_EXP_WIDTH + 1;
+    localparam SHIFT_DATA_WIDTH = OUT_MAN_WIDTH + 1;
 
-  localparam CAST_WIDTH = OUT_MAN_WIDTH + ROUND_BITS;
+    localparam CAST_WIDTH = OUT_MAN_WIDTH + ROUND_BITS;
 
-  logic [IN_MAN_WIDTH - 1:0] mdata_for_max [BLOCK_SIZE - 1:0];
-  logic data_for_max_valid, data_for_max_ready;
+    logic [IN_MAN_WIDTH - 1:0] mdata_for_max [BLOCK_SIZE - 1:0];
+    logic data_for_max_valid, data_for_max_ready;
 
-  logic [IN_MAN_WIDTH-1:0] mdata_for_out [BLOCK_SIZE-1:0];
-  logic [IN_EXP_WIDTH-1:0] edata_for_out;
-  logic data_for_out_valid, data_for_out_ready;
+    logic [IN_MAN_WIDTH-1:0] mdata_for_out [BLOCK_SIZE-1:0];
+    logic [IN_EXP_WIDTH-1:0] edata_for_out;
+    logic data_for_out_valid, data_for_out_ready;
 
-  logic [CAST_WIDTH-1:0] mdata_for_cast [BLOCK_SIZE-1:0];
+    logic [CAST_WIDTH-1:0] mdata_for_cast [BLOCK_SIZE-1:0];
 
-  logic [LOG2_WIDTH - 1:0] log2_max_value;
-  logic log2_max_value_valid, log2_max_value_ready;
+    logic [LOG2_WIDTH - 1:0] log2_max_value;
+    logic log2_max_value_valid, log2_max_value_ready;
 
-  logic [LOSSLESSS_EDATA_WIDTH - 1:0] edata_out_full;
-  logic [SHIFT_WIDTH - 1:0] shift_value;
-  // we dont need to implement full shift here, because we'll clamp in the final.
-  // in order to avoid shift loss, we set the shift_data_width = OUT_MAN_WIDTH + 1.
-
-  logic [SHIFT_DATA_WIDTH - 1:0] shift_buffer_data_for_out[BLOCK_SIZE - 1:0];
-  logic [SHIFT_DATA_WIDTH - 1:0] shift_data[BLOCK_SIZE - 1:0][SHIFT_DATA_WIDTH - 1:0];
+    logic [LOSSLESSS_EDATA_WIDTH - 1:0] edata_out_full;
+    logic [SHIFT_WIDTH - 1:0] shift_value;
+    // we dont need to implement full shift here, because we'll clamp in the final.
+    // in order to avoid shift loss, we set the shift_data_width = OUT_MAN_WIDTH + 1.
+    logic [SHIFT_DATA_WIDTH - 1:0] shift_buffer_data_for_out[BLOCK_SIZE - 1:0];
+    logic [SHIFT_DATA_WIDTH - 1:0] shift_data[BLOCK_SIZE - 1:0][SHIFT_DATA_WIDTH - 1:0];
+    // Add register slice after log2_max_abs
+    logic [LOG2_WIDTH-1:0] log2_max_value_unreg;
+    logic log2_max_value_valid_unreg, log2_max_value_ready_unreg;
 
     // Add intermediate signals
     logic [OUT_MAN_WIDTH-1:0] mdata_out_unreg [BLOCK_SIZE-1:0];
@@ -99,9 +101,7 @@ module mxint_cast #(
       .data_out_0_ready(log2_max_value_ready_unreg)
   );
 
-  // Add register slice after log2_max_abs
-  logic [LOG2_WIDTH-1:0] log2_max_value_unreg;
-  logic log2_max_value_valid_unreg, log2_max_value_ready_unreg;
+
 
   skid_buffer #(
       .DATA_WIDTH(LOG2_WIDTH)

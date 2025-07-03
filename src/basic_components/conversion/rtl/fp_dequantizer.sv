@@ -1,4 +1,12 @@
 `timescale 1ns / 1ps
+
+/*
+Module      : fp_dequantizer
+Timing      : Combinatorial Logic
+Description : FP_IEEE_Casting
+            - Performs dequantising the lower precision floating-point format to a higher precision format.
+*/
+
 module fp_dequantizer #(
     parameter int IN_EXP_WIDTH  = 4,
     parameter int IN_MANT_WIDTH = 3,
@@ -9,22 +17,6 @@ module fp_dequantizer #(
     output logic [1 + OUT_EXP_WIDTH + OUT_MANT_WIDTH - 1:0] out_fp
 );
 
-    // Calculate biases
-    localparam int IN_BIAS  = (1 << (IN_EXP_WIDTH  - 1)) - 1;
-    localparam int OUT_BIAS = (1 << (OUT_EXP_WIDTH - 1)) - 1;
-
-    // Unpack input
-    logic                     in_sign;
-    logic [IN_EXP_WIDTH-1:0]  in_exp;
-    logic [IN_MANT_WIDTH-1:0] in_mant;
-
-    logic                     out_sign;
-    logic [OUT_EXP_WIDTH-1:0] out_exp;
-    logic [OUT_MANT_WIDTH-1:0] out_mant;
-
-    int exp_unbiased;
-    int new_exp;
-
     initial begin
         // To ensure the output mantissa is large enough to hold the input mantissa.
         assert (OUT_MANT_WIDTH >= IN_MANT_WIDTH)
@@ -33,11 +25,27 @@ module fp_dequantizer #(
             else $error("OUT_EXP_WIDTH must be greater than or equal to IN_EXP_WIDTH");
     end
 
+    // Calculate biases
+    localparam int IN_BIAS  = (1 << (IN_EXP_WIDTH  - 1)) - 1;
+    localparam int OUT_BIAS = (1 << (OUT_EXP_WIDTH - 1)) - 1;
+
+    // Unpack input
+    logic                       in_sign;
+    logic [IN_EXP_WIDTH-1:0]    in_exp;
+    logic [IN_MANT_WIDTH-1:0]   in_mant;
+
+    logic                       out_sign;
+    logic [OUT_EXP_WIDTH-1:0]   out_exp;
+    logic [OUT_MANT_WIDTH-1:0]  out_mant;
+
+    int exp_unbiased;
+    int new_exp;
+
     always_comb begin
         // Unpack
-        in_sign = in_fp[1 + IN_EXP_WIDTH + IN_MANT_WIDTH - 1];
-        in_exp  = in_fp[IN_MANT_WIDTH +: IN_EXP_WIDTH];
-        in_mant = in_fp[0 +: IN_MANT_WIDTH];
+        in_sign = in_fp[IN_EXP_WIDTH + IN_MANT_WIDTH];
+        in_exp  = in_fp[IN_EXP_WIDTH + IN_MANT_WIDTH - 1 : IN_MANT_WIDTH];
+        in_mant = in_fp[IN_MANT_WIDTH - 1:0];
 
         // Default outputs
         out_sign = in_sign;
@@ -66,7 +74,7 @@ module fp_dequantizer #(
                 out_exp  = {OUT_EXP_WIDTH{1'b1}};
                 out_mant = '0;
             end else begin
-                out_exp  = logic'(new_exp);
+                out_exp  = new_exp[OUT_EXP_WIDTH-1:0];
                 out_mant = {in_mant, {(OUT_MANT_WIDTH - IN_MANT_WIDTH){1'b0}}}; // zero-extend mantissa
             end
         end

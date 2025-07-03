@@ -16,6 +16,8 @@ build/
 *.str
 *.jou
 
+moduleparamid
+default.svf
 
 Coprocessor_Vivado_Prj/
 
@@ -26,6 +28,12 @@ Coprocessor_Vivado_Prj/
 *.rpt
 
 .nfs*
+
+*.mem
+
+*.pt
+
+analyzed/
 
 notebooks/
 logs*/

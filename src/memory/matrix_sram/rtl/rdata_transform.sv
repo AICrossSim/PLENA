@@ -11,11 +11,10 @@ module rdata_transform #(
     localparam  SubSRAM_Amount             = MLEN / Parallel_Rd_Dim,                        // The dimension of the sub SRAM, or the TileSize of the matrix.
     localparam  ElementWidth               = DataWidth * (Parallel_Rd_Dim ** 2)
 ) (
-    input  logic                        clk,
-    input  logic [SubSRAM_Amount -1 : 0] [ElementWidth-1:0]     in_data    ,
-    input  logic [AdrWidth-1:0]         sram_addr,
-    input  logic                        read_data_valid,
-    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0]        out_data    
+    input  logic [SubSRAM_Amount -1 : 0] [ElementWidth-1:0]     in_data,
+    input  logic [AdrWidth-1:0]                                 sram_addr,
+    input  logic                                                read_data_valid,
+    output logic [Parallel_Rd_Dim * MLEN-1:0] [DataWidth-1:0]   out_data    
 );
 
 // -----

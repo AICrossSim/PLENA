@@ -17,11 +17,7 @@ module addr_monitor#(
 
     // Execution Operation
     input   OP_BUNDLE determine_stage_op,  
-    input   OP_BUNDLE exe_stage_op,  
-
-    // // ---------- Monitor Operand Read Signals -----------
-    // input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_1,
-    // input   logic [ADDR_WIDTH - 1 : 0] fixed_addr_2,
+    input   OP_BUNDLE exe_stage_op,
 
     // ---------- Monitor SRAM Write Signals -----------
     input   logic [ADDR_WIDTH - 1 : 0] v_sram_addr_a,
@@ -92,7 +88,7 @@ module addr_monitor#(
             stall_req = |addr_collide_flag;
 
         end else if (!sys_pipe_stall) begin
-            if ((determine_stage_op.m_op != STALL_M) ||((determine_stage_op.v_ele_op != STALL_V_ELEMENT) & (!determine_stage_op.v_broadcast_en)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
+            if ((determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO) ||((determine_stage_op.v_ele_op != STALL_V_ELEMENT) & (!determine_stage_op.v_broadcast_en)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
                 // Two ports of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if ((v_write_addr_track[i].track_addr == determine_stage_op.addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -120,7 +116,7 @@ module addr_monitor#(
                     end
                 end
                 stall_req = |addr_collide_flag;
-            end else if (determine_stage_op.h_op == STORE_V) begin
+            end else if (determine_stage_op.h_op == STORE_V_C ||determine_stage_op.h_op == STORE_V_S ) begin
                 // One port of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -162,8 +158,8 @@ module addr_monitor#(
     // Decide which source is providing the address this cycle
     always_comb begin
 
-        if (exe_stage_op.h_op == PREFETCH_V) begin
-            // Note, PREFETCH_M does not need to be monitored as it cannot be directly written.
+        if (exe_stage_op.h_op == PREFETCH_V_C) begin
+            // Note, PREFETCH_M_C does not need to be monitored as it cannot be directly written.
             insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else if (exe_stage_op.update_m_waddr) begin

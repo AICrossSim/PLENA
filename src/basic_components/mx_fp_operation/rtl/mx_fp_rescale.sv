@@ -2,10 +2,12 @@
 
 /*
 Module      : MX-FP Rescale Unit
-Timing      : Sequential, Takes x cycles to compute the dot product
+Timing      : Sequential, Takes 1 cycles to rescale
 Description : e1s1, e2s2, e3s3, e4s4 - > {e1, e2, e3, e4} s
             : Format a block of elements, rescale them to have the same scale.
-Status      : Under Development
+Status      : Passed Simple Tests
+            : Note that the output scale is the maximum scale of the input elements.
+            : The output element is in MX-FP format.
 */
 
 module mx_fp_rescale #(
@@ -46,14 +48,14 @@ module mx_fp_rescale #(
                 .OUT_EXP_WIDTH  (OUT_MXFP_EXP_WIDTH),
                 .OUT_MANT_WIDTH (OUT_MXFP_MANT_WIDTH)
             ) mxfp_round (
-                .data_in    (element_in),
-                .scale_in      (scale_in),
-                .data_out   (p0_rounded_element),
-                .scale_out     (p0_rounded_scale)
+                .data_in        (element_in),
+                .scale_in       (scale_in),
+                .data_out       (p0_rounded_element),
+                .scale_out      (p0_rounded_scale)
             );
         end else begin : no_round
-            assign p0_rounded_element = element_in;
-            assign p0_rounded_scale = scale_in;
+            assign p0_rounded_element   = element_in;
+            assign p0_rounded_scale     = scale_in;
         end
 
     endgenerate
@@ -71,7 +73,7 @@ module mx_fp_rescale #(
     );
 
     always @(posedge clk) begin
-        if (!rst) begin
+        if (rst) begin
             p1_rounded_element <= 'b0;
             p1_rounded_scale <= 'b0;
         end else begin

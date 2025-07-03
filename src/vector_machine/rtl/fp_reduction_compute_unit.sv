@@ -41,7 +41,7 @@ module fp_reduction_compute_unit #(
 
     // Input vector
 
-    input   logic [VEC_DIM - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_in,
+    input   logic [VEC_DIM - 1 : 0] [IN_WIDTH - 1 : 0] v_in,
     input   logic v_in_valid,
     output  logic v_in_ready,
 
@@ -49,7 +49,7 @@ module fp_reduction_compute_unit #(
     input   V_REDUCT_OP operation,
 
     // Output Vector
-    output  logic [MANT_WIDTH + EXP_WIDTH : 0] v_out,
+    output  logic [OUT_WIDTH - 1 : 0] v_out,
     output  logic v_out_valid,
     input   logic v_out_ready
 );
@@ -90,10 +90,10 @@ module fp_reduction_compute_unit #(
         ) register_slice (
             .clk           (clk),
             .rst           (rst),                        
-            .data_in       (sum[i]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
+            .data_in       (sum[i][LEVEL_OUT_DIM * LEVEL_OUT_WIDTH - 1 : 0]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
             .data_in_valid (valid[i]),
             .data_in_ready (ready[i]),
-            .data_out      (data_storage[i+1]),
+            .data_out      (data_storage[i+1][LEVEL_OUT_DIM * LEVEL_OUT_WIDTH - 1 : 0]),
             .data_out_valid(valid[i+1]),
             .data_out_ready(ready[i+1])
         );

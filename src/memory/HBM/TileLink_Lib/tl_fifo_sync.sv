@@ -1,4 +1,6 @@
+`timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
 
 module tl_fifo_sync import tl_pkg::*; #(
   parameter  int unsigned SourceWidth   = 1,

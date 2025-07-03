@@ -14,23 +14,30 @@ Status      :
 module fp_vector_sram #(
     
     // MX-FP Data Format
-    parameter MXFP_EXP_WIDTH    = 4,
-    parameter MXFP_MANT_WIDTH   = 3,
-    parameter MXFP_SCALE_WIDTH  = 8,
+    parameter   HIGH_MXFP_EXP_WIDTH     = 4,
+    parameter   HIGH_MXFP_MANT_WIDTH    = 3,
+    parameter   LOW_MXFP_EXP_WIDTH      = 4,
+    parameter   LOW_MXFP_MANT_WIDTH     = 3,
+    parameter   MXFP_SCALE_WIDTH        = 8,
     // FP Data Format
-    parameter   EXP_WIDTH         = 8,                                  
-    parameter   MANT_WIDTH        = 7,
+    parameter   EXP_WIDTH               = 8,                                  
+    parameter   MANT_WIDTH              = 7,
 
     // Dimension
-    parameter   VLEN              = 8,   
-    parameter   MLEN              = 8, 
-    parameter   BLOCK_DIM         = 4,                                
-    localparam  BLOCK_NUM         = VLEN / BLOCK_DIM,
+    parameter   VLEN                    = 8,   
+    parameter   MLEN                    = 8, 
+    parameter   BLOCK_DIM               = 4,
+    localparam  M_BLOCK_NUM             = MLEN / BLOCK_DIM,                                
+    localparam  V_BLOCK_NUM             = VLEN / BLOCK_DIM,
 
     // SRAM
-    parameter   SRAM_DEPTH          = 128,
-    parameter   ON_CHIP_ADDR_WIDTH  = 32,
-    parameter   PREFETCH_AMOUNT     = 4
+    parameter   SRAM_DEPTH              = 128,
+    parameter   ON_CHIP_ADDR_WIDTH      = 32,
+    parameter   PREFETCH_AMOUNT         = 4
+    // For Debugging
+    `ifdef SIMULATION
+        ,parameter string MEM_RESULT_FILE = ""
+    `endif
 
 )(
     input   logic clk,
@@ -42,28 +49,33 @@ module fp_vector_sram #(
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_a_addr,
     input   logic control, // 0 for Vector Machine, 1 for Matrix Machine
     // FP Data Connection
-    input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_in,
-    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_in,
-    input   logic [VLEN - 1 : 0]                                        port_a_mask_in,
-    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_v_fp_out,
-    output  logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    port_a_m_fp_out,
-    // // MX-FP Connection
-    // output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_a_element_out,
-    // output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_a_scale_out,
+    input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_in,
+    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_m_fp_in,
+    input   logic [VLEN - 1 : 0]                                                    port_a_mask_in,
+    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_out,
+
+    output  logic [MLEN - 1 : 0]            [HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH : 0]    port_a_element_out,
+    output  logic [M_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_a_scale_out,
 
     // Port B
     input   logic port_b_req,
     input   logic port_b_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_b_addr,
     // FP Data Connection
-    output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_b_fp_out,
+    output  logic [VLEN - 1 : 0]         [EXP_WIDTH + MANT_WIDTH : 0]               port_b_fp_out,
     input   logic [VLEN - 1 : 0]                                                    port_b_mask_in,
     // MX-FP Connection
-    input   logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_b_element_in,
-    input   logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_b_scale_in,
+    input   logic [VLEN - 1 : 0]            [HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH : 0]    port_b_element_in,
+    input   logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_in,
 
-    output  logic [VLEN - 1 : 0]        [MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]      port_b_element_out,
-    output  logic [BLOCK_NUM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                  port_b_scale_out,
+    input   logic [1:0] port_b_mxfp_req , // 0 for STALL, 1 for High Precision MXFP Load, 2 for Low Precision MXFP Load
+    output  logic port_b_mxfp_high_out_valid,
+    output  logic [VLEN - 1 : 0]            [HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH : 0]    port_b_high_element_out,
+    output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_high_scale_out,
+    
+    output  logic port_b_mxfp_low_out_valid,
+    output  logic [VLEN - 1 : 0]            [LOW_MXFP_EXP_WIDTH + LOW_MXFP_MANT_WIDTH : 0]      port_b_low_element_out,
+    output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_low_scale_out,
 
     // Status Tracking for Prefetch
     input   logic prefetch_en,
@@ -93,7 +105,7 @@ module fp_vector_sram #(
     logic [INTERNAL_ADDR_LEN - 1 : 0]     translated_port_b_addr, translated_port_a_addr, translated_prefetch_addr;
     logic [SRAM_DEPTH - 1 : 0]            mem_data_tag;
     
-    localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * VLEN / 8;
+    localparam BITWIDTH_PER_ROW =  (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) * VLEN / 8;
     assign translated_port_a_addr = port_a_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_port_b_addr = port_b_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_prefetch_addr = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
@@ -102,8 +114,8 @@ module fp_vector_sram #(
         if (rst) begin
             mem_data_tag <= {{SRAM_DEPTH{1'b1}}};
         end else if (prefetch_en) begin
-            for (int i = translated_prefetch_addr; i < translated_prefetch_addr + PREFETCH_AMOUNT; i++) begin
-                mem_data_tag[i] <= 1'b0;
+            for (int i = 0; i < PREFETCH_AMOUNT; i++) begin
+                mem_data_tag[translated_prefetch_addr + i] <= 1'b0;
             end
         end else if (port_b_write_en) begin
             mem_data_tag[translated_port_b_addr] <= 1'b1;
@@ -119,139 +131,200 @@ module fp_vector_sram #(
 
     always_comb begin
         if (control == 1'b0) begin
-            // Vector Machine Mode
+            // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal = port_a_v_fp_in;
             port_a_v_fp_out = port_a_fp_out_internal;
-        end else begin
-            // Matrix Machine Mode
-            port_a_fp_in_internal = {{REPL_COUNT{1'b0}}, port_a_m_fp_in}; // Use Matrix FP Input
-            port_a_m_fp_out = port_a_fp_out_internal[VLEN - 1:0]; // Ensure the output is within VLEN
-        end
+        end 
     end
 
     // Convert FP Data to MX-FP Data for HBM write
-    // logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
-    // logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
-    // always_ff @(posedge clk or posedge rst) begin
-    //     if (rst) begin
-    //         mxfp_fp_convert_port_a_in_valid     <= '0;
-    //     end else begin
-    //         mxfp_fp_convert_port_a_in_valid     <= port_a_req ? {BLOCK_NUM{1'b1}} : '0;
-    //         mxfp_fp_convert_port_a_out_ready    <= {BLOCK_NUM{1'b1}};
-    //     end
-    // end
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_in_valid;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_ready;
+    logic [V_BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_a_out_valid;
+    logic port_a_mxfp_out_valid;
+    logic mxfp_fp_convert_port_a_ready;
+    
 
-    // for (genvar j = 0; j < BLOCK_NUM; j++) begin
-    //     fp_2_mx_fp_block #(
-    //         .BLOCK_DIM          (BLOCK_DIM),
-    //         .FP_MANT_WIDTH      (MANT_WIDTH),
-    //         .FP_EXP_WIDTH       (EXP_WIDTH),
-    //         .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
-    //         .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
-    //         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
-    //     ) fp_2_mx_port_a_convert_init(
-    //         .clk(clk),
-    //         .rst(rst),
-    //         .data_in(port_a_fp_out_internal),
-    //         .data_in_valid(mxfp_fp_convert_port_a_in_valid),
-    //         .data_in_ready(),
-    //         .element_data_out(port_a_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
-    //         .scale_data_out(port_a_scale_out[j]),
-    //         .mx_fp_data_out_valid(),
-    //         .mx_fp_data_out_ready(mxfp_fp_convert_port_a_out_ready[j])
-    //     );
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            mxfp_fp_convert_port_a_in_valid <= '0;
+            mxfp_fp_convert_port_a_ready <= 1'b0;
+        end else begin
+            mxfp_fp_convert_port_a_in_valid <= (control == 1'b0 && port_a_req) ? {V_BLOCK_NUM{1'b1}} : '0;
+            mxfp_fp_convert_port_a_ready <= 1'b1;
+        end
+    end
 
-    // end
+    for (genvar j = 0; j < M_BLOCK_NUM; j++) begin
+        fp_2_mx_fp_block #(
+            .BLOCK_DIM          (BLOCK_DIM),
+            .FP_MANT_WIDTH      (MANT_WIDTH),
+            .FP_EXP_WIDTH       (EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+        ) fp_2_mx_port_a_convert_init(
+            .clk(clk),
+            .rst(rst),
+            .data_in                (port_a_fp_out_internal[j * BLOCK_DIM +: BLOCK_DIM]),
+            .data_in_valid          (mxfp_fp_convert_port_a_in_valid[j]),
+            .data_in_ready          (),
+            .element_data_out       (port_a_element_out[j * BLOCK_DIM +: BLOCK_DIM]),
+            .scale_data_out         (port_a_scale_out[j]),
+            .mx_fp_data_out_valid   (mxfp_fp_convert_port_a_out_valid[j]),
+            .mx_fp_data_out_ready   (mxfp_fp_convert_port_a_out_ready[j])
+        );
+    end
+
+    join_n #(
+        .NUM_HANDSHAKES(V_BLOCK_NUM)
+    ) mxfp_fp_convert_port_a_join (
+        .data_in_valid(mxfp_fp_convert_port_a_out_valid),
+        .data_in_ready(mxfp_fp_convert_port_a_out_ready),
+        .data_out_valid(port_a_mxfp_out_valid),
+        .data_out_ready(mxfp_fp_convert_port_a_ready)
+    );
 
 
     // -----------------------------
     // Port B Management
     // -----------------------------
-    
+    logic   mxfp_fp_convert_port_b_ready;
     assign port_b_fp_out = port_b_fp_out_internal;
 
     // Convert MX-FP Data to FP Data for HBM Prefetch
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_in;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_out;
     generate;
-        for (genvar i = 0; i < BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
+        for (genvar i = 0; i < V_BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
             mx_fp_2_fp_block #(
                 .BLOCK_DIM          (BLOCK_DIM),
-                .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
-                .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
-            ) mx_fp_2_fp_convert (
+            ) port_b_mx_fp_2_fp_convert (
                 .element_in     (port_b_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (port_b_scale_in[i]),
-                .fp_out         (converted_b_fp_in)
+                .fp_out         (converted_b_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
             );
         end
     endgenerate
 
 
     // Convert FP Data to MX-FP Data for HBM write
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_in_valid;
-    logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_port_b_out_ready;
+    logic [V_BLOCK_NUM - 1 : 0] high_mxfp_fp_convert_port_b_in_valid;
+    logic [V_BLOCK_NUM - 1 : 0] low_mxfp_fp_convert_port_b_in_valid;
+    logic [V_BLOCK_NUM - 1 : 0] high_mxfp_fp_convert_port_b_out_ready;
+    logic [V_BLOCK_NUM - 1 : 0] high_mxfp_fp_convert_port_b_out_valid;
+    logic [V_BLOCK_NUM - 1 : 0] low_mxfp_fp_convert_port_b_out_ready;
+    logic [V_BLOCK_NUM - 1 : 0] low_mxfp_fp_convert_port_b_out_valid;
+
+
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-            mxfp_fp_convert_port_b_in_valid <= '0;
+            high_mxfp_fp_convert_port_b_in_valid <= '0;
+            mxfp_fp_convert_port_b_ready <= 1'b0;
         end else begin
-            mxfp_fp_convert_port_b_in_valid <= port_b_req ? {BLOCK_NUM{1'b1}} : '0;
-            mxfp_fp_convert_port_b_out_ready <= {BLOCK_NUM{1'b1}};
+            high_mxfp_fp_convert_port_b_in_valid <= (port_b_mxfp_req == 2'b01) ? {V_BLOCK_NUM{1'b1}} : '0;
+            low_mxfp_fp_convert_port_b_in_valid <= (port_b_mxfp_req  == 2'b10) ? {V_BLOCK_NUM{1'b1}} : '0;
+            mxfp_fp_convert_port_b_ready <= 1'b1;
         end
     end
 
-    for (genvar j = 0; j < BLOCK_NUM; j++) begin
+    for (genvar j = 0; j < V_BLOCK_NUM; j++) begin
         fp_2_mx_fp_block #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
             .FP_EXP_WIDTH       (EXP_WIDTH),
-            .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
             .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
-        ) fp_2_mx_port_b_convert_init(
+        ) fp_2_mx_high_port_b_convert_init(
             .clk(clk),
             .rst(rst),
-            .data_in(port_b_fp_out_internal),
-            .data_in_valid(mxfp_fp_convert_port_b_in_valid),
-            .data_in_ready(),
-            .element_data_out(port_b_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
-            .scale_data_out(port_b_scale_out[j]),
-            .mx_fp_data_out_valid(),
-            .mx_fp_data_out_ready(mxfp_fp_convert_port_b_out_ready[j])
+            .data_in                (port_b_fp_out_internal[(j+1) * BLOCK_DIM - 1 : j * BLOCK_DIM]),
+            .data_in_valid          (high_mxfp_fp_convert_port_b_in_valid[j]),
+            .data_in_ready          (),
+            .element_data_out       (port_b_high_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
+            .scale_data_out         (port_b_high_scale_out[j]),
+            .mx_fp_data_out_valid   (high_mxfp_fp_convert_port_b_out_valid[j]),
+            .mx_fp_data_out_ready   (high_mxfp_fp_convert_port_b_out_ready[j])
         );
-
     end
 
-// Main Storage in FP format
-prim_generic_ram_2p #(
-    .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
-    .Depth(SRAM_DEPTH),
-    .DataBitsPerMask((EXP_WIDTH + MANT_WIDTH + 1)),
-    .MemInitFile("")
-) element_storage (
-    .clk_a_i(clk),
-    .clk_b_i(clk),
+    for (genvar j = 0; j < V_BLOCK_NUM; j++) begin
+        fp_2_mx_fp_block #(
+            .BLOCK_DIM          (BLOCK_DIM),
+            .FP_MANT_WIDTH      (MANT_WIDTH),
+            .FP_EXP_WIDTH       (EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (LOW_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (LOW_MXFP_EXP_WIDTH),
+            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+        ) fp_2_mx_low_port_b_convert_init(
+            .clk(clk),
+            .rst(rst),
+            .data_in                (port_b_fp_out_internal[(j+1) * BLOCK_DIM - 1 : j * BLOCK_DIM]),
+            .data_in_valid          (low_mxfp_fp_convert_port_b_in_valid[j]),
+            .data_in_ready          (),
+            .element_data_out       (port_b_low_element_out[(j+1) * BLOCK_DIM-1 : j * BLOCK_DIM]),
+            .scale_data_out         (port_b_low_scale_out[j]),
+            .mx_fp_data_out_valid   (low_mxfp_fp_convert_port_b_out_valid[j]),
+            .mx_fp_data_out_ready   (low_mxfp_fp_convert_port_b_out_ready[j])
+        );
+    end
 
-    .a_req_i        (port_a_req),
-    .a_write_i      (port_a_write_en),
-    .a_addr_i       (translated_port_a_addr),
-    .a_wdata_i      (port_a_fp_in_internal),
-    .a_wmask_i      (port_a_mask_in),
-    .a_rdata_o      (port_a_fp_out_internal),
+    join_n #(
+        .NUM_HANDSHAKES(V_BLOCK_NUM)
+    ) high_mxfp_fp_convert_join (
+        .data_in_valid(high_mxfp_fp_convert_port_b_out_valid),
+        .data_in_ready(high_mxfp_fp_convert_port_b_out_ready),
+        .data_out_valid(port_b_mxfp_high_out_valid),
+        .data_out_ready(mxfp_fp_convert_port_b_ready)
+    );
 
-    .b_req_i        (port_b_req),
-    .b_write_i      (port_b_write_en),
-    .b_addr_i       (translated_port_b_addr),
-    .b_wdata_i      (converted_b_fp_in),
-    .b_wmask_i      (port_b_mask_in),
-    .b_rdata_o      (port_b_fp_out_internal),
-    // Unused
-    .cfg_i('0),
-    .cfg_rsp_o()
-);
+    join_n #(
+        .NUM_HANDSHAKES(V_BLOCK_NUM)
+    ) low_mxfp_fp_convert_low_join (
+        .data_in_valid(low_mxfp_fp_convert_port_b_out_valid),
+        .data_in_ready(low_mxfp_fp_convert_port_b_out_ready),
+        .data_out_valid(port_b_mxfp_low_out_valid),
+        .data_out_ready(mxfp_fp_convert_port_b_ready)
+    );
 
+// -----------------------------
+// Storage 
+// -----------------------------
+
+    prim_generic_ram_2p #(
+        .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
+        .Depth(SRAM_DEPTH),
+        .DataBitsPerMask((EXP_WIDTH + MANT_WIDTH + 1))
+        `ifdef SIMULATION
+        ,
+        .ResultFile(MEM_RESULT_FILE)
+        `endif
+    ) element_storage (
+        .clk_i(clk),
+
+        .a_req_i        (port_a_req),
+        .a_write_i      (port_a_write_en),
+        .a_addr_i       (translated_port_a_addr),
+        .a_wdata_i      (port_a_fp_in_internal),
+        .a_wmask_i      (port_a_mask_in),
+        .a_rdata_o      (port_a_fp_out_internal),
+
+        .b_req_i        (port_b_req || port_b_mxfp_req),
+        .b_write_i      (port_b_write_en),
+        .b_addr_i       (translated_port_b_addr),
+        .b_wdata_i      (converted_b_fp_in),
+        .b_wmask_i      (port_b_mask_in),
+        .b_rdata_o      (port_b_fp_out_internal),
+        // Unused
+        .cfg_i('0),
+        .cfg_rsp_o()
+    );
 
 
 endmodule

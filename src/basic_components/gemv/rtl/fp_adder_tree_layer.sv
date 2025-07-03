@@ -17,8 +17,8 @@ module fp_adder_tree_layer #(
     parameter IN_EXP_WIDTH  = 3, 
     
     // Max possible shift bits needed
-    parameter EXT_MANT_WIDTH = 1,
-    parameter EXT_EXP_WIDTH = 1,   
+    parameter EXT_MANT_WIDTH = 0,
+    parameter EXT_EXP_WIDTH = 0,   
 
     localparam OUT_DIM  = (LAYER_DIM + 1) / 2,
     localparam INPUT_DATA_WIDTH = IN_MAN_WIDTH + IN_EXP_WIDTH + 1,
@@ -40,7 +40,7 @@ module fp_adder_tree_layer #(
 
     generate;
         for (genvar i = 0; i < LAYER_DIM / 2; i++) begin : pair
-            fp_cp_adder #(
+            fp_cp_adder_v2 #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
                 .MANT_WIDTH(IN_MAN_WIDTH),
                 .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
@@ -64,7 +64,7 @@ module fp_adder_tree_layer #(
         end
         else begin
             last_element_sign = 1'b0;
-            updated_exp = {EXT_EXP_WIDTH{1'b0}};
+            updated_exp = 0;
             updated_man = 0;
         end
         

@@ -13,8 +13,8 @@ Status      : Under Testing
 */
 
 module scalar_machine import precision_pkg::*;  #(
-    // Simulation Purpose
     `ifdef SIMULATION
+        // Simulation Purpose
         parameter string FP_MEM_INIT_FILE = "",
         parameter string FIXED_MEM_INIT_FILE = ""
     `endif
@@ -53,6 +53,8 @@ module scalar_machine import precision_pkg::*;  #(
 
     import pipeline_pkg::*;
     import configuration_pkg::*;
+    localparam FP_SRAM_ADDR_WIDTH = $clog2(FP_SRAM_DEPTH);
+    localparam FIXED_SRAM_ADDR_WIDTH = $clog2(FIXED_SRAM_DEPTH);
 
     //----------------------------//
     // FP Unit
@@ -62,13 +64,19 @@ module scalar_machine import precision_pkg::*;  #(
         logic [FP_OPERAND_WIDTH-1:0] target_fp;
         S_FP_OP                      fp_op;
     } fp_track [SCALAR_FP_MAX_CYCLES];
-
-
     S_FP_OP fp_control, exe_fp_control;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd;
+    logic fp_reg_we;
+    logic general_fp_operation;
+    logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic sfu_out_valid, sfu_out_ready;
+    logic write_data_from_external_fp;
+    logic general_fp_alu_en;
+    logic [FP_SRAM_ADDR_WIDTH - 1 : 0] fp_sram_addr;
+
     assign  fp_control = exe_stage_op.s_fp_op;
-
-    logic   general_fp_operation;
-
 
     // ------------------- Tracing Register for Stall Detection -------------------
     localparam int TRACE_SIZE = 2 << FP_OPERAND_WIDTH; // Number of FP registers
@@ -126,12 +134,7 @@ module scalar_machine import precision_pkg::*;  #(
     /*
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
-    logic fp_reg_we;
-    logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
-    logic sfu_out_valid, sfu_out_ready;
-    logic write_data_from_external_fp;
-    logic general_fp_alu_en;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fp_sram_addr;
+
 
     assign  general_fp_alu_en = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
 
@@ -171,11 +174,6 @@ module scalar_machine import precision_pkg::*;  #(
     // Decide external_fp_in_ready. If the external_fp is ready to write (external_fp_in_valid == 1'b1 ) but fp_sram is busy, then the external_fp_in_ready should be 0.
     assign external_fp_in_ready = (external_fp_in_valid & write_data_from_external_fp);
 
-    // FP Register Control
-    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1;
-    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
-    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd;
-
     assign fp_rs1 = exe_stage_op.fps1;
     assign fp_rs2 = exe_stage_op.fps2;
     assign fp_rd  = exe_stage_op.fpd;
@@ -207,7 +205,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     regfile_2p1w #(
         .BITWIDTH(S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1),
-        .DEPTH(2 << FP_OPERAND_WIDTH)
+        .DEPTH(1 << FP_OPERAND_WIDTH)
     ) fp_reg_file (
         .clk        (clk),
         .we         (fp_reg_we),
@@ -239,7 +237,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     // SRAM for FP
     scalar_sram #(
-        .DATA_WIDTH(S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1),
+        .DATA_WIDTH(FP_SRAM_WIDTH),
         .DEPTH(FP_SRAM_DEPTH)
         `ifdef SIMULATION
             ,
@@ -353,7 +351,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     regfile_2p1w #(
         .BITWIDTH(FIXED_DATA_WIDTH),
-        .DEPTH(2 << FIXED_OPERAND_WIDTH)
+        .DEPTH(1 << FIXED_OPERAND_WIDTH)
     ) fixed_reg_file (
         .clk        (clk),
         .we         (fixed_reg_wen),
@@ -366,7 +364,7 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     scalar_sram #(
-        .DATA_WIDTH(FIXED_DATA_WIDTH),
+        .DATA_WIDTH(FIXED_SRAM_WIDTH),
         .DEPTH(FIXED_SRAM_DEPTH)
         `ifdef SIMULATION
             ,
@@ -377,7 +375,7 @@ module scalar_machine import precision_pkg::*;  #(
         .rst(rst),
         .req            ((write_fixed_op == LD_FIX) || (write_fixed_op == ST_FIX)),
         .write_en       ((write_fixed_op == ST_FIX)),
-        .sram_addr      (fixed_alu_out),
+        .sram_addr      (fixed_alu_out[FIXED_SRAM_ADDR_WIDTH - 1 : 0]),
         .sram_data_in   (fixed_alu_operand_b),
         .sram_data_out  (fixed_ld_from_sram)
     );

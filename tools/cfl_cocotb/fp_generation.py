@@ -176,7 +176,7 @@ class FpGenerator:
     
 
     def full_precision_fp_float_convertion(self, output_exp_width, output_man_width, bits):
-        total_width = 1 + output_exp_width + output_man_width
+        # total_width = 1 + output_exp_width + output_man_width
         sign = (bits >> (output_exp_width + output_man_width)) & 0x1
         exponent_bits = (bits >> output_man_width) & ((1 << output_exp_width) - 1)
         mantissa_bits = bits & ((1 << output_man_width) - 1)
@@ -191,7 +191,6 @@ class FpGenerator:
     
 
     def translate_packed_array_fp(self, vec_dim, output_exp_width, output_man_width, input_data):
-        print(f"Input data: {input_data}")
         extracted_vect_ele = extract_bitfields(input_data, output_exp_width + output_man_width + 1, vec_dim)
         converted_fp = []
         for i in range(vec_dim):
@@ -213,11 +212,20 @@ class FpGenerator:
 
 if __name__ == "__main__":
     import math
-    exp_width = 4
-    mant_width = 3
+    exp_width = 1
+    mant_width = 2
+    # exp_width = 7
+    # mant_width = 8
+    # exp_width = 4
+    # mant_width = 3
+    # exp_width = 8
+    # mant_width = 23
     # TEMP
     # intermediate_man_width = mant_width + (1<<exp_width) * math.ceil(math.log2(vect_dim/2))
     generator = FpGenerator(exp_width, mant_width)
-    _, vals = generator.generate_fp_input(10)
-    for val in vals:
-        print(hex(val))
+    # _, vals = generator.generate_fp_input(10)
+    # for val in vals:
+    #     print(hex(val))
+    input_val = input("Enter a float value in hex to convert: ")
+    input_val = int(input_val, 16)
+    print(generator.full_precision_fp_float_convertion(exp_width, mant_width, input_val))

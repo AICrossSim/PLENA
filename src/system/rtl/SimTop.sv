@@ -13,7 +13,12 @@ module SimTop#(
     parameter string    FAKE_HBM_ELEMENT_INIT_FILE    = "",
     parameter string    FAKE_HBM_SCALE_INIT_FILE      = "",
     parameter string    FP_MEM_INIT_FILE              = "",
-    parameter string    FIXED_MEM_INIT_FILE           = ""
+    parameter string    FIXED_MEM_INIT_FILE           = "",
+    parameter string    VECTOR_MEM_RESULT_FILE        = "",
+    parameter string    FAKE_HBM_ELEMENT_WRITE_M_FILE = "",
+    parameter string    FAKE_HBM_ELEMENT_WRITE_V_FILE = "",
+    parameter string    FAKE_HBM_SCALE_WRITE_M_FILE   = "",
+    parameter string    FAKE_HBM_SCALE_WRITE_V_FILE   = ""
 ) (
     input logic clk,
     input logic rst,
@@ -34,17 +39,18 @@ import configuration_pkg::*;
 // Processor
 coprocessor #(
     .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-    .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+    .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE),
+    .V_SRAM_RESULT_FILE(VECTOR_MEM_RESULT_FILE)
 ) dut (
     .clk(clk),
     .rst(rst),
-    .instruction(instruction),
-    .instruction_valid(instruction_valid),
-    .instruction_ready(instruction_ready),
-    `TL_CONNECT_HOST_PORT(m_out_element,  m_element_link),
-    `TL_CONNECT_HOST_PORT(m_out_scale,    m_scale_link),
-    `TL_CONNECT_HOST_PORT(v_out_element,  v_element_link),
-    `TL_CONNECT_HOST_PORT(v_out_scale,    v_scale_link)
+    .instruction            (instruction),
+    .instruction_valid      (instruction_valid),
+    .instruction_ready      (instruction_ready),
+    `TL_CONNECT_HOST_PORT   (m_out_element,  m_element_link),
+    `TL_CONNECT_HOST_PORT   (m_out_scale,    m_scale_link),
+    `TL_CONNECT_HOST_PORT   (v_out_element,  v_element_link),
+    `TL_CONNECT_HOST_PORT   (v_out_scale,    v_scale_link)
 );
 
 fake_hbm #(
@@ -53,7 +59,8 @@ fake_hbm #(
     .BRAM_ADDR_WIDTH    (FAKE_HBM_ADDR_WIDTH),
     .SourceWidth        (SourceWidth),
     .SinkWidth          (SinkWidth),
-    .MemInitFile        (FAKE_HBM_ELEMENT_INIT_FILE)
+    .MemInitFile        (FAKE_HBM_ELEMENT_INIT_FILE),
+    .ResultFile         (FAKE_HBM_ELEMENT_WRITE_M_FILE)
 ) fake_hbm_m_element (
     .clk(clk),
     .rst(rst),
@@ -67,7 +74,8 @@ fake_hbm #(
     .BRAM_ADDR_WIDTH    (FAKE_HBM_ADDR_WIDTH),
     .SourceWidth        (SourceWidth),
     .SinkWidth          (SinkWidth),
-    .MemInitFile        (FAKE_HBM_SCALE_INIT_FILE)
+    .MemInitFile        (FAKE_HBM_SCALE_INIT_FILE),
+    .ResultFile         (FAKE_HBM_SCALE_WRITE_M_FILE)
 ) fake_hbm_m_scale (
     .clk(clk),
     .rst(rst),
@@ -80,7 +88,8 @@ fake_hbm #(
     .BRAM_ADDR_WIDTH    (FAKE_HBM_ADDR_WIDTH),
     .SourceWidth        (SourceWidth),
     .SinkWidth          (SinkWidth),
-    .MemInitFile        (FAKE_HBM_ELEMENT_INIT_FILE)
+    .MemInitFile        (FAKE_HBM_ELEMENT_INIT_FILE),
+    .ResultFile         (FAKE_HBM_ELEMENT_WRITE_V_FILE)
 ) fake_hbm_v_element (
     .clk(clk),
     .rst(rst),
@@ -93,7 +102,8 @@ fake_hbm #(
     .BRAM_ADDR_WIDTH    (FAKE_HBM_ADDR_WIDTH),
     .SourceWidth        (SourceWidth),
     .SinkWidth          (SinkWidth),
-    .MemInitFile        (FAKE_HBM_SCALE_INIT_FILE)
+    .MemInitFile        (FAKE_HBM_SCALE_INIT_FILE),
+    .ResultFile         (FAKE_HBM_SCALE_WRITE_V_FILE)
 ) fake_hbm_v_scale (
     .clk(clk),
     .rst(rst),

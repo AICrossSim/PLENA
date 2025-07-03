@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
+`include "tl_pkg.svh"
 
 // An adpater that expands SinkWidth.
 module tl_sink_upsizer import tl_pkg::*; #(

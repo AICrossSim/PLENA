@@ -87,21 +87,21 @@ always_comb begin
 end
 
 
-    fp_cp_reciprocal #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
-    ) fp_reciprocal (
-        .data_in(data_in),
-        .data_out(fp_reciprocal_out)
-    );
+    // fp_cp_reciprocal #(
+    //     .EXP_WIDTH(EXP_WIDTH),
+    //     .MANT_WIDTH(MANT_WIDTH)
+    // ) fp_reciprocal (
+    //     .data_in(data_in),
+    //     .data_out(fp_reciprocal_out)
+    // );
 
-    fp_cp_sqrt #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
-    ) fp_sqrt (
-        .data_in(data_in),
-        .data_out(fp_sqrt_out)
-    );
+    // fp_cp_sqrt #(
+    //     .EXP_WIDTH(EXP_WIDTH),
+    //     .MANT_WIDTH(MANT_WIDTH)
+    // ) fp_sqrt (
+    //     .data_in(data_in),
+    //     .data_out(fp_sqrt_out)
+    // );
 
     skid_buffer #(
         .DATA_WIDTH(EXP_WIDTH + MANT_WIDTH + 1)

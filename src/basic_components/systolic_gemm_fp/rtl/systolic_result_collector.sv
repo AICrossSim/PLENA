@@ -13,7 +13,7 @@ module systolic_result_collector #(
     parameter ACC_FP_MANT_WIDTH     = 7,
     // Dimension
     parameter SYS_ARRAY_AMOUNT      = 2,
-    parameter COMPUTE_DIM           = 8 // This is the number of systolic arrays in the column
+    parameter COMPUTE_DIM           = 8
 )(
     input   logic clk,
     input   logic rst,
@@ -52,6 +52,9 @@ module systolic_result_collector #(
         .data_out_valid (gemv_valid),
         .data_out_ready (gemv_ready)
     );
+    
+    logic fifo_in_valid;
+    logic fifo_in_ready;
 
     assign gemm_ready = fifo_in_ready;
     assign gemv_ready = fifo_in_ready;
@@ -60,8 +63,7 @@ module systolic_result_collector #(
     logic [$clog2(COMPUTE_DIM) : 0] gemm_store_count;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] stored_gemm_result;
     logic load_gemm_result;
-    logic fifo_in_valid;
-    logic fifo_in_ready;
+
 
     always_ff @(posedge clk) begin
         if (rst) begin

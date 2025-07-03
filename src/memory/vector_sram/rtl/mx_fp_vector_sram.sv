@@ -57,8 +57,7 @@ prim_generic_ram_2p #(
     .DataBitsPerMask((MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * BLOCK_DIM),   // Write mask is able to control the single element
     .MemInitFile("")
 ) element_storage (
-    .clk_a_i(clk),
-    .clk_b_i(clk),
+    .clk_i(clk),
 
     .a_req_i(req_a),
     .a_write_i(write_en_a),
@@ -86,8 +85,7 @@ prim_generic_ram_2p #(
     .DataBitsPerMask(MXFP_SCALE_WIDTH),
     .MemInitFile("")
 ) scale_storage (
-    .clk_a_i(clk),
-    .clk_b_i(clk),
+    .clk_i(clk),
 
     .a_req_i(req_a),
     .a_write_i(write_en_a),

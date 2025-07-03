@@ -9,7 +9,7 @@ setup(
         'black', 'toml', 'GitPython', 'colorlog', 'cocotb[bus]==1.9.2',
         'pytest', 'pytorch-lightning', 'transformers', 
         'timm', 'pytorch-nlp', 'datasets', 'ipython', 'ipdb',
-        'sentencepiece', 'einops', 'deepspeed', 'pybind11',
+        'einops', 'pybind11',
         'tabulate', 'tensorboardx', 'hyperopt', 'accelerate',
         'optuna', 'stable-baselines3[extra]', 'h5py', 'scikit-learn',
         'scipy', 'onnxruntime', 'matplotlib', 'sphinx-rtd-theme',
@@ -18,6 +18,6 @@ setup(
         'pytest-cov', 'pytest-xdist', 'pytest-sugar', 'pytest-html',
         'lightning', 'wandb', 'bitarray', 'bitstring', 'emoji',
         'numpy<2.0', 'tensorboard',
-        'absl-py', 'sphinx-glpi-theme', 'prettytable'
+        'absl-py', 'sphinx-glpi-theme', 'prettytable',
     ]
 )
