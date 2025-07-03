@@ -2,79 +2,79 @@
 /*
 Module      : fp_ieee_normalize
 Timing      : Combinatorial Logic
-Description : Give a sign bit,
-            : 1.MANT_WIDTH of unsigned mantissa 
-            : already been biased exponent.
-            : return a normalized fp number.
-Status      : Under Development
+Description : Give a sign bit, exponent, and mantissa, return a normalized fp number.
+              Note: this normalization only count for the case that exponent don't need to over or underflow
+              and the mantissa don't need underflow.
+              If want to support the casting, there is a casting module which can be connected after.
+
+Input       : 
+    signed_mant : the mantissa of the fp number
+    signed_exp  : the exponent of the fp number
+
+Output      : 
+    fp_out : the normalized fp number
+
 */
 
 module fp_ieee_normalize #(
-    parameter   EXP_WIDTH = 5,
-    parameter   MANT_WIDTH = 10,
-    parameter   IN_MANT_WIDTH = MANT_WIDTH + 2  // For sign bit and implicit 1
+    parameter  IN_FIXED_WIDTH = 8,  // For sign bit and implicit 1
+    parameter IN_FIXED_FRAC_WIDTH = 5,
+    parameter IN_EXP_WIDTH = 5,
+    parameter   OUT_MANT_WIDTH = 5,
+    localparam   OUT_EXP_WIDTH = IN_EXP_WIDTH + 1
 )(
-    input  logic signed [IN_MANT_WIDTH-1:0] signed_mant,
-    input  logic signed [EXP_WIDTH-1:0] signed_exp,
-    output logic [EXP_WIDTH + MANT_WIDTH:0] fp_out
+    input  logic signed [IN_FIXED_WIDTH-1:0] signed_mant,
+    input  logic signed [IN_EXP_WIDTH-1:0] signed_exp,
+    output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH:0] fp_out
 );
-// TODO: test it
+    initial begin
+        assert (OUT_MANT_WIDTH >= IN_FIXED_WIDTH - 1)
+        else $error("OUT_MANT_WIDTH should be greater than IN_FIXED_WIDTH - 1");
 
-    localparam BIAS = (1 << (EXP_WIDTH - 1)) - 1;
+        assert (OUT_EXP_WIDTH >= $clog2(OUT_MANT_WIDTH))
+        else $error("OUT_EXP_WIDTH should be greater than $clog2(OUT_MANT_WIDTH)");
+    end
+
+    localparam signed BIAS = (1 << (OUT_EXP_WIDTH - 1));
     
     logic sign_bit;
-    logic [EXP_WIDTH-1:0] exp_bits;
-    logic [MANT_WIDTH-1:0] mant_bits;
-    logic [IN_MANT_WIDTH-1:0] abs_mant;
+
+    logic [IN_FIXED_WIDTH-1:0] abs_mant;
+    logic [$clog2(IN_FIXED_WIDTH)-1:0] leading_zeros;
+    logic [IN_FIXED_WIDTH-1:0] unnormed_mantissa;
+    logic [OUT_MANT_WIDTH:0] normed_mantissa;
     
-    // Extract sign bit
-    assign sign_bit = (signed_mant < 0);
+
+    logic signed [$clog2(IN_FIXED_WIDTH)-1:0] shift_amount;
+    logic signed [IN_EXP_WIDTH:0] adjusted_exp; 
     
-    // Get absolute value of mantissa
-    assign abs_mant = sign_bit ? -signed_mant : signed_mant;
-    
-    // Normalize the mantissa and adjust exponent
-    logic [$clog2(IN_MANT_WIDTH)-1:0] leading_zeros;
-    logic [$clog2(IN_MANT_WIDTH)-1:0] shift_amount;
-    logic [IN_MANT_WIDTH-1:0] normalized_mant;
-    logic signed [EXP_WIDTH:0] adjusted_exp; // Extra bit for overflow
-    
-    // Count leading zeros
+    logic [OUT_EXP_WIDTH-1:0] exp_bits;
+    logic [OUT_MANT_WIDTH-1:0] mant_bits;
+
+    clz_int #(
+        .width_i(IN_FIXED_WIDTH)
+    ) clz_inst (
+        .i_num(abs_mant),
+        .o_lz(leading_zeros)
+    );
+
     always_comb begin
-        leading_zeros = 0;
-        for (int i = IN_MANT_WIDTH-1; i >= 0; i--) begin
-            if (abs_mant[i]) break;
-            leading_zeros = leading_zeros + 1;
-        end
-    end
-    
-    // Determine shift amount for normalization
-    assign shift_amount = (abs_mant == 0) ? 0 : leading_zeros;
-    
-    // Normalize mantissa
-    assign normalized_mant = (abs_mant << shift_amount);
-    
-    // Adjust exponent
-    assign adjusted_exp = signed_exp - shift_amount;
-    
-    // Extract mantissa bits (remove implicit 1)
-    assign mant_bits = normalized_mant[IN_MANT_WIDTH-2:IN_MANT_WIDTH-MANT_WIDTH-1];
-    
-    // Handle special cases and prepare final exponent
-    always_comb begin
-        if (abs_mant == 0) begin
-            // Zero
-            exp_bits = 0;
-        end else if (adjusted_exp < -BIAS) begin
-            // Underflow to zero
-            exp_bits = 0;
-        end else if (adjusted_exp >= ((1 << EXP_WIDTH) - 1) - BIAS) begin
-            // Overflow to infinity
-            exp_bits = {EXP_WIDTH{1'b1}};
-        end else begin
-            // Normal case: add bias
-            exp_bits = adjusted_exp + BIAS;
-        end
+        // get the sign bit
+        sign_bit = signed_mant[IN_FIXED_WIDTH-1];
+
+        // get the mantisssa
+        abs_mant = sign_bit ? -signed_mant : signed_mant;
+        unnormed_mantissa = abs_mant << (leading_zeros - 1);
+        normed_mantissa = {
+            unnormed_mantissa[IN_FIXED_WIDTH - 3: 0], 
+            {(OUT_MANT_WIDTH - 1 - (IN_FIXED_WIDTH -2)){1'b0}}
+        };
+        mant_bits = normed_mantissa[IN_MANT_WIDTH-2:IN_MANT_WIDTH-MANT_WIDTH-1]; 
+
+        // get the sign bit
+        shift_amount = leading_zeros - 1 - (IN_FIXED_WIDTH - IN_FIXED_FRAC_WIDTH + 2); 
+        adjusted_exp = signed_exp - shift_amount;
+        exp_bits = (adjusted_exp + BIAS)[OUT_EXP_WIDTH-1:0];
     end
     
     // Assemble final IEEE 754 format

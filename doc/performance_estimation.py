@@ -241,24 +241,27 @@ class model_config:
 
 if __name__ == "__main__":
     model = model_config("Model_Lib/llama-3.1-8b.json")
-    # plot a graph, 
-    batch_size_selection = [1, 2, 4, 8]
-    hbm_bandwidth_selection = [64, 128, 256]
-    flops = np.zeros((len(batch_size_selection), len(hbm_bandwidth_selection)))
-    for j in range(len(hbm_bandwidth_selection)):
-        for i in range(len(batch_size_selection)):      
-            max_TileSize = model.determine_max_TileSize(batch_size_selection[i], hbm_bandwidth_selection[j])
-            flops[i][j] = model.compute_theoratical_performance(max_TileSize)
+    # # plot a graph, 
+    # batch_size_selection = [1, 2, 4, 8]
+    # hbm_bandwidth_selection = [64, 128, 256]
+    # flops = np.zeros((len(batch_size_selection), len(hbm_bandwidth_selection)))
+    # for j in range(len(hbm_bandwidth_selection)):
+    #     for i in range(len(batch_size_selection)):      
+    #         max_TileSize = model.determine_max_TileSize(batch_size_selection[i], hbm_bandwidth_selection[j])
+    #         flops[i][j] = model.compute_theoratical_performance(max_TileSize)
 
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    X, Y = np.meshgrid(hbm_bandwidth_selection, batch_size_selection)
-    ax.plot_surface(X, Y, flops, cmap='viridis')
-    ax.set_xlabel('HBM Bandwidth (GB/s)')
-    ax.set_ylabel('Batch Size')
-    ax.set_zlabel('Theoratical Performance (GFLOP/s)')
-    plt.show()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # X, Y = np.meshgrid(hbm_bandwidth_selection, batch_size_selection)
+    # ax.plot_surface(X, Y, flops, cmap='viridis')
+    # ax.set_xlabel('HBM Bandwidth (GB/s)')
+    # ax.set_ylabel('Batch Size')
+    # ax.set_zlabel('Theoratical Performance (GFLOP/s)')
+    # plt.show()
+    MLEN = 64
+    overall_inst_num, theoratical_execution_time = model.compute_overall_inst(MLEN)
+    print("Overall Instruction Number: ", overall_inst_num)
 
 
 

@@ -13,6 +13,20 @@ build/
 
 *.gtkw
 
+*.str
+*.jou
+
+
+Coprocessor_Vivado_Prj/
+
+.Xil
+
+*.log
+
+*.rpt
+
+.nfs*
+
 notebooks/
 logs*/
 kube/

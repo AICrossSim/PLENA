@@ -16,6 +16,12 @@ shell:
         -v /$(USER_PREFIX)/$(shell whoami)/.ssh:/root/.ssh \
         -v /$(USER_PREFIX)/$(shell whoami)/.mase:/root/.mase \
         -v $(shell pwd):/workspace:z \
+<<<<<<< cx/result_match
+        coprocessor-llama /bin/bash -c "source .coprocessor_env/bin/activate && /bin/bash"
+=======
         coprocessor-llama /bin/bash
 
-#    	&& source .coprocessor_env/bin/activate
+
+clean:
+	@rm -rf *.log *.jou *.str
+>>>>>>> main

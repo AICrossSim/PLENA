@@ -5,62 +5,53 @@
 Module      : Scalar FP ALU
 Timing      : Combinatorial Logic
 Description : This module is used for all the FP operations
-            : 1. FP Add, 2. FP Subtract, 3. FP Multiply, 4. FP Isqrt 5. FP Log 6. FP Exp
-Status      : Under Development
+            : 1. FP Add, 2. FP Subtract, 3. FP Multiply, 
 */
 
 module fp_alu #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10
 )(
+    input  logic clk,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
     input  S_FP_OP operation,       // 0: add, 1: sub, 2: mul, 3: isqrt
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 
-logic [EXP_WIDTH + MANT_WIDTH : 0] fp_add_out, fp_sub_out, fp_mul_out, fp_isqrt_out, fp_log_out, fp_exp_out;
+logic [EXP_WIDTH + MANT_WIDTH : 0] fp_add_out, fp_sub_out, fp_mul_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
 logic negated_en;
 
 always_comb begin
     negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
+    negated_en = (operation == SUB_FP); // Negate data_b only for subtraction
+end
+
+always_ff @(posedge clk) begin
+
     case (operation)
         ADD_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_add_out;
+            data_out    <= fp_add_out;
         end
 
         SUB_FP: begin
-            negated_en = 1'b1;
-            data_out = fp_sub_out;
+            data_out    <= fp_sub_out;
         end
 
         MUL_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_mul_out;
+            data_out    <= fp_mul_out;
         end
 
-        RECI_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_reciprocal_out;
-        end
-
-        SQRT_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_sqrt_out;
-        end
-
-        EXP_FP: begin
-            negated_en = 1'b0;
-            data_out = fp_exp_out;
+        MV_FP: begin
+            data_out    <= data_a;
         end
 
         default: begin
-            negated_en = 1'b0;
-            data_out = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
+            data_out    <= {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
         end
     endcase
+
 end
 
 
@@ -82,22 +73,6 @@ fp_cp_adder #(
     .data_a(data_a),
     .data_b(data_b),
     .data_out(fp_add_out)
-);
-
-fp_cp_reciprocal #(
-    .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH)
-) fp_reciprocal (
-    .data_in(data_a),
-    .data_out(fp_reciprocal_out)
-);
-
-fp_cp_sqrt #(
-    .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH)
-) fp_sqrt (
-    .data_in(data_a),
-    .data_out(fp_sqrt_out)
 );
 
 

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
-`include "tl_pkg.sv"
+`include "tl_pkg.svh"
 
 /*
 Module      : Peripheral System (Testng Purpose)
@@ -13,6 +13,7 @@ module peripheral_system #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 64,
     parameter BRAM_ADDR_WIDTH           = 32,
+    parameter LOAD_AMOUNT = 1,
     parameter int unsigned SourceWidth  = 1,
     parameter int unsigned SinkWidth    = 1,
     parameter string INIT_FILE  = "/home/george/Coprocessor_for_Llama/src/memory/HBM/test/simple_benchmark.txt"
@@ -33,14 +34,15 @@ tl_master #(
     .DataWidth(DATA_WIDTH),
     .AddrWidth(ADDR_WIDTH),
     .SourceWidth(SourceWidth),
-    .SinkWidth(SinkWidth)
+    .SinkWidth(SinkWidth),
+    .LOAD_AMOUNT(LOAD_AMOUNT)
 ) tl_master_init (
     .clk(clk),
     .rst(rst),
 
     // Control signals
     .req_en(fetch_en),
-    .fetch_addr(fetch_addr),
+    .addr(fetch_addr),
     .fetch_data(fetch_data),
 
     .write_en(write_en),

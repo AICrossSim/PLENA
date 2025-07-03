@@ -3,7 +3,8 @@
 /*
 Module      : Convertion a block unit of mx-fp data to fp data
 Timing      : Combinatorial Logic
-Status      : Passed Simple Tests
+Status      : Passed Simple Tests, 
+TODO:       : Need to consider the case MXFP_SCALE < FP_EXP_WIDTH
 */
 
 
@@ -39,7 +40,6 @@ module mx_fp_2_fp_block #(
     logic [BLOCK_DIM-1:0][FP_EXP_WIDTH -1:0]    fp_exp;    
 
     logic [MXFP_SCALE_WIDTH -1:0]                   fp_exp_base;
-
 
     logic [BLOCK_DIM-1:0]exp_overflow;
     logic [BLOCK_DIM-1:0][MXFP_MANT_WIDTH-1:0]  mant_out;

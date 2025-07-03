@@ -12,7 +12,7 @@ Status      : Under Development
 module fp_ieee_partition #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10,
-    parameter   OUT_MANT_WIDTH = MANT_WIDTH + 2
+    localparam   OUT_MANT_WIDTH = MANT_WIDTH + 2
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
     output logic signed [EXP_WIDTH - 1:0] signed_exp,
@@ -24,7 +24,7 @@ module fp_ieee_partition #(
     logic sign_bit;
     logic [EXP_WIDTH - 1:0] exp_bit;
     logic [MANT_WIDTH - 1:0] mant_bit;
-    logic [OUT_MANT_WIDTH - 2:0] unsigned_mant;
+    logic [OUT_MANT_WIDTH - 1:0] unsigned_mant;
 
     assign sign_bit = data_in[EXP_WIDTH + MANT_WIDTH];
     assign exp_bit = data_in[EXP_WIDTH + MANT_WIDTH - 1:MANT_WIDTH];
@@ -38,8 +38,8 @@ module fp_ieee_partition #(
     assign signed_exp = signed'(exp_bit) - BIAS;
     
     assign unsigned_mant = (exp_bit == 0) ? 
-                               {1'b0, mant_bit} : 
-                               {1'b1, mant_bit};
+                               {2'b00, mant_bit} : 
+                               {2'b01, mant_bit};
 
     assign signed_mant = (sign_bit == 1) ? -signed'(unsigned_mant) : signed'(unsigned_mant);
 

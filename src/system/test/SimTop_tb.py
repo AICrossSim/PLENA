@@ -33,12 +33,12 @@ logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
-testcase_name = "fixed"
-instr_file = f"{current_path}/benchmarks/{testcase_name}.mem"
-hbm_element_file = f"{current_path}/workload/hbm_ele.mem"
-hbm_scale_file = f"{current_path}/workload/hbm_scale.mem"
-fp_mem_file = f"{current_path}/workload/fp.mem"
-fixed_mem_file = f"{current_path}/workload/fixed.mem"
+testcase_name       = "projection"
+instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
+hbm_element_file    = f"{current_path}/workload/hbm_ele.mem"
+hbm_scale_file      = f"{current_path}/workload/hbm_scale.mem"
+fp_mem_file         = f"{current_path}/workload/fp.mem"
+fixed_mem_file      = f"{current_path}/workload/fixed.mem"
 INSTRUCTION_LENGTH = 16
 
 
@@ -102,13 +102,14 @@ def SimToP_test():
             "../../../src/basic_components/conversion",
             "../../../src/basic_components/buffer",
             "../../../src/basic_components/fixed_operation",
+            "../../../src/basic_components/systolic_gemm_fp",
             "../../../src/frontend",
             "../../../src/control",
             "../../../src/matrix_machine",
             "../../../src/vector_machine",
             "../../../src/scalar_machine",
             "../../../src/memory/matrix_sram",
-            "../../../src/memory/scratch_sram",
+            "../../../src/memory/vector_sram",
             "../../../src/memory/scalar_sram",
             "../../../src/memory/HBM",
             "../../../src/core"

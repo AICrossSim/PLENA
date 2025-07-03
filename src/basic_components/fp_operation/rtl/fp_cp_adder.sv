@@ -23,101 +23,71 @@ module fp_cp_adder #(
     output logic [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH : 0] data_out
 );
 
-    localparam int BIAS = (1 << (EXP_WIDTH - 1)) - 1;
-    localparam int NEW_BIAS = (1 << ((EXP_WIDTH + EXT_EXP_WIDTH) - 1)) - 1;
-    localparam int UPDATED_BIAS = NEW_BIAS - BIAS;
+    localparam int IN_EXP_WIDTH = EXP_WIDTH;
+    localparam int IN_FIXED_WIDTH = MANT_WIDTH + 2;
+    localparam int IN_FIXED_FRAC_WIDTH = MANT_WIDTH;
 
-    // Bit field declarations
-    logic sign_a, sign_b, sign_res;
-    logic [EXP_WIDTH-1:0] exp_a, exp_b;
-    logic [MANT_WIDTH-1:0] mant_a, mant_b;
+    localparam int ADDER_OUT_EXP_WIDTH = EXP_WIDTH;
+    localparam int ADDER_OUT_FIXED_WIDTH = IN_FIXED_WIDTH + 1;
+    localparam int ADDER_OUT_FIXED_FRAC_WIDTH = IN_FIXED_FRAC_WIDTH;
 
-    logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] full_mant_a, full_mant_b;
-    logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] mant_a_shifted, mant_b_shifted;
-    logic [MANT_WIDTH + EXT_MANT_WIDTH + 1:0] mant_sum, mant_out;
+    // Internal signal declarations
+    logic signed [IN_EXP_WIDTH - 1:0] signed_exp_a, signed_exp_b;
+    logic signed [IN_FIXED_WIDTH - 1:0] signed_mant_a, signed_mant_b;
 
-    logic [EXP_WIDTH - 1:0] exp_diff;
-    logic [EXP_WIDTH - 1:0] exp_max;
-    logic [EXP_WIDTH + EXT_EXP_WIDTH - 1:0] exp_out;
+    logic signed [ADDER_OUT_EXP_WIDTH - 1:0] signed_exp_out;
+    logic signed [ADDER_OUT_FIXED_WIDTH - 1:0] signed_mant_out;
+    
+    // Extended signals for normalization
+    logic signed [EXP_WIDTH + EXT_EXP_WIDTH - 1:0] exp_out_ext;
+    logic signed [MANT_WIDTH + EXT_MANT_WIDTH + 2 - 1:0] mant_out_ext;
 
-    localparam EXP_SHIFT_SUB_WIDTH = $clog2(MANT_WIDTH + 3);
-    logic [EXP_SHIFT_SUB_WIDTH -1:0] exp_shift_sub;
+    // Instantiate fp_ieee_partition for data_a
+    fp_ieee_partition #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH),
+    ) fp_a (
+        .data_in(data_a),
+        .signed_exp(signed_exp_a),
+        .signed_mant(signed_mant_a)
+    );
 
-    always_comb begin
-        // Extract sign, exponent, mantissa
-        sign_a = data_a[EXP_WIDTH + MANT_WIDTH];
-        exp_a  = data_a[EXP_WIDTH + MANT_WIDTH - 1 : MANT_WIDTH];
-        mant_a = data_a[MANT_WIDTH-1:0];
+    // Instantiate fp_ieee_partition for data_b
+    fp_ieee_partition #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH + 2)
+    ) fp_b (
+        .data_in(data_b),
+        .signed_exp(signed_exp_b),
+        .signed_mant(signed_mant_b)
+    );
 
-        sign_b = data_b[EXP_WIDTH + MANT_WIDTH];
-        exp_b  = data_b[EXP_WIDTH + MANT_WIDTH -1 : MANT_WIDTH];
-        mant_b = data_b[MANT_WIDTH-1:0];
+    // Instantiate fp_adder
+    fp_adder #(
+        .IN_EXP_WIDTH(IN_EXP_WIDTH),
+        .IN_FIX_WIDTH(IN_FIXED_WIDTH),
+        .IN_FIX_FRAC_WIDTH(IN_FIXED_FRAC_WIDTH),
+        .OUT_EXP_WIDTH(ADDER_OUT_EXP_WIDTH),
+        .OUT_FIX_WIDTH(ADDER_OUT_FIXED_WIDTH),
+        .OUT_FIX_FRAC_WIDTH(ADDER_OUT_FIXED_FRAC_WIDTH)
+    ) fp_adder_inst (
+        .exp_a(signed_exp_a),
+        .mant_a(signed_mant_a),
+        .exp_b(signed_exp_b),
+        .mant_b(signed_mant_b),
+        .exp_out(signed_exp_out),
+        .mant_out(signed_mant_out)
+    );
 
-        // Add implicit 1 and pad for alignment
-        full_mant_a = {2'b01, mant_a, {EXT_MANT_WIDTH{1'b0}}};
-        full_mant_b = {2'b01, mant_b, {EXT_MANT_WIDTH{1'b0}}};
-
-        // Align mantissas
-        if (exp_a > exp_b) begin
-            exp_diff       = exp_a - exp_b;
-            mant_a_shifted = full_mant_a;
-            mant_b_shifted = full_mant_b >> exp_diff;
-            exp_max        = exp_a;
-        end else begin
-            exp_diff       = exp_b - exp_a;
-            mant_a_shifted = full_mant_a >> exp_diff;
-            mant_b_shifted = full_mant_b;
-            exp_max        = exp_b;
-        end
-
-        // Addition
-        if (sign_a == sign_b) begin
-            mant_sum = mant_a_shifted + mant_b_shifted;
-            sign_res = sign_a;
-            // Mantissa overflow handling (e.g., normalisation)
-            if (mant_sum[MANT_WIDTH + EXT_MANT_WIDTH + 1] == 1'b1) begin
-                if (EXT_EXP_WIDTH == 0) begin
-                    mant_out    = mant_sum >> 1;
-                    if (exp_max == {EXP_WIDTH{1'b1}}) begin
-                        // Handle overflow case
-                        exp_out = {EXP_WIDTH{1'b1}}; // Set to max exponent
-                    end else begin
-                        exp_out = exp_max + 'b1;
-                    end
-                end else begin
-                    mant_out = mant_sum >> 1;
-                    exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + 'b1 + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
-                end
-
-            end else begin
-                mant_out = mant_sum;
-                exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
-            end
-        end 
-        // Subtraction
-        else begin
-            if (mant_a_shifted >= mant_b_shifted) begin
-                mant_sum = mant_a_shifted - mant_b_shifted;
-                sign_res = sign_a;
-            end else begin
-                mant_sum = mant_b_shifted - mant_a_shifted;
-                sign_res = sign_b;
-            end
-            mant_out = mant_sum << exp_shift_sub;
-            exp_out = {{EXT_EXP_WIDTH{1'b0}}, exp_max} - exp_shift_sub + UPDATED_BIAS[EXP_WIDTH + EXT_EXP_WIDTH - 1:0];
-        end
-
-        // Output final packed value: {sign, exponent, extended mantissa}
-        data_out = {sign_res, exp_out, mant_out[MANT_WIDTH + EXT_MANT_WIDTH - 1:0]};
-    end
-
-
-    // Counting Num of zeros for subtraction
-    clz_int #(
-        .width_i(MANT_WIDTH + EXT_MANT_WIDTH + 1)
-    ) clz_inst (
-        .i_num(mant_sum[MANT_WIDTH + EXT_MANT_WIDTH:0]),
-        .o_lz(exp_shift_sub)
+    // Instantiate fp_ieee_normalize for output
+    fp_ieee_normalize #(
+        .EXP_WIDTH(ADDER_OUT_EXP_WIDTH),
+        .MANT_WIDTH(ADDER_OUT_FIXED_WIDTH)
+    ) fp_normalize (
+        .signed_mant(mant_out_ext),
+        .signed_exp(exp_out_ext),
+        .fp_out(data_out)
     );
 
 endmodule

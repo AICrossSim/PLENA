@@ -15,8 +15,8 @@ module fp_2_mx_fp_block #(
     parameter FP_MANT_WIDTH = 3,
     parameter FP_EXP_WIDTH = 4,
 
-    parameter MX_FP_MANT_WIDTH = 3,
-    parameter MX_FP_EXP_WIDTH = 4,
+    parameter MXFP_MANT_WIDTH = 3,
+    parameter MXFP_EXP_WIDTH = 4,
     parameter MXFP_SCALE_WIDTH = 8
 )(
     input   logic clk,
@@ -25,7 +25,7 @@ module fp_2_mx_fp_block #(
     input   logic data_in_valid,
     output  logic data_in_ready,
 
-    output  logic [BLOCK_DIM-1:0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH : 0] element_data_out,
+    output  logic [BLOCK_DIM-1:0][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] element_data_out,
     output  logic [MXFP_SCALE_WIDTH-1:0] scale_data_out,
     output  logic mx_fp_data_out_valid,
     input   logic mx_fp_data_out_ready
@@ -90,23 +90,23 @@ module fp_2_mx_fp_block #(
         assign p2_man_exts[i]   = |p1_fp_exps[i] ? {1'b1, p1_fp_mans[i]} : {p1_fp_mans[i], 1'b0};  // Handling the denormalized fp numbers
     end
 
-    logic [BLOCK_DIM - 1 : 0][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH - 1:0] p2_elems;
+    logic [BLOCK_DIM - 1 : 0][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH - 1:0] p2_elems;
     generate;
         for(genvar i=0; i<BLOCK_DIM; i++) begin : gen_mxfp_element
             fix_with_shift_2_fp # (
                 .FIXED_DATA_WIDTH   (FP_MANT_WIDTH + 1),
-                .FP_EXP_WIDTH       (MX_FP_EXP_WIDTH),
-                .FP_MANT_WIDTH      (MX_FP_MANT_WIDTH),
+                .FP_EXP_WIDTH       (MXFP_EXP_WIDTH),
+                .FP_MANT_WIDTH      (MXFP_MANT_WIDTH),
                 .SHIFT_WIDTH        (FP_EXP_WIDTH)
             ) mxfp_element_gen (
                 .data_in    (p2_man_exts[i]),
                 .shift_in   (p2_m_shifts[i]),
-                .exp_out    (p2_elems[i][MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH - 1 : MX_FP_MANT_WIDTH]),
-                .mant_out   (p2_elems[i][MX_FP_MANT_WIDTH - 1 : 0])
+                .exp_out    (p2_elems[i][MXFP_MANT_WIDTH + MXFP_EXP_WIDTH - 1 : MXFP_MANT_WIDTH]),
+                .mant_out   (p2_elems[i][MXFP_MANT_WIDTH - 1 : 0])
             );
 
             skid_buffer #(
-                .DATA_WIDTH(MX_FP_MANT_WIDTH + MX_FP_EXP_WIDTH + 1)
+                .DATA_WIDTH(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1)
             ) element_data (
                 .clk           (clk),
                 .rst           (rst),                        // Inverted reset
