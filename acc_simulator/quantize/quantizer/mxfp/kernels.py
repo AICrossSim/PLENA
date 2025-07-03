@@ -99,19 +99,21 @@ def extract_mxfp_components(
     def grid(meta):
         return (triton.cdiv(n_elements, meta["BLK"]),)
 
-    _extract_mxfp_components_kernel[grid](
-        x,
-        block_max,
-        elements,
-        scales,
-        n_elements=n_elements,
-        n_blocks=n_groups,
-        block_size=B,
-        sc_exp_bits=mxfp_meta.scale_exp_bits,
-        el_exp_bits=mxfp_meta.element_exp_bits,
-        el_man_bits=mxfp_meta.element_frac_bits,
-        BLK=128,
-    )
+    # Make Triton Kernel aware of the divce id, avoid ValueError
+    with torch.cuda.device(device.index):
+        _extract_mxfp_components_kernel[grid](
+            x,
+            block_max,
+            elements,
+            scales,
+            n_elements=n_elements,
+            n_blocks=n_groups,
+            block_size=B,
+            sc_exp_bits=mxfp_meta.scale_exp_bits,
+            el_exp_bits=mxfp_meta.element_exp_bits,
+            el_man_bits=mxfp_meta.element_frac_bits,
+            BLK=128,
+        )
 
     return scales, elements
 
@@ -186,16 +188,17 @@ def compose_mxfp_tensor(
         return (triton.cdiv(n_elements, meta["BLK"]),)
 
     output = torch.empty(n_elements, dtype=torch.bfloat16, device=device)
-    _compose_mxfp_tensor_kernel[grid](
-        shared_scales,
-        elements,
-        output,
-        n_elements=n_elements,
-        n_blocks=n_blocks,
-        block_size=B,
-        sc_exp_bits=mxfp_meta.scale_exp_bits,
-        el_exp_bits=mxfp_meta.element_exp_bits,
-        el_man_bits=mxfp_meta.element_frac_bits,
-        BLK=128,
-    )
+    with torch.cuda.device(device.index):
+        _compose_mxfp_tensor_kernel[grid](
+            shared_scales,
+            elements,
+            output,
+            n_elements=n_elements,
+            n_blocks=n_blocks,
+            block_size=B,
+            sc_exp_bits=mxfp_meta.scale_exp_bits,
+            el_exp_bits=mxfp_meta.element_exp_bits,
+            el_man_bits=mxfp_meta.element_frac_bits,
+            BLK=128,
+        )
     return output
