@@ -45,7 +45,9 @@ S_ADDI_FIX x4, x0, 2;
 
 S_MUL_FIX x1, x3, x4;
 
-M_MM_PS  x4, x0, x1;
+S_ADDI_FIX x2, x0, 1;
+
+M_MM_PS  x2, x0, x1;
 
 M_MM_WO x4, x0, x0;
 

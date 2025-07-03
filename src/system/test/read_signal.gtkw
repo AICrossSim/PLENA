@@ -1,32 +1,35 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu Jul  3 08:29:41 2025
+[*] Thu Jul  3 16:07:49 2025
 [*]
 [dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Thu Jul  3 07:14:02 2025"
-[dumpfile_size] 98465947
+[dumpfile_mtime] "Thu Jul  3 15:50:10 2025"
+[dumpfile_size] 98465311
 [savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 564000
-[size] 1920 1080
-[pos] 139237 165209
-*-17.114536 960700 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 1053000
+[size] 1512 945
+[pos] 131021 161478
+*-18.114536 1627000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
+[treeopen] SimTop.dut.decoder_init.
 [treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.data_upsizer.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_mini_sys_init.row_inx[0].col_idx[0].genblk1.first_row_pe.default_pe_inst.element_mult.
+[treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[1].
 [treeopen] SimTop.dut.pipeline_control_init.
+[treeopen] SimTop.dut.scalar_machine_init.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_reg_file.
 [treeopen] SimTop.dut.scalar_machine_init.fixed_scalar_sram.
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
 [treeopen] SimTop.fake_hbm_v_element.bram_inst.
 [sst_width] 437
-[signals_width] 341
+[signals_width] 242
 [sst_expanded] 1
-[sst_vpaned_height] 783
+[sst_vpaned_height] 669
 @28
 SimTop.dut.clk
 SimTop.dut.exe_stage_op.m_op[2:0]
@@ -41,39 +44,60 @@ SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[6][3:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_element[7][3:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_scale[0][7:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_scale[1][7:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gebm_result[0][0][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result[0][0][0][31:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result[0][0][1][31:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_valid[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.ready_to_load_output
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.acc_waddr[0]
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.feed_counter[3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[0][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[1][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[2][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[3][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[4][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[5][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[6][15:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out[7][15:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
-SimTop.dut.matrix_sram.wen
-SimTop.dut.matrix_machine_init.m_valid
-SimTop.dut.pipeline_control_init.pipeline_stall
-SimTop.dut.pipeline_control_init.m_load_in_process
-SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.load_in_progress
-@29
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.hold_and_unroll_for_gemm.unrolled_data_out_ready
+SimTop.dut.matrix_machine_init.m_wreq
+SimTop.dut.matrix_machine_init.result_in_valid
+SimTop.dut.matrix_machine_init.out_valid
+@22
+SimTop.dut.matrix_machine_init.out_v_fp[0][15:0]
+SimTop.dut.matrix_machine_init.out_v_fp[1][15:0]
+SimTop.dut.matrix_machine_init.out_v_fp[2][15:0]
+SimTop.dut.matrix_machine_init.out_v_fp[3][15:0]
+SimTop.dut.matrix_machine_init.out_v_fp[4][15:0]
+SimTop.dut.matrix_machine_init.recorded_m_waddr[31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[4][31:0]
+@28
 SimTop.dut.exe_stage_op.m_op[2:0]
-@28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control[2:0]
 @22
-SimTop.dut.matrix_machine_init.matrix_compute_unit.feed_counter[3:0]
+SimTop.dut.exe_stage_op.addr_1[31:0]
+SimTop.dut.exe_stage_op.addr_2[31:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_loading
-SimTop.dut.matrix_machine_init.matrix_compute_unit.output_reset
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_valid[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.ready_to_load_output
-SimTop.dut.matrix_machine_init.matrix_compute_unit.empty_in_progress
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
-SimTop.dut.pipeline_control_init.m_empty_in_progress
-SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
-SimTop.dut.pipeline_control_init.pipeline_stall
+SimTop.dut.exe_stage_op.update_m_waddr
+SimTop.dut.decode_stage_op.m_op[2:0]
+@22
+SimTop.dut.exe_fixed_op[3:0]
+SimTop.dut.scalar_machine_init.assigned_fixed_op[3:0]
+@28
+SimTop.dut.scalar_machine_init.rs1[2:0]
+SimTop.dut.scalar_machine_init.rs1[2:0]
+SimTop.dut.scalar_machine_init.rs2[2:0]
+SimTop.dut.scalar_machine_init.rd[2:0]
+@22
+SimTop.dut.scalar_machine_init.fixed_out_1[31:0]
+SimTop.dut.scalar_machine_init.fixed_out_2[31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_1[31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_2[31:0]
+SimTop.dut.scalar_machine_init.fixed_reg_file.mem[4][31:0]
+@28
+SimTop.dut.pipeline_control_init.check_stage_op.m_op[2:0]
+@22
+SimTop.dut.pipeline_control_init.check_stage_op.addr_1[31:0]
+SimTop.dut.pipeline_control_init.check_stage_op.addr_2[31:0]
+SimTop.dut.pipeline_control_init.fixed_addr_1[31:0]
+@23
+SimTop.dut.pipeline_control_init.fixed_addr_2[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

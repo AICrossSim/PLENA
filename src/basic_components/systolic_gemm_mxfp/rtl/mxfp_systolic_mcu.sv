@@ -467,10 +467,11 @@ module mxfp_systolic_mcu #(
         .FP_MANT_WIDTH(FP_MANT_WIDTH)
     ) hold_and_unroll_for_gemm (
         .clk(clk),
-        .rst(rst | output_reset),
+        .rst(rst),
         .acc_waddr(acc_waddr),
         .acc_waddr_valid        (fetch_next_acc_waddr_valid),
         .acc_waddr_ready        (fetch_next_acc_waddr_ready),
+        .wait_for_output        (wait_for_output),
         .block_data_in          (stored_quantized_result[0 +: GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)]),
         .block_data_valid       (block_data_in_valid),
         .block_data_ready       (block_data_in_ready),

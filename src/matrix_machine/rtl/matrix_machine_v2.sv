@@ -277,7 +277,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_in_ready  (result_in_ready),
         .data_out       (out_v_fp),
         .data_out_valid (out_valid),
-        .data_out_ready (out_ready & wait_for_output)
+        .data_out_ready (out_ready)
     );
 
 endmodule
