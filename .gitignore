@@ -14,5 +14,5 @@ build/
 *.gtkw
 
 notebooks/
-logging*/
+logs*/
 kube/

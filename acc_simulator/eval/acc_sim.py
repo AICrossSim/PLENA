@@ -38,7 +38,7 @@ from lm_eval.utils import make_table
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
-
+from .expr_utils import *
 
 from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
 from torch import nn
@@ -51,26 +51,16 @@ from transformers.models.llama.modeling_llama import (
 from accelerate import dispatch_model
 
 
-def print_all_layers(model: nn.Module):
-    print("=== Model Layers and Devices ===")
-    for name, layer in model.named_modules():
-        try:
-            device = next(layer.parameters()).device
-        except StopIteration:
-            device = "No parameters"
-        print(f"{name}: {type(layer).__name__} | device: {device}")
-    print("====================")
-
-
 def mxfp_lm_eval(
-    # meta-llama/Llama-3.1-70B
+    # meta-llama/Llama-3.2-1B
     model_name: str = "meta-llama/Llama-3.1-70B",
     tasks: Union[str, list[str]] = "wikitext",
     preset: Union[ Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"], None] = "XqWqBqKVq",
     preset_mxfp_X: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
     preset_mxfp_W: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
-    preset_minifloat: Literal["FP8_E4M3", "FP8_E5M2"] = "FP8_E4M3",
-    model_parallel: bool = True
+    preset_minifloat: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = "FP8_E4M3",
+    model_parallel: bool = True,
+    log_base_dir: Union[str, None] = "logs"
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -89,6 +79,11 @@ def mxfp_lm_eval(
     """
 
     quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W, preset_minifloat)
+
+    log_dir = create_experiment_log_dir(log_base_dir)
+    full_args = locals().copy()         
+    full_args["quant_args"] = quant_args 
+    save_args(log_dir, full_args)
 
     if preset != "original":
         print(f"Using preset {preset}, which sets the following parameters:\n")
@@ -109,7 +104,6 @@ def mxfp_lm_eval(
     else: 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = model.to(device)
-    # print_all_layers(model)
     
     # MLP - SILU
     replace_modules(
@@ -161,18 +155,23 @@ def mxfp_lm_eval(
         label="FPRMSNormPTQ"
     )
 
-
-    # wrap the model with lm-eval's HFLM
+    # Wrap and evaluate
     model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=2048)
-    # pass the wrapped model to the lm-eval's evaluator
     if isinstance(tasks, str):
         tasks = [tasks]
+
     results = simple_evaluate(
-        model=model_lm_eval, tasks=tasks, batch_size="auto", log_samples=False
+        model=model_lm_eval,
+        tasks=tasks,
+        batch_size="auto",
+        log_samples=False
     )
-    # print the results
+
+    save_results(log_dir, results)
+
     table = make_table(results)
     print(table)
+    print(f"[INFO] Results saved in {log_dir}")
 
 
 if __name__ == "__main__":
