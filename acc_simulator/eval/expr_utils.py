@@ -26,9 +26,25 @@ def create_experiment_log_dir(base_dir: str = "logs") -> Path:
 
 
 def save_args(log_dir: Path, args: dict):
-    args = {k: str(v) if isinstance(v, Path) else v for k, v in args.items()}
+    def make_serializable(obj):
+        if isinstance(obj, (Path, torch.dtype)):
+            return str(obj)
+        elif hasattr(obj, "__dict__"):
+            return {k: make_serializable(v) for k, v in vars(obj).items()}
+        elif isinstance(obj, (list, tuple)):
+            return [make_serializable(v) for v in obj]
+        elif isinstance(obj, dict):
+            return {k: make_serializable(v) for k, v in obj.items()}
+        else:
+            try:
+                json.dumps(obj)
+                return obj
+            except TypeError:
+                return str(obj)
+
+    serializable_args = make_serializable(args)
     with open(log_dir / "args.json", "w") as f:
-        json.dump(args, f, indent=2)
+        json.dump(serializable_args, f, indent=2)
 
 
 def save_results(log_dir: Path, results: dict):
