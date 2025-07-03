@@ -54,12 +54,12 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     M_OP    matrix_opcode; 
     logic    [ADDR_WIDTH-1:0]  addr_in;
     logic    result_waddr_update;
-
+    logic    wait_for_output;
     assign matrix_opcode        = exe_stage_op.m_op;
     assign addr_in              = exe_stage_op.addr_2;
     assign result_waddr_update  = exe_stage_op.update_m_waddr;
 
-    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BATCH_SIZE);
+    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BLEN);
 
     // -----------------------------
     // Address Management
@@ -68,11 +68,15 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            recorded_m_waddr <= 'b0;
+            recorded_m_waddr    <= 'b0;
+            wait_for_output     <= 1'b0;
         end else begin
             // Set result waddr 
             if (matrix_opcode == MM_WO)begin
                 recorded_m_waddr <= addr_in;
+                wait_for_output <= 1'b1;
+            end else if (result_in_valid) begin
+                wait_for_output <= 1'b0;
             end
         end
     end
@@ -225,9 +229,9 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .ACC_FP_EXP_WIDTH   (M_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (M_FP_MANT_WIDTH),
         .SYSTOLIC_PROCESSING_OVERHEAD (SYSTOLIC_PROCESSING_OVERHEAD),
-        .M                  (BATCH_SIZE),
+        .M                  (BLEN),
         .K                  (MLEN),
-        .N                  (BATCH_SIZE)
+        .N                  (BLEN)
     ) matrix_compute_unit (
         .clk                (clk),
         .rst                (rst),
@@ -235,6 +239,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .acc_waddr          (acc_addr),
         .fetch_next_acc_waddr_valid  (acc_addr_valid),
         .fetch_next_acc_waddr_ready  (acc_addr_ready),
+        .wait_for_output    (wait_for_output),
         .v1_element         (stored_m_element),
         .v1_scale           (stored_m_scale),
         .v1_in_valid        (stored_m_valid),
@@ -272,7 +277,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_in_ready  (result_in_ready),
         .data_out       (out_v_fp),
         .data_out_valid (out_valid),
-        .data_out_ready (out_ready)
+        .data_out_ready (out_ready & wait_for_output)
     );
 
 endmodule

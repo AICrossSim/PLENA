@@ -14,7 +14,7 @@ Description : This module serves as the top level of the coprocessor,
               It currently only supports single batch execution.
 */
 
-module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
+module coprocessor import configuration_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
         parameter string FIXED_MEM_INIT_FILE    = "",
@@ -371,7 +371,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .VLEN               (VLEN),
         .MLEN               (MLEN),
         .BLOCK_DIM          (BLOCK_DIM),
-        .SRAM_DEPTH         (SCRATCHPAD_SRAM_DEPTH),
+        .SRAM_DEPTH         (VECTOR_SRAM_DEPTH),
         .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
         .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount)
         `ifdef SIMULATION

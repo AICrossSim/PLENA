@@ -93,10 +93,7 @@ module pipeline_control #(
         end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_C)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall   = 1'b1;            
-        end else if ((m_load_in_process) & (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO)) begin
-            // Condition 2: When prefetching instruction is in processed or matrix at the loading stage / writing back, another matrix-related instruction is not allowed.
-            pipeline_stall   = 1'b1;            
-        end else if ((m_load_in_process | m_empty_in_progress) & (determine_stage_op.m_op == MM_WO)) begin
+        end else if ((m_load_in_process | m_empty_in_progress) & (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO)) begin
             // Condition 2: When prefetching instruction is in processed or matrix at the loading stage / writing back, another matrix-related instruction is not allowed.
             pipeline_stall   = 1'b1;            
         end else if ((v_load_in_process) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin

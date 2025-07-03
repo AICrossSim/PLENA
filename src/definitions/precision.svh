@@ -24,7 +24,6 @@ package precision_pkg;
     parameter   ROUND_FP_EN                     = 0;
     parameter   ROUND_FP_EXP_WIDTH              = 4;
     parameter   ROUND_FP_MANT_WIDTH             = 3; 
-
 endpackage
 
 `endif

@@ -1,21 +1,19 @@
 [*]
-[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Jul  2 22:43:14 2025
+[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
+[*] Thu Jul  3 08:29:41 2025
 [*]
-[dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Wed Jul  2 22:36:07 2025"
-[dumpfile_size] 98592296
-[savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
-[size] 3428 1359
-[pos] 139197 166078
-*-18.114536 1820000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
+[dumpfile_mtime] "Thu Jul  3 07:14:02 2025"
+[dumpfile_size] 98465947
+[savefile] "/Users/georgewu/Documents/Cambridge/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
+[timestart] 564000
+[size] 1920 1080
+[pos] 139237 165209
+*-17.114536 960700 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
-[treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.
 [treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.
 [treeopen] SimTop.dut.hbm_interface_init.vector_hbm_controller_init.adapter_for_element.data_upsize.data_upsizer.
-[treeopen] SimTop.dut.matrix_machine_init.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.
 [treeopen] SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.pe_row[0].pe_col[0].genblk1.first_row_mini_sys_init.row_inx[0].col_idx[0].genblk1.first_row_pe.default_pe_inst.element_mult.
 [treeopen] SimTop.dut.matrix_sram.element_storage.sub_sram_gen[0].sub_sram_init.
@@ -28,7 +26,7 @@
 [sst_width] 437
 [signals_width] 341
 [sst_expanded] 1
-[sst_vpaned_height] 1028
+[sst_vpaned_height] 783
 @28
 SimTop.dut.clk
 SimTop.dut.exe_stage_op.m_op[2:0]
@@ -60,15 +58,22 @@ SimTop.dut.pipeline_control_init.pipeline_stall
 SimTop.dut.pipeline_control_init.m_load_in_process
 SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.load_in_progress
+@29
+SimTop.dut.exe_stage_op.m_op[2:0]
+@28
 SimTop.dut.matrix_machine_init.matrix_compute_unit.control[2:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.feed_counter[3:0]
 @28
-SimTop.dut.m_empty_in_progress
-SimTop.dut.pipeline_control_init.m_empty_in_progress
 SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_loading
-@29
+SimTop.dut.matrix_machine_init.matrix_compute_unit.output_reset
+SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_valid[1:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.gemm_result_ready
+SimTop.dut.matrix_machine_init.matrix_compute_unit.ready_to_load_output
+SimTop.dut.matrix_machine_init.matrix_compute_unit.empty_in_progress
 SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
+SimTop.dut.pipeline_control_init.m_empty_in_progress
+SimTop.dut.pipeline_control_init.determine_stage_op.m_op[2:0]
+SimTop.dut.pipeline_control_init.pipeline_stall
 [pattern_trace] 1
 [pattern_trace] 0

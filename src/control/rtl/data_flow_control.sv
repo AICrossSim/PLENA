@@ -13,7 +13,7 @@ Description : This module serves as the controller for all the memory related op
 */
 
 module data_flow_control import precision_pkg::*; import configuration_pkg::*; #(
-    localparam MATRIX_LOAD_ITERATION    = BATCH_SIZE,
+    localparam MATRIX_LOAD_ITERATION    = BLEN,
     localparam BLOCK_NUM                = VLEN / BLOCK_DIM
 ) (
 

@@ -40,6 +40,7 @@ module mxfp_systolic_mcu #(
     input   logic [ACC_ADDR_WIDTH - 1 : 0] acc_waddr,
     input   logic fetch_next_acc_waddr_valid,
     output  logic fetch_next_acc_waddr_ready,
+    input   logic wait_for_output,
     
     // Multiplicant Matrix 1 TOP
     input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
