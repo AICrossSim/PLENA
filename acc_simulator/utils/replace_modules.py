@@ -32,8 +32,6 @@ def set_layer_by_name(module: torch.nn.Module, name: str, new_layer: torch.nn.Mo
     else:
         setattr(module, name, new_layer)
 
-    # print(f"GPU memory check: {torch.cuda.memory_allocated() / 1024 ** 2:.2f}MB (allocated), {torch.cuda.memory_reserved() / 1024 ** 2:.2f}MB (reserved)")
-
 def replace_modules(
     model: nn.Module,
     target_class: type,
@@ -73,7 +71,7 @@ def replace_modules(
             gc.collect()
             torch.cuda.empty_cache()
 
-        t_elapsed = time.time() - t_layer
+        # t_elapsed = time.time() - t_layer
         # print(f"Replaced {label}: {name} in {t_elapsed:.2f}s")
         replaced += 1
 

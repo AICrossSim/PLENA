@@ -22,7 +22,7 @@ class MXFPEmbeddingPTQ(nn.Module):
         self.weight = None
 
         if layer_type == "Wq":
-            self.weight = mxfp_quantizer_sim(weight, block_dim=0, mxfp_meta=w_mxfp_meta)
+            self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mxfp_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 

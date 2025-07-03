@@ -14,7 +14,6 @@ dependencies:
       - torchvision==0.22.1+cu126
       - torchaudio==2.7.1+cu126
       - --extra-index-url https://download.pytorch.org/whl/cu126
-      - mase-triton>=0.0.3a1
       - jsonargparse[all]
       - lm-eval==0.4.8
       - transformers==4.52.4

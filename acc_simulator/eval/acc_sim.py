@@ -16,14 +16,14 @@ minifloat format:
 Evaluation is done via EleutherAI's lm-eval harness on tasks like Wikitext.
 
 Usage:
-    python -m acc_simulator.eval_acc_sim --help
+    python -m acc_simulator.eval.acc_sim --help
 
 Examples:
     # Full quantization of weights, bias, activations, and KV cache, rope, and non-linear ops
-    python -m acc_simulator.eval_acc_sim --preset XqWqBqKVq --preset_mxfp_X MXFP8_E4M3 --preset_mxfp_W MXFP8_E4M3 --preset_minifloat FP8_E4M3
+    python -m acc_simulator.eval.acc_sim --preset XqWqBqKVq --preset_mxfp_X MXFP8_E4M3 --preset_mxfp_W MXFP8_E4M3 --preset_minifloat FP8_E4M3
 
     # No quantization (baseline)
-    python -m acc_simulator.eval_acc_sim --preset original
+    python -m acc_simulator.eval.acc_sim --preset original
 
 """
 
@@ -36,11 +36,11 @@ from lm_eval.evaluator import simple_evaluate
 from lm_eval.models.huggingface import HFLM
 from lm_eval.utils import make_table
 
-from .quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
-from .models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
+from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
+from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
 
 
-from .utils import setup_args_linear_nonlinear, replace_modules, create_device_map
+from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
 from torch import nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.models.llama.modeling_llama import (
@@ -63,6 +63,7 @@ def print_all_layers(model: nn.Module):
 
 
 def mxfp_lm_eval(
+    # meta-llama/Llama-3.1-70B
     model_name: str = "meta-llama/Llama-3.1-70B",
     tasks: Union[str, list[str]] = "wikitext",
     preset: Union[ Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"], None] = "XqWqBqKVq",
