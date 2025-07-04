@@ -199,7 +199,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             // Address Management
             if (exe_stage_op.h_op == PREFETCH_M_C) begin
                 recorded_m_prefetch_addr <= exe_stage_op.addr_2;
-            end else if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO) begin
+            end else if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) begin
                 recorded_m_load_addr <= exe_stage_op.addr_2;
             end 
             if (!m_prefetch_data_not_ready) begin
@@ -226,10 +226,14 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                     // TODO : Not a good way to handle this case, maybe rewrite later.
                     if (p1_prefetch_data_state & !m_prefetch_data_not_ready) begin
                         m_m_valid <= 1'b1;
-                    end else if (p2_prefetch_data_state & !p1_prefetch_data_state & !m_prefetch_data_not_ready) begin
-                        // Recover from data stall.
-                        m_m_valid <= 1'b0;
-                    end else if (!p2_m_m_load & p1_m_m_load) begin
+                    end 
+                    
+                    // else if (p2_prefetch_data_state & !p1_prefetch_data_state & !m_prefetch_data_not_ready) begin
+                    //     // Recover from data stall.
+                    //     m_m_valid <= 1'b0;
+                    // end 
+                    
+                    else if (!p2_m_m_load & p1_m_m_load) begin
                         // Start of the load
                         m_m_valid <= 1'b0;
                     end else begin
@@ -407,6 +411,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                                 v_sram_req_a                    <= 1'b0;
                                 v_sram_load_for_matrix_counter  <= 'b0;
                                 continuous_load_v_for_matrix_en <= 1'b0;
+                                load_for_gemv_en                <= 1'b0;
                             end else begin
                                 m_v_load                        <= 1'b1;
                                 v_sram_req_a                    <= 1'b1;

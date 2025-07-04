@@ -1,11 +1,14 @@
 import toml
 import re
 import os
+import sys
 
 def patch_config_svh_from_toml(
+    mode : str,
     toml_path: str,
     svh_path: str
 ):
+    """Configures the SystemVerilog header file based on the TOML [active] configuration."""
 
     with open(toml_path, "r") as f:
         data = toml.load(f)
@@ -13,11 +16,11 @@ def patch_config_svh_from_toml(
     if not toml_config:
         raise ValueError("No [CONFIG] section found in TOML")
 
-    active_values = {
-        param: values.get("active")
+    hardware_settings = {
+        param: values.get(mode)
         for param, values in toml_config.items()
-        if "active" in values
-    }
+        if mode in values
+    } 
 
     with open(svh_path, "r") as f:
         lines = f.readlines()
@@ -37,8 +40,8 @@ def patch_config_svh_from_toml(
             match = re.match(r'\s*parameter\s+(\w+)\s*=.*;', line)
             if match:
                 param_name = match.group(1)
-                if param_name in active_values:
-                    new_value = active_values[param_name]
+                if param_name in hardware_settings:
+                    new_value = hardware_settings[param_name]
                     indent = re.match(r'^(\s*)', line).group(1)
                     new_line = f"{indent}parameter   {param_name} = {new_value};\n"
                     new_lines.append(new_line)
@@ -48,6 +51,16 @@ def patch_config_svh_from_toml(
 
     with open(svh_path, "w") as f:
         f.writelines(new_lines)
+
+def configure_toml_file(
+    mode: str,
+    toml_path: str = "config.toml",
+    svh_path: str = "configuration.svh"
+):
+    pass
+
+
+
 
 if __name__ == "__main__":
     parent_path = os.path.dirname(os.path.abspath(__file__))

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jul  4 16:38:37 2025
+[*] Fri Jul  4 20:09:56 2025
 [*]
 [dumpfile] "/home/george/Coprocessor_for_Llama/src/system/test/build/SimTop/test_0/dump.vcd"
-[dumpfile_mtime] "Fri Jul  4 16:20:59 2025"
-[dumpfile_size] 95654253
+[dumpfile_mtime] "Fri Jul  4 19:00:08 2025"
+[dumpfile_size] 95477666
 [savefile] "/home/george/Coprocessor_for_Llama/src/system/test/read_signal.gtkw"
-[timestart] 0
+[timestart] 268900
 [size] 3428 1359
 [pos] 130446 161324
-*-17.834785 960000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.834785 546800 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SimTop.
 [treeopen] SimTop.dut.
 [treeopen] SimTop.dut.hbm_interface_init.low_precision_hbm_controller_init.element_master.
@@ -28,7 +28,7 @@
 [treeopen] SimTop.fake_hbm_m_element.bram_inst.
 [treeopen] SimTop.fake_hbm_v_element.bram_inst.
 [sst_width] 437
-[signals_width] 310
+[signals_width] 344
 [sst_expanded] 1
 [sst_vpaned_height] 1017
 @28
@@ -62,35 +62,47 @@ SimTop.dut.data_flow_init.load_for_gemv_en
 SimTop.dut.data_flow_init.v_sram_load_for_matrix_counter[3:0]
 @28
 SimTop.dut.data_flow_init.continuous_load_v_for_matrix_en
-@29
 SimTop.dut.data_flow_init.load_for_gemv_en
-@22
-SimTop.dut.data_flow_init.MATRIX_LOAD_ITERATION_GEMM[31:0]
-@28
-SimTop.dut.data_flow_init.end_of_load_v_for_matrix
 SimTop.dut.matrix_machine_init.matrix_compute_unit.control_in_exe[2:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.complete_v1_load
 @22
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_load_counter[3:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_load_counter[3:0]
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_load_amount[3:0]
 @28
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_for_mm_in_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_data_for_mv_in_ready[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_data_for_mv_in_valid[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.v2_data_for_mm_in_ready[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.array_left_in_ready[1:0]
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.determined_in_left_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.mult_ready
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.mult_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.determined_in_left_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.genblk1[0].systolic_array_inst.in_top_valid
-SimTop.dut.matrix_machine_init.matrix_compute_unit.array_top_in_valid[1:0]
 SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_in_valid
+SimTop.dut.matrix_machine_init.matrix_compute_unit.v1_in_ready
 @22
-SimTop.dut.data_flow_init.load_m_amount[3:0]
+SimTop.dut.data_flow_init.m_sram_load_counter[3:0]
 @28
 SimTop.dut.data_flow_init.m_m_valid
-SimTop.dut.data_flow_init.continuous_load_m_en
-SimTop.dut.data_flow_init.end_of_load_m
+@22
+SimTop.dut.matrix_sram.sram_raddr[31:0]
+@28
+SimTop.dut.data_flow_init.m_sram_req
+SimTop.dut.data_flow_init.m_m_ready
+@22
+SimTop.dut.data_flow_init.recorded_m_load_addr[31:0]
+SimTop.dut.data_flow_init.recorded_m_sram_load_counter[3:0]
+@28
+SimTop.dut.data_flow_init.m_prefetch_data_not_ready
+@22
+SimTop.dut.data_flow_init.m_sram_raddr[31:0]
+SimTop.dut.data_flow_init.m_sram_raddr_offset[31:0]
+@23
+SimTop.dut.data_flow_init.recorded_m_load_addr[31:0]
+@28
+SimTop.dut.data_flow_init.p1_prefetch_data_state
+SimTop.dut.data_flow_init.p2_prefetch_data_state
+SimTop.dut.data_flow_init.p1_m_m_load
+SimTop.dut.data_flow_init.p2_m_m_load
+@22
+SimTop.dut.matrix_sram.sram_waddr[31:0]
+@28
+SimTop.dut.matrix_sram.wen
+SimTop.dut.data_flow_init.p1_prefetch_data_state
+SimTop.dut.data_flow_init.p1_m_m_load
+@22
+SimTop.dut.data_flow_init.recorded_m_prefetch_addr[31:0]
+SimTop.dut.data_flow_init.recorded_m_sram_load_counter[3:0]
 [pattern_trace] 1
 [pattern_trace] 0

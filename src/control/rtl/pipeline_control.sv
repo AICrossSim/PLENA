@@ -93,7 +93,7 @@ module pipeline_control #(
         end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_C)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall   = 1'b1;            
-        end else if ((m_load_in_process | m_empty_in_progress) & (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO)) begin
+        end else if ((m_load_in_process | m_empty_in_progress) & (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO)) begin
             // Condition 2: When prefetching instruction is in processed or matrix at the loading stage / writing back, another matrix-related instruction is not allowed.
             pipeline_stall   = 1'b1;            
         end else if ((v_load_in_process) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
@@ -102,7 +102,7 @@ module pipeline_control #(
         end else if (mem_write_req.wreq_s_sram_port_a & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
             // Condition 4: Trying to access the vector sram port A while it is being written to.
             pipeline_stall   = 1'b1;            
-        end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO))) begin
+        end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
             // Condition 5: Trying to access the vector sram port B while it is being written to.
             pipeline_stall   = 1'b1;            
         end else if (fp_stall_req & (determine_stage_op.s_fp_op != STALL_S_FP)) begin
@@ -122,8 +122,6 @@ module pipeline_control #(
     assign pipeline_stall_req = pipeline_stall || stall_in_process; // Extra stall cycle in order to execute the previously unexecuted operation.
 
     // Memory Monitor
-
-
     addr_monitor #(
         .ADDR_WIDTH(FIXED_DATA_WIDTH),
         .PIPELINE_STAGES(MAX_PIPELINE_STAGE)

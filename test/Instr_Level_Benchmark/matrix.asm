@@ -13,12 +13,6 @@ S_MUL_FIX x5, x3, x4;
 
 H_PREFETCH_V_C x1, x5, x1;
 
-M_MM_IC  x0, x1, x1; 
-
-S_ADDI_FIX x4, x0, 2;
-
-S_MUL_FIX x1, x3, x4;
-
 M_MV_IC  x5, x0, x1;
 
 M_MV_WO x4, x0, x0;

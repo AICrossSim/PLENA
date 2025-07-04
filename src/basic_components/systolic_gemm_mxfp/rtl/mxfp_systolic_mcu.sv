@@ -88,8 +88,8 @@ module mxfp_systolic_mcu #(
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_v_in_element;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_v_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]     array_left_v_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]             array_left_v_in_scale;
 
 
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
@@ -111,6 +111,7 @@ module mxfp_systolic_mcu #(
     
     localparam COUNTER_BIT_WIDTH = $clog2(K);
     logic [COUNTER_BIT_WIDTH : 0] v1_load_counter;
+    logic [COUNTER_BIT_WIDTH : 0] v1_load_amount;
     logic [COUNTER_BIT_WIDTH : 0] v2_load_counter;
     logic [COUNTER_BIT_WIDTH : 0] feed_counter;
     logic complete_v1_load, complete_v2_load;
@@ -121,14 +122,16 @@ module mxfp_systolic_mcu #(
     always_ff @(posedge clk) begin
         if (rst) begin
             v1_load_counter     <= '0;
+            v1_load_amount      <= '0;
             complete_v1_load    <= 1'b0;
             v2_load_counter     <= '0;
             complete_v2_load    <= 1'b0;
             output_reset        <= 1'b0;
         end else begin
+            v1_load_amount  <= (control_in_exe == MV_IC) ? K - 1 : M - 1;
             // Counter for v1
             if (v1_in_valid & v1_in_ready) begin
-                if (v1_load_counter == M - 1) begin
+                if (v1_load_counter == v1_load_amount) begin
                     v1_load_counter <= '0;
                     complete_v1_load <= 1'b1;
                 end else begin
@@ -161,7 +164,7 @@ module mxfp_systolic_mcu #(
         if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
             complete_loading = 1'b1;
         end else if (control_in_exe == MV_IC & complete_v1_load) begin
-            complete_loading = 1'b0;
+            complete_loading = 1'b1;
         end else begin
             complete_loading = 1'b0;
         end
@@ -172,10 +175,10 @@ module mxfp_systolic_mcu #(
             control_in_exe          <= STALL_M; 
             load_in_progress        <= 1'b0;
         end else begin
-            if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO)) begin
+            if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
                 control_in_exe <= control;
                 load_in_progress <= 1'b1;
-            end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO)) begin
+            end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
                 load_in_progress <= 1'b1;
                 control_in_exe <= control;
             end else if (complete_loading) begin
@@ -212,7 +215,7 @@ module mxfp_systolic_mcu #(
         end
     end
 
-    assign  sa_control = ((control_in_exe == MV_IC) || (control_in_exe == MV_WO)); // 0 for GEMM, 1 for GEMV
+    assign  sa_control = (control_in_exe == MV_IC); // 0 for GEMM, 1 for GEMV
     assign gemm_result_ready = & gemm_result_w_ready;
     assign gemv_result_ready = & gemv_result_w_ready;
 
@@ -333,7 +336,7 @@ module mxfp_systolic_mcu #(
             ) systolic_array_inst (
                 .clk(clk),
                 .rst(rst),
-                .control            (gemm_en),
+                .control            (sa_control),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),
                 .in_top_valid       (array_top_in_valid[i]),
