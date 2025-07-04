@@ -153,7 +153,7 @@ module mxfp_systolic_mcu #(
                 complete_v2_load <= 1'b0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_O & gemv_result_valid) || (control_in_exe == MM_PS & gemm_result_valid));
+            output_reset <= ((control_in_exe == MV_WO & gemv_result_valid) || (control_in_exe == MM_PS & gemm_result_valid));
         end
     end
 
@@ -183,7 +183,7 @@ module mxfp_systolic_mcu #(
     end
 
     always_comb begin
-        if (control_in_exe == MV || control_in_exe == MV_O) begin
+        if (control_in_exe == MV_IC || control_in_exe == MV_WO) begin
             v2_in_ready = v2_for_mv_in_ready;
             v2_for_mv_in_valid = v2_in_valid;
         end else begin
@@ -192,7 +192,7 @@ module mxfp_systolic_mcu #(
         end
     end
 
-    assign  sa_control = ((control_in_exe == MV) || (control_in_exe == MV_O)); // 0 for GEMM, 1 for GEMV
+    assign  sa_control = ((control_in_exe == MV_IC) || (control_in_exe == MV_WO)); // 0 for GEMM, 1 for GEMV
     assign gemm_result_ready = & gemm_result_w_ready;
     assign gemv_result_ready = & gemv_result_w_ready;
 
@@ -220,7 +220,7 @@ module mxfp_systolic_mcu #(
                 empty_in_progress <= 1'b0;
                 ready_to_load_output <= 1'b0;
             end
-            gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_O)  & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_WO)  & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
             gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
@@ -387,7 +387,7 @@ module mxfp_systolic_mcu #(
             quantise_data_in_valid  = gemv_result_valid;
             gemv_result_w_ready     = quantise_data_in_ready;
             block_data_in_valid     = 1'b0;
-            result_data             = stored_quantized_result[0 +: K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)];
+            result_data             = stored_quantized_result[K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0];
             result_data_valid       = quantised_result_valid;
             quantised_result_ready  = result_data_ready;
         end
@@ -424,7 +424,7 @@ module mxfp_systolic_mcu #(
                     stored_result_v = gebm_result;
                 end else begin
                     // GEMV
-                    stored_result_v = {gemv_result, {(GEBM_OUT_DIM - K){1'b0}}};
+                    stored_result_v = {{(GEBM_OUT_DIM - K){1'b0}}, gemv_result};
                 end
             end
 

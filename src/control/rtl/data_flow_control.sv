@@ -34,7 +34,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     input       logic m_out_valid,
     output      logic m_out_ready,
     // output      logic m_complete_acc_writeback,
-    input       logic m_write_request,
+    input       logic [1:0] m_write_request,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
 
     // Interface with Matrix SRAM
@@ -121,7 +121,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     //Request Asserted in single cycle
     always_comb begin
         write_req.wreq_m_sram        = ((prefetch_m_valid == 1'b1) & (previous_dma_m_ready == 1'b0))    ? 1'b1 : 1'b0;
-        write_req.wreq_s_sram_port_a = ((m_write_request == 1'b1)  | (v_write_request == 1'b1))         ? 1'b1 : 1'b0;
+        write_req.wreq_s_sram_port_a = ((m_write_request  == 1'b1)  | (v_write_request == 1'b1))         ? 1'b1 : 1'b0;
         write_req.wreq_s_sram_port_b = ((prefetch_v_valid == 1'b1) & (previous_dma_v_ready == 1'b0))    ? 1'b1 : 1'b0;
         write_req.wreq_from_m        = m_write_request;
     end
@@ -141,7 +141,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic p2_m_m_load;
 
 
-    // Update addr only when the exe operation is MV or MV_O
+    // Update addr only when the exe operation is MV_IC or MV_WO
     always_comb begin
 
         if (continuous_load_m_en) begin
@@ -396,7 +396,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 v_sram_req_a    <= 1'b1;
                 v_sram_wen_a    <= 1'b0;
                 continuous_load_v_for_matrix_en <= 1'b1;
-                load_for_gemv_en <= (exe_stage_op.m_op == MV || exe_stage_op.m_op == MV_O) ? 1'b1 : 1'b0;
+                load_for_gemv_en <= (exe_stage_op.m_op == MV_IC || exe_stage_op.m_op == MV_WO) ? 1'b1 : 1'b0;
             
             end else if (continuous_load_v_for_matrix_en) begin
                 if (m_v_ready) begin

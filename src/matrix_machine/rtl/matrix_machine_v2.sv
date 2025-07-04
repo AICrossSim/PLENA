@@ -41,25 +41,29 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output logic                                                    out_valid,
     input  logic                                                    out_ready,
     output logic [ADDR_WIDTH-1:0]                                   m_waddr,
-    output logic                                                    m_wreq
+    output logic [1:0]                                              m_wreq
 );
 
+    // -----------------------------
+    // Declarations
+    // -----------------------------
     import pipeline_pkg::*;
     logic [ADDR_WIDTH-1:0] recorded_m_waddr;
+    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BLEN);
+    M_OP    matrix_opcode; 
+    logic    [ADDR_WIDTH-1:0]  addr_in;
+    logic    result_waddr_update;
+    logic    wait_for_output;
+    logic    [1:0] recorded_wr_mode; // 2'b01: M_MM_WO, 2'b10: M_MV_WO
 
     // -----------------------------
     // Control Signals
     // -----------------------------
 
-    M_OP    matrix_opcode; 
-    logic    [ADDR_WIDTH-1:0]  addr_in;
-    logic    result_waddr_update;
-    logic    wait_for_output;
     assign matrix_opcode        = exe_stage_op.m_op;
     assign addr_in              = exe_stage_op.addr_2;
     assign result_waddr_update  = exe_stage_op.update_m_waddr;
 
-    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BLEN);
 
     // -----------------------------
     // Address Management
@@ -75,8 +79,14 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             if (matrix_opcode == MM_WO)begin
                 recorded_m_waddr <= addr_in;
                 wait_for_output <= 1'b1;
+                recorded_wr_mode <= 2'b01; // M_MM_WO
+            end else if (matrix_opcode == MV_WO) begin
+                recorded_m_waddr <= addr_in;
+                wait_for_output <= 1'b1;
+                recorded_wr_mode <= 2'b10; // M_MV_WO
             end else if (result_in_valid) begin
                 wait_for_output <= 1'b0;
+                recorded_wr_mode <= 2'b00; // No write
             end
         end
     end
@@ -256,7 +266,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     logic delayed_result_in_valid;
-    assign m_wreq   = result_in_valid & ~delayed_result_in_valid;
+    assign m_wreq   = (result_in_valid & ~delayed_result_in_valid) ? recorded_wr_mode : 2'b00;
     assign m_waddr  = recorded_m_waddr;
 
     always_ff @(posedge clk) begin

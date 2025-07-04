@@ -85,7 +85,8 @@ module coprocessor import configuration_pkg::*; #(
     logic [IMM_WIDTH - 1 : 0] s_imm;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
 
-    logic  m_write_request, v_write_request;
+    logic v_write_request;
+    logic [1:0] m_write_request;
 
     // Matrix
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]    fetched_m_element;
