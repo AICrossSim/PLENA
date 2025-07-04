@@ -77,15 +77,21 @@ module mxfp_systolic_array #(
 
     logic system_right_shift_valid, system_down_shift_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] pe_compute_ready;
+    logic determined_in_left_valid, determined_in_left_ready;
+
+    
+    assign determined_in_left_valid = (control == 1'b0) ?  in_left_valid : in_left_v_valid;
+    assign in_left_ready            = (control == 1'b0) ? determined_in_left_ready : 1'b0;
+    assign in_left_v_ready          = (control == 1'b1) ? determined_in_left_ready : 1'b0;
 
     join2 #() mult_signal_join (
-        .data_in_valid({in_top_valid, in_left_valid}),
-        .data_in_ready({in_top_ready, in_left_ready}),
+        .data_in_valid({in_top_valid, determined_in_left_valid}),
+        .data_in_ready({in_top_ready, determined_in_left_ready}),
         .data_out_valid(mult_valid),
         .data_out_ready(mult_ready)
     );
 
-    // assign mult_ready = p1_mult_ready;
+    // Delay a clk to wait the data to be stored in the registers in each PE.
     always_ff @(posedge clk) begin
         if (rst) begin
             p1_mult_valid <= 1'b0;

@@ -259,7 +259,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .v2_in_valid        (stored_v_valid),
         .v2_in_ready        (stored_v_ready),
         .v_result           (result_v),
-        .v_result_valid     (result_in_valid),
+        .v_result_write_req (result_in_valid),
         .v_result_ready     (result_in_ready),
         .load_in_progress   (load_in_progress),
         .empty_in_progress  (empty_in_progress)
@@ -283,7 +283,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .clk(clk),
         .rst(rst),
         .data_in        (result_v),
-        .data_in_valid  (result_in_valid),
+        .data_in_valid  (delayed_result_in_valid),
         .data_in_ready  (result_in_ready),
         .data_out       (out_v_fp),
         .data_out_valid (out_valid),

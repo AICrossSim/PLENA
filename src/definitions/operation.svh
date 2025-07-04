@@ -74,11 +74,12 @@ typedef enum logic [3:0] {
     DIV_FIX       = 4'h5,
     LUI_FIX       = 4'h6,
     MV_FIX        = 4'h7,
-    LD_FIX        = 4'h8,
-    ST_FIX        = 4'h9,
-    PASS_ADDR     = 4'hA,
-    PASS_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 adress.
-    COMP_ADDR     = 4'hC,
+    ACC_MULI      = 4'h8,
+    LD_FIX        = 4'h9,
+    ST_FIX        = 4'hA,
+    PASS_ADDR     = 4'hB,
+    PASS_ADDR_2   = 4'hC, // addr_port_2: rd and addr_port_1: rs1 adress.
+    COMP_ADDR     = 4'hD,
     STALL_S_FIXED = 0
 } S_FIXED_OP;
 
@@ -150,21 +151,22 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_DIV_FIX           = 6'h21,
     S_LUI_FIX           = 6'h22,
     S_MV_FIX            = 6'h23,
-    S_LD_FIX            = 6'h24,
-    S_ST_FIX            = 6'h25,
+    S_ACC_MULI          = 6'h24,
+    S_LD_FIX            = 6'h25,
+    S_ST_FIX            = 6'h26,
 
     // Memory Operations
-    H_PREFETCH_M_C      = 6'h26,
-    H_PREFETCH_M_S      = 6'h27,
-    H_PREFETCH_V_C      = 6'h28,
-    H_PREFETCH_V_S      = 6'h29,
-    H_STORE_V_C         = 6'h2A,
-    H_STORE_V_S         = 6'h2B,
+    H_PREFETCH_M_C      = 6'h27,
+    H_PREFETCH_M_S      = 6'h28,
+    H_PREFETCH_V_C      = 6'h29,
+    H_PREFETCH_V_S      = 6'h2A,
+    H_STORE_V_C         = 6'h2B,
+    H_STORE_V_S         = 6'h2C,
 
     // CSR Setting
-    C_SET_ADDR_REG      = 6'h2C,
-    C_SET_LUT           = 6'h2D,
-    C_SET_STRIDE_REG    = 6'h2E
+    C_SET_ADDR_REG      = 6'h2D,
+    C_SET_LUT           = 6'h2E,
+    C_SET_STRIDE_REG    = 6'h2F
 } CUSTOM_ISA_OPCODE;
 
 

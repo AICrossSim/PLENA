@@ -96,7 +96,7 @@ always_comb begin
         end
 
         // Scalar FIX Operations
-        S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX: begin
+        S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX, S_ACC_MULI: begin
             decode_instruction_type = S_FIX;
         end
 
@@ -311,7 +311,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op            <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op         <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op             <= STALL_S_FP;
-                exe_fixed_op                      <=    (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
+                exe_fixed_op                        <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
                                                         (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
                                                         (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
                                                         (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
@@ -319,9 +319,10 @@ always_ff @(posedge clk) begin
                                                         (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
                                                         (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : 
                                                         (decode_instr_info.opcode == S_LD_FIX)    ? LD_FIX    :
-                                                        (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    : STALL_S_FIXED;
-                decode_stage_op.c_op            <= STALL_C;
-                decode_stage_op.h_op            <= STALL_H;
+                                                        (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    : 
+                                                        (decode_instr_info.opcode == S_ACC_MULI)  ? ACC_MULI  : STALL_S_FIXED;
+                decode_stage_op.c_op                <= STALL_C;
+                decode_stage_op.h_op                <= STALL_H;
                 if (decode_instr_info.opcode == S_ADDI_FIX ) begin
                     // S_ADDI_FIX
                     decode_stage_op.fps1            <= 'b0;
@@ -329,6 +330,15 @@ always_ff @(posedge clk) begin
                     decode_stage_op.fpd             <= 'b0;
                     rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    imm             <= {{IMM_WIDTH - IMM_2_WIDTH {1'b0}}, decode_instr_info.imm[IMM_2_WIDTH:0]}; 
+                end else if (decode_instr_info.opcode == S_ACC_MULI ) begin
+                    // S_ADDI_FIX
+                    decode_stage_op.fps1            <= 'b0;
+                    decode_stage_op.fps2            <= 'b0;
+                    decode_stage_op.fpd             <= 'b0;
+                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2             <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     imm             <= {{IMM_WIDTH - IMM_2_WIDTH {1'b0}}, decode_instr_info.imm[IMM_2_WIDTH:0]}; 
                 end else begin
