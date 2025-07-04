@@ -13,6 +13,7 @@ def patch_config_svh_from_toml(
     with open(toml_path, "r") as f:
         data = toml.load(f)
     toml_config = data.get("CONFIG", {})
+
     if not toml_config:
         raise ValueError("No [CONFIG] section found in TOML")
 
@@ -57,7 +58,22 @@ def configure_toml_file(
     toml_path: str = "config.toml",
     svh_path: str = "configuration.svh"
 ):
-    pass
+    with open(toml_path, "r") as f:
+        data = toml.load(f)
+        toml_config = data.get("CONFIG", {})
+
+        if not toml_config:
+            raise ValueError("No [CONFIG] section found in TOML")
+
+        if mode is not None and not mode == "active":
+            hardware_settings = {
+                param: values.get(mode)
+                for param, values in toml_config.items()
+                if mode in values
+            } 
+
+
+        
 
 
 

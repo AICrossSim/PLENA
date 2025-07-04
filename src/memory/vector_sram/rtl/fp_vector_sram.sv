@@ -122,9 +122,14 @@ module fp_vector_sram #(
         end
     end
 
-    assign data_not_ready =     (port_b_req & !port_b_write_en) & (mem_data_tag[translated_port_b_addr] == 1'b0)
-                            ||  (port_a_req & !port_a_write_en) & (mem_data_tag[translated_port_a_addr] == 1'b0);   
-
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            data_not_ready <= 1'b0;
+        end else begin
+            data_not_ready <=  (port_b_req & !(&mem_data_tag[translated_port_b_addr +: VLEN])) || 
+                               (port_a_req & !(&mem_data_tag[translated_port_a_addr +: VLEN]));
+        end
+    end
     // -----------------------------
     // Port A Management
     // -----------------------------
@@ -228,7 +233,7 @@ module fp_vector_sram #(
             mxfp_fp_convert_port_b_ready <= 1'b0;
         end else begin
             high_mxfp_fp_convert_port_b_in_valid <= (port_b_mxfp_req == 2'b01) ? {V_BLOCK_NUM{1'b1}} : '0;
-            low_mxfp_fp_convert_port_b_in_valid <= (port_b_mxfp_req  == 2'b10) ? {V_BLOCK_NUM{1'b1}} : '0;
+            low_mxfp_fp_convert_port_b_in_valid  <= (port_b_mxfp_req  == 2'b10) ? {V_BLOCK_NUM{1'b1}} : '0;
             mxfp_fp_convert_port_b_ready <= 1'b1;
         end
     end

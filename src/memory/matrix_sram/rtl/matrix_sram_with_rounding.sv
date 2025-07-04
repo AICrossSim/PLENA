@@ -100,7 +100,9 @@ always_ff @(posedge clk) begin
     if (rst) begin
         data_not_ready <= 1'b0;
     end else begin
-        data_not_ready <= (req) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
+        if (req) begin
+            data_not_ready <= !(&mem_data_tag[raddr_for_sub_sram +: MLEN]);
+        end
     end
 end
 
