@@ -75,7 +75,12 @@ module mxfp_systolic_mcu #(
     // Data Wires Declaration
     // -----------------------------
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_in_valid, v1_data_in_ready;
+    logic v1_for_mm_in_valid, v1_for_mm_in_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_for_mm_in_valid, v1_data_for_mm_in_ready;
+    logic v1_load_for_gemv_in_valid, v1_load_for_gemv_in_ready;
+    logic v1_for_mv_in_valid, v1_for_mv_in_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_for_mv_in_valid, v1_data_for_mv_in_ready;
+
     logic v2_for_mm_in_valid, v2_for_mm_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] v2_data_for_mm_in_valid, v2_data_for_mm_in_ready;
     logic v2_for_mv_in_valid, v2_for_mv_in_ready;
@@ -86,6 +91,8 @@ module mxfp_systolic_mcu #(
 
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_v_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_v_in_scale;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]     array_left_v_in_element;
@@ -186,15 +193,28 @@ module mxfp_systolic_mcu #(
             end
         end
     end
+    
+    assign  sa_control = (control_in_exe == MV_IC); // 0 for GEMM, 1 for GEMV
 
+    // -----------------------------
+    // GEMV Data Path
+    // -----------------------------
 
-    // V2 storage for GEMV
     always_comb begin
         if (control_in_exe == MV_IC || control_in_exe == MV_WO) begin
+            v1_in_ready         = v1_load_for_gemv_in_ready;
             v2_in_ready         = v2_for_mv_in_ready;
+            v1_for_mm_in_valid  = 1'b0;
+            v1_load_for_gemv_in_valid  = v1_in_valid;
+            v2_for_mm_in_valid  = 1'b0;
+            v2_for_mv_in_valid  = v2_in_valid;
         end else begin
+            v1_in_ready         = v1_for_mm_in_ready;
             v2_in_ready         = v2_for_mm_in_ready;
+            v1_for_mm_in_valid  = v1_in_valid;
+            v1_load_for_gemv_in_valid  = 1'b0;
             v2_for_mm_in_valid  = v2_in_valid;
+            v2_for_mv_in_valid  = 1'b0;
         end
     end
 
@@ -202,20 +222,68 @@ module mxfp_systolic_mcu #(
         if (rst) begin
             array_left_v_in_element <= 'b0;
             array_left_v_in_scale   <= 'b0;
-        end else begin
+        end else if (sa_control) begin
             if (complete_loading) begin
                 array_left_v_in_element <= 'b0;
                 array_left_v_in_scale   <= 'b0;
-                v2_for_mv_in_valid      <= 1'b0;
             end else if (v2_in_valid) begin
                 array_left_v_in_element <= v2_element;
                 array_left_v_in_scale   <= v2_scale;
-                v2_for_mv_in_valid      <= 1'b1;
             end
         end
     end
 
-    assign  sa_control = (control_in_exe == MV_IC); // 0 for GEMM, 1 for GEMV
+    logic v1_for_mv_ele_in_valid,    v1_for_mv_ele_in_ready;
+    logic v1_for_mv_scale_in_valid,  v1_for_mv_scale_in_ready;
+    logic v1_for_mv_ele_out_valid,   v1_for_mv_ele_out_ready;
+    logic v1_for_mv_scale_out_valid, v1_for_mv_scale_out_ready;
+
+    split_n #(
+        .N (COMPUTE_DIM)
+    ) v1_load_for_gemv (
+        .data_in_valid(v1_load_for_gemv_in_valid),
+        .data_in_ready(v1_load_for_gemv_in_ready),
+        .data_out_valid({v1_for_mv_ele_in_valid, v1_for_mv_scale_in_valid}),
+        .data_out_ready({v1_for_mv_ele_in_ready, v1_for_mv_scale_in_ready})
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1))
+    ) v1_gemv_ele_streamer (
+            .clk           (clk),
+            .rst           (rst),
+            .data_in       (v1_element),
+            .data_in_valid (v1_for_mv_ele_in_valid),
+            .data_in_ready (v1_for_mv_ele_in_ready),
+            .data_out      (array_top_v_in_element),
+            .data_out_valid(v1_for_mv_ele_out_valid),
+            .data_out_ready(v1_for_mv_ele_out_ready)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(SYS_ARRAY_AMOUNT * BLOCK_NUM_PER_ARRAY * MXFP_SCALE_WIDTH)
+    ) v1_gemv_scale_streamer (
+            .clk           (clk),
+            .rst           (rst),
+            .data_in       (v1_scale),
+            .data_in_valid (v1_for_mv_scale_in_valid),
+            .data_in_ready (v1_for_mv_scale_in_ready),
+            .data_out      (array_top_v_in_scale),
+            .data_out_valid(v1_for_mv_scale_out_valid),
+            .data_out_ready(v1_for_mv_scale_out_ready)
+    );
+
+  join2 #() join_gemv_streamer_sig (
+      .data_in_ready ({v1_for_mv_ele_out_ready, v1_for_mv_scale_out_ready}),
+      .data_in_valid ({v1_for_mv_ele_out_valid, v1_for_mv_scale_out_valid}),
+      .data_out_valid(v1_for_mv_in_valid),
+      .data_out_ready(v1_for_mv_in_ready)
+  );
+
+    // -----------------------------
+    // Result Data Path
+    // -----------------------------
+
     assign gemm_result_ready = & gemm_result_w_ready;
     assign gemv_result_ready = & gemv_result_w_ready;
 
@@ -255,29 +323,38 @@ module mxfp_systolic_mcu #(
     generate;
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
-        ) v1_handshake (
-            .data_in_valid  (v1_in_valid),
-            .data_in_ready  (v1_in_ready),
-            .data_out_valid (v1_data_in_valid),
-            .data_out_ready (v1_data_in_ready)
+        ) v1_gemm_handshake (
+            .data_in_valid  (v1_for_mm_in_valid),
+            .data_in_ready  (v1_for_mm_in_ready),
+            .data_out_valid (v1_data_for_mm_in_valid),
+            .data_out_ready (v1_data_for_mm_in_ready)
         );
 
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
-        ) v2_handshake (
+        ) v2_gemm_handshake (
             .data_in_valid  (v2_for_mm_in_valid),
             .data_in_ready  (v2_for_mm_in_ready),
             .data_out_valid (v2_data_for_mm_in_valid),
             .data_out_ready (v2_data_for_mm_in_ready)
         );
+        
+        split_n #(
+            .N(SYS_ARRAY_AMOUNT)
+        ) v1_gemv_handshake (
+            .data_in_valid  (v1_for_mv_in_valid),
+            .data_in_ready  (v1_for_mv_in_ready),
+            .data_out_valid (v1_data_for_mv_in_valid),
+            .data_out_ready (v1_data_for_mv_in_ready)
+        );
 
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
-        ) vect_handshake (
-            .data_in_valid(v2_for_mv_in_valid),
-            .data_in_ready(v2_for_mv_in_ready),
-            .data_out_valid(v2_data_for_mv_in_valid),
-            .data_out_ready(v2_data_for_mv_in_ready)
+        ) v2_gemv_handshake (
+            .data_in_valid  (v2_for_mv_in_valid),
+            .data_in_ready  (v2_for_mv_in_ready),
+            .data_out_valid (v2_data_for_mv_in_valid),
+            .data_out_ready (v2_data_for_mv_in_ready)
         );
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
@@ -294,8 +371,8 @@ module mxfp_systolic_mcu #(
                 .rst(rst),
                 .data_elem_in   (v1_element[i * M +: M]),
                 .data_scale_in  (v1_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
-                .data_in_valid  (v1_data_in_valid[i]),
-                .data_in_ready  (v1_data_in_ready[i]),
+                .data_in_valid  (v1_data_for_mm_in_valid[i]),
+                .data_in_ready  (v1_data_for_mm_in_ready[i]),
                 .data_elem_out  (array_top_in_element[i]),
                 .data_scale_out (array_top_in_scale[i]),
                 .data_out_valid (array_top_in_valid[i]),
@@ -341,6 +418,10 @@ module mxfp_systolic_mcu #(
                 .in_top_scale       (array_top_in_scale[i]),
                 .in_top_valid       (array_top_in_valid[i]),
                 .in_top_ready       (array_top_in_ready[i]),
+                .in_top_v_element   (array_top_v_in_element[i]),
+                .in_top_v_scale     (array_top_v_in_scale[i]),
+                .in_top_v_valid     (v1_data_for_mv_in_valid[i]),
+                .in_top_v_ready     (v1_data_for_mv_in_ready[i]),
                 .in_left_element    (array_left_in_element[i]),
                 .in_left_scale      (array_left_in_scale[i]),
                 .in_left_valid      (array_left_in_valid[i]),

@@ -26,15 +26,21 @@ module mxfp_first_row_pe #(
     // Input from Top
     input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
-    input  logic system_top_valid,
 
-    // Input from Vector
-    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_v_element,
-    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
+    // Input from top vector
+    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_top_v_element,
+    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+
+    input  logic system_top_valid,
 
     // Input from Left
     input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
+
+    // Input from left vector
+    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_v_element,
+    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
+    
     input  logic system_left_valid,
 
     // Mult Control
@@ -74,36 +80,30 @@ module mxfp_first_row_pe #(
     logic pe_out_result_ready;
 
     always_comb begin
-        // For Top level, Same as the default PE
-        pe_in_top_element = in_top_element;
-        pe_in_top_scale = in_top_scale;
         pe_out_result_ready = out_result_ready;
         if (control == 1'b0) begin
             // GEMM
+            pe_in_top_element   = in_top_element;
+            pe_in_top_scale     = in_top_scale;
             pe_in_left_element  = in_left_element;
             pe_in_left_scale    = in_left_scale;
-            // Bottom
             out_bottom_element  = pe_out_bottom_element;
             out_bottom_scale    = pe_out_bottom_scale;
-            // Right
             out_right_element   = pe_out_right_element;
             out_right_scale     = pe_out_right_scale;
-            // Result
             out_fp              = pe_out_fp;
         end else begin
             // GEMV
+            pe_in_top_element   = in_top_v_element;
+            pe_in_top_scale     = in_top_v_scale;
             pe_in_left_element  = in_left_v_element;
             pe_in_left_scale    = in_left_v_scale;
-            // Bottom
             out_bottom_element  = 'b0;
             out_bottom_scale    = 'b0;
-            // Right
             out_right_element   = 'b0;
             out_right_scale     = 'b0;
-            // Result
             out_fp              = pe_out_fp;
         end
-
     end
 
     // Declare the default PE

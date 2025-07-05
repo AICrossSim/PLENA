@@ -137,7 +137,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic [M_LD_COUNT_WIDTH : 0] recorded_m_sram_load_counter;
     logic [M_PF_COUNT_WIDTH : 0] m_sram_prefetch_counter;
     logic m_m_load, m_v_load;
-    logic p1_m_m_load, m_v_load_cond;
+    logic p2_m_m_load, p1_m_m_load, m_v_load_cond;
 
 
     // Update addr only when the exe operation is MV_IC or MV_WO
@@ -183,6 +183,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             m_sram_prefetch_counter     <= 'b0;
             m_m_load                    <= 1'b0;
             p1_m_m_load                 <= 1'b0;
+            p2_m_m_load                 <= 1'b0;
             m_m_valid                   <= 1'b0;
             m_out_ready                 <= 1'b0;
             recorded_m_prefetch_addr    <= 'b0;
@@ -202,6 +203,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
 
             m_out_ready     <= 1'b1;
             p1_m_m_load     <= m_m_load & !end_of_load_m;
+            p2_m_m_load     <= p1_m_m_load;
             p1_m_prefetch_data_not_ready <= m_prefetch_data_not_ready;
         
             // Matrix SRAM Read Port Control
@@ -210,12 +212,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 m_m_load        <= 1'b1;
                 m_sram_transposed_read  <= exe_stage_op.m_transposed_read;
                 m_sram_load_counter     <= 'b0;
-                load_m_amount           <= (exe_stage_op.m_op == MV_IC) ? MATRIX_LOAD_ITERATION_GEMV : MATRIX_LOAD_ITERATION_GEMM;
+                load_m_amount           <= (exe_stage_op.m_op == MV_IC) ? MATRIX_LOAD_ITERATION_GEMV: MATRIX_LOAD_ITERATION_GEMM;
                 continuous_load_m_en    <= 1'b1;
             end else if (continuous_load_m_en) begin
                 end_of_load_m   <= (m_sram_load_counter == load_m_amount) & m_m_ready;
                 if (m_m_ready) begin
-                    m_m_valid <= (p1_m_m_load & !end_of_load_m) & (!p1_m_prefetch_data_not_ready) & (!m_prefetch_data_not_ready); // 2 cycles for loading the matrix data
+                    m_m_valid <= (p2_m_m_load & p1_m_m_load & !end_of_load_m) & (!p1_m_prefetch_data_not_ready) & (!m_prefetch_data_not_ready); // 2 cycles for loading the matrix data
                     if (end_of_load_m) begin
                         m_sram_req <= 1'b0;
                         m_m_load   <= 1'b0;
@@ -266,7 +268,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
 
     // Assuming the read cycle is 1 cycle for both ports.
     // Port A ->  R: Matrix Multiplicand Vector & Vector Operand (RS1)                          W: Vector Result from either Matrix or Vector Machine, 
-    // Port B ->  R: Vector Operand (RS2)  or Load HBM Write Data                                    W: Vector Prefetch
+    // Port B ->  R: Vector Operand (RS2)  or Load HBM Write Data                               W: Vector Prefetch
     // For Port A, if loading it to the matrix machine, this takes extra cycle as we need to quantise the fp data (activation) into MX-FP format.
 
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
@@ -379,7 +381,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                         v_sram_load_for_matrix_counter <= 'b0;
                         continuous_load_v_for_matrix_en <= 1'b0;
                     end else begin
-                        if (!v_prefetch_data_not_ready & m_v_load) begin
+                        if (!v_prefetch_data_not_ready & m_v_load_cond) begin
                             if (load_for_gemv_en) begin
                                 m_v_load                        <= 1'b0;
                                 v_sram_req_a                    <= 1'b0;

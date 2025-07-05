@@ -33,13 +33,19 @@ module mxfp_systolic_array #(
     input   logic in_top_valid,
     output  logic in_top_ready,
 
+    // Input from Top Vector Array
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_top_v_element,
+    input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+    input   logic in_top_v_valid,
+    output  logic in_top_v_ready,
+
     // Input from Left Array
     input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_element,
     input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input   logic in_left_valid,
     output  logic in_left_ready,
 
-    // Input from Vector Array
+    // Input from Left Vector Array
     input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_v_element,
     input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
     input   logic in_left_v_valid,
@@ -77,16 +83,19 @@ module mxfp_systolic_array #(
 
     logic system_right_shift_valid, system_down_shift_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] pe_compute_ready;
-    logic determined_in_left_valid, determined_in_left_ready;
+    logic determined_left_valid, determined_left_ready;
+    logic determined_top_valid, determined_top_ready;
 
-    
-    assign determined_in_left_valid = (control == 1'b0) ?  in_left_valid : in_left_v_valid;
-    assign in_left_ready            = (control == 1'b0) ? determined_in_left_ready : 1'b0;
-    assign in_left_v_ready          = (control == 1'b1) ? determined_in_left_ready : 1'b0;
+    assign determined_left_valid = (control == 1'b0) ?  in_left_valid : in_left_v_valid;
+    assign determined_top_valid  = (control == 1'b0) ?  in_top_valid : in_top_v_valid;
+    assign in_left_ready            = (control == 1'b0) ? determined_left_ready : 1'b0;
+    assign in_left_v_ready          = (control == 1'b1) ? determined_left_ready : 1'b0;
+    assign in_top_ready             = (control == 1'b0) ? determined_top_ready : 1'b0;
+    assign in_top_v_ready           = (control == 1'b1) ? determined_top_ready : 1'b0;
 
     join2 #() mult_signal_join (
-        .data_in_valid({in_top_valid, determined_in_left_valid}),
-        .data_in_ready({in_top_ready, determined_in_left_ready}),
+        .data_in_valid({determined_top_valid, determined_left_valid}),
+        .data_in_ready({determined_top_ready, determined_left_ready}),
         .data_out_valid(mult_valid),
         .data_out_ready(mult_ready)
     );
@@ -136,6 +145,8 @@ module mxfp_systolic_array #(
                         .in_top_element     (ve_transfer_elem[i][j]),
                         .in_top_scale       (ve_transfer_scale[i][j]),
                         .system_top_valid   (system_down_shift_valid),
+                        .in_top_v_element   (in_top_v_element[i][j]),
+                        .in_top_v_scale     (in_top_v_scale[i][j]),
                         .in_left_element    (ho_transfer_elem[i][j]),
                         .in_left_scale      (ho_transfer_scale[i][j]),
                         .system_left_valid  (system_right_shift_valid),
