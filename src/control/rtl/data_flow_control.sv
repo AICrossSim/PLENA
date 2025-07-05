@@ -138,14 +138,16 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic [M_PF_COUNT_WIDTH : 0] m_sram_prefetch_counter;
     logic m_m_load, m_v_load;
     logic p2_m_m_load, p1_m_m_load, m_v_load_cond;
+    logic matrix_related_data_ready;
+    assign matrix_related_data_ready = (!m_prefetch_data_not_ready) & (!v_prefetch_data_not_ready);
 
 
     // Update addr only when the exe operation is MV_IC or MV_WO
     always_comb begin
         if (continuous_load_m_en) begin
-            if (!m_prefetch_data_not_ready) begin
+            if (matrix_related_data_ready) begin
                 m_sram_raddr_offset = m_sram_load_counter * MSRAM_BYTES_PER_ROW;
-            end else if (((continuous_load_m_en & (!m_m_ready)) || m_prefetch_data_not_ready)) begin
+            end else if (((continuous_load_m_en & (!m_m_ready)) || !matrix_related_data_ready)) begin
                 m_sram_raddr_offset = recorded_m_sram_load_counter * MSRAM_BYTES_PER_ROW;
             end
         end else begin
@@ -169,7 +171,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // Write Port -> Matrix Weight Prefetch
 
     logic end_of_load_m; // TODO: Maybe this can be optimised.
-    logic p1_m_prefetch_data_not_ready;
+    logic p1_matrix_related_data_ready;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -177,7 +179,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             hbm_m_req_prefetch_data     <= 1'b0;
             continuous_load_m_en        <= 1'b0;
             continuous_prefetch_m_en    <= 1'b0;
-            p1_m_prefetch_data_not_ready <= 1'b0;
+            p1_matrix_related_data_ready <= 1'b0;
             m_sram_load_counter         <= 'b0;
             load_m_amount               <= 'b0;
             m_sram_prefetch_counter     <= 'b0;
@@ -197,14 +199,14 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end else if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) begin
                 recorded_m_load_addr <= exe_stage_op.addr_2;
             end 
-            if (!m_prefetch_data_not_ready) begin
+            if (matrix_related_data_ready) begin
                 recorded_m_sram_load_counter <= m_sram_load_counter;
             end 
 
             m_out_ready     <= 1'b1;
             p1_m_m_load     <= m_m_load & !end_of_load_m;
             p2_m_m_load     <= p1_m_m_load;
-            p1_m_prefetch_data_not_ready <= m_prefetch_data_not_ready;
+            p1_matrix_related_data_ready <= matrix_related_data_ready;
         
             // Matrix SRAM Read Port Control
             if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) begin
@@ -217,14 +219,14 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end else if (continuous_load_m_en) begin
                 end_of_load_m   <= (m_sram_load_counter == load_m_amount) & m_m_ready;
                 if (m_m_ready) begin
-                    m_m_valid <= (p2_m_m_load & p1_m_m_load & !end_of_load_m) & (!p1_m_prefetch_data_not_ready) & (!m_prefetch_data_not_ready); // 2 cycles for loading the matrix data
+                    m_m_valid <= (p2_m_m_load & p1_m_m_load & !end_of_load_m) & (p1_matrix_related_data_ready) & (matrix_related_data_ready); // 2 cycles for loading the matrix data
                     if (end_of_load_m) begin
                         m_sram_req <= 1'b0;
                         m_m_load   <= 1'b0;
                         m_sram_load_counter <= 'b0;
                         continuous_load_m_en <= 1'b0;
                     end else begin
-                        if (p1_m_m_load & !m_prefetch_data_not_ready) begin
+                        if (p1_m_m_load & matrix_related_data_ready) begin
                             m_m_load    <= 1'b1;
                             m_sram_req  <= 1'b1;
                             m_sram_load_counter <= m_sram_load_counter + 1'b1;
@@ -325,7 +327,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         end
     end
 
-    assign end_of_load_v_for_matrix = (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION_GEMM ) & (!v_prefetch_data_not_ready) & m_v_ready;
+    assign end_of_load_v_for_matrix = (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION_GEMM ) & (matrix_related_data_ready) & m_v_ready;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -362,7 +364,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             v_v_a_valid                 <= v_v_a_load;
             v_v_b_valid                 <= v_v_b_load;
             m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
-            m_v_valid                   <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (!v_prefetch_data_not_ready);
+            m_v_valid                   <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (matrix_related_data_ready);
             //Port A
             if((exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) & m_v_ready) begin
                 // Read Vector from SRAM
@@ -381,7 +383,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                         v_sram_load_for_matrix_counter <= 'b0;
                         continuous_load_v_for_matrix_en <= 1'b0;
                     end else begin
-                        if (!v_prefetch_data_not_ready & m_v_load_cond) begin
+                        if (matrix_related_data_ready & m_v_load_cond) begin
                             if (load_for_gemv_en) begin
                                 m_v_load                        <= 1'b0;
                                 v_sram_req_a                    <= 1'b0;
@@ -401,7 +403,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                     end 
                 end
             end else if (exe_stage_op.v_ele_op != STALL_V_ELEMENT || exe_stage_op.v_reduct_op != STALL_V_REDUCT) begin
-                // TODO: Need to introduce v_prefetch_data_not_ready
+                // TODO: Need to introduce v_prefetch_data_not_ready for vector machine
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b1;
                 v_sram_req_a    <= 1'b1;
