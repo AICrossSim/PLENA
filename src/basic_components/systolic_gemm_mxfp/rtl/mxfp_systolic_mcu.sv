@@ -207,14 +207,13 @@ module mxfp_systolic_mcu #(
             v1_for_mm_in_valid  = 1'b0;
             v1_load_for_gemv_in_valid  = v1_in_valid;
             v2_for_mm_in_valid  = 1'b0;
-            v2_for_mv_in_valid  = v2_in_valid;
+            
         end else begin
             v1_in_ready         = v1_for_mm_in_ready;
             v2_in_ready         = v2_for_mm_in_ready;
             v1_for_mm_in_valid  = v1_in_valid;
             v1_load_for_gemv_in_valid  = 1'b0;
             v2_for_mm_in_valid  = v2_in_valid;
-            v2_for_mv_in_valid  = 1'b0;
         end
     end
 
@@ -226,9 +225,11 @@ module mxfp_systolic_mcu #(
             if (complete_loading) begin
                 array_left_v_in_element <= 'b0;
                 array_left_v_in_scale   <= 'b0;
+                v2_for_mv_in_valid      <= 1'b0;
             end else if (v2_in_valid) begin
                 array_left_v_in_element <= v2_element;
                 array_left_v_in_scale   <= v2_scale;
+                v2_for_mv_in_valid      <= v2_in_valid;
             end
         end
     end
@@ -239,7 +240,7 @@ module mxfp_systolic_mcu #(
     logic v1_for_mv_scale_out_valid, v1_for_mv_scale_out_ready;
 
     split_n #(
-        .N (COMPUTE_DIM)
+        .N (2)
     ) v1_load_for_gemv (
         .data_in_valid(v1_load_for_gemv_in_valid),
         .data_in_ready(v1_load_for_gemv_in_ready),

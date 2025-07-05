@@ -28,7 +28,7 @@ module mxfp_first_row_pe #(
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
 
     // Input from top vector
-    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_top_v_element,
+    input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_v_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
 
     input  logic system_top_valid,

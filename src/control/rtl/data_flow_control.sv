@@ -145,7 +145,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (continuous_load_m_en) begin
             if (!m_prefetch_data_not_ready) begin
                 m_sram_raddr_offset = m_sram_load_counter * MSRAM_BYTES_PER_ROW;
-            end else begin
+            end else if (((continuous_load_m_en & (!m_m_ready)) || m_prefetch_data_not_ready)) begin
                 m_sram_raddr_offset = recorded_m_sram_load_counter * MSRAM_BYTES_PER_ROW;
             end
         end else begin

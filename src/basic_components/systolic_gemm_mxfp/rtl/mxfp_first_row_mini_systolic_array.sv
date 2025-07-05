@@ -33,7 +33,7 @@ module mxfp_first_row_mini_systolic_array #(
     input  logic system_top_valid,
 
     // Input from Top Vector
-    input  logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_top_v_element,
+    input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_v_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
 
     // Input from Left
