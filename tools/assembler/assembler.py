@@ -97,10 +97,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--layer', type=str, required=True, help='Input file name')
+    parser.add_argument('--test_type', type=str, default='Layerwise_Benchmark', help='Input file name (default: basic)')
     args = parser.parse_args()
 
     isa_file_path = '../../src/definitions/operation.svh'
-    asm_file_path = f'../../test/Layerwise_Benchmark/{args.layer}.asm'
-    output_file_path = f'../../test/Layerwise_Benchmark/{args.layer}.mem'
+    asm_file_path = f'../../test/{args.test_type}/{args.layer}.asm'
+    output_file_path = f'../../test/{args.test_type}/{args.layer}.mem'
     assembler = Assembler(isa_file_path)
     assembler.generate_binary(asm_file_path, output_file_path)

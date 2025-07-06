@@ -237,7 +237,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     // SRAM for FP
     scalar_sram #(
-        .DATA_WIDTH(S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1),
+        .DATA_WIDTH(FP_SRAM_WIDTH),
         .DEPTH(FP_SRAM_DEPTH)
         `ifdef SIMULATION
             ,
@@ -364,7 +364,7 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     scalar_sram #(
-        .DATA_WIDTH(FIXED_DATA_WIDTH),
+        .DATA_WIDTH(FIXED_SRAM_WIDTH),
         .DEPTH(FIXED_SRAM_DEPTH)
         `ifdef SIMULATION
             ,

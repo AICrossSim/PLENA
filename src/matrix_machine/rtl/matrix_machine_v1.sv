@@ -108,8 +108,8 @@ always_ff @(posedge clk) begin
             prepare_flag <= 1'b1;
             pipeline_compute_track[0] <= '{waddr: 'b0, mop: STALL_M};
         end else if (prepare_flag) begin
-            if ((recorded_m_op == MV && collect_m_valid && stored_v_valid) ||
-                (recorded_m_op == MV_O && collect_m_valid && stored_v_valid && stored_o_valid)) begin
+            if ((recorded_m_op == MV_IC && collect_m_valid && stored_v_valid) ||
+                (recorded_m_op == MV_WO && collect_m_valid && stored_v_valid && stored_o_valid)) begin
 
                 prepare_flag <= 1'b0;
                 pipeline_compute_track[0] <= '{waddr: recorded_m_waddr, mop: recorded_m_op};
@@ -381,15 +381,15 @@ logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_elem
 logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale;
 logic result_from_acc_valid, result_from_acc_ready;
 
-// Assuming there is no case that MV is followed by MV_O, where both might write to the sram at the same time.
+// Assuming there is no case that MV_IC is followed by MV_WO, where both might write to the sram at the same time.
 always_comb begin
-    if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV) begin
+    if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV_IC) begin
         // At the cycle where the mv operation is completed
         result_element          = prod_element;
         result_scale            = prod_scale;
         out_valid               = prod_valid;
         prod_for_acc_valid      = 1'b0;
-    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV_O) begin
+    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-1].mop == MV_WO) begin
         // At the cycle where the mv operation is completed
         result_element          = {MLEN{1'b0}};
         result_scale            = {BLOCK_NUM{1'b0}};
@@ -398,7 +398,7 @@ always_comb begin
         offset_for_acc_valid    = stored_o_valid;
         stored_o_ready          = offset_for_acc_ready;
 
-    end else if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-1].mop == MV_O) begin
+    end else if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-1].mop == MV_WO) begin
         // At the cycle where the accumulation operation is completed
         result_element          = acc_element;
         result_scale            = acc_scale;
@@ -413,10 +413,10 @@ always_comb begin
     result_from_acc_ready   = out_ready;
 
     // One cycle ahead, informing the dataflow centre to prepare writing to the scratchpad sram.
-    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-2].mop == MV_O) begin
+    if (pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-2].mop == MV_WO) begin
         m_wreq  = 1'b1;
         m_waddr = pipeline_compute_track[MATRIX_W_OFFSET_CYCLES-2].waddr;
-    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-2].mop == MV) begin
+    end else if( pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-2].mop == MV_IC) begin
         m_wreq  = 1'b1;
         m_waddr = pipeline_compute_track[MATRIX_WO_OFFSET_CYCLES-2].waddr;
     end else begin

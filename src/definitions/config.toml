@@ -1,0 +1,263 @@
+[CONFIG.BLEN]
+active = 4
+SIMULATION = 4
+ASIC = 8
+default = 4
+
+[CONFIG.MLEN]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.Matrix_Parallel_Rd_Dim]
+active = 1
+SIMULATION = 1
+ASIC = 1
+default = 1
+
+[CONFIG.VLEN]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.INST_BUFF_DEPTH]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.ON_CHIP_ADDR_WIDTH]
+active = 32
+SIMULATION = 32
+ASIC = 64
+default = 32
+
+[CONFIG.HBM_ADDR_WIDTH]
+active = 64
+SIMULATION = 64
+ASIC = 128
+default = 64
+
+[CONFIG.ADR_OPERAND_WIDTH]
+active = 3
+SIMULATION = 3
+ASIC = 3
+default = 3
+
+[CONFIG.HBM_ADDR_REG_NUM]
+active = 8
+SIMULATION = 8
+ASIC = 8
+default = 8
+
+[CONFIG.SourceWidth]
+active = 1
+SIMULATION = 1
+ASIC = 1
+default = 1
+
+[CONFIG.SinkWidth]
+active = 1
+SIMULATION = 1
+ASIC = 1
+default = 1
+
+[CONFIG.MATRIX_ACC_ADR_DEPTH]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.MATRIX_SRAM_DEPTH]
+active = 128
+SIMULATION = 128
+ASIC = 256
+default = 128
+
+[CONFIG.VECTOR_SRAM_DEPTH]
+active = 128
+SIMULATION = 128
+ASIC = 256
+default = 128
+
+[CONFIG.FIXED_SRAM_DEPTH]
+active = 32
+SIMULATION = 32
+ASIC = 32
+default = 32
+
+[CONFIG.FP_SRAM_DEPTH]
+active = 32
+SIMULATION = 32
+ASIC = 32
+default = 32
+
+[CONFIG.HBM_M_Prefetch_Amount]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.HBM_V_Prefetch_Amount]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.HBM_V_Writeback_Amount]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[CONFIG.HBM_ELE_WIDTH]
+active = 256
+SIMULATION = 256
+ASIC = 512
+default = 256
+
+[CONFIG.HBM_SCALE_WIDTH]
+active = 256
+SIMULATION = 256
+ASIC = 512
+default = 256
+
+[CONFIG.FAKE_HBM_ADDR_WIDTH]
+active = 4
+SIMULATION = 4
+ASIC = 4
+default = 4
+
+[PRECISION.HIGH_MXFP_MANT_WIDTH]
+active = 8
+SIMULATION = 3
+ASIC = 4
+default = 3
+
+[PRECISION.HIGH_MXFP_EXP_WIDTH]
+active = 4
+SIMULATION = 4
+ASIC = 5
+default = 4
+
+[PRECISION.LOW_MXFP_MANT_WIDTH]
+active = 2
+SIMULATION = 2
+ASIC = 3
+default = 2
+
+[PRECISION.LOW_MXFP_EXP_WIDTH]
+active = 1
+SIMULATION = 1
+ASIC = 2
+default = 1
+
+[PRECISION.MXFP_SCALE_WIDTH]
+active = 8
+SIMULATION = 8
+ASIC = 16
+default = 8
+
+[PRECISION.BLOCK_DIM]
+active = 4
+SIMULATION = 4
+ASIC = 8
+default = 4
+
+[PRECISION.V_FP_EXP_WIDTH]
+active = 7
+SIMULATION = 7
+ASIC = 8
+default = 7
+
+[PRECISION.V_FP_MANT_WIDTH]
+active = 8
+SIMULATION = 8
+ASIC = 10
+default = 8
+
+[PRECISION.M_FP_EXP_WIDTH]
+active = 8
+SIMULATION = 8
+ASIC = 10
+default = 8
+
+[PRECISION.M_FP_MANT_WIDTH]
+active = 23
+SIMULATION = 23
+ASIC = 24
+default = 23
+
+[PRECISION.S_FP_EXP_WIDTH]
+active = 7
+SIMULATION = 7
+ASIC = 8
+default = 7
+
+[PRECISION.S_FP_MANT_WIDTH]
+active = 8
+SIMULATION = 8
+ASIC = 10
+default = 8
+
+[PRECISION.FIXED_DATA_WIDTH]
+active = 32
+SIMULATION = 32
+ASIC = 32
+default = 32
+
+[PRECISION.PRODUCT_EXT_EXP_WIDTH]
+active = 0
+SIMULATION = 0
+ASIC = 0
+default = 0
+
+[PRECISION.PRODUCT_EXT_MANT_WIDTH]
+active = 0
+SIMULATION = 0
+ASIC = 0
+default = 0
+
+[PRECISION.BLOCK_ADD_EXT_EXP_WIDTH]
+active = 1
+SIMULATION = 1
+ASIC = 1
+default = 1
+
+[PRECISION.BLOCK_ADD_EXT_MANT_WIDTH]
+active = 0
+SIMULATION = 0
+ASIC = 0
+default = 0
+
+[PRECISION.FP_ADD_EXT_EXP_WIDTH]
+active = 1
+SIMULATION = 1
+ASIC = 1
+default = 1
+
+[PRECISION.FP_ADD_EXT_MANT_WIDTH]
+active = 0
+SIMULATION = 0
+ASIC = 0
+default = 0
+
+[PRECISION.ROUND_FP_EN]
+active = 0
+SIMULATION = 0
+ASIC = 0
+default = 0
+
+[PRECISION.ROUND_FP_EXP_WIDTH]
+active = 4
+SIMULATION = 4
+ASIC = 4
+default = 4
+
+[PRECISION.ROUND_FP_MANT_WIDTH]
+active = 3
+SIMULATION = 3
+ASIC = 3
+default = 3

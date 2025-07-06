@@ -134,7 +134,7 @@ module fp_systolic_mcu #(
                 complete_v2_load <= 1'b0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_O) || (control_in_exe == MM_WO)) & (gemm_result_valid || gemv_result_valid);
+            output_reset <= ((control_in_exe == MV_WO) || (control_in_exe == MM_PS)) & (gemm_result_valid || gemv_result_valid);
         end
     end
 
@@ -165,7 +165,7 @@ module fp_systolic_mcu #(
 
     
     always_comb begin
-        if (control_in_exe == MV || control_in_exe == MV_O) begin
+        if (control_in_exe == MV_IC || control_in_exe == MV_WO) begin
             v2_in_ready = v2_for_mv_in_ready;
             v2_for_mv_in_valid = v2_in_valid;
         end else begin
@@ -174,7 +174,7 @@ module fp_systolic_mcu #(
         end
     end
 
-    assign sa_control = ((control_in_exe == MV) || (control_in_exe == MV_O)); // 0 for GEMM, 1 for GEMV
+    assign sa_control = ((control_in_exe == MV_IC) || (control_in_exe == MV_WO)); // 0 for GEMM, 1 for GEMV
     logic start_feed_count;
     logic ready_to_load_output;
 
@@ -186,7 +186,7 @@ module fp_systolic_mcu #(
             gemm_result_valid       <= 'b0;
             ready_to_load_output    <= 1'b0;
         end else begin
-            if (complete_loading & control_in_exe == MM_WO) begin
+            if (complete_loading & control_in_exe == MM_PS) begin
                 feed_counter        <= '0;
                 start_feed_count    <= 1'b1;
             end else if (start_feed_count) begin
@@ -202,8 +202,8 @@ module fp_systolic_mcu #(
                 start_feed_count <= 1'b0;
                 ready_to_load_output <= 1'b0;
             end
-            gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_O) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 

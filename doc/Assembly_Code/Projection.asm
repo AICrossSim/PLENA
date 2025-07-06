@@ -27,7 +27,7 @@ LOOP_MLEN_MATRIX:
         H_PREFETCH_V_C  x13, x8,  csr_adr[8];         Fetch the embedded vector from HBM to MVM SRAM
         C_SET_MV_OFFSET x13;                        Set the offset addr for the MVM operation
 
-        M_MV x9, x13, x13;  
+        M_MV_IC x9, x13, x13;  
 
     S_ADDI_FIX      x11, x11, MLEN * MLEN;            Storing the address for the next tile in MVM SRAM
     S_ADDI_FIX      x8,  x8,  MLEN;       Storing the address for the next tile in SSRAM

@@ -29,6 +29,7 @@ module block_data_buffer #(
     input   logic [ACC_ADDR_WIDTH-1:0] acc_waddr,
     input   logic acc_waddr_valid,
     output  logic acc_waddr_ready,
+    input   logic wait_for_output,
     input   logic block_data_valid,
     output  logic block_data_ready,
     // Output, outputting [K] results for M cycles
@@ -52,6 +53,7 @@ end
 
   logic [M : 0] load_out_counter;
   logic [M-1:0][K-1:0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0] buffered_data;
+  logic start_to_load_out;
 
   always_ff @(posedge clk or posedge rst) begin
       if (rst) begin
@@ -59,6 +61,7 @@ end
           unrolled_data_out_valid <= 1'b0;
           write_to_buffer_ready <= 1'b0;
           buffered_data <= 'b0;
+          start_to_load_out <= 1'b0;
       end else begin
           write_to_buffer_ready <= 1'b1;
           if (write_to_buffer_valid) begin
@@ -68,14 +71,15 @@ end
               end
           end
 
-          if (acc_waddr == ACC_NUM - 1 && write_to_buffer_valid) begin
-              unrolled_data_out_valid <= 1'b1;
+          if (acc_waddr == ACC_NUM - 1 && write_to_buffer_valid && wait_for_output) begin
               load_out_counter <= 'b0;
+              start_to_load_out <= 1'b1;
           end else if (load_out_counter == M) begin
               unrolled_data_out_valid <= 1'b0;
               load_out_counter        <= 'b0;
+              start_to_load_out       <= 1'b0;
               unrolled_data_out       <= 'b0;
-          end else if (unrolled_data_out_valid & unrolled_data_out_ready) begin
+          end else if (start_to_load_out & unrolled_data_out_ready) begin
               unrolled_data_out_valid <= 1'b1;
               unrolled_data_out <= buffered_data[load_out_counter];
               load_out_counter  <= load_out_counter + 1;

@@ -32,6 +32,8 @@ module fixed_alu #(
             //     result = operand_a / operand_b; // Division Affecting the critical path.
             LUI_FIX:
                 result = { {(BITWIDTH - IMM_SHIFT_AMOUNT){1'b0}}, imm_value, {IMM_SHIFT_AMOUNT{1'b0}}};     // Load upper immediate
+            ACC_MULI:
+                result = operand_a * imm_value + operand_b;
             ADDI_FIX, COMP_ADDR, LD_FIX, ST_FIX:
                 result = operand_a + imm_value; // Compute address with imm
             MV_FIX:

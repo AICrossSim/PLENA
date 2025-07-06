@@ -20,17 +20,17 @@ module mx_fp_mv #(
     localparam  BLOCK_NUM            = COMPUTE_DIM / BLOCK_DIM,
 
     // Precision Control
-    parameter   PRODUCT_EXT_EXP_WIDTH   = 1,
-    parameter   PRODUCT_EXT_MANT_WIDTH  = 0,
-    parameter   BLOCK_ADD_EXT_EXP_WIDTH       = 1,
-    parameter   BLOCK_ADD_EXT_MANT_WIDTH      = 0,
-    parameter   FP_ADD_EXT_EXP_WIDTH       = 1,
-    parameter   FP_ADD_EXT_MANT_WIDTH      = 0,
+    parameter   PRODUCT_EXT_EXP_WIDTH       = 1,
+    parameter   PRODUCT_EXT_MANT_WIDTH      = 0,
+    parameter   BLOCK_ADD_EXT_EXP_WIDTH     = 1,
+    parameter   BLOCK_ADD_EXT_MANT_WIDTH    = 0,
+    parameter   FP_ADD_EXT_EXP_WIDTH        = 1,
+    parameter   FP_ADD_EXT_MANT_WIDTH       = 0,
 
     // Output Rounding Control
-    parameter   OUTPUT_FP_ROUND_EN      = 0,
-    parameter   ROUND_FP_EXP_WIDTH     = 4,
-    parameter   ROUND_FP_MANT_WIDTH    = 3
+    parameter   OUTPUT_FP_ROUND_EN          = 0,
+    parameter   ROUND_FP_EXP_WIDTH          = 4,
+    parameter   ROUND_FP_MANT_WIDTH         = 3
 
 ) (
     input logic clk,
@@ -38,7 +38,7 @@ module mx_fp_mv #(
 
     // Input matrix
     input  logic [COMPUTE_DIM * COMPUTE_DIM - 1 : 0]    [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] m_element,
-    input  logic [BLOCK_NUM   * COMPUTE_DIM - 1 : 0]        [MXFP_SCALE_WIDTH - 1 : 0] m_scale,
+    input  logic [BLOCK_NUM   * COMPUTE_DIM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] m_scale,
     input  logic               m_valid,
     output logic               m_ready,
 

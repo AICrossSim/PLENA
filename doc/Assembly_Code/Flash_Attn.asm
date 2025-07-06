@@ -44,7 +44,7 @@ LOOP_ATTENTION_Q_HEADS:
             C_SET_MV_OFFSET x13;
             
             // s_j = q @ k_j.transpose(1, 2)
-            M_TMV           x12, x13, x13;              // Matrix-Vector Multiplication
+            M_TMV_IC           x12, x13, x13;              // Matrix-Vector Multiplication
 
             S_ADDI_FIX      x9, x9, 0xfff;              // - 1
             blt             x0, x9, LOOP_Bc;            // Unroll the loop in main processor, not included in this coprocess.
@@ -98,7 +98,7 @@ LOOP_ATTENTION_Q_HEADS:
             S_ADDI_FIX      x13,  x13, 0x1;            // Prefetched address of V
             H_PREFETCH_M_C    x13,  x10, csr_adr[0];    
 
-            M_MV            x12, x13, x12;              // Matrix-Vector Multiplication
+            M_MV_IC            x12, x13, x12;              // Matrix-Vector Multiplication
 
             V_ADD_VV        x22, x22, x12;              // o = o + p @ v_j
 

@@ -40,6 +40,7 @@ module mxfp_systolic_mcu #(
     input   logic [ACC_ADDR_WIDTH - 1 : 0] acc_waddr,
     input   logic fetch_next_acc_waddr_valid,
     output  logic fetch_next_acc_waddr_ready,
+    input   logic wait_for_output,
     
     // Multiplicant Matrix 1 TOP
     input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
@@ -53,9 +54,10 @@ module mxfp_systolic_mcu #(
     output  logic v2_in_ready,
     // Vector Product Output
     output  logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]     v_result,
-    output  logic v_result_valid,
+    output  logic v_result_write_req,
     input   logic v_result_ready,
-    output  logic load_in_progress
+    output  logic load_in_progress,
+    output  logic empty_in_progress
 );
 
     initial begin
@@ -73,7 +75,12 @@ module mxfp_systolic_mcu #(
     // Data Wires Declaration
     // -----------------------------
 
-    logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_in_valid, v1_data_in_ready;
+    logic v1_for_mm_in_valid, v1_for_mm_in_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_for_mm_in_valid, v1_data_for_mm_in_ready;
+    logic v1_load_for_gemv_in_valid, v1_load_for_gemv_in_ready;
+    logic v1_for_mv_in_valid, v1_for_mv_in_ready;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0] v1_data_for_mv_in_valid, v1_data_for_mv_in_ready;
+
     logic v2_for_mm_in_valid, v2_for_mm_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] v2_data_for_mm_in_valid, v2_data_for_mm_in_ready;
     logic v2_for_mv_in_valid, v2_for_mv_in_ready;
@@ -84,13 +91,13 @@ module mxfp_systolic_mcu #(
 
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_v_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_v_in_scale;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_v_in_element;
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_v_in_scale;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]     array_left_v_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]             array_left_v_in_scale;
 
-    assign array_left_v_in_element  = v2_element;
-    assign array_left_v_in_scale    = v2_scale;
 
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemm_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemm_result_valid, gemm_result_w_ready;
@@ -111,25 +118,27 @@ module mxfp_systolic_mcu #(
     
     localparam COUNTER_BIT_WIDTH = $clog2(K);
     logic [COUNTER_BIT_WIDTH : 0] v1_load_counter;
+    logic [COUNTER_BIT_WIDTH : 0] v1_load_amount;
     logic [COUNTER_BIT_WIDTH : 0] v2_load_counter;
     logic [COUNTER_BIT_WIDTH : 0] feed_counter;
     logic complete_v1_load, complete_v2_load;
 
-    logic   start_feed_count;
     logic   ready_to_load_output;
     logic   gemm_result_ready, gemv_result_ready;
 
     always_ff @(posedge clk) begin
         if (rst) begin
             v1_load_counter     <= '0;
+            v1_load_amount      <= '0;
             complete_v1_load    <= 1'b0;
             v2_load_counter     <= '0;
             complete_v2_load    <= 1'b0;
             output_reset        <= 1'b0;
         end else begin
+            v1_load_amount  <= (control_in_exe == MV_IC) ? K - 1 : M - 1;
             // Counter for v1
             if (v1_in_valid & v1_in_ready) begin
-                if (v1_load_counter == M - 1) begin
+                if (v1_load_counter == v1_load_amount) begin
                     v1_load_counter <= '0;
                     complete_v1_load <= 1'b1;
                 end else begin
@@ -137,6 +146,7 @@ module mxfp_systolic_mcu #(
                     complete_v1_load <= 1'b0;
                 end
             end else if (complete_loading) begin
+                v1_load_counter  <= '0;
                 complete_v1_load <= 1'b0;
             end
             // Counter for v2
@@ -150,14 +160,17 @@ module mxfp_systolic_mcu #(
                 end
             end else if (complete_loading) begin
                 complete_v2_load <= 1'b0;
+                v2_load_counter  <= '0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_O & gemv_result_valid) || (control_in_exe == MM_WO & gemm_result_valid));
+            output_reset <= ((control_in_exe == MV_WO & gemv_result_valid) || (control_in_exe == MM_PS & gemm_result_valid));
         end
     end
 
     always_comb begin
-        if (complete_v1_load & complete_v2_load) begin
+        if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
+            complete_loading = 1'b1;
+        end else if (control_in_exe == MV_IC & complete_v1_load) begin
             complete_loading = 1'b1;
         end else begin
             complete_loading = 1'b0;
@@ -169,10 +182,10 @@ module mxfp_systolic_mcu #(
             control_in_exe          <= STALL_M; 
             load_in_progress        <= 1'b0;
         end else begin
-            if ((control_in_exe == STALL_M) & (control != STALL_M)) begin
+            if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
                 control_in_exe <= control;
                 load_in_progress <= 1'b1;
-            end else if ((control_in_exe != STALL_M) & (control != STALL_M)) begin
+            end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
                 load_in_progress <= 1'b1;
                 control_in_exe <= control;
             end else if (complete_loading) begin
@@ -180,46 +193,126 @@ module mxfp_systolic_mcu #(
             end
         end
     end
+    
+    assign  sa_control = (control_in_exe == MV_IC); // 0 for GEMM, 1 for GEMV
+
+    // -----------------------------
+    // GEMV Data Path
+    // -----------------------------
 
     always_comb begin
-        if (control_in_exe == MV || control_in_exe == MV_O) begin
-            v2_in_ready = v2_for_mv_in_ready;
-            v2_for_mv_in_valid = v2_in_valid;
+        if (control_in_exe == MV_IC || control_in_exe == MV_WO) begin
+            v1_in_ready         = v1_load_for_gemv_in_ready;
+            v2_in_ready         = v2_for_mv_in_ready;
+            v1_for_mm_in_valid  = 1'b0;
+            v1_load_for_gemv_in_valid  = v1_in_valid;
+            v2_for_mm_in_valid  = 1'b0;
+            
         end else begin
-            v2_in_ready = v2_for_mm_in_ready;
-            v2_for_mm_in_valid = v2_in_valid;
+            v1_in_ready         = v1_for_mm_in_ready;
+            v2_in_ready         = v2_for_mm_in_ready;
+            v1_for_mm_in_valid  = v1_in_valid;
+            v1_load_for_gemv_in_valid  = 1'b0;
+            v2_for_mm_in_valid  = v2_in_valid;
         end
     end
 
-    assign  sa_control = ((control_in_exe == MV) || (control_in_exe == MV_O)); // 0 for GEMM, 1 for GEMV
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            array_left_v_in_element <= 'b0;
+            array_left_v_in_scale   <= 'b0;
+        end else if (sa_control) begin
+            if (complete_loading) begin
+                array_left_v_in_element <= 'b0;
+                array_left_v_in_scale   <= 'b0;
+                v2_for_mv_in_valid      <= 1'b0;
+            end else if (v2_in_valid) begin
+                array_left_v_in_element <= v2_element;
+                array_left_v_in_scale   <= v2_scale;
+                v2_for_mv_in_valid      <= v2_in_valid;
+            end
+        end
+    end
+
+    logic v1_for_mv_ele_in_valid,    v1_for_mv_ele_in_ready;
+    logic v1_for_mv_scale_in_valid,  v1_for_mv_scale_in_ready;
+    logic v1_for_mv_ele_out_valid,   v1_for_mv_ele_out_ready;
+    logic v1_for_mv_scale_out_valid, v1_for_mv_scale_out_ready;
+
+    split_n #(
+        .N (2)
+    ) v1_load_for_gemv (
+        .data_in_valid(v1_load_for_gemv_in_valid),
+        .data_in_ready(v1_load_for_gemv_in_ready),
+        .data_out_valid({v1_for_mv_ele_in_valid, v1_for_mv_scale_in_valid}),
+        .data_out_ready({v1_for_mv_ele_in_ready, v1_for_mv_scale_in_ready})
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1))
+    ) v1_gemv_ele_streamer (
+            .clk           (clk),
+            .rst           (rst),
+            .data_in       (v1_element),
+            .data_in_valid (v1_for_mv_ele_in_valid),
+            .data_in_ready (v1_for_mv_ele_in_ready),
+            .data_out      (array_top_v_in_element),
+            .data_out_valid(v1_for_mv_ele_out_valid),
+            .data_out_ready(v1_for_mv_ele_out_ready)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(SYS_ARRAY_AMOUNT * BLOCK_NUM_PER_ARRAY * MXFP_SCALE_WIDTH)
+    ) v1_gemv_scale_streamer (
+            .clk           (clk),
+            .rst           (rst),
+            .data_in       (v1_scale),
+            .data_in_valid (v1_for_mv_scale_in_valid),
+            .data_in_ready (v1_for_mv_scale_in_ready),
+            .data_out      (array_top_v_in_scale),
+            .data_out_valid(v1_for_mv_scale_out_valid),
+            .data_out_ready(v1_for_mv_scale_out_ready)
+    );
+
+  join2 #() join_gemv_streamer_sig (
+      .data_in_ready ({v1_for_mv_ele_out_ready, v1_for_mv_scale_out_ready}),
+      .data_in_valid ({v1_for_mv_ele_out_valid, v1_for_mv_scale_out_valid}),
+      .data_out_valid(v1_for_mv_in_valid),
+      .data_out_ready(v1_for_mv_in_ready)
+  );
+
+    // -----------------------------
+    // Result Data Path
+    // -----------------------------
+
     assign gemm_result_ready = & gemm_result_w_ready;
     assign gemv_result_ready = & gemv_result_w_ready;
 
     always_ff @(posedge clk) begin
         if (rst) begin
             feed_counter            <= '0;
-            start_feed_count        <= 1'b0;
             gemv_result_valid       <= 'b0;
             gemm_result_valid       <= 'b0;
             ready_to_load_output    <= 1'b0;
+            empty_in_progress       <= 1'b0;
         end else begin
             if (complete_loading & control_in_exe == MM_PS) begin
                 feed_counter        <= '0;
-                start_feed_count    <= 1'b1;
-            end else if (start_feed_count) begin
+                empty_in_progress   <= 1'b1;
+            end else if (empty_in_progress) begin
                 if (feed_counter == 2 * COMPUTE_DIM + SYSTOLIC_PROCESSING_OVERHEAD) begin
-                    feed_counter        <= '0;
-                    start_feed_count    <= 1'b0;
+                    feed_counter         <= '0;
+                    empty_in_progress    <= 1'b0;
                     ready_to_load_output <= 1'b1;
                 end else begin
                     feed_counter <= feed_counter + 'b1;
                     ready_to_load_output <= 1'b0;
                 end
             end else begin
-                start_feed_count <= 1'b0;
+                empty_in_progress <= 1'b0;
                 ready_to_load_output <= 1'b0;
             end
-            gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_O)  & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
             gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
@@ -231,29 +324,38 @@ module mxfp_systolic_mcu #(
     generate;
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
-        ) v1_handshake (
-            .data_in_valid  (v1_in_valid),
-            .data_in_ready  (v1_in_ready),
-            .data_out_valid (v1_data_in_valid),
-            .data_out_ready (v1_data_in_ready)
+        ) v1_gemm_handshake (
+            .data_in_valid  (v1_for_mm_in_valid),
+            .data_in_ready  (v1_for_mm_in_ready),
+            .data_out_valid (v1_data_for_mm_in_valid),
+            .data_out_ready (v1_data_for_mm_in_ready)
         );
 
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
-        ) v2_handshake (
+        ) v2_gemm_handshake (
             .data_in_valid  (v2_for_mm_in_valid),
             .data_in_ready  (v2_for_mm_in_ready),
             .data_out_valid (v2_data_for_mm_in_valid),
             .data_out_ready (v2_data_for_mm_in_ready)
         );
+        
+        split_n #(
+            .N(SYS_ARRAY_AMOUNT)
+        ) v1_gemv_handshake (
+            .data_in_valid  (v1_for_mv_in_valid),
+            .data_in_ready  (v1_for_mv_in_ready),
+            .data_out_valid (v1_data_for_mv_in_valid),
+            .data_out_ready (v1_data_for_mv_in_ready)
+        );
 
         split_n #(
             .N(SYS_ARRAY_AMOUNT)
-        ) vect_handshake (
-            .data_in_valid(v2_for_mv_in_valid),
-            .data_in_ready(v2_for_mv_in_ready),
-            .data_out_valid(v2_data_for_mv_in_valid),
-            .data_out_ready(v2_data_for_mv_in_ready)
+        ) v2_gemv_handshake (
+            .data_in_valid  (v2_for_mv_in_valid),
+            .data_in_ready  (v2_for_mv_in_ready),
+            .data_out_valid (v2_data_for_mv_in_valid),
+            .data_out_ready (v2_data_for_mv_in_ready)
         );
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
@@ -270,8 +372,8 @@ module mxfp_systolic_mcu #(
                 .rst(rst),
                 .data_elem_in   (v1_element[i * M +: M]),
                 .data_scale_in  (v1_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
-                .data_in_valid  (v1_data_in_valid[i]),
-                .data_in_ready  (v1_data_in_ready[i]),
+                .data_in_valid  (v1_data_for_mm_in_valid[i]),
+                .data_in_ready  (v1_data_for_mm_in_ready[i]),
                 .data_elem_out  (array_top_in_element[i]),
                 .data_scale_out (array_top_in_scale[i]),
                 .data_out_valid (array_top_in_valid[i]),
@@ -312,11 +414,15 @@ module mxfp_systolic_mcu #(
             ) systolic_array_inst (
                 .clk(clk),
                 .rst(rst),
-                .control            (gemm_en),
+                .control            (sa_control),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),
                 .in_top_valid       (array_top_in_valid[i]),
                 .in_top_ready       (array_top_in_ready[i]),
+                .in_top_v_element   (array_top_v_in_element[i]),
+                .in_top_v_scale     (array_top_v_in_scale[i]),
+                .in_top_v_valid     (v1_data_for_mv_in_valid[i]),
+                .in_top_v_ready     (v1_data_for_mv_in_ready[i]),
                 .in_left_element    (array_left_in_element[i]),
                 .in_left_scale      (array_left_in_scale[i]),
                 .in_left_valid      (array_left_in_valid[i]),
@@ -386,7 +492,7 @@ module mxfp_systolic_mcu #(
             quantise_data_in_valid  = gemv_result_valid;
             gemv_result_w_ready     = quantise_data_in_ready;
             block_data_in_valid     = 1'b0;
-            result_data             = stored_quantized_result[0 +: K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)];
+            result_data             = stored_quantized_result[K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0];
             result_data_valid       = quantised_result_valid;
             quantised_result_ready  = result_data_ready;
         end
@@ -423,7 +529,7 @@ module mxfp_systolic_mcu #(
                     stored_result_v = gebm_result;
                 end else begin
                     // GEMV
-                    stored_result_v = {gemv_result, {(GEBM_OUT_DIM - K){1'b0}}};
+                    stored_result_v = {{(GEBM_OUT_DIM - K){1'b0}}, gemv_result};
                 end
             end
 
@@ -466,10 +572,11 @@ module mxfp_systolic_mcu #(
         .FP_MANT_WIDTH(FP_MANT_WIDTH)
     ) hold_and_unroll_for_gemm (
         .clk(clk),
-        .rst(rst | output_reset),
+        .rst(rst),
         .acc_waddr(acc_waddr),
         .acc_waddr_valid        (fetch_next_acc_waddr_valid),
         .acc_waddr_ready        (fetch_next_acc_waddr_ready),
+        .wait_for_output        (wait_for_output),
         .block_data_in          (stored_quantized_result[0 +: GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1)]),
         .block_data_valid       (block_data_in_valid),
         .block_data_ready       (block_data_in_ready),
@@ -477,6 +584,8 @@ module mxfp_systolic_mcu #(
         .unrolled_data_out_valid(unrolled_data_out_valid),
         .unrolled_data_out_ready(unrolled_data_out_ready)
     );
+
+    assign v_result_write_req = result_data_valid & v_result_ready;
 
     skid_buffer #(
         .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
@@ -487,7 +596,7 @@ module mxfp_systolic_mcu #(
         .data_in_valid  (result_data_valid),
         .data_in_ready  (result_data_ready),
         .data_out       (v_result),
-        .data_out_valid (v_result_valid),
+        .data_out_valid (),
         .data_out_ready (v_result_ready)
     );
 endmodule

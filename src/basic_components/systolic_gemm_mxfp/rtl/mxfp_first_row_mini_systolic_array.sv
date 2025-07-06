@@ -32,15 +32,18 @@ module mxfp_first_row_mini_systolic_array #(
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
     input  logic system_top_valid,
 
+    // Input from Top Vector
+    input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_v_element,
+    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+
     // Input from Left
     input  logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
     input  logic system_left_valid,
 
-    // Input from Vector
+    // Input from Left Vector
     input  logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_v_element,
     input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
-    input  logic system_left_v_valid,
 
     // Mult Control
     input   logic mult_valid,
@@ -97,10 +100,20 @@ logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] duplicated_left_v_scale;
 duplicate_data_section #(
     .REPEAT(BLOCK_DIM),
     .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH)
-) duplicate_left_scale (
+) duplicate_left_v_scale (
     .in_data(in_left_v_scale),
     .out_data(duplicated_left_v_scale)
 );
+
+logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] duplicated_top_v_scale;
+duplicate_data_section #(
+    .REPEAT(BLOCK_DIM),
+    .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH)
+) duplicate_top_v_scale (
+    .in_data(in_top_v_scale),
+    .out_data(duplicated_top_v_scale)
+);
+
 
 generate;
     for (genvar i = 0; i < BLOCK_DIM; i = i+1)begin : row_inx
@@ -120,11 +133,13 @@ generate;
                     .control(control),
                     .in_top_element         (vert_transfer_elem[i][j]),
                     .in_top_scale           (vert_transfer_scale[i][j]),
+                    .in_top_v_element       (in_top_v_element[i]),
+                    .in_top_v_scale         (duplicated_top_v_scale[i]),
                     .system_top_valid       (system_top_valid),
-                    .in_left_v_element      (in_left_v_element[i]),
-                    .in_left_v_scale        (duplicated_left_v_scale[i]),
                     .in_left_element        (hori_transfer_elem[i][j]),
                     .in_left_scale          (hori_transfer_scale[i][j]),
+                    .in_left_v_element      (in_left_v_element[i]),
+                    .in_left_v_scale        (duplicated_left_v_scale[i]),
                     .system_left_valid      (system_left_valid),
                     .mult_valid             (mult_valid),
                     .mult_ready             (pe_compute_ready[i][j]),
