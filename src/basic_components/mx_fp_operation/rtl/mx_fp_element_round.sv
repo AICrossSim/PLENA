@@ -4,7 +4,7 @@ Module      : MXFP Rounding Unit
 Timing      : Combinatorial Logic
 Description : Rounds a MXFP data to a different precision.
               Round Mantissa based on Guard, Round, Sticky bits.
-Status      : Under Development
+Status      : has bugs for scale_in and scale_out, not solved yet.
 */
 
 module mx_fp_element_round #(

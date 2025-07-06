@@ -4,7 +4,7 @@
 Module      : MX-FP Rescale Unit
 Timing      : Sequential, Takes 1 cycles to rescale
 Description : e1s1, e2s2, e3s3, e4s4 - > {e1, e2, e3, e4} s
-            : Format a block of elements, rescale them to have the same scale.
+            : Format a block of elements, rescale them to have the same scale (max(scales))
 Status      : Passed Simple Tests
             : Note that the output scale is the maximum scale of the input elements.
             : The output element is in MX-FP format.
@@ -12,12 +12,12 @@ Status      : Passed Simple Tests
 
 module mx_fp_rescale #(
     // MX-FP Data Format
-    parameter IN_MXFP_EXP_WIDTH    = 4,
-    parameter IN_MXFP_MANT_WIDTH   = 3,
-    parameter MXFP_SCALE_WIDTH  = 8,
+    parameter IN_MXFP_EXP_WIDTH     = 4,
+    parameter IN_MXFP_MANT_WIDTH    = 3,
+    parameter MXFP_SCALE_WIDTH      = 8,
 
     // Dimension
-    parameter   BLOCK_DIM            = 4,
+    parameter   BLOCK_DIM           = 4,
 
     // MX-FP Data Format
     parameter OUT_MXFP_EXP_WIDTH    = 4,
@@ -77,19 +77,36 @@ module mx_fp_rescale #(
             p1_rounded_element <= 'b0;
             p1_rounded_scale <= 'b0;
         end else begin
-            p1_rounded_element <= p0_rounded_element;
-            p1_rounded_scale <= p0_rounded_scale;
+            p1_rounded_element  <= p0_rounded_element;
+            p1_rounded_scale    <= p0_rounded_scale;
         end
     end
 
 
     generate;
         for (genvar i = 0; i < BLOCK_DIM; i++) begin : gen_rescale
-            logic [OUT_MXFP_EXP_WIDTH - 1 : 0] exp_reduce_amount, new_element_exp;
-            assign exp_reduce_amount = exp_max - p1_rounded_scale[i];
-            assign new_element_exp = p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH - 1 : OUT_MXFP_MANT_WIDTH] - exp_reduce_amount;
-            assign element_data_out[i] = {p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH], new_element_exp, p1_rounded_element[i][OUT_MXFP_MANT_WIDTH - 1 : 0]};
-            assign scale_data_out = exp_max;
+            signed logic [OUT_MXFP_EXP_WIDTH : 0] exp_reduce_amount, new_element_exp;
+            always_comb begin
+                exp_reduce_amount = $signed({1'b0, exp_max}) - $signed({1'b0, p1_rounded_scale[i]});
+                if (exp_reduce_amount < 0) begin
+                    exp_reduce_amount = 0;
+                end
+                new_element_exp = $signed({1'b0, p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH - 1 : OUT_MXFP_MANT_WIDTH]}) - exp_reduce_amount;
+                if (new_element_exp < 0) begin
+                    element_data_out[i] = {
+                        p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH],
+                        {OUT_MXFP_EXP_WIDTH{1'b0}},
+                        p1_rounded_element[i][OUT_MXFP_MANT_WIDTH - 1 : 0]
+                    };
+                end else begin
+                    element_data_out[i] = {
+                        p1_rounded_element[i][OUT_MXFP_MANT_WIDTH + OUT_MXFP_EXP_WIDTH],
+                        new_element_exp[OUT_MXFP_EXP_WIDTH-1:0],
+                        p1_rounded_element[i][OUT_MXFP_MANT_WIDTH - 1 : 0]
+                    };
+                end
+                scale_data_out = exp_max;
+            end
         end    
     endgenerate
 
