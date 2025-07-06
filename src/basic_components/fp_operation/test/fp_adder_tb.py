@@ -117,8 +117,6 @@ async def test(dut):
     #     pdb.post_mortem(sys.exc_info()[2])
 # @cocotb.test()
 
-
-
 @pytest.mark.dev
 def test_simple_fp_addition():
     # Run tests with different params
