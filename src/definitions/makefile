@@ -1,4 +1,4 @@
-TOML_FILE = your_config.toml
+TOML_FILE = config.toml
 
 set:
-	python3 update_toml.py $(TOML_FILE) $(PARAM) $(VALUE)
+	python3 config.py --toml_file=$(TOML_FILE) $(SET) --mode=$(MODE)

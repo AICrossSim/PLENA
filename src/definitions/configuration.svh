@@ -19,19 +19,19 @@ package configuration_pkg;
     parameter   SinkWidth = 1;
     parameter   MATRIX_ACC_ADR_DEPTH = 8;
     // Memory Related
-    parameter   MATRIX_SRAM_WIDTH               = (LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH + 1 + MXFP_SCALE_WIDTH) * MLEN;
+    parameter   MATRIX_SRAM_WIDTH = (precision_pkg::LOW_MXFP_MANT_WIDTH + precision_pkg::LOW_MXFP_EXP_WIDTH + 1 + precision_pkg::MXFP_SCALE_WIDTH) * MLEN;
     parameter   MATRIX_SRAM_DEPTH = 128;
-    parameter   VECTOR_SRAM_WIDTH               = (V_FP_MANT_WIDTH + V_FP_EXP_WIDTH + 1) * VLEN;
+    parameter   VECTOR_SRAM_WIDTH = (precision_pkg::V_FP_MANT_WIDTH + precision_pkg::V_FP_EXP_WIDTH + 1) * VLEN;
     parameter   VECTOR_SRAM_DEPTH = 128;
-    parameter   FIXED_SRAM_WIDTH                = FIXED_DATA_WIDTH;
-    parameter   FIXED_SRAM_DEPTH = 32;
-    parameter   FP_SRAM_WIDTH                   = (S_FP_MANT_WIDTH + S_FP_EXP_WIDTH + 1);
-    parameter   FP_SRAM_DEPTH = 32;
+    parameter   FIXED_SRAM_WIDTH  = precision_pkg::FIXED_DATA_WIDTH;
+    parameter   FIXED_SRAM_DEPTH  = 32;
+    parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
+    parameter   FP_SRAM_DEPTH     = 32;
     // HBM Related
-    parameter   HBM_M_Prefetch_Amount = 8;
-    parameter   HBM_V_Prefetch_Amount = 8;
+    parameter   HBM_M_Prefetch_Amount  = 8;
+    parameter   HBM_V_Prefetch_Amount  = 8;
     parameter   HBM_V_Writeback_Amount = 8;
-    parameter   HBM_ELE_WIDTH = 256;
+    parameter   HBM_ELE_WIDTH   = 256;
     parameter   HBM_SCALE_WIDTH = 256;
 endpackage
 

@@ -1,6 +1,7 @@
 import toml
 import re
 import os
+import argparse
 import sys
 
 def patch_config_svh_from_toml(
@@ -56,7 +57,7 @@ def patch_config_svh_from_toml(
 def configure_toml_file(
     mode: str,
     toml_path: str = "config.toml",
-    svh_path: str = "configuration.svh"
+    config_params: dict = None
 ):
     with open(toml_path, "r") as f:
         data = toml.load(f)
@@ -65,21 +66,46 @@ def configure_toml_file(
         if not toml_config:
             raise ValueError("No [CONFIG] section found in TOML")
 
-        if mode is not None and not mode == "active":
-            hardware_settings = {
-                param: values.get(mode)
-                for param, values in toml_config.items()
-                if mode in values
-            } 
+        if mode is not None and mode != "active":
+            found_any = False
+            for param, values in toml_config.items():
+                if mode in values:
+                    found_any = True
+                    # Copy mode value to active
+                    toml_config[param]['active'] = values[mode]
+            if not found_any:
+                raise ValueError(f"Mode '{mode}' not found in any parameters.")
+            
+        if config_params is not None:
+            for param, value in config_params.items():
+                if param in toml_config:
+                    toml_config[param]['active'] = value
+                else:
+                    raise ValueError(f"Parameter '{param}' not found in TOML.")
+        
+        # Write back the modified toml
+        data["CONFIG"] = toml_config
+        with open(toml_path, "w") as f:
+            toml.dump(data, f)
+        print(f"Updated 'active' values in {toml_path} with mode '{mode}'.")
 
 
+def main():
+    parser = argparse.ArgumentParser(description="Update TOML active values.")
+    parser.add_argument("--toml_file",  default=None, help="Path to TOML file")
+    parser.add_argument("--param",      default=None, help="Parameter to update or '*' for all")
+    parser.add_argument("--value",      default=None, help="New value to set as active")
+    parser.add_argument("--mode",       default=None, help="Mode to use for copying (e.g. ASIC, SIMULATION, etc.)")
+
+    args = parser.parse_args()
+
+    print("TOML FILE:", args.toml_file)
+    print("PARAM:", args.param)
+    print("VALUE:", args.value)
+    print("MODE:", args.mode)
+    pass
         
 
 
-
-
 if __name__ == "__main__":
-    parent_path = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(parent_path, "config.toml")
-    svh_path    = os.path.join(parent_path, "configuration.svh")
-    patch_config_svh_from_toml(config_path, svh_path)
+    main()
