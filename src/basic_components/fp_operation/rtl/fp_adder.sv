@@ -26,9 +26,12 @@ module fp_adder #(
 
     localparam int DATA_FIX_WIDTH = OUT_FIX_WIDTH - 1;
     localparam int DATA_FIX_FRAC_WIDTH = OUT_FIX_FRAC_WIDTH;
+    localparam int IN_FIX_INT_WIDTH = IN_FIX_WIDTH - IN_FIX_FRAC_WIDTH  - 1;
     initial begin
         assert (IN_FIX_FRAC_WIDTH <= OUT_FIX_FRAC_WIDTH)
             else $error("IN_FIX_FRAC_WIDTH must be less than OUT_FIX_FRAC_WIDTH");
+        assert (OUT_FIX_FRAC_WIDTH + 2*IN_FIX_INT_WIDTH <= OUT_FIX_WIDTH)
+            else $error("When OUT_FIX_FRAC_WIDTH > IN_FIX_FRAC_WIDTH, IN_FIX_WIDTH must be less than OUT_FIX_WIDTH, casting should be else where");
     end
 
     localparam signed FRAC_DIFF = DATA_FIX_FRAC_WIDTH - IN_FIX_FRAC_WIDTH;
