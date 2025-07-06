@@ -16,7 +16,8 @@ from cfl_cocotb.runner import SRC_PATH
 from cfl_cocotb.testbench import CombinationalTestbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
 
-from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
 
 

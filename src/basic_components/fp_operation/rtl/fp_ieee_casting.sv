@@ -64,10 +64,8 @@ module fp_ieee_exponent_casting #(
 
     localparam SHIFT_EXP = OUT_BIAS - IN_BIAS;
 
-    // if 1 - OUT_BIAS <=in_exp - IN_BIAS <= 2**(OUT_EXP_WIDTH) - 1  - 1 - OUT_BIAS
-    // lower bound = 1 - OUT_BIAS + IN_BIAS
-    // upper bound = 2**(OUT_EXP_WIDTH) - 1 - OUT_BIAS + IN_BIAS
-    localparam EXP_UPPER_BOUND = 2**(OUT_EXP_WIDTH) - 2 - OUT_BIAS + IN_BIAS;
+    // if 1 - OUT_BIAS <=in_exp - IN_BIAS <= 2**(OUT_EXP_WIDTH) - 1 - OUT_BIAS
+    localparam EXP_UPPER_BOUND = 2**(OUT_EXP_WIDTH) - 1 - OUT_BIAS + IN_BIAS;
     localparam EXP_LOWER_BOUND = 1 - OUT_BIAS + IN_BIAS;
 
     logic [IN_EXP_WIDTH - 1:0] in_exp;

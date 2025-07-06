@@ -28,9 +28,9 @@ module fp_ieee_partition #(
     assign mant_bit = data_in[MANT_WIDTH - 1:0];
     localparam EXP_HIGH = EXP_WIDTH - 1;
 
-    always @(*) begin
-        assert (exp_bit != {(EXP_WIDTH){1'b1}}) else $warning("we cannot handle inf or nan of bits: %b in our current design", data_in);
-    end
+    // always @(*) begin
+    //     assert (exp_bit != {(EXP_WIDTH){1'b1}}) else $warning("we cannot handle inf or nan of bits: %b in our current design", data_in);
+    // end
 
     assign signed_exp = signed'(exp_bit) - BIAS;
     

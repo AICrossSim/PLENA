@@ -14,7 +14,7 @@ from cfl_cocotb.streaming import (
     StreamMonitor,
 )
 from cfl_cocotb.runner import veri_runner, SRC_PATH
-from cfl_cocotb.torch_fp_conversion import torch_fp2bin
+from cfl_cocotb.torch_fp_conversion import fp_2_bin, bin_2_fp, pack_fp_to_bin
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
@@ -24,29 +24,6 @@ src_path = Path(__file__).parent.parent.parent
 torch.manual_seed(10)
 
 class FPIEEEPartitionTB(CombinationalTestbench):
-    def pack_fp_to_bin(self, signed_exponent, signed_mantissa):
-        exp_width = self.q_config["exp_width"]
-        man_width = self.q_config["man_width"]
-        sign = signed_mantissa.sign()
-        sign_bit = torch.where(sign < 0, torch.tensor(1), torch.tensor(0))
-
-        exponent_bias = (2**(exp_width - 1)) - 1
-        exponent_bit = signed_exponent + exponent_bias
-
-        for item in exponent_bit:
-            assert item >= 0 and item < (2**exp_width - 1), "Exponent out of range!"
-
-        mantissa = torch.where(signed_mantissa < 0, -signed_mantissa, signed_mantissa)
-        mantissa_bit = torch.where(exponent_bit == 0, mantissa, mantissa - 1)
-
-        mantissa_bit = mantissa_bit * 2**(man_width)
-
-        result = ((sign_bit * 2**(exp_width + man_width)) + 
-                exponent_bit * 2**(man_width) + 
-                mantissa_bit).int()
-
-        return result
-
     def generate_inputs(self, num):
 
         self.q_config = {
@@ -55,8 +32,7 @@ class FPIEEEPartitionTB(CombinationalTestbench):
         }
         
         # Generate random inputs between -1 and 1
-        # x = torch.rand(num) * 2 - 1
-        x = torch.tensor([0.0] * num)
+        x = torch.rand(num) * 2 - 1
 
         from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
         x, exponent, mantissa = _minifloat_ieee_quantize_hardware(
@@ -64,7 +40,7 @@ class FPIEEEPartitionTB(CombinationalTestbench):
             self.q_config["man_width"] + self.q_config["exp_width"] + 1, 
             self.q_config["exp_width"],
         )
-        fp_bits = self.pack_fp_to_bin(exponent, mantissa)
+        fp_bits = pack_fp_to_bin(exponent, mantissa, self.q_config["exp_width"], self.q_config["man_width"])
 
         self.log.debug(f"Exponent: {exponent}")
         self.log.debug(f"Mantissa: {mantissa}")
@@ -78,11 +54,11 @@ class FPIEEEPartitionTB(CombinationalTestbench):
 
         # Convert outputs to binary format
         self.inputs = {
-            "signed_mant": signed_mant.int().tolist(),
-            "signed_exp": signed_exp.int().tolist(),
+            "data_in": fp_bits.int().tolist(),
         }
         self.outputs = {
-            "fp_out": fp_bits.int().tolist(),
+            "signed_mant": signed_mant.int().tolist(),
+            "signed_exp": signed_exp.int().tolist(),
         }
         
     def check_output(self, input, output):
