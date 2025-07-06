@@ -47,7 +47,7 @@ module matrix_sram_without_rounding #(
     input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in,
 
     // Prefetch Status
-    input   logic [AddrLen - 1 : 0] prefetch_addr,
+    input   logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr,
     input   logic prefetch_en,
     output  logic data_not_ready
 );
@@ -58,9 +58,13 @@ module matrix_sram_without_rounding #(
 
 logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram, prefetch_addr_for_sub_sram;
 localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
+wire [AddrLen + $clog2(BITWIDTH_PER_ROW) - 1 : 0] shifted_prefetch_addr;
+
 assign waddr_for_sub_sram = sram_waddr >> $clog2(BITWIDTH_PER_ROW);
 assign raddr_for_sub_sram = sram_raddr >> $clog2(BITWIDTH_PER_ROW);
-assign prefetch_addr_for_sub_sram = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
+
+assign shifted_prefetch_addr = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
+assign prefetch_addr_for_sub_sram = shifted_prefetch_addr[AddrLen-1:0];
 
 // Tag Matching, trackinng the prefetch status.
 logic [SRAM_DEPTH - 1 : 0] mem_data_tag;
@@ -77,12 +81,13 @@ always_ff @(posedge clk) begin
     end
 end
 
+
 always_ff @(posedge clk) begin
     if (rst) begin
         mem_data_tag <= {{SRAM_DEPTH{1'b1}}};
     end else if (prefetch_en) begin
-        for (int i = prefetch_addr_for_sub_sram; i < prefetch_addr_for_sub_sram + PREFETCH_AMOUNT; i++) begin
-            mem_data_tag[i] <= 1'b0;
+        for (int i = 0; i < PREFETCH_AMOUNT; i++) begin
+            mem_data_tag[prefetch_addr_for_sub_sram + i] <= 1'b0;
         end
     end else if (wen_delay) begin
         mem_data_tag[waddr_for_sub_sram_delay] <= 1'b1;
@@ -93,7 +98,9 @@ always_ff @(posedge clk) begin
     if (rst) begin
         data_not_ready <= 1'b0;
     end else begin
-        data_not_ready <= (req) & (mem_data_tag[raddr_for_sub_sram] == 1'b0);
+        if (req) begin
+            data_not_ready <= !(&mem_data_tag[raddr_for_sub_sram +: MLEN]);
+        end
     end
 end
 
@@ -169,7 +176,7 @@ always_ff @(posedge clk) begin
         rd_data_valid <= req;
         if (rd_data_valid) begin
             element_out <= loaded_element_out;
-            scale_out <= loaded_scale_out;
+            scale_out   <= loaded_scale_out;
         end
     end
 end

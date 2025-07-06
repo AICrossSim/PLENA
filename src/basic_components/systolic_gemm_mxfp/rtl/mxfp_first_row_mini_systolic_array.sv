@@ -29,12 +29,12 @@ module mxfp_first_row_mini_systolic_array #(
 
     // Input from Top
     input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
-    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
+    input  logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
     input  logic system_top_valid,
 
     // Input from Top Vector
     input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_v_element,
-    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+    input  logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
 
     // Input from Left
     input  logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
@@ -51,7 +51,7 @@ module mxfp_first_row_mini_systolic_array #(
 
     // Output to Bottom
     output logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] out_bottom_element,
-    output logic [MXFP_SCALE_WIDTH - 1 : 0] out_bottom_scale,
+    output logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] out_bottom_scale,
 
     // Output to Right
     output logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] out_right_element,
@@ -63,35 +63,37 @@ module mxfp_first_row_mini_systolic_array #(
 );
 
 
-logic [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]  vert_transfer_elem        [BLOCK_DIM : 0][BLOCK_DIM - 1:0];
-logic [MXFP_SCALE_WIDTH - 1 : 0]                  vert_transfer_scale       [BLOCK_DIM : 0][BLOCK_DIM - 1:0];
-logic [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]  hori_transfer_elem        [BLOCK_DIM - 1:0][BLOCK_DIM : 0];
-logic [MXFP_SCALE_WIDTH - 1 : 0]                  hori_transfer_scale       [BLOCK_DIM - 1:0][BLOCK_DIM : 0];
+logic [BLOCK_DIM : 0][BLOCK_DIM - 1:0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]  vert_transfer_elem;
+logic [BLOCK_DIM : 0][BLOCK_DIM - 1:0][MXFP_SCALE_WIDTH - 1 : 0]                  vert_transfer_scale;
+
+logic [BLOCK_DIM - 1:0][BLOCK_DIM : 0][MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]  hori_transfer_elem;
+logic [BLOCK_DIM - 1:0][BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]                  hori_transfer_scale;
 logic [BLOCK_DIM - 1:0][BLOCK_DIM - 1:0] pe_compute_ready;
 
 logic [BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]  first_row_scale;
-logic [BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]  first_col_scale;
+logic [MXFP_SCALE_WIDTH - 1 : 0]  first_col_scale [BLOCK_DIM : 0];
+
+assign first_col_scale[0]   = in_left_scale;
+assign first_row_scale      = in_top_scale;
 
 always_ff @(posedge clk) begin
     if (rst) begin
-        first_col_scale <= 'b0;
-        first_row_scale <= 'b0;
+        for (int i = 1; i < BLOCK_DIM + 1; i = i + 1) begin
+            first_col_scale[i] <= 'b0;
+        end
     end else begin
         for (int i = 0; i < BLOCK_DIM; i = i + 1) begin
-            first_row_scale[i + 1] <= first_row_scale[i];
             first_col_scale[i + 1] <= first_col_scale[i];
         end
-        first_row_scale[0] <= in_top_scale;
-        first_col_scale[0] <= in_left_scale;
     end
 end
 
 generate;
     for (genvar i = 0; i < BLOCK_DIM; i = i + 1) begin : fill_with_input_data
-        assign vert_transfer_elem[0][i]     = in_top_element[i];
-        assign vert_transfer_scale[0][i]    = (control == 1'b1) ? first_row_scale[i] : in_top_scale;
-        assign hori_transfer_elem[i][0]     = in_left_element[i];
-        assign hori_transfer_scale[i][0]    = (control == 1'b1) ? first_col_scale[i] : in_left_scale;
+        assign vert_transfer_elem   [0][i]     = in_top_element[i];
+        assign vert_transfer_scale  [0][i]    = (control == 1'b1) ? first_row_scale[i] : in_top_scale;
+        assign hori_transfer_elem   [i][0]     = in_left_element[i];
+        assign hori_transfer_scale  [i][0]    = (control == 1'b1) ? first_col_scale[i] : in_left_scale;
     end
     assign mult_ready = &pe_compute_ready;
 endgenerate
@@ -103,15 +105,6 @@ duplicate_data_section #(
 ) duplicate_left_v_scale (
     .in_data(in_left_v_scale),
     .out_data(duplicated_left_v_scale)
-);
-
-logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] duplicated_top_v_scale;
-duplicate_data_section #(
-    .REPEAT(BLOCK_DIM),
-    .BITSTREAM_WIDTH(MXFP_SCALE_WIDTH)
-) duplicate_top_v_scale (
-    .in_data(in_top_v_scale),
-    .out_data(duplicated_top_v_scale)
 );
 
 
@@ -134,7 +127,7 @@ generate;
                     .in_top_element         (vert_transfer_elem[i][j]),
                     .in_top_scale           (vert_transfer_scale[i][j]),
                     .in_top_v_element       (in_top_v_element[i]),
-                    .in_top_v_scale         (duplicated_top_v_scale[i]),
+                    .in_top_v_scale         (in_top_v_scale[i]),
                     .system_top_valid       (system_top_valid),
                     .in_left_element        (hori_transfer_elem[i][j]),
                     .in_left_scale          (hori_transfer_scale[i][j]),
@@ -188,10 +181,10 @@ generate;
     // Data Transfer Out from the mini systolic array.
     for (genvar i = 0; i < BLOCK_DIM; i = i + 1) begin : fill_output_data
         assign out_bottom_element[i] = vert_transfer_elem[i][BLOCK_DIM];
+        assign out_bottom_scale[i]   = vert_transfer_scale[i][BLOCK_DIM];
         assign out_right_element[i]  = hori_transfer_elem[BLOCK_DIM][i];
     end
-    assign out_bottom_scale   = vert_transfer_scale [BLOCK_DIM][0];
-    assign out_right_scale    = hori_transfer_scale  [0][BLOCK_DIM];
+    assign out_right_scale    = hori_transfer_scale  [BLOCK_DIM][0];
 endgenerate
 
 

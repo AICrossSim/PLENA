@@ -44,7 +44,7 @@ module mxfp_systolic_mcu #(
     
     // Multiplicant Matrix 1 TOP
     input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
-    input   logic [ROW_BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]     v1_scale,
+    input   logic [K - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 v1_scale,
     input   logic v1_in_valid,
     output  logic v1_in_ready,
     // Multiplier   Matrix 2 LEFT
@@ -90,9 +90,9 @@ module mxfp_systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
 
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_in_element;
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                      array_top_in_scale;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]      array_top_v_in_element;
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_top_v_in_scale;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]                      array_top_v_in_scale;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]      array_left_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MXFP_SCALE_WIDTH - 1 : 0]              array_left_in_scale;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]     array_left_v_in_element;
@@ -262,7 +262,7 @@ module mxfp_systolic_mcu #(
     );
 
     skid_buffer #(
-        .DATA_WIDTH(SYS_ARRAY_AMOUNT * BLOCK_NUM_PER_ARRAY * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * MXFP_SCALE_WIDTH)
     ) v1_gemv_scale_streamer (
             .clk           (clk),
             .rst           (rst),
@@ -371,7 +371,7 @@ module mxfp_systolic_mcu #(
                 .clk(clk),
                 .rst(rst),
                 .data_elem_in   (v1_element[i * M +: M]),
-                .data_scale_in  (v1_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
+                .data_scale_in  (v1_scale[i * M +: M]),
                 .data_in_valid  (v1_data_for_mm_in_valid[i]),
                 .data_in_ready  (v1_data_for_mm_in_ready[i]),
                 .data_elem_out  (array_top_in_element[i]),

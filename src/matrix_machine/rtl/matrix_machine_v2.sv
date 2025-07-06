@@ -26,7 +26,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Matix - row-major order
     input  logic [MLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]          m_element,
-    input  logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                             m_scale,
+    input  logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                                  m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
@@ -125,7 +125,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Data from Matrix SRAM Buffering
     logic [MLEN-1:0] [(LOW_MXFP_MANT_WIDTH + LOW_MXFP_EXP_WIDTH):0]     stored_m_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                 stored_m_scale;
+    logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                             stored_m_scale;
     logic stored_m_in_ele_ready, stored_m_in_scale_ready;
     logic stored_m_in_ele_valid, stored_m_in_scale_valid;
     logic stored_m_ele_ready, stored_m_scale_ready;
@@ -155,7 +155,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     skid_buffer #(
-        .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(MLEN * MXFP_SCALE_WIDTH)
     ) matrix_scale_buffer (
         .clk(clk),
         .rst(rst),
@@ -276,7 +276,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     end
 
     skid_buffer #(
-        .DATA_WIDTH     (MLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
+        .DATA_WIDTH (MLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
     ) result_buffer (
         .clk(clk),
         .rst(rst),

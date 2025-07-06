@@ -85,7 +85,7 @@ module mx_fp_rescale #(
 
     generate;
         for (genvar i = 0; i < BLOCK_DIM; i++) begin : gen_rescale
-            signed logic [OUT_MXFP_EXP_WIDTH : 0] exp_reduce_amount, new_element_exp;
+            logic signed [OUT_MXFP_EXP_WIDTH : 0] exp_reduce_amount, new_element_exp;
             always_comb begin
                 exp_reduce_amount = $signed({1'b0, exp_max}) - $signed({1'b0, p1_rounded_scale[i]});
                 if (exp_reduce_amount < 0) begin

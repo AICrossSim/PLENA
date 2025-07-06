@@ -26,12 +26,12 @@ module mxfp_systolic_top_streamer #(
     input   logic transposed, // 0 for 
     // Data Input
     input   logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_in,
-    input   logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_in,
+    input   logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_in,
     input   logic data_in_valid,
     output  logic data_in_ready,
     // Data Output
     output  logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_out,
-    output  logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 data_scale_out,
+    output  logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_out,
     output  logic data_out_valid,
     input   logic data_out_ready
 );
@@ -45,10 +45,10 @@ module mxfp_systolic_top_streamer #(
 
     logic [COMPUTE_DIM - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_array_queue;
     logic [COMPUTE_DIM - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   next_data_elem_array_queue;
-    logic [BLOCK_NUM - 1 : 0]  [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 data_scale_array_queue;
-    logic [BLOCK_NUM - 1 : 0]  [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 next_data_scale_array_queue;
+    logic [COMPUTE_DIM - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue;
+    logic [COMPUTE_DIM - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               next_data_scale_array_queue;
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]                        stream_elem_out;
-    logic [BLOCK_NUM - 1 : 0]  [MXFP_SCALE_WIDTH - 1 : 0]                                    stream_scale_out;
+    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                                    stream_scale_out;
     logic stream_elem_in_ready,     stream_elem_in_valid;
     logic stream_scale_in_ready,    stream_scale_in_valid;
     logic stream_in_ready,          stream_in_valid;
@@ -78,10 +78,8 @@ module mxfp_systolic_top_streamer #(
                     for (int i = 0; i < COMPUTE_DIM; i++) begin
                         next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                         next_data_elem_array_queue[i][i] = data_elem_in[i];
-                    end
-                    for (int j = 0; j < BLOCK_NUM; j++) begin
-                        next_data_scale_array_queue[j] = (data_scale_array_queue[j] >> MXFP_SCALE_WIDTH);
-                        next_data_scale_array_queue[j][j] = data_scale_in[j];
+                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                        next_data_scale_array_queue[i][i] = data_scale_in[i];
                     end
                 end else begin
                     next_state = IDLE;
@@ -92,10 +90,8 @@ module mxfp_systolic_top_streamer #(
                     for (int i = 0; i < COMPUTE_DIM; i++) begin
                         next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                         next_data_elem_array_queue[i][i] = data_elem_in[i];
-                    end
-                    for (int j = 0; j < BLOCK_NUM; j++) begin
-                        next_data_scale_array_queue[j] = (data_scale_array_queue[j] >> MXFP_SCALE_WIDTH);
-                        next_data_scale_array_queue[j][j] = data_scale_in[j];
+                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                        next_data_scale_array_queue[i][i] = data_scale_in[i];
                     end
                 end
                 if (store_counter == COMPUTE_DIM & stream_in_ready) begin 
@@ -107,10 +103,8 @@ module mxfp_systolic_top_streamer #(
             CLEARING: begin
                 if (stream_in_ready) begin
                     for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                    end
-                    for (int j = 0; j < BLOCK_NUM; j++) begin
-                        next_data_scale_array_queue[j] = (data_scale_array_queue[j] >> MXFP_SCALE_WIDTH);
+                        next_data_elem_array_queue [i] = (data_elem_array_queue [i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                     end
                 end
                 if (p1_state != FILLING & data_in_valid & stream_in_ready) begin 
@@ -231,7 +225,7 @@ module mxfp_systolic_top_streamer #(
     );
 
     skid_buffer #(
-        .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(COMPUTE_DIM * MXFP_SCALE_WIDTH)
     ) skid_buffer_scale (
         .clk(clk),
         .rst(rst),

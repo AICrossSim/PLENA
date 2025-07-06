@@ -27,7 +27,7 @@ module matrix_sram_with_rounding #(
     // SRAM
     parameter   SRAM_DEPTH      = 128,
     localparam  AddrLen         = $clog2(SRAM_DEPTH),      
-    parameter   PARALLEL_DIM    = 2,
+    parameter   PARALLEL_DIM    = 1,
     parameter   PREFETCH_AMOUNT = 4                       
 
 ) (
@@ -60,7 +60,7 @@ module matrix_sram_with_rounding #(
 
 logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram, prefetch_addr_for_sub_sram;
 localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
-wire [AddrLen+$clog2(BITWIDTH_PER_ROW)-1:0] shifted_prefetch_addr;
+wire [AddrLen + $clog2(BITWIDTH_PER_ROW) - 1 : 0] shifted_prefetch_addr;
 
 assign waddr_for_sub_sram = sram_waddr >> $clog2(BITWIDTH_PER_ROW);
 assign raddr_for_sub_sram = sram_raddr >> $clog2(BITWIDTH_PER_ROW);

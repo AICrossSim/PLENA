@@ -146,6 +146,14 @@ module mx_fp_mv #(
     generate;
         logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_in_ready, mxfp_fp_convert_in_valid;
         logic [BLOCK_NUM - 1 : 0] mxfp_fp_convert_out_ready, mxfp_fp_convert_out_valid;
+        logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] converted_element;
+        logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] converted_scale;
+        logic converted_element_valid, converted_element_ready;
+        logic converted_scale_valid, converted_scale_ready;
+        logic converted_valid, converted_ready;
+        logic result_element_valid, result_element_ready;
+        logic result_scale_valid, result_scale_ready;
+
 
         split_n #(
             .N (BLOCK_NUM)
@@ -179,13 +187,6 @@ module mx_fp_mv #(
 
         end
 
-        logic [COMPUTE_DIM - 1 : 0]  [MXFP_MANT_WIDTH + MXFP_EXP_WIDTH : 0] converted_element;
-        logic [BLOCK_NUM - 1 : 0]    [MXFP_SCALE_WIDTH - 1 : 0] converted_scale;
-        logic converted_element_valid, converted_element_ready;
-        logic converted_scale_valid, converted_scale_ready;
-        logic converted_valid, converted_ready;
-        logic result_element_valid, result_element_ready;
-        logic result_scale_valid, result_scale_ready;
 
         assign converted_element_valid = converted_valid;
         assign converted_scale_valid = converted_valid;

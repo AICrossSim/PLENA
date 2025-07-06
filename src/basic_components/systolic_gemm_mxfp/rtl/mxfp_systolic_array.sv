@@ -29,13 +29,13 @@ module mxfp_systolic_array #(
 
     // Input from Top Array
     input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1) - 1 : 0] in_top_element,
-    input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
     input   logic in_top_valid,
     output  logic in_top_ready,
 
     // Input from Top Vector Array
     input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1) - 1 : 0] in_top_v_element,
-    input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
     input   logic in_top_v_valid,
     output  logic in_top_v_ready,
 
@@ -71,7 +71,7 @@ module mxfp_systolic_array #(
     logic [BLOCK_DIM * ( MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1 ) - 1 : 0]    ho_transfer_elem      [BLOCK_NUM - 1:0][BLOCK_NUM :0];
     logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ho_transfer_scale     [BLOCK_NUM - 1:0][BLOCK_NUM :0];
     logic [BLOCK_DIM * ( MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1 ) - 1 : 0]    ve_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
-    logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ve_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
+    logic [BLOCK_DIM * MXFP_SCALE_WIDTH - 1 : 0]                                ve_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
 
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM * (ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH + 1 ) - 1 : 0] result_values;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_valid;
