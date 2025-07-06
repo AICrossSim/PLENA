@@ -24,14 +24,14 @@ package configuration_pkg;
     parameter   VECTOR_SRAM_WIDTH = (precision_pkg::V_FP_MANT_WIDTH + precision_pkg::V_FP_EXP_WIDTH + 1) * VLEN;
     parameter   VECTOR_SRAM_DEPTH = 128;
     parameter   FIXED_SRAM_WIDTH  = precision_pkg::FIXED_DATA_WIDTH;
-    parameter   FIXED_SRAM_DEPTH  = 32;
+    parameter   FIXED_SRAM_DEPTH = 32;
     parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
-    parameter   FP_SRAM_DEPTH     = 32;
+    parameter   FP_SRAM_DEPTH = 32;
     // HBM Related
-    parameter   HBM_M_Prefetch_Amount  = 8;
-    parameter   HBM_V_Prefetch_Amount  = 8;
+    parameter   HBM_M_Prefetch_Amount = 8;
+    parameter   HBM_V_Prefetch_Amount = 8;
     parameter   HBM_V_Writeback_Amount = 8;
-    parameter   HBM_ELE_WIDTH   = 256;
+    parameter   HBM_ELE_WIDTH = 256;
     parameter   HBM_SCALE_WIDTH = 256;
 endpackage
 

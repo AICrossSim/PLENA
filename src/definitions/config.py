@@ -4,20 +4,36 @@ import os
 import argparse
 import sys
 
+def update_global_define(file_path, selected_mode):
+    modes = ["SIMULATION", "ASIC", "FPGA"]
+    if selected_mode not in modes:
+        print(f"Error: Unsupported mode '{selected_mode}'. Must be one of {modes}.")
+        return
+
+    with open(file_path, 'w') as f:
+        f.write("`ifndef GLOBAL_DEFINE_VH\n")
+        f.write(f"`define {selected_mode}\n")
+        f.write("`endif\n")
+
+    print(f"Updated {file_path} with mode {selected_mode}.")
+
+
+
 def patch_config_svh_from_toml(
-    mode : str,
     toml_path: str,
+    section: str,
     svh_path: str
 ):
     """Configures the SystemVerilog header file based on the TOML [active] configuration."""
+    pkg_name = {"CONFIG": "configuration_pkg", "PRECISION": "precision_pkg"}.get(section, None)
 
     with open(toml_path, "r") as f:
         data = toml.load(f)
-    toml_config = data.get("CONFIG", {})
+    toml_config = data.get(section, {})
 
     if not toml_config:
-        raise ValueError("No [CONFIG] section found in TOML")
-
+        raise ValueError(f"No {section} section found in TOML")
+    mode = "active"
     hardware_settings = {
         param: values.get(mode)
         for param, values in toml_config.items()
@@ -33,7 +49,7 @@ def patch_config_svh_from_toml(
     for line in lines:
         stripped = line.strip()
 
-        if stripped.startswith("package configuration_pkg"):
+        if stripped.startswith(f"package {pkg_name}"):
             in_configuration_pkg = True
         elif stripped.startswith("endpackage") and in_configuration_pkg:
             in_configuration_pkg = False
@@ -54,19 +70,30 @@ def patch_config_svh_from_toml(
     with open(svh_path, "w") as f:
         f.writelines(new_lines)
 
-def configure_toml_file(
+def parse_config_string(config_str):
+    param_dict = {}
+    if config_str:
+        pairs = config_str.strip().split()
+        for pair in pairs:
+            key, val = pair.split('=')
+            param_dict[key.strip()] = int(val.strip())
+    return param_dict
+
+
+def modify_toml_file(
     mode: str,
     toml_path: str = "config.toml",
+    section: str = "CONFIG",
     config_params: dict = None
 ):
     with open(toml_path, "r") as f:
         data = toml.load(f)
-        toml_config = data.get("CONFIG", {})
+        toml_config = data.get(section, {})
 
         if not toml_config:
-            raise ValueError("No [CONFIG] section found in TOML")
+            raise ValueError(f"No {section} section found in TOML")
 
-        if mode is not None and mode != "active":
+        if mode is not None:
             found_any = False
             for param, values in toml_config.items():
                 if mode in values:
@@ -75,6 +102,12 @@ def configure_toml_file(
                     toml_config[param]['active'] = values[mode]
             if not found_any:
                 raise ValueError(f"Mode '{mode}' not found in any parameters.")
+        else:
+            for param, values in toml_config.items():
+                if mode in values:
+                    found_any = True
+                    # Copy mode default to active first
+                    toml_config[param]['active'] = values["default"]
             
         if config_params is not None:
             for param, value in config_params.items():
@@ -84,7 +117,7 @@ def configure_toml_file(
                     raise ValueError(f"Parameter '{param}' not found in TOML.")
         
         # Write back the modified toml
-        data["CONFIG"] = toml_config
+        data[section] = toml_config
         with open(toml_path, "w") as f:
             toml.dump(data, f)
         print(f"Updated 'active' values in {toml_path} with mode '{mode}'.")
@@ -92,20 +125,53 @@ def configure_toml_file(
 
 def main():
     parser = argparse.ArgumentParser(description="Update TOML active values.")
-    parser.add_argument("--toml_file",  default=None, help="Path to TOML file")
-    parser.add_argument("--param",      default=None, help="Parameter to update or '*' for all")
-    parser.add_argument("--value",      default=None, help="New value to set as active")
-    parser.add_argument("--mode",       default=None, help="Mode to use for copying (e.g. ASIC, SIMULATION, etc.)")
+    parser.add_argument("--config", default=None, help="Parameter to update or '*' for all")
+    parser.add_argument("--precision", default=None, help="Parameter to update or '*' for all")
+    parser.add_argument("--mode",   default=None, help="Mode to use for copying (e.g. ASIC, SIMULATION, etc.)")
 
     args = parser.parse_args()
 
-    print("TOML FILE:", args.toml_file)
-    print("PARAM:", args.param)
-    print("VALUE:", args.value)
+    print("PARAM:", args.config)
     print("MODE:", args.mode)
-    pass
-        
+    config_settings = parse_config_string(args.config) if args.config else None
+    precision_settings = parse_config_string(args.precision) if args.precision else None
+    print("Parsed config settings:", config_settings)
+    parent_path = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(parent_path, "config.toml")
+    config_svh_path    = os.path.join(parent_path, "configuration.svh")
+    precision_svh_path = os.path.join(parent_path, "precision.svh")
 
+    if args.mode is not None:
+        update_global_define(
+            file_path=os.path.join(parent_path, "global_define.vh"),
+            selected_mode=args.mode
+        )
+
+    if config_settings is not None:
+        modify_toml_file(
+            mode=args.mode,
+            toml_path=config_path,
+            section="CONFIG",
+            config_params=config_settings
+        )
+        patch_config_svh_from_toml(
+            toml_path=config_path,
+            section="CONFIG",
+            svh_path=config_svh_path
+        )
+    
+    if precision_settings is not None:
+        modify_toml_file(
+            mode=args.mode,
+            toml_path=config_path,
+            section="PRECISION",
+            config_params=precision_settings
+        )
+        patch_config_svh_from_toml(
+            toml_path=config_path,
+            section="PRECISION",
+            svh_path=precision_svh_path
+        )
 
 if __name__ == "__main__":
     main()

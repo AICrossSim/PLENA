@@ -2,17 +2,17 @@
 
 This project contains the implementation of a coprocessor for Llama model's inference process.
 
-**Diagram of the coprocessor:**  
-[View Diagram on Google Drawio](https://drive.google.com/file/d/1sSbIB95fhO-RxaFWXCJFLtUKPwHVk12C/view?usp=sharing)
 
-**Operations Summary:**  
-[View Document on Google Docs](https://docs.google.com/document/d/1xQtkr6eg5apWwtI2o2SvgR1BDwq4dD6h9cY41vHd4UU/edit?usp=sharing)
+**ISA Summary:**  
+[View Document on Notion](https://www.notion.so/Custom-ISA-1e228f1ee68e80d29f05ec130b72a3ce?source=copy_link)
 
 **Progress Report:**  
 [View Document on Notion](https://www.notion.so/Coprocessor-Project-Plan-1d628f1ee68e8052ab7dc51a36905c15?pvs=4)
 
+**Design Space and Tuning Method:**  
+[View Document](src/definitions/config.md)
+
 <!-- ![Figure 1: Diagram of the Coprocessor](doc/CoProcessor_Design.png) -->
 
 **SystemVerilog RTL Format:**  
-TODO: 
 [LowRISC Format](https://github.com/lowRISC/style-guides)
