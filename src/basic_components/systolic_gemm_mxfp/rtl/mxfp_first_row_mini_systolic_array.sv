@@ -180,11 +180,11 @@ endgenerate
 generate;
     // Data Transfer Out from the mini systolic array.
     for (genvar i = 0; i < BLOCK_DIM; i = i + 1) begin : fill_output_data
-        assign out_bottom_element[i] = vert_transfer_elem[i][BLOCK_DIM];
-        assign out_bottom_scale[i]   = vert_transfer_scale[i][BLOCK_DIM];
-        assign out_right_element[i]  = hori_transfer_elem[BLOCK_DIM][i];
+        assign out_bottom_element[i] = vert_transfer_elem[BLOCK_DIM][i];
+        assign out_bottom_scale[i]   = vert_transfer_scale[BLOCK_DIM][i];
+        assign out_right_element[i]  = hori_transfer_elem[i][BLOCK_DIM];
     end
-    assign out_right_scale    = hori_transfer_scale  [BLOCK_DIM][0];
+    assign out_right_scale    = hori_transfer_scale  [0][BLOCK_DIM];
 endgenerate
 
 
