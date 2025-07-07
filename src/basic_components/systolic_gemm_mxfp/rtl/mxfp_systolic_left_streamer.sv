@@ -184,7 +184,7 @@ module mxfp_systolic_left_streamer #(
                 end
             end
             FILLING: begin
-                if (store_ele_counter == COMPUTE_DIM & stream_in_ready) begin 
+                if (store_ele_counter == COMPUTE_DIM - 1 & stream_in_ready) begin 
                     next_state = CLEARING;
                 end else begin
                     next_state = FILLING;

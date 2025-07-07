@@ -33,7 +33,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     input       logic m_v_ready,
     input       logic m_out_valid,
     output      logic m_out_ready,
-    // output      logic m_complete_acc_writeback,
+    output      logic m_load_in_process,
     input       logic [1:0] m_write_request,
     input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
 
@@ -186,6 +186,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             m_m_load                    <= 1'b0;
             p1_m_m_load                 <= 1'b0;
             p2_m_m_load                 <= 1'b0;
+            m_load_in_process           <= 1'b0;
             m_m_valid                   <= 1'b0;
             m_out_ready                 <= 1'b0;
             recorded_m_prefetch_addr    <= 'b0;
@@ -216,8 +217,10 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 m_sram_load_counter     <= 'b0;
                 load_m_amount           <= (exe_stage_op.m_op == MV_IC) ? MATRIX_LOAD_ITERATION_GEMV: MATRIX_LOAD_ITERATION_GEMM;
                 continuous_load_m_en    <= 1'b1;
+                m_load_in_process       <= 1'b1;
             end else if (continuous_load_m_en) begin
-                end_of_load_m   <= (m_sram_load_counter == load_m_amount) & m_m_ready;
+                end_of_load_m           <= (m_sram_load_counter == load_m_amount) & m_m_ready;
+                m_load_in_process       <= (m_sram_load_counter < load_m_amount - 2)  & m_m_ready;
                 if (m_m_ready) begin
                     m_m_valid <= (p2_m_m_load & p1_m_m_load & !end_of_load_m) & (p1_matrix_related_data_ready) & (matrix_related_data_ready); // 2 cycles for loading the matrix data
                     if (end_of_load_m) begin

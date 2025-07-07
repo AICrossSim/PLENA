@@ -56,7 +56,6 @@ module mxfp_systolic_mcu #(
     output  logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]     v_result,
     output  logic v_result_write_req,
     input   logic v_result_ready,
-    output  logic load_in_progress,
     output  logic empty_in_progress
 );
 
@@ -113,7 +112,7 @@ module mxfp_systolic_mcu #(
     logic   complete_loading;
     M_OP    control_in_exe;
     logic   sa_control;
-    logic   output_reset;
+    logic   output_reset, systolic_array_reset;
 
     
     localparam COUNTER_BIT_WIDTH = $clog2(K);
@@ -163,9 +162,11 @@ module mxfp_systolic_mcu #(
                 v2_load_counter  <= '0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_WO & gemv_result_valid) || (control_in_exe == MM_PS & gemm_result_valid));
+            output_reset <= (((control_in_exe == MV_WO) && ((&gemv_result_valid) == 1'b1)) || ((control_in_exe == MM_PS) && ((&gemm_result_valid) == 1'b1)));
         end
     end
+
+    assign systolic_array_reset = rst | output_reset;
 
     always_comb begin
         if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
@@ -180,16 +181,11 @@ module mxfp_systolic_mcu #(
     always_ff @(posedge clk) begin
         if (rst) begin
             control_in_exe          <= STALL_M; 
-            load_in_progress        <= 1'b0;
         end else begin
             if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
                 control_in_exe <= control;
-                load_in_progress <= 1'b1;
             end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
-                load_in_progress <= 1'b1;
                 control_in_exe <= control;
-            end else if (complete_loading) begin
-                load_in_progress <= 1'b0;
             end
         end
     end
@@ -369,7 +365,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
-                .rst(rst),
+                .rst(systolic_array_reset),
                 .data_elem_in   (v1_element[i * M +: M]),
                 .data_scale_in  (v1_scale[i * M +: M]),
                 .data_in_valid  (v1_data_for_mm_in_valid[i]),
@@ -390,7 +386,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) left_streamer (
                 .clk(clk),
-                .rst(rst),
+                .rst(systolic_array_reset),
                 .data_elem_in   (v2_element[i * M +: M]),
                 .data_scale_in  (v2_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
@@ -413,7 +409,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) systolic_array_inst (
                 .clk(clk),
-                .rst(rst),
+                .rst(systolic_array_reset),
                 .control            (sa_control),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),

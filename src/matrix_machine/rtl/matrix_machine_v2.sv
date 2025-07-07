@@ -20,7 +20,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Execution Control
     input  OP_BUNDLE    exe_stage_op,
-    output logic        load_in_progress,
     output logic        empty_in_progress,   
     output logic        stall_for_addr,
 
@@ -259,7 +258,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .v_result           (result_v),
         .v_result_write_req (result_in_valid),
         .v_result_ready     (result_in_ready),
-        .load_in_progress   (load_in_progress),
         .empty_in_progress  (empty_in_progress)
     );
 

@@ -94,7 +94,7 @@ module mxfp_systolic_top_streamer #(
                         next_data_scale_array_queue[i][i] = data_scale_in[i];
                     end
                 end
-                if (store_counter == COMPUTE_DIM & stream_in_ready) begin 
+                if (store_counter == COMPUTE_DIM - 1 & stream_in_ready) begin 
                     next_state = CLEARING;
                 end else begin
                     next_state = FILLING;

@@ -1,0 +1,6 @@
+{
+    "M_MM_IC" : {
+        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "pipelined" : "1 + BLEN + 3"
+    }
+}

@@ -3,7 +3,7 @@
 
 /*
 Module      : Decoder
-Timing      : Sequential One Cycle
+Timing      : Sequential, taking 2 cycles to decode the instruction.
 Description :
     Assuming the Instruction Format is as follows:
     [RS2]  [RS1] [RD] [OPCODE_WID]   
