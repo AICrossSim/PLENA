@@ -128,14 +128,9 @@ def main():
     parser.add_argument("--config", default=None, help="Parameter to update or '*' for all")
     parser.add_argument("--precision", default=None, help="Parameter to update or '*' for all")
     parser.add_argument("--mode",   default=None, help="Mode to use for copying (e.g. ASIC, SIMULATION, etc.)")
-
     args = parser.parse_args()
-
-    print("PARAM:", args.config)
-    print("MODE:", args.mode)
     config_settings = parse_config_string(args.config) if args.config else None
     precision_settings = parse_config_string(args.precision) if args.precision else None
-    print("Parsed config settings:", config_settings)
     parent_path = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(parent_path, "config.toml")
     config_svh_path    = os.path.join(parent_path, "configuration.svh")

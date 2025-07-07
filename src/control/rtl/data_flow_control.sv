@@ -170,7 +170,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // Read  Port -> Matrix Weight Load
     // Write Port -> Matrix Weight Prefetch
 
-    logic end_of_load_m; // TODO: Maybe this can be optimised.
+    logic end_of_load_m;
     logic p1_matrix_related_data_ready;
 
     always_ff @(posedge clk) begin
@@ -205,10 +205,16 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end 
 
             m_out_ready     <= 1'b1;
-            p1_m_m_load     <= m_m_load & !end_of_load_m;
+            p1_m_m_load     <= m_m_load;
             p2_m_m_load     <= p1_m_m_load;
             p1_matrix_related_data_ready <= matrix_related_data_ready;
-        
+            
+            if (m_m_ready & continuous_load_m_en) begin
+                m_load_in_process       <= (m_sram_load_counter < load_m_amount - 2);
+                end_of_load_m           <= (m_sram_load_counter == load_m_amount - 2);
+            end
+            m_m_valid <= (p2_m_m_load & p1_m_m_load) & (p1_matrix_related_data_ready) & (matrix_related_data_ready);
+
             // Matrix SRAM Read Port Control
             if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) begin
                 m_sram_req      <= 1'b1;
@@ -218,11 +224,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 load_m_amount           <= (exe_stage_op.m_op == MV_IC) ? MATRIX_LOAD_ITERATION_GEMV: MATRIX_LOAD_ITERATION_GEMM;
                 continuous_load_m_en    <= 1'b1;
                 m_load_in_process       <= 1'b1;
-            end else if (continuous_load_m_en) begin
-                end_of_load_m           <= (m_sram_load_counter == load_m_amount) & m_m_ready;
-                m_load_in_process       <= (m_sram_load_counter < load_m_amount - 2)  & m_m_ready;
+            end else if (continuous_load_m_en) begin 
                 if (m_m_ready) begin
-                    m_m_valid <= (p2_m_m_load & p1_m_m_load & !end_of_load_m) & (p1_matrix_related_data_ready) & (matrix_related_data_ready); // 2 cycles for loading the matrix data
                     if (end_of_load_m) begin
                         m_sram_req <= 1'b0;
                         m_m_load   <= 1'b0;
@@ -234,7 +237,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                             m_sram_req  <= 1'b1;
                             m_sram_load_counter <= m_sram_load_counter + 1'b1;
                         end else begin
-                            m_m_load    <= 1'b1;
                             m_sram_req  <= 1'b1;
                             continuous_load_m_en <= 1'b1;
                         end
@@ -245,6 +247,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 m_m_load   <= 1'b0;
                 m_sram_req <= 1'b0;
                 continuous_load_m_en <= 1'b0;
+                m_load_in_process <= 1'b0;
             end
 
             // Matrix SRAM Write Port Control

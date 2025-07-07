@@ -2,5 +2,40 @@
     "M_MM_IC" : {
         "alone" : "2 + 4 + BLEN * 2 + 3",
         "pipelined" : "1 + BLEN + 3"
+    },
+
+    "M_MM_PS" : {
+        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "pipelined" : "1 + BLEN + 3"
+    },
+
+    "M_MM_WO" : {
+        "alone" : "2 + 4 + 3",
+        "pipelined" : "1"
+    },
+
+    "M_TMM_IC" : {
+        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "pipelined" : "1 + BLEN + 3"
+    },
+
+    "M_TMM_PS" : {
+        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "pipelined" : "1 + BLEN + 3"
+    },
+
+    "M_MV_IC" : {
+        "alone" : "2 + 4 + 3",
+        "pipelined" : "1"
+    },
+
+    "M_MV_WO" : {
+        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "pipelined" : "1 + BLEN + 3"
+    },
+
+    "M_TMV_IC" : {
+        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "pipelined" : "1 + BLEN + 3"
     }
 }

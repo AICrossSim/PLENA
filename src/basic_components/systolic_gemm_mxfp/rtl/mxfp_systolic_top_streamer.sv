@@ -93,23 +93,35 @@ module mxfp_systolic_top_streamer #(
                         next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                         next_data_scale_array_queue[i][i] = data_scale_in[i];
                     end
+                end else if (stream_in_ready) begin
+                    for (int i = 0; i < COMPUTE_DIM; i++) begin
+                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                    end
                 end
-                if (store_counter == COMPUTE_DIM - 1 & stream_in_ready) begin 
+                if (store_counter == COMPUTE_DIM & stream_in_ready & !data_in_valid) begin 
                     next_state = CLEARING;
                 end else begin
                     next_state = FILLING;
                 end
             end
             CLEARING: begin
-                if (stream_in_ready) begin
+                if (data_in_valid & stream_in_ready) begin
                     for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue [i] = (data_elem_array_queue [i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        next_data_elem_array_queue[i][i] = data_elem_in[i];
+                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                        next_data_scale_array_queue[i][i] = data_scale_in[i];
+                    end
+                end else if (stream_in_ready) begin
+                    for (int i = 0; i < COMPUTE_DIM; i++) begin
+                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                         next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                     end
                 end
                 if (p1_state != FILLING & data_in_valid & stream_in_ready) begin 
                     next_state = FILLING;
-                end else if (clear_counter == COMPUTE_DIM) begin
+                end else if (clear_counter == COMPUTE_DIM - 1) begin
                     next_state = IDLE;
                 end else begin
                     next_state = CLEARING;
@@ -151,6 +163,8 @@ module mxfp_systolic_top_streamer #(
                         store_counter <= 'b1;
                     end else begin
                         stream_in_valid <= 1'b0;
+                        store_counter <= '0;
+                        clear_counter <= '0;
                     end
                 end
                 FILLING: begin
@@ -161,7 +175,11 @@ module mxfp_systolic_top_streamer #(
                         if (stream_in_valid_hold) begin
                             stream_in_valid_hold <= 1'b0;
                         end
-                        store_counter                       <= store_counter + 'b1;
+                        if (store_counter == COMPUTE_DIM) begin
+                            store_counter <= '0;
+                        end else begin
+                            store_counter <= store_counter + 'b1;
+                        end
                     end else begin
                         if (stream_in_valid & !stream_in_ready) begin
                             stream_in_valid_hold <= 1'b1;
@@ -177,13 +195,16 @@ module mxfp_systolic_top_streamer #(
                     if (stream_in_ready) begin
                         data_elem_array_queue   <= next_data_elem_array_queue;
                         data_scale_array_queue  <= next_data_scale_array_queue;
-                        clear_counter <= clear_counter + 'b1;   
+                        if (data_in_valid) begin
+                            clear_counter <= 'b1;
+                        end else if (clear_counter == COMPUTE_DIM - 1) begin
+                            clear_counter <= '0;
+                        end begin
+                            clear_counter <= clear_counter + 'b1;  
+                        end
                         stream_in_valid <= 1'b1;  
                         if (stream_in_valid_hold) begin
                             stream_in_valid_hold <= 1'b0;
-                        end
-                        if (clear_counter == COMPUTE_DIM) begin
-                            clear_counter <= '0;
                         end
                     end else begin
                         if (stream_in_valid) begin
