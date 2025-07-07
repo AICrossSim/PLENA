@@ -333,8 +333,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         end
     end
 
-    assign end_of_load_v_for_matrix = (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION_GEMM ) & (matrix_related_data_ready) & m_v_ready;
-
     always_ff @(posedge clk) begin
         if (rst) begin
             v_v_a_valid     <= 1'b0;
@@ -357,11 +355,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             continuous_v_write_from_matrix_en   <= 1'b0;
             continuous_load_v_for_matrix_en     <= 1'b0;
             v_v_out_ready                   <= 1'b0;
-            // m_complete_acc_writeback        <= 1'b0;
             v_sram_mxfp_req_b               <= 2'b0;
             v_sram_req_b                    <= 1'b0;
             v_sram_req_a                    <= 1'b0;
             hbm_write_counter               <= 'b0;
+            end_of_load_v_for_matrix        <= 1'b0;
             v_sram_load_for_matrix_counter  <= 'b0;
             v_sram_write_from_matrix_counter <= 'b0;
 
@@ -370,7 +368,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             v_v_a_valid                 <= v_v_a_load;
             v_v_b_valid                 <= v_v_b_load;
             m_v_load_cond               <= m_v_load & !end_of_load_v_for_matrix;
-            m_v_valid                   <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (matrix_related_data_ready);
+            p1_vport_a_load_valid       <= (m_v_load_cond & !end_of_load_v_for_matrix ) & (matrix_related_data_ready);
+            p2_vport_a_load_valid       <= p1_vport_a_load_valid;
+            m_v_valid                   <= p2_vport_a_load_valid;
+
+            end_of_load_v_for_matrix    <= (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION_GEMM - 2) & (matrix_related_data_ready) & m_v_ready;
             //Port A
             if((exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) & m_v_ready) begin
                 // Read Vector from SRAM
@@ -380,7 +382,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 v_sram_wen_a    <= 1'b0;
                 continuous_load_v_for_matrix_en <= 1'b1;
                 load_for_gemv_en <= (exe_stage_op.m_op == MV_IC) ? 1'b1 : 1'b0;
-            
             end else if (continuous_load_v_for_matrix_en) begin
                 if (m_v_ready) begin
                     if (!load_for_gemv_en & end_of_load_v_for_matrix) begin

@@ -2,7 +2,7 @@
 
 /*
 Module      : Top Level SRAM design for scratchpad
-Timing      : Sequential Logic, 1 cycle for read/write process.
+Timing      : Sequential Logic, 3 cycle for MXFP read and 1 cycle for FP read
 Description :
             : This module supports two port reading
             : The addressing mode is Little Endian.
@@ -137,8 +137,8 @@ module fp_vector_sram #(
     always_comb begin
         if (control == 1'b0) begin
             // Vector Machine Mode, output as FP Data
-            port_a_fp_in_internal = port_a_v_fp_in;
-            port_a_v_fp_out = port_a_fp_out_internal;
+            port_a_fp_in_internal   = port_a_v_fp_in;
+            port_a_v_fp_out         = port_a_fp_out_internal;
         end 
     end
 

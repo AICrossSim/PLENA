@@ -95,7 +95,7 @@ module mxfp_systolic_top_streamer #(
                     end
                 end else if (stream_in_ready) begin
                     for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        next_data_elem_array_queue[i]  = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                         next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                     end
                 end
@@ -115,13 +115,13 @@ module mxfp_systolic_top_streamer #(
                     end
                 end else if (stream_in_ready) begin
                     for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                        next_data_elem_array_queue[i]  = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
                         next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                     end
                 end
                 if (p1_state != FILLING & data_in_valid & stream_in_ready) begin 
                     next_state = FILLING;
-                end else if (clear_counter == COMPUTE_DIM - 1) begin
+                end else if (clear_counter == COMPUTE_DIM - 2) begin
                     next_state = IDLE;
                 end else begin
                     next_state = CLEARING;
@@ -168,38 +168,40 @@ module mxfp_systolic_top_streamer #(
                     end
                 end
                 FILLING: begin
-                    if (data_in_valid & stream_in_ready) begin
+                    if ( stream_in_ready) begin
                         data_elem_array_queue <= next_data_elem_array_queue;
                         data_scale_array_queue <= next_data_scale_array_queue;
-                        stream_in_valid <= 1'b1;
-                        if (stream_in_valid_hold) begin
-                            stream_in_valid_hold <= 1'b0;
-                        end
-                        if (store_counter == COMPUTE_DIM) begin
-                            store_counter <= '0;
-                        end else begin
-                            store_counter <= store_counter + 'b1;
-                        end
+                        if (data_in_valid ) begin
+                            stream_in_valid <= 1'b1;
+                            if (stream_in_valid_hold) begin
+                                stream_in_valid_hold <= 1'b0;
+                            end
+                            if (store_counter == COMPUTE_DIM) begin
+                                store_counter <= '0;
+                            end else begin
+                                store_counter <= store_counter + 'b1;
+                            end
+                        end 
                     end else begin
-                        if (stream_in_valid & !stream_in_ready) begin
-                            stream_in_valid_hold <= 1'b1;
-                        end else if (stream_in_valid_hold & stream_in_ready) begin
-                            stream_in_valid_hold <= 1'b0;
-                        end else begin
-                            stream_in_valid <= 1'b0;
-                        end
+                            if (stream_in_valid & !stream_in_ready) begin
+                                stream_in_valid_hold <= 1'b1;
+                            end else if (stream_in_valid_hold & stream_in_ready) begin
+                                stream_in_valid_hold <= 1'b0;
+                            end else begin
+                                stream_in_valid <= 1'b0;
+                            end
                     end
                 end
                 CLEARING: begin
-                    store_counter <= '0;
                     if (stream_in_ready) begin
                         data_elem_array_queue   <= next_data_elem_array_queue;
                         data_scale_array_queue  <= next_data_scale_array_queue;
                         if (data_in_valid) begin
-                            clear_counter <= 'b1;
-                        end else if (clear_counter == COMPUTE_DIM - 1) begin
+                            clear_counter <= 'b0;
+                            store_counter <= 'b1;
+                        end else if (clear_counter == COMPUTE_DIM - 2) begin
                             clear_counter <= '0;
-                        end begin
+                        end else begin
                             clear_counter <= clear_counter + 'b1;  
                         end
                         stream_in_valid <= 1'b1;  
