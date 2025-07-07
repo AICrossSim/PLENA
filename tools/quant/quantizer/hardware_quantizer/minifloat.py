@@ -100,7 +100,7 @@ def _minifloat_ieee_quantize_hardware(
     if exponent_bias in (None, "none", "None"):
         exponent_bias = 2 ** (exponent_width - 1) - 1
     # upper and lower bound of shifted exponent
-    exponent_max = 2**exponent_width - 2 - exponent_bias # the largest exponent leave for infinity
+    exponent_max = 2**exponent_width - 2 - exponent_bias 
     exponent_min = -exponent_bias
     # upper and lower bound of shifted minifloat mantissa
     shift = 2**mantissa_bits

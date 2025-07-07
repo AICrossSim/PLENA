@@ -23,13 +23,6 @@ src_path = Path(__file__).parent.parent.parent
 
 torch.manual_seed(10)
 
-def hardware_reciprocal(x, q_config):
-    # Convert to binary and back to get exact hardware representation
-    
-    # Compute reciprocal
-    y = 1.0 / x
-    return y
-
 class FPReciprocalTB(CombinationalTestbench):
     def generate_inputs(self, num):
         q_config = {
