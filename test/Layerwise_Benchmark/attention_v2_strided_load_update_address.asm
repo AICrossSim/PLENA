@@ -22,7 +22,7 @@
 ; Assume K value is directly stored in ADR[K]
 ; Assume V value is directly stored in ADR[V]
 ; Assume O value is directly stored in ADR[O]
-
+; Br = BLEN, Bc = BLEN
 
 ; Available Fixed-Point Regfile: FIX[1], ..., FIX[8]
 ; Available Floating-Point Regfile: FP[1], ..., FP[8]
@@ -66,9 +66,10 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
                 M_MM_IC x6, x6, 0
                 S_ADDI_FIX x3, x3, 1;
                 ; if x3 == d/MLEN - 1: Not the last loop
-                H_PREFETCH_V_S x6, x4, ADR[Q]
-                H_PREFETCH_M_S x6, x5, ADR[K]
-                M_MM_PS x6, x6, x8
+                ; H_PREFETCH_V_S x6, x4, ADR[Q]
+                ; H_PREFETCH_M_S x6, x5, ADR[K]
+                M_MM_PS x8, x6, x6, 
+                ; - opcode rd, rs1, rs2;
             S_ADDI_FIX x8, x0, 1;
             
         M_MM_WO 0, 0, x6;

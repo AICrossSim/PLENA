@@ -28,13 +28,13 @@ module hbm_controller #(
     parameter int   SourceWidth = 4, 
     parameter int   SinkWidth = 4,   
     parameter int   LOAD_AMOUNT = 4,
-    parameter int   WRITE_AMOUNT = 4,
-    parameter       SCALE_DATA_OFFSET = 32'h80000000
+    parameter int   WRITE_AMOUNT = 4
 )(
     input   logic clk,
     input   logic rst,
     input   logic stride_mode, // 0: Default, 1: Strided.
     input   logic   [ON_CHIP_ADDR_WIDTH - 1 : 0]    stride_offset,
+    input   logic   [ON_CHIP_ADDR_WIDTH - 1 : 0]    scale_offset,
 
     // HBM data prefetching
     output  logic   [ELE_WIDTH - 1 : 0]             prefetch_element,
@@ -77,13 +77,13 @@ module hbm_controller #(
         if (hbm_write_en) begin
             offset_addr = hbm_waddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
             hbm_raddr_for_ele   = hbm_waddr;
-            hbm_raddr_for_scale = offset_addr + SCALE_DATA_OFFSET;
+            hbm_raddr_for_scale = offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             stride_offset_for_scale = stride_offset >> ELE_SCALE_ADR_RATIO;
         end else begin
             offset_addr = hbm_raddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
             hbm_raddr_for_ele   = hbm_raddr;
-            hbm_raddr_for_scale = offset_addr + SCALE_DATA_OFFSET;
+            hbm_raddr_for_scale = offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             stride_offset_for_scale = stride_offset >> ELE_SCALE_ADR_RATIO;
         end

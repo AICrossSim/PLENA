@@ -1,3 +1,3 @@
 `ifndef GLOBAL_DEFINE_VH
-`define ASIC
+`define SIMULATION
 `endif

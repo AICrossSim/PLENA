@@ -4,48 +4,9 @@ import os
 from pathlib import Path
 from math import log2
 import re
+from utils import load_architecture_settings
 
-# def load_hardware_settings(
-#         toml_path: str = "config.toml",
-#         section: str = "CONFIG"
-# ):
-#     with open(toml_path, "r") as f:
-#         data = toml.load(f)
-#         toml_config = data.get(section, {})
-    
-#     if not toml_config:
-#         raise ValueError(f"No {section} section found in TOML")
-#     mode = "active"
-#     hardware_settings = {
-#         param: values.get(mode)
-#         for param, values in toml_config.items()
-#         if mode in values
-#     } 
-#     hardware_settings["SA_ACC_CYCLES"] = int(log2(hardware_settings["MLEN"] / hardware_settings["BLEN"]) + 1)
-#     return hardware_settings
 
-def load_hardware_settings(file_path):
-    """
-    Parse SystemVerilog `parameter` definitions in an .svh/.sv file
-    """
-    param_pattern = re.compile(r'\s*parameter\s+(\w+)\s*=\s*([^;]+);')
-    hardware_settings = {}
-
-    with open(file_path, "r") as f:
-        for line in f:
-            match = param_pattern.match(line)
-            if match:
-                name, value_str = match.groups()
-                value_str = value_str.strip()
-                # Try integer conversion first
-                try:
-                    value = int(value_str)
-                except ValueError:
-                    # Fallback to raw string (could be expression or real number)
-                    continue
-                hardware_settings[name] = value
-    hardware_settings["SA_ACC_CYCLES"] = int(log2(hardware_settings["MLEN"] / hardware_settings["BLEN"]) + 1)
-    return hardware_settings
 
 def load_custom_isa_lib(
         json_path: str
@@ -65,7 +26,8 @@ def build_instr_model(
     hardware_settings_file: str = "configuration.svh",
     custom_isa_lib_file:    str = "customISA_lib.json"
 ):
-    hardware_settings = load_hardware_settings(hardware_settings_file)
+    hardware_settings = load_architecture_settings(hardware_settings_file)
+    hardware_settings["SA_ACC_CYCLES"] = int(log2(hardware_settings["MLEN"] / hardware_settings["BLEN"]) + 1)
     custom_isa_lib = load_custom_isa_lib(custom_isa_lib_file)
 
     instr_latency_model = {}

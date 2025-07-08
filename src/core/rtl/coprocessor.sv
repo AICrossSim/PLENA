@@ -18,7 +18,8 @@ module coprocessor import configuration_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
         parameter string FIXED_MEM_INIT_FILE    = "",
-        parameter string V_SRAM_RESULT_FILE     = ""
+        parameter string V_SRAM_RESULT_FILE     = "",
+        parameter string HBM_ADDR_MAPPER_FILE   = ""
     `endif
 )(
     input   logic clk,
@@ -427,6 +428,9 @@ module coprocessor import configuration_pkg::*; #(
     `TL_BIND_HOST_PORT(v_out_scale, v_scale);
 
     hbm_sys #(
+        `ifdef SIMULATION
+            .MemInitFile(HBM_ADDR_MAPPER_FILE)
+        `endif
     ) hbm_interface_init (
         .clk(clk),
         .rst(rst),

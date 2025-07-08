@@ -15,6 +15,7 @@ module SimTop#(
     parameter string    FP_MEM_INIT_FILE              = "",
     parameter string    FIXED_MEM_INIT_FILE           = "",
     parameter string    VECTOR_MEM_RESULT_FILE        = "",
+    parameter string    HBM_ADDR_MAPPER_FILE          = "",
     parameter string    FAKE_HBM_ELEMENT_WRITE_M_FILE = "",
     parameter string    FAKE_HBM_ELEMENT_WRITE_V_FILE = "",
     parameter string    FAKE_HBM_SCALE_WRITE_M_FILE   = "",
@@ -40,7 +41,8 @@ import configuration_pkg::*;
 coprocessor #(
     .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
     .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE),
-    .V_SRAM_RESULT_FILE(VECTOR_MEM_RESULT_FILE)
+    .V_SRAM_RESULT_FILE(VECTOR_MEM_RESULT_FILE),
+    .HBM_ADDR_MAPPER_FILE(HBM_ADDR_MAPPER_FILE)
 ) dut (
     .clk(clk),
     .rst(rst),

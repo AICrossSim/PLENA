@@ -14,6 +14,9 @@ Description :
 */
 
 module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
+    `ifdef SIMULATION
+        parameter string MemInitFile = "",
+    `endif
     localparam int V_BLOCKNUM       = VLEN / BLOCK_DIM,
     localparam int M_BLOCKNUM       = MLEN / BLOCK_DIM,
     localparam int ADDR_WIDTH       = ON_CHIP_ADDR_WIDTH
@@ -76,7 +79,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth,m_tl_scale);
     `TL_BIND_HOST_PORT(host_m_element, m_tl_element);
     `TL_BIND_HOST_PORT(host_m_scale, m_tl_scale);
-    logic [ADDR_WIDTH - 1 : 0] stored_stride_size;
+    logic [ADDR_WIDTH - 1 : 0] stored_stride_size, stored_scale_offset;
 
     logic stored_prefetch_m_element_valid, stored_prefetch_m_element_ready;
     logic stored_prefetch_m_scale_valid, stored_prefetch_m_scale_ready;
@@ -161,6 +164,9 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .ADR_OPERAND_WIDTH  (ADR_OPERAND_WIDTH),
         .HBM_ADDR_WIDTH     (HBM_ADDR_WIDTH),
         .HBM_ADDR_REG_NUM   (HBM_ADDR_REG_NUM)
+        `ifdef SIMULATION
+        , .MemInitFile       (MemInitFile)
+        `endif
     ) address_mapper_inst (
         .clk(clk),
         .rst(rst),
@@ -188,10 +194,13 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            stored_stride_size <= 'b0;
+            stored_stride_size  <= 'b0;
+            stored_scale_offset        <= 'b0;
         end else begin
             if (exe_stage_op.c_op == SET_STRIDE_SIZE) begin
                 stored_stride_size <= exe_stage_op.addr_2;
+            end else if (exe_stage_op.c_op == C_SET_SCALE_REG) begin
+                stored_scale_offset <= exe_stage_op.addr_2;
             end
         end
     end
@@ -221,6 +230,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .rst(rst),
         .stride_mode                        (stride_mode_en),
         .stride_offset                      (stored_stride_size),
+        .scale_offset                       (stored_scale_offset),
         .prefetch_element                   (m_hbm_element_out),
         .prefetch_scale                     (m_hbm_scale_out),
         .prefetch_data_valid                (m_hbm_prefetch_valid),
@@ -297,6 +307,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .rst(rst),
         .stride_mode                        (stride_mode_en),
         .stride_offset                      (stored_stride_size),
+        .scale_offset                       (stored_scale_offset),
         .prefetch_element                   (v_hbm_element_out),
         .prefetch_scale                     (v_hbm_scale_out),
         .prefetch_data_valid                (v_hbm_prefetch_valid),

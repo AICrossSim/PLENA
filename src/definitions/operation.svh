@@ -79,14 +79,15 @@ typedef enum logic [3:0] {
     PASS_ADDR     = 4'hA,
     PASS_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 adress.
     COMP_ADDR     = 4'hC,
-    STALL_S_FIXED = 0
+    STALL_S_FIXED = 4'h0
 } S_FIXED_OP;
 
-typedef enum logic [1:0] {
-    STALL_C         = 2'h0,
-    SET_ADDR_REG    = 2'h1,
-    SET_STRIDE_SIZE = 2'h2,
-    SET_LUT         = 2'h3
+typedef enum logic [2:0] {
+    STALL_C         = 3'h0,
+    SET_ADDR_REG    = 3'h1,
+    SET_STRIDE_SIZE = 3'h2,
+    SET_LUT         = 3'h3,
+    SET_SCALE_REG   = 3'h4
 } C_OP;
 
 typedef enum logic [2:0] {
@@ -164,7 +165,8 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     // CSR Setting
     C_SET_ADDR_REG      = 6'h2C,
     C_SET_LUT           = 6'h2D,
-    C_SET_STRIDE_REG    = 6'h2E
+    C_SET_STRIDE_REG    = 6'h2E,
+    C_SET_SCALE_REG     = 6'h2F
 } CUSTOM_ISA_OPCODE;
 
 

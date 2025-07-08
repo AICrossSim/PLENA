@@ -14,6 +14,9 @@ module address_mapper #(
     parameter ADR_OPERAND_WIDTH = 5,
     parameter HBM_ADDR_WIDTH = 64,
     parameter HBM_ADDR_REG_NUM = 4,
+    `ifdef SIMULATION
+        parameter string MemInitFile = "",
+    `endif
     localparam  HBM_ADDR_OPERAND_WIDTH = $clog2(HBM_ADDR_REG_NUM)
 
 )(
@@ -36,11 +39,18 @@ module address_mapper #(
 );
 
 
-initial begin
-    assert (HBM_ADDR_WIDTH >= 2 * ADDR_WIDTH) else $error("Address width is less than HBM address width");
-end
+`ifndef SYNTHESIS_MEMORY_BLACK_BOXING
 
 logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr [HBM_ADDR_REG_NUM - 1 : 0];
+
+`ifdef SIMULATION
+    initial begin
+        string filename;
+        $sformat(filename, "%s", MemInitFile);
+        $display("Loading memory from: %s", filename);
+        $readmemh(filename, hbm_addr);
+    end
+`endif
 
 always_ff @(posedge clk) begin
     if (rst) begin
@@ -59,5 +69,6 @@ always_ff @(posedge clk) begin
     end
 end
 
+`endif
 
 endmodule

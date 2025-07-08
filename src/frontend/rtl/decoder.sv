@@ -111,7 +111,7 @@ always_comb begin
         end
 
         // CSR Setting
-        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG: begin
+        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG, C_SET_SCALE_REG: begin
             decode_instruction_type = C;
         end
 
@@ -428,6 +428,9 @@ always_ff @(posedge clk) begin
                 end else if (decode_instr_info.opcode == C_SET_LUT) begin
                     exe_fixed_op                    <= STALL_S_FIXED;
                     decode_stage_op.c_op            <= SET_LUT; // TODO: Left for Cano
+                end else if (decode_instr_info.opcode == C_SET_SCALE_REG) begin
+                    exe_fixed_op                    <= PASS_ADDR_2;
+                    decode_stage_op.c_op            <= SET_SCALE_REG;
                 end else begin
                     exe_fixed_op                    <= STALL_S_FIXED;
                     decode_stage_op.c_op            <= STALL_C;

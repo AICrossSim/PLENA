@@ -31,16 +31,20 @@
 ; ============================================================
 
 
-; Set up Environment
-
-S_ADDI_FIX x7, x0, Br * d * h;
+;<---------------- Set up Environment ---------------->
+; Set Stride Register
+S_LD_FIX x7, x0, 0;
 C_SET_STRIDE_REG x7;
+; Set Address Register
 
-S_ADDI_FIX x1, x0, 0;               set FIX[1] to 0, use it as an incremental pointer (loop index) across N/Br
+
+
+
+S_ADDI_FIX x1, x0, 0;
 ; LOOP N / Br
-S_ADDI_FIX x2, x0, 0;               set FIX[2] to 0, use it as an incremental pointer (loop index) across N/Bc
+S_ADDI_FIX x2, x0, 0;
 ; LOOP N / Bc
-S_ADDI_FIX x8, x0, 0;               set FIX[8] to 0, use it as an incremental pointer (loop index) across MLEN/BLEN
+S_ADDI_FIX x8, x0, 0;
 ; LOOP across buffer location             
 S_ADDI_FIX x3, x0, 0;               set FIX[3] to 0, use it as an incremental pointer (loop index) across d/MLEN
 ; LOOP across d/MLEN
