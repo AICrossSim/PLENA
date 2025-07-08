@@ -10,56 +10,72 @@ Status      : Under Development
 */
 
 module fp_cp_reciprocal #(
-    parameter   EXP_WIDTH = 5,
-    parameter   MANT_WIDTH = 10
+    parameter   IN_EXP_WIDTH = 5,
+    parameter   IN_MANT_WIDTH = 10,
+    parameter   OUT_EXP_WIDTH = 5,
+    parameter   OUT_MANT_WIDTH = 10
 )(
-    input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
-    output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
+    input  logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
+    output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] data_out
 );
-  logic sign_bit;
-  logic [EXP_WIDTH - 1:0] exp_bit;
-  logic [MANT_WIDTH - 1:0] mant_bit;
 
-  logic [EXP_WIDTH - 1:0] reverse_exp_bit;
+    localparam int IN_FIXED_WIDTH = IN_MANT_WIDTH + 2;
+    localparam int IN_FIXED_FRAC_WIDTH = IN_MANT_WIDTH;
 
-  logic [MANT_WIDTH:0] normalized_reciprocal_mant;
+    localparam int RECIP_OUT_EXP_WIDTH = OUT_EXP_WIDTH + 1;
+    localparam int RECIP_OUT_FIXED_WIDTH = OUT_MANT_WIDTH + 2;
+    localparam int NORMALIZE_OUT_MANT_WIDTH = RECIP_OUT_FIXED_WIDTH - 1;
+    
+    localparam NORM_DATA_WIDTH = RECIP_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH + 1;
+    logic [NORM_DATA_WIDTH - 1:0] normalized_data;
+    
+    // Signal declarations for connecting the modules
+    logic signed [IN_EXP_WIDTH - 1:0] signed_exp_in;
+    logic signed [IN_MANT_WIDTH + 2 - 1:0] signed_mant_in;
+    logic signed [OUT_EXP_WIDTH - 1:0] reciprocal_exp_out;
+    logic signed [OUT_MANT_WIDTH + 2 - 1:0] reciprocal_mant_out;
+    
+    fp_ieee_partition #(
+        .EXP_WIDTH(IN_EXP_WIDTH),
+        .MANT_WIDTH(IN_MANT_WIDTH)
+    ) partition_a (
+        .data_in(data_in),
+        .signed_exp(signed_exp_in),
+        .signed_mant(signed_mant_in)
+    );
+    fp_reciprocal #(
+        .IN_EXP_WIDTH(IN_EXP_WIDTH),
+        .IN_FIX_WIDTH(IN_MANT_WIDTH + 2),
+        .IN_FIX_FRAC_WIDTH(IN_MANT_WIDTH),
+        .OUT_EXP_WIDTH(OUT_EXP_WIDTH),
+        .OUT_FIX_WIDTH(OUT_MANT_WIDTH + 2),
+        .OUT_FIX_FRAC_WIDTH(OUT_MANT_WIDTH)
+    ) fp_reciprocal_inst (
+        .signed_exp_in(signed_exp_in),
+        .signed_mant_in(signed_mant_in),
+        .signed_exp_out(reciprocal_exp_out),
+        .signed_mant_out(reciprocal_mant_out)
+    );
 
-  localparam BIAS = (1 << (EXP_WIDTH - 1)) - 1;
-  assign sign_bit = data_in[EXP_WIDTH + MANT_WIDTH];
-  assign exp_bit = data_in[EXP_WIDTH + MANT_WIDTH - 1:MANT_WIDTH];
-  assign mant_bit = data_in[MANT_WIDTH - 1:0];
+    fp_ieee_normalize #(
+        .IN_FIXED_WIDTH(RECIP_OUT_FIXED_WIDTH),
+        .IN_FIXED_FRAC_WIDTH(OUT_MANT_WIDTH),
+        .IN_EXP_WIDTH(OUT_EXP_WIDTH),
+        .OUT_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH)
+    ) fp_normalize (
+        .signed_mant(reciprocal_mant_out),
+        .signed_exp(reciprocal_exp_out),
+        .fp_out(normalized_data)
+    );
 
-  // we have reverse_exp_bit + real_exp_bit = -(exp_bit - bias) + bias = -exp_bit + 2*bias
-  assign reverse_exp_bit = 2*BIAS - exp_bit;
+    fp_ieee_casting #(
+        .IN_EXP_WIDTH(RECIP_OUT_EXP_WIDTH),
+        .IN_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH),
+        .OUT_EXP_WIDTH(OUT_EXP_WIDTH),
+        .OUT_MANT_WIDTH(OUT_MANT_WIDTH)
+    ) fp_casting (
+        .data_in(normalized_data),
+        .data_out(data_out)
+    );
 
-  logic [MANT_WIDTH - 1:0] reciprocal_mant;
-  logic [MANT_WIDTH:0] denormalized_mant;
-
-  assign denormalized_mant = (exp_bit != 0) ? (1 << (MANT_WIDTH) + mant_bit) : mant_bit;
-
-  // TODO:Do we need to round the reciprocal_mant?
-  // Currently, denormalized_mant = * /2^(MANT_WIDTH)
-  // the target reciporcal mant I want is * /2^(MANT_WIDTH) not round currently
-  // So the divisor should be 1 << (MANT_WIDTH + 1 + MANT_WIDTH)
-  assign reciprocal_mant = (1<<(MANT_WIDTH + MANT_WIDTH)) / denormalized_mant;
-
-  assign unnormalized_fp = {sign_bit, reverse_exp_bit, reciprocal_mant};
-
-  fp_normalize #(
-    .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH)
-  ) fp_normalize_inst (
-    .data_in(unnormalized_fp),
-    .data_out(data_out)
-  );
-endmodule
-
-module fp_normalize #(
-    parameter   EXP_WIDTH = 5,
-    parameter   MANT_WIDTH = 10
-)(
-    input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
-    output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
-);
-  assign data_out = data_in;
 endmodule

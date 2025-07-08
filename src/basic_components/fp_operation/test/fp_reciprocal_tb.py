@@ -16,7 +16,9 @@ from cfl_cocotb.streaming import (
 from cfl_cocotb.runner import veri_runner, SRC_PATH
 from cfl_cocotb.torch_fp_conversion import fp_2_bin, bin_2_fp, pack_fp_to_bin
 from quant.quant_operations.reciprocal import fp_reciprocal
+
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from cfl_tools.debugger import get_dut_attributes
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
@@ -37,30 +39,48 @@ class FPReciprocalTB(CombinationalTestbench):
         }
         
         # Generate random inputs between -1 and 1, avoiding very small numbers
-        x = torch.rand(num) * 2 - 1
-        x[torch.abs(x) < 0.1] = 0.1  # Avoid division by very small numbers
+        torch.manual_seed(0)
+        x = torch.rand(num) * self.range - self.range / 2
         
         qx, exp_x, mant_x = _minifloat_ieee_quantize_hardware(
             x, q_config["in_fix_frac_width"] + q_config["in_exp_width"] + 1, q_config["in_exp_width"])
         # Convert inputs to binary format
         inputs = pack_fp_to_bin(exp_x, mant_x, q_config["in_exp_width"], q_config["in_fix_width"]).tolist()
         
+        self.log.debug(f"input : {exp_x}, {mant_x}")
         # Compute expected outputs
         expected_exp, expected_mant = fp_reciprocal(exp_x, mant_x, q_config)
+        self.log.debug(f"expected_exp : {expected_exp}, expected_mant : {expected_mant}")
+
         expected_outputs = pack_fp_to_bin(expected_exp, expected_mant, q_config["out_exp_width"], q_config["out_fix_width"]).tolist()
         
         self.inputs = {
-            "signed_mant_in": mant_x.int().tolist(),
+            "signed_mant_in": (mant_x * 2**(q_config["in_fix_frac_width"])).int().tolist(),
             "signed_exp_in": exp_x.int().tolist(),
         }
         self.outputs = {
             "signed_exp_out": expected_exp.int().tolist(),
-            "signed_mant_out": expected_mant.int().tolist(),
+            "signed_mant_out": (expected_mant * 2**(q_config["out_fix_frac_width"])).int().tolist(),
         }
+    def check_output(self, expected_output,hardware_output):
+        self.log.debug(f"----------------{self.dut}---------")
+        get_dut_attributes(self.dut, self.log, None)
+        self.log.debug(f"Expected result : {expected_output}, got: {int(hardware_output.signed_integer)}")
+        # self.log.debug(f"----------------{self.dut.fp_casting}---------")
+        # get_dut_attributes(self.dut.fp_casting, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
+        # get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
+        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
+        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
+        assert expected_output == hardware_output.signed_integer, f"Expected {expected_output}, but got {int(hardware_output.signed_integer)}"
 
 @cocotb.test()
 async def test(dut):
     tb = FPReciprocalTB(dut)
+    tb.log.setLevel(logging.DEBUG)
+    tb.range = 1
     await tb.run_test(10)
 
 if __name__ == "__main__":
@@ -72,15 +92,16 @@ if __name__ == "__main__":
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/fixed_operation"),
-            str(SRC_PATH / "basic_components/buffer")
+            str(SRC_PATH / "basic_components/int_operation"),
+            str(SRC_PATH / "basic_components/cast"),
         ],
         module_param_list=[
             {
                 "IN_EXP_WIDTH": 4,
-                "IN_FIX_WIDTH": 8,
+                "IN_FIX_WIDTH": 7,
                 "IN_FIX_FRAC_WIDTH": 5,
                 "OUT_EXP_WIDTH": 4,
-                "OUT_FIX_WIDTH": 8,
+                "OUT_FIX_WIDTH": 7,
                 "OUT_FIX_FRAC_WIDTH": 5
             }
         ]
