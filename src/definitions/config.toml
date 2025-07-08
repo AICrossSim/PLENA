@@ -1,12 +1,12 @@
 [CONFIG.BLEN]
 active = 4
-SIMULATION = 4
+SIMULATION = 8
 ASIC = 8
 default = 4
 
 [CONFIG.MLEN]
 active = 8
-SIMULATION = 8
+SIMULATION = 128
 ASIC = 16
 default = 8
 
@@ -18,7 +18,7 @@ default = 1
 
 [CONFIG.VLEN]
 active = 8
-SIMULATION = 8
+SIMULATION = 128
 ASIC = 16
 default = 8
 

@@ -34,15 +34,28 @@ module subsram #(
     input  logic [ElementWidth -1:0]              wdata,              // To be confirmed
     output logic                                  write_response
 );
-
 // -----
 // Wires
 // -----
-logic [ElementWidth-1:0]            mem [SRAM_DEPTH];
-logic [AdrWidth-1:0]                translated_raddr;
+
 logic [ElementWidth-1:0]            raw_rdata;
 logic transpose_rawdata;
 
+// For certain synthesis experiments we compile the design with generic models to get an unmapped
+// netlist (GTECH). In these synthesis experiments, we typically black-box the memory models since
+// these are going to be simulated using plain RTL models in netlist simulations. This can be done
+// by analyzing and elaborating the design, and then removing the memory submodules before writing
+// out the verilog netlist. However, memory arrays can take a long time to elaborate, and in case
+// of dual port rams they can even trigger elab errors due to multiple processes writing to the
+// same memory variable concurrently. To this end, we exclude the entire logic in this module in
+// these runs with the following macro.
+`ifndef SYNTHESIS_MEMORY_BLACK_BOXING
+
+// -----
+// Memory
+// -----
+logic [AdrWidth-1:0]                translated_raddr;
+logic [ElementWidth-1:0]            mem [SRAM_DEPTH];
 logic signed [Parallel_Rd_Index_Width-1:0]    sram_index, addr_offset;
 
 initial begin
@@ -80,6 +93,7 @@ always @(posedge clk) begin
         read_data_valid <= 1'b0;
     end
 end
+`endif
 
 subtile_transpose #(
     .Dim(PARALLEL_DIM),

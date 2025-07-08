@@ -1,0 +1,1 @@
+# TODO: Write Function that automatically map the FIXED and FP memory.
