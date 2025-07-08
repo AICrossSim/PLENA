@@ -75,7 +75,7 @@ typedef struct {
     V_REDUCT_OP                        red_op;
 } RECORDED_INFO_TYPE;
 
-RECORDED_INFO_TYPE pipeline_compute_track [0:VECTOR_MAX_CYCLES-1];
+RECORDED_INFO_TYPE pipeline_compute_track [0:VECTOR_LONGEST_OPERATE_CYCLES-1];
 
 // Vector Machine Control
 logic recorded_broadcast_en;
@@ -121,7 +121,7 @@ logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0] mx_fp_scale;
 
 always_ff @(posedge clk) begin
     if (rst) begin
-        for (int i = 0; i < VECTOR_MAX_CYCLES; i++) begin
+        for (int i = 0; i < VECTOR_LONGEST_OPERATE_CYCLES; i++) begin
             pipeline_compute_track[i] <= '{
                 waddr  : '0,
                 ele_op : STALL_V_ELEMENT,
@@ -165,7 +165,7 @@ always_ff @(posedge clk) begin
         end
 
         // Shift the pipeline
-        for (int i = 0; i < VECTOR_MAX_CYCLES - 1; i++) begin
+        for (int i = 0; i < VECTOR_LONGEST_OPERATE_CYCLES - 1; i++) begin
             pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
         end
 

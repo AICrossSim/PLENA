@@ -96,7 +96,7 @@ always_comb begin
         end
 
         // Scalar FIX Operations
-        S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_DIV_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX, S_ACC_MULI: begin
+        S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX, S_ACC_MULI: begin
             decode_instruction_type = S_FIX;
         end
 
@@ -315,7 +315,6 @@ always_ff @(posedge clk) begin
                                                         (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
                                                         (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
                                                         (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
-                                                        (decode_instr_info.opcode == S_DIV_FIX)   ? DIV_FIX   :
                                                         (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
                                                         (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : 
                                                         (decode_instr_info.opcode == S_LD_FIX)    ? LD_FIX    :

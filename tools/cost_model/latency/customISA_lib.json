@@ -1,41 +1,201 @@
 {
     "M_MM_IC" : {
-        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "alone" : "6 + BLEN * 2 + 3",
         "pipelined" : "1 + BLEN + 3"
     },
 
     "M_MM_PS" : {
-        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "alone" : "6 + BLEN * 2 + SA_ACC_CYCLES + 3",
         "pipelined" : "1 + BLEN + 3"
     },
 
     "M_MM_WO" : {
-        "alone" : "2 + 4 + 3",
+        "alone" : "6 + BLEN",
         "pipelined" : "1"
     },
 
     "M_TMM_IC" : {
-        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "alone" : "6 + BLEN * 2 + 3",
         "pipelined" : "1 + BLEN + 3"
     },
 
     "M_TMM_PS" : {
-        "alone" : "2 + 4 + BLEN * 2 + 3",
+        "alone" : "6 + BLEN * 2 + SA_ACC_CYCLES + 3",
         "pipelined" : "1 + BLEN + 3"
     },
 
     "M_MV_IC" : {
-        "alone" : "2 + 4 + 3",
-        "pipelined" : "1"
+        "alone" : "6 + MLEN + 3",
+        "pipelined" : "1 + MLEN + 3"
     },
 
     "M_MV_WO" : {
-        "alone" : "2 + 4 + BLEN * 2 + 3",
-        "pipelined" : "1 + BLEN + 3"
+        "alone" : "6 + MLEN",
+        "pipelined" : "1"
     },
 
     "M_TMV_IC" : {
-        "alone" : "2 + 4 + BLEN * 2 + 3",
-        "pipelined" : "1 + BLEN + 3"
+        "alone" : "6 + MLEN + 3",
+        "pipelined" : "1 + MLEN + 3"
+    },
+
+    "V_ADD_VV" : {
+        "alone" : "6 + 3 + VECTOR_BASIC_CYCLES + 1",
+        "pipelined" : "VECTOR_BASIC_CYCLES"
+    },
+
+    "V_ADD_VF" : {
+        "alone" : "6 + 3 + VECTOR_BASIC_CYCLES + 1",
+        "pipelined" : "VECTOR_BASIC_CYCLES"
+    },
+
+    "V_SUB_VV" : {
+        "alone" : "6 + 3 + VECTOR_BASIC_CYCLES + 1",
+        "pipelined" : "VECTOR_BASIC_CYCLES"
+    },
+
+    "V_SUB_VF" : {
+        "alone" : "6 + 3 + VECTOR_BASIC_CYCLES + 1",
+        "pipelined" : "VECTOR_BASIC_CYCLES"
+    },
+
+    "V_MUL_VV" : {
+        "alone" : "6 + 3 + VECTOR_BASIC_CYCLES + 1",
+        "pipelined" : "VECTOR_BASIC_CYCLES"
+    },
+
+    "V_MUL_VF" : {
+        "alone" : "6 + 3 + VECTOR_BASIC_CYCLES + 1",
+        "pipelined" : "VECTOR_BASIC_CYCLES"
+    },
+
+    "V_EXP_VV" : {
+        "alone" : "6 + 3 + VECTOR_EXP_CYCLES + 1",
+        "pipelined" : "1 + VECTOR_EXP_CYCLES"
+    },
+
+    "V_LD_F" : {
+        "alone" : "6 + 3 + 1",
+        "pipelined" : "1"
+    },
+
+    "V_RED_SUM" : {
+        "alone" : "6 + 3 + VECTOR_REDUCT_CYCLES + 1",
+        "pipelined" : "VECTOR_REDUCT_CYCLES"
+    },
+
+    "V_RED_MAX" : {
+        "alone" : "6 + 3 + VECTOR_REDUCT_CYCLES + 1",
+        "pipelined" : " 1 + VECTOR_REDUCT_CYCLES"
+    },
+
+    "S_ADD_FP" : {
+        "alone" : "6 + SCALAR_FP_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_BASIC_CYCLES "
+    },
+
+    "S_SUB_FP" : {
+        "alone" : "6 + SCALAR_FP_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_BASIC_CYCLES"
+    },
+
+    "S_MAX_FP" : {
+        "alone" : "6 + SCALAR_FP_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_BASIC_CYCLES"
+    },
+
+    "S_MUL_FP" : {
+        "alone" : "6 + SCALAR_FP_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_BASIC_CYCLES"
+    },
+
+    "S_EXP_FP" : {
+        "alone" : "6 + SCALAR_FP_EXP_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_EXP_CYCLES"
+    },
+
+    "S_RECI_FP" : {
+        "alone" : "6 + SCALAR_FP_RECI_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_RECI_CYCLES"
+    },
+    
+    "S_SQRT_FP" : {
+        "alone" : "6 + SCALAR_FP_SQRT_CYCLES + 1",
+        "pipelined" : "SCALAR_FP_SQRT_CYCLES"
+    },
+
+    "S_MV_FP" : {
+        "alone" : "6 + 1",
+        "pipelined" : "1"
+    }, 
+
+    "S_LD_FP" : {
+        "alone" : "6 + 1",
+        "pipelined" : "1"
+    },
+
+    "S_ST_FP" : {
+        "alone" : "6 + 1",
+        "pipelined" : "1"
+    },
+
+    "S_ADD_FIX" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "S_ADDI_FIX" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "S_SUB_FIX" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "S_MUL_FIX" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "LUI_FIX" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "MV_FIX" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "ACC_MULI" : {
+        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
+        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
+    },
+
+    "S_LD_FIX" : {
+        "alone" : "2 + 2",
+        "pipelined" : "1"
+    },
+
+    "S_ST_FIX" : {
+        "alone" : "2 + 2",
+        "pipelined" : "1"
+    },
+
+    "C_SET_ADDR_REG" : {
+        "alone" : "6 + 1",
+        "pipelined" : "1"
+    },
+
+    "C_SET_LUT" : {
+        "alone" : "6 + 1",
+        "pipelined" : "1"
+    },
+
+    "C_SET_STRIDE_REG" : {
+        "alone" : "6 + 1",
+        "pipelined" : "1"
     }
 }

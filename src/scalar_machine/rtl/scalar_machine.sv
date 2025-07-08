@@ -63,7 +63,7 @@ module scalar_machine import precision_pkg::*;  #(
     struct {
         logic [FP_OPERAND_WIDTH-1:0] target_fp;
         S_FP_OP                      fp_op;
-    } fp_track [SCALAR_FP_MAX_CYCLES];
+    } fp_track [SCALAR_FP_LONGEST_OPERATE_CYCLES];
     S_FP_OP fp_control, exe_fp_control;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
@@ -100,7 +100,7 @@ module scalar_machine import precision_pkg::*;  #(
                 tracing_fpreg_in_process[i] <= 1'b0;
             end
 
-            for (int i = 0; i < SCALAR_FP_MAX_CYCLES; i++) begin
+            for (int i = 0; i < SCALAR_FP_LONGEST_OPERATE_CYCLES; i++) begin
                 fp_track[i] <= '{
                     target_fp  :'b0,
                     fp_op      :STALL_S_FP
@@ -124,7 +124,7 @@ module scalar_machine import precision_pkg::*;  #(
                     tracing_fpreg_in_process[fp_rd] <= 1'b1;
             end
 
-            for (int i = 0; i < SCALAR_FP_MAX_CYCLES - 1; i++) begin
+            for (int i = 0; i < SCALAR_FP_LONGEST_OPERATE_CYCLES - 1; i++) begin
                 fp_track[i+1] <= fp_track[i];
             end
         end

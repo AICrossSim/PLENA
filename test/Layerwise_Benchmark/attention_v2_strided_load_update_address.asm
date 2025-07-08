@@ -116,25 +116,30 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
             S_ADDI_FIX x7, x7, 1;               next scaler
         
         ; Multiplying with V
-        ; compute sequence address of V
-        S_ADDI_FIX x7, x0, Bc * d * h;      Bc * d * h
-        S_MUL_FIX  x3, x2, x7;              x3 = x2 (c) * x7 (Bc * d * h)
+        ; compute sequence address of V      
+        S_ADDI_FIX  x7, x0, 0;                   x7 = 0
+        S_ACC_MULI_FIX Bc * d * h, x2, x7;      x7 = x2 * (Bc * d * h)
 
 
         S_ADDI_FIX x5, x0, 1;               Point to P in V_RAM and V in S_RAM
-        S_ADDI_FIX x6, x0, 0;               set FIX[6] to 0, use it as an incremental pointer (loop index) across d / MLEN
-        ; LOOP N/MLEN;
-            S_ADDI_FIX x7, x6, MLEN;           set FIX[7] to x6 * MLEN, use it to store start offset for different V blocks
-            S_ADDI_FIX x7, x3, x7;             x3 = x3 (c * (Bc * d * h)) + x7 (x5 * MLEN)
-            H_PREFETCH_M_S x5, x7, ADR[V];        
+        S_ADDI_FIX x3, x0, 0;               set FIX[3] to 0, use it as an incremental pointer (loop index) across  N/ MLEN;
+        ; LOOP N/ MLEN;
+            S_ADDI_FIX x7, x0, 0;
+            S_ACC_MULI_FIX MLNE, x3, x7;
+            ; LOOP across buffer location (MLEN / BLEN)
+                S_ADDI_FIX x7, x7, BLEN;            set FIX[7] to (c * (Bc * d * h)) + BLEN, use it to store start offset for different V blocks
+                H_PREFETCH_M_S x5, x7, ADR[V];      (Load MLEN by BLEN V at each loop)
+                ; if not the last loop
+                M_MM_IC x5, x5, 0;                  x5 (p@v) = x5 (P loc:V_RAM) @ x5 (V loc:M_RAM)
+                ; if the last loop
+                M_MM_PS x5, x5, 0;
+            
+            S_ADDI_FIX x3, x3, 1;
 
-            M_BMM_O x5, x5, x5;                x6 (p@v) = x6 (P loc:V_RAM) @ x6 (V loc:M_RAM)
-
-            S_ADDI_FIX x7, x6, MLEN;           set FIX[7] to x6 * MLEN, use it to store start offset for different O blocks
-            S_ADDI_FIX x7, x3, x7;
-            S_ADDI_FIX x4, x7, Br * MLEN;       
-            H_PREFETCH_S x4, x7, ADR[O];       load previous O matrix (x4 loc: V_RAM)
-
+            ; Compute address to load O from HBM
+            S_ADDI_FIX x7, x0, 0;
+            S_ACC_MULI_FIX BLEN * MLEN, x3, x7;     
+            H_PREFETCH_S x4, x7, ADR[O];       load previous O matrix (BLEN by MLEN) (x4 loc: V_RAM)
 
             S_ADDI_FIX x7, x0, 0;               use this to index row
             ; LOOP Br;
@@ -144,8 +149,8 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
                 V_ADD_VV x5, x4, x5;        x5 = x4 (o_scale * O) + x5 (p@v)   
                 ; compute O store address ADR[O] based on x1, x2
                 S_MULI_FIX x8, x1, Br * h * d;
-                S_MULI_ACC_FIX x8, x7, h * d;
-                S_MULI_ACC_FIX x8, x6, MLEN;
+                S_ACC_MULI h * d, x7, x8;
+                S_ACC_MULI MLEN, x6, x8;
                 H_STORE_V_H_C ADR[O], x8, x5;
 
                 ; if x2 == N/Bc:
@@ -173,5 +178,3 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
 
     S_ADDI_FIX x2, x2, 1;
 S_ADDI_FIX x1, x1, 1; 
-
-[S,H,D]
