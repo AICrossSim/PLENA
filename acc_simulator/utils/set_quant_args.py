@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Union
 
 from ..quantize.quantizer.minifloat import FP8_E5M2, FP8_E4M3
 from ..quantize.quantizer.mxfp import (
@@ -62,7 +62,7 @@ def setup_norm_args(preset, preset_minifloat):
         "w_minifp_meta": None,
         "layer_type": "XW",
     }
-    if preset != "original":
+    if preset != "original" and preset_minifloat != None:
         layer_type = ""
         if "Xq" in preset:
             rms_kwargs["x_minifp_meta"] = PRESET_META_MAP[preset_minifloat]
@@ -74,7 +74,7 @@ def setup_norm_args(preset, preset_minifloat):
     
     return rms_kwargs
 
-def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_minifloat):
+def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_mxfp_Kv, preset_minifloat):
     attn_kwargs = {
         "qk_q_meta": None,
         "qk_k_meta": None,
@@ -95,12 +95,14 @@ def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_minifloat):
     if "Xq" in preset:
         attn_kwargs["qk_q_meta"] = PRESET_META_MAP[preset_mxfp_x]
         attn_kwargs["av_a_meta"] = PRESET_META_MAP[preset_mxfp_x]
+        qk_func_type += "Xq"
+        av_func_type += "Xq"
+         
+    if preset_minifloat != None:
         attn_kwargs["rope_meta"] = PRESET_META_MAP[preset_minifloat]
         attn_kwargs["softmax_meta"] = PRESET_META_MAP[preset_minifloat]
         attn_kwargs["rope_func_type"] = "Xq"
         attn_kwargs["softmax_func_type"] = "Xq"
-        qk_func_type += "Xq"
-        av_func_type += "Xq"
 
     if "Wq" in preset:
         attn_kwargs["qk_k_meta"] = PRESET_META_MAP[preset_mxfp_w]
@@ -109,7 +111,7 @@ def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_minifloat):
         av_func_type += "Wq"
 
     if "KVq" in preset:
-        attn_kwargs["kv_cache_meta"] = PRESET_META_MAP[preset_mxfp_w]
+        attn_kwargs["kv_cache_meta"] = PRESET_META_MAP[preset_mxfp_Kv]
         attn_kwargs["kv_func_type"] = "KVq"
 
     return attn_kwargs
@@ -119,29 +121,31 @@ def setup_mlp_args(preset, preset_minifloat):
         "silu_meta": None,
         "silu_func_type": "X"
     }
-    if "Xq" in preset:
+    if "Xq" in preset and preset_minifloat != None:
         mlp_kwargs["silu_meta"] = PRESET_META_MAP[preset_minifloat]
         mlp_kwargs["silu_func_type"] = "Xq"
     
     return mlp_kwargs
 
 def setup_args_linear_nonlinear(
-    preset: Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"] = "XqWqBqKVq",
-    preset_mxfp_X: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
-    preset_mxfp_W: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
-    preset_minifloat: Literal["FP8_E4M3", "FP8_E5M2"] = "FP8_E4M3",
+    preset: Union[ Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"], None] = "XqWqBqKVq",
+    preset_mxfp_X: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_mxfp_W: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_mxfp_Kv: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_minifloat: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
 ) -> dict:
     kwargs = {
         "preset": preset,
         "preset_mxfp_x": preset_mxfp_X,
         "preset_mxfp_w": preset_mxfp_W,
+        "preset_mxfp_Kv": preset_mxfp_Kv,
         "preset_minifloat": preset_minifloat,
     }
 
     return {
         "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w"])),
         "embed_kwargs": setup_embed_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_w"])),
-        "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w", "preset_minifloat"])),
+        "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w", "preset_mxfp_Kv", "preset_minifloat"])),
         "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_minifloat"])),
         "rms_kwargs": setup_norm_args(**filter_kwargs(kwargs, ["preset", "preset_minifloat"])),
     }

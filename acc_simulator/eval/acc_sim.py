@@ -56,9 +56,10 @@ def mxfp_lm_eval(
     model_name: str = "meta-llama/Llama-3.1-70B",
     tasks: Union[str, list[str]] = "wikitext",
     preset: Union[ Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"], None] = "XqWqBqKVq",
-    preset_mxfp_X: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
-    preset_mxfp_W: Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"] = "MXFP8_E4M3",
-    preset_minifloat: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = "FP8_E4M3",
+    preset_mxfp_X: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_mxfp_W: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_mxfp_Kv: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_minifloat: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
     model_parallel: bool = True,
     log_base_dir: Union[str, None] = "logs"
 ):
@@ -78,7 +79,7 @@ def mxfp_lm_eval(
         preset_minifloat (str): Minifloat format for nonlinear ops (e.g., SiLU, softmax).
     """
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W, preset_minifloat)
+    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat)
 
     log_dir = create_experiment_log_dir(log_base_dir)
     full_args = locals().copy()         
