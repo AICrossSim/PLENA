@@ -372,7 +372,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             p2_vport_a_load_valid       <= p1_vport_a_load_valid;
             m_v_valid                   <= p2_vport_a_load_valid;
 
-            end_of_load_v_for_matrix    <= (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION_GEMM - 2) & (matrix_related_data_ready) & m_v_ready;
+            end_of_load_v_for_matrix    <= (v_sram_load_for_matrix_counter == MATRIX_LOAD_ITERATION_GEMM - 1) & (matrix_related_data_ready) & m_v_ready;
             //Port A
             if((exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) & m_v_ready) begin
                 // Read Vector from SRAM
@@ -381,6 +381,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 v_sram_req_a    <= 1'b1;
                 v_sram_wen_a    <= 1'b0;
                 continuous_load_v_for_matrix_en <= 1'b1;
+                v_sram_load_for_matrix_counter  <= 'b0;
                 load_for_gemv_en <= (exe_stage_op.m_op == MV_IC) ? 1'b1 : 1'b0;
             end else if (continuous_load_v_for_matrix_en) begin
                 if (m_v_ready) begin

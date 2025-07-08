@@ -119,7 +119,7 @@ module mxfp_systolic_top_streamer #(
                         next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                     end
                 end
-                if (p1_state != FILLING & data_in_valid & stream_in_ready) begin 
+                if (data_in_valid & stream_in_ready) begin 
                     next_state = FILLING;
                 end else if (clear_counter == COMPUTE_DIM - 2) begin
                     next_state = IDLE;
