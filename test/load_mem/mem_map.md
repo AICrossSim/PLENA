@@ -11,3 +11,9 @@ The Data Region Required
 - Q: `B * S * H * D`
 - K: `B * S * H * D`
 - V: `B * S * H * D`
+
+
+
+## FIX Memory
+- Stride Length: 1. High-Precision hidden * MLEN * (low-precision datasize) // 8 2. Low-Precision hidden * MLEN * (low-precision datasize) // 8
+- Q, K, V Size: `B * S * H * D`

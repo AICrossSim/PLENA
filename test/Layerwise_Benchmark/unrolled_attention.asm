@@ -33,12 +33,13 @@
 
 ;<---------------- Set up Environment ---------------->
 ; Set Stride Register
-S_LD_FIX x7, x0, 0;
-C_SET_STRIDE_REG x7;
+S_LD_FIX x1, x0, 0;
+C_SET_STRIDE_REG x1, 0, 0;
 ; Set Address Register
+S_LD_FIX x1, x0, 1;
+C_SET_SCALE_REG x1, 0, 0;
 
-
-
+S_ADDI_FIX x3, x0, 0; 
 
 S_ADDI_FIX x1, x0, 0;
 ; LOOP N / Br

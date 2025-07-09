@@ -135,7 +135,6 @@ module scalar_machine import precision_pkg::*;  #(
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
 
-
     assign  general_fp_alu_en = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
 
     always_comb begin
@@ -240,8 +239,7 @@ module scalar_machine import precision_pkg::*;  #(
         .DATA_WIDTH(FP_SRAM_WIDTH),
         .DEPTH(FP_SRAM_DEPTH)
         `ifdef SIMULATION
-            ,
-            .MemInitFile(FP_MEM_INIT_FILE)
+        , .MemInitFile(FP_MEM_INIT_FILE)
         `endif
     ) fp_scalar_sram (
         .clk            (clk),
@@ -259,12 +257,13 @@ module scalar_machine import precision_pkg::*;  #(
 
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_alu_operand_a, fixed_alu_operand_b;
-    logic fixed_reg_wen, fixed_write_from_sram_req, fixed_write_from_sram_ready, fixed_stall_status;
+    logic fixed_reg_wen, fixed_write_from_sram_req, fixed_write_from_sram_ready, fixed_stall_status, fixed_alu_valid;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_waddr, recorded_fixed_reg_exe_waddr, recorded_fixed_reg_write_waddr;
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_write_data;
     S_FIXED_OP exe_fixed_op, write_fixed_op;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_write_rd; // 1 cycle delay for the fixed register read address
     logic [IMM_WIDTH - 1 : 0] recorded_imm_in;
+    logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     
     always_comb begin
         if (fixed_write_from_sram_ready) begin
@@ -280,11 +279,11 @@ module scalar_machine import precision_pkg::*;  #(
         end else begin
             fixed_reg_waddr = recorded_write_rd;
             fixed_reg_wdata = fixed_alu_out;
-            fixed_reg_wen   = (exe_fixed_op != STALL_S_FIXED) && (exe_fixed_op != PASS_ADDR) && (exe_fixed_op != PASS_ADDR_2) && (exe_fixed_op != ST_FIX) && (exe_fixed_op != LD_FIX);
+            fixed_reg_wen   = fixed_alu_valid;
         end
     end
 
-    always_ff @(posedge clk or posedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             recorded_fixed_reg_exe_waddr    <= 'b0;
             recorded_fixed_reg_write_waddr  <= 'b0;
@@ -335,17 +334,20 @@ module scalar_machine import precision_pkg::*;  #(
     end
 
 
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
+
     assign fixed_reg_addr_1 = rs1;
     assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX)) ? rd : rs2;
 
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH)
     ) fixed_alu (
+        .clk        (clk),
+        .rst        (rst),
         .operand_a  (fixed_reg_1),
         .operand_b  (fixed_reg_2),
         .imm_value  ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
         .operation  (exe_fixed_op),
+        .result_valid (fixed_alu_valid),
         .result     (fixed_alu_out)
     );
 

@@ -2,6 +2,7 @@
     "architectures": [
         "LlamaForCausalLM"
     ],
+    "batchsize": 1,
     "attention_bias": false,
     "attention_dropout": 0.0,
     "bos_token_id": 128000,

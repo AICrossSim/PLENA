@@ -110,6 +110,9 @@ module pipeline_control #(
         end else if (sfu_in_use & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
             // Condition 7: SFU is in use, but the current operation is a another special floating point operation.
             pipeline_stall = 1'b1;
+        end else if (fixed_stall_req) begin
+            // Condition 7: SFU is in use, but the current operation is a another special floating point operation.
+            pipeline_stall = 1'b1;
         end else if (mem_vwrite_stall_req) begin
             // Unconditionally stall the overall pipeline due to the request from the memory monitor.
             pipeline_stall   = 1'b1;                
