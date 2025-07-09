@@ -14,32 +14,12 @@ from cfl_cocotb.runner import SRC_PATH
 from cfl_cocotb.testbench import CombinationalTestbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
 
-from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, fp_add_hardware
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from quant.quant_operations.add import fp_add_hardware
 
 import math
 import torch
 
-
-def frexp(x: torch.Tensor, config: dict):
-    exp_width = config["EXP_WIDTH"]
-    mant_width = config["MANT_WIDTH"]
-
-    if x == 0:
-        return 0, 0
-
-    exponent = x.abs().log2().floor()
-    mantissa = x / (2 ** exponent)
-
-    if x == 0:
-        mantissa, exponent = 0.0, 0
-    else:
-        exponent = x.abs().log2().floor()
-        mantissa = x / (2 ** exponent)
-
-    
-    return exponent, mantissa
-
-## questions, why 
 class FPAddTB(CombinationalTestbench):
     def generate_inputs(self, num):
         config = {
@@ -55,10 +35,10 @@ class FPAddTB(CombinationalTestbench):
         }
 
         torch.manual_seed(0)
-        torch_a = torch.randn(num) * 10 - 5
-        torch_b = torch.randn(num) * 10 - 5
+        torch_a = torch.randn(num)
+        torch_b = torch.randn(num)
 
-        width = config["IN_FIX_WIDTH"] + config["IN_EXP_WIDTH"]
+        width = config["IN_FIX_FRAC_WIDTH"] + config["IN_EXP_WIDTH"] + 1
         exponent_width = config["IN_EXP_WIDTH"]
 
         qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
@@ -101,7 +81,9 @@ class FPAddTB(CombinationalTestbench):
         }
 
     def check_output(self, input, output):
-        self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
+        from cfl_tools.debugger import get_dut_attributes
+        get_dut_attributes(self.dut, self.log, "signed_integer")
+        # self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
         assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
 
 @cocotb.test()
@@ -116,8 +98,6 @@ async def test(dut):
     #     print("\nEntering debugger...")
     #     pdb.post_mortem(sys.exc_info()[2])
 # @cocotb.test()
-
-
 
 @pytest.mark.dev
 def test_simple_fp_addition():
@@ -136,21 +116,21 @@ def test_simple_fp_addition():
             {
                 "IN_EXP_WIDTH" : 4, 
                 "IN_FIX_WIDTH" : 4, 
-                "IN_FIX_FRAC_WIDTH" : 3,
+                "IN_FIX_FRAC_WIDTH" : 2,
 
                 "OUT_EXP_WIDTH" : 4, 
                 "OUT_FIX_WIDTH" : 5,
-                "OUT_FIX_FRAC_WIDTH" : 3,
+                "OUT_FIX_FRAC_WIDTH" : 2,
             },
             # Adding one bit in outputto test the function of allowing more underflow
             {
                 "IN_EXP_WIDTH" : 4, 
-                "IN_FIX_WIDTH" : 4, # sign bit + mant_width 
+                "IN_FIX_WIDTH" : 5, # sign bit + mant_width 
                 "IN_FIX_FRAC_WIDTH" : 3,
 
                 "OUT_EXP_WIDTH" : 4, 
                 "OUT_FIX_WIDTH" : 6,
-                "OUT_FIX_FRAC_WIDTH" : 4, # adding one bit to test the 
+                "OUT_FIX_FRAC_WIDTH" : 3, # adding one bit to test the 
             },
         ],
         trace = True,

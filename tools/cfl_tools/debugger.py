@@ -18,6 +18,9 @@ def detect_signal(attr):
         return True
 
 def get_dut_attributes(dut, log, value_rep: str = None):
+    log.debug(f"--------------------------------")
+    log.debug(f"Getting attributes of {dut}")
+    log.debug(f"--------------------------------")
     for attr in dir(dut):
         if detect_signal(attr):
             if value_rep is None:
@@ -49,7 +52,7 @@ def _get_similarity(tensor_raw, tensor_sim, metric=None):
     else:
         if metric == "L1_norm":
             similarity = -torch.abs(tensor_raw - tensor_sim)
-        elif metric == "L2_norm":
+        elif metric == "L2_norm" or "l2norm" or "l2":
             similarity = -((tensor_raw - tensor_sim) ** 2)
         elif metric == "linear_weighted_L2_norm":
             similarity = -tensor_raw.abs() * (tensor_raw - tensor_sim) ** 2

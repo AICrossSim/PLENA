@@ -90,6 +90,7 @@ export DEBIAN_FRONTEND=noninteractive \
 apt install -y python3.13-dev
 apt install -y python3.13-venv
 
+apt install just
 log "Installation completed successfully!"
 
 

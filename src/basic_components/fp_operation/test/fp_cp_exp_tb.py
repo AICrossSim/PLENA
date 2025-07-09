@@ -1,124 +1,140 @@
 #!/usr/bin/env python3
 
-# This script tests the fixed point linear
-import logging, pdb, sys, traceback
-
-import torch, math
-
-from pathlib import Path
-
+import logging
+from re import A
+import pytest
 import cocotb
-from cocotb.log import SimLog
-from cocotb.triggers import *
+import sys
+import os
 
-from cfl_cocotb.testbench import Testbench, CombinationalTestbench
-from cfl_cocotb.streaming import (
-    StreamDriver,
-    StreamMonitor,
-)
-from cfl_cocotb.runner import veri_runner, SRC_PATH
-from cfl_cocotb.torch_fp_conversion import torch_fp2bin
+from cocotb.triggers import Timer, RisingEdge
+from cocotb.clock import Clock
 
-logger = logging.getLogger("testbench")
+import torch
+
+from cfl_cocotb import veri_runner
+from cfl_cocotb.runner import SRC_PATH
+from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.fp_generation import TorchFpGenerator
+
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
+from cfl_tools.debugger import set_excepthook, get_dut_attributes
+from cfl_tools.logger import get_logger
+
+logger = get_logger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-src_path = Path(__file__).parent.parent.parent
-
-torch.manual_seed(10)
-
-def fp_quantize(x, q_config):
-    # TODO: 
-    man_width = q_config["man_width"]
-    exp_width = q_config["exp_width"]
-    return x
-
-def hardware_exp(x, q_config):
-    # TODO: currently, this software model cannot exactly match the hardware due to.
-    # 1. Hardware FP is not confirmed
-    # The constant e in torch can be accessed using torch.exp(torch.tensor(1.0))
-    # or using math.e and converting to tensor if needed
-    log2_e = torch.log2(torch.tensor(math.e))  # log base 2 of e
-    log2_e_x = x * log2_e
-    q_x = fp_quantize(x, q_config)
-    _int = q_x.floor()
-    _frac = q_x - _int
-    # Calculate 2^_frac using Taylor series expansion
-    # 2^x = 1 + x*ln(2) + (x*ln(2))^2/2! + (x*ln(2))^3/3! + ...
-    # For _frac (the fractional part), we can use this expansion
-    # First term: 1
-    result = torch.ones_like(_frac)
-    
-    # Second term: _frac * ln(2)
-    ln2 = torch.tensor(math.log(2))
-    term = _frac * ln2
-    result += term
-    
-    # Third term: (_frac * ln(2))^2 / 2!
-    term = term * _frac * ln2 / 2
-    result += term
-    
-    # Fourth term: (_frac * ln(2))^3 / 3!
-    term = term * _frac * ln2 / 3
-    result += term
-    
-    # Fifth term: (_frac * ln(2))^4 / 4!
-    term = term * _frac * ln2 / 4
-    result += term
-    
-    # Combine integer and fractional parts: 2^_int * 2^_frac
-    final_result = torch.pow(2, _int) * result
-    return fp_quantize(final_result, q_config)
-
-
-class FPExpTB(CombinationalTestbench):
-
+class FPCPExpTB(CombinationalTestbench):
     def generate_inputs(self, num):
+        # seed = torch.randint(0, 1000000, (1,)).item()
+        torch.manual_seed(0)
+        # self.log.info("seed : {}".format(seed))
         q_config = {
-            "exp_width": self.dut.EXP_WIDTH.value,
-            "man_width": self.dut.MANT_WIDTH.value,
+            "in_exp_width" : self.dut.IN_EXP_WIDTH.value,
+            "in_mant_width" : self.dut.IN_MANT_WIDTH.value,
+            "out_exp_width" : self.dut.OUT_EXP_WIDTH.value,
+            "out_mant_width" : self.dut.OUT_MANT_WIDTH.value,
         }
-        x = torch.rand(num) * 2 - 1  # Random number between -1 and 1
-        inputs = torch_fp2bin(x, q_config).tolist()
-        y = hardware_exp(x, q_config)
-        expected_outputs = torch_fp2bin(y, q_config).tolist()
+
+        in_exp_width = q_config["in_exp_width"]
+        in_mant_width = q_config["in_mant_width"]
+        out_exp_width = q_config["out_exp_width"]
+        out_mant_width = q_config["out_mant_width"]
+
+        # Generate random inputs, avoiding values too close to zero to prevent overflow
+        torch_x = torch.randn(num) * 2.5
+        # Replace values too close to zero with reasonable values
+        torch_x[torch.abs(torch_x) < 0.1] = torch.sign(torch_x[torch.abs(torch_x) < 0.1]) * 0.5
+
+        in_width = q_config["in_mant_width"] + q_config["in_exp_width"]
+        in_exponent_width = q_config["in_exp_width"]
+
+        # Quantize input
+        qx, x_exp, x_mant = _minifloat_ieee_quantize_hardware(torch_x, in_width, in_exponent_width)
+
+        from quant.quant_operations.exp import fp_exp_hardware
+        # Calculate reciprocal: 1/x
+        exp_harware_config = {
+            "in_fix_width": self.dut.EXP_IN_FIXED_WIDTH.value,    
+            "in_fix_frac_width": self.dut.EXP_IN_FIXED_FRAC_WIDTH.value,
+            "in_exp_width": self.dut.EXP_IN_EXP_WIDTH.value,
+            "extend_width": self.dut.EXTEND_WIDTH.value,
+            "out_fix_width": self.dut.EXP_OUT_FIXED_WIDTH.value,
+            "out_fix_frac_width": self.dut.EXP_OUT_FIXED_FRAC_WIDTH.value,
+            "out_exp_width": self.dut.EXP_OUT_EXP_WIDTH.value,
+        }
+        exp_out_exp, exp_out_mant = fp_exp_hardware(x_exp, x_mant, exp_harware_config)
+        hardware_result = exp_out_mant * 2**(exp_out_exp)
+        logger.debug(f"exp_out_mant: {exp_out_mant}")
+        logger.debug(f"exp_out_exp: {exp_out_exp}")
+        logger.debug(f"hardware_result: {hardware_result}")
+
+
+        
+        # Quantize output
+        out_width = q_config["out_mant_width"] + q_config["out_exp_width"] + 1
+        out_exponent_width = q_config["out_exp_width"]
+
+        # Pack inputs and outputs to binary format
+        inputs_x = pack_fp_to_bin(x_exp, x_mant, q_config["in_exp_width"], q_config["in_mant_width"])
+        from quant.quant_operations.cast import fp_cast_hardware
+        q_out = fp_cast_hardware(hardware_result, q_config)
+        q_out, q_out_exp, q_out_mant = _minifloat_ieee_quantize_hardware(q_out, out_width, out_exponent_width)
+        outputs_out = pack_fp_to_bin(q_out_exp, q_out_mant, q_config["out_exp_width"], q_config["out_mant_width"])
 
         self.inputs = {
-            "data_in": inputs,
+            "data_in": inputs_x.int().tolist(),
         }
+
+        self.log.debug("input : {}, {}, {}".format(qx, x_exp, x_mant))
+        self.log.debug("output : {}, {}, {}".format(q_out, q_out_exp, q_out_mant))
         self.outputs = {
-            "data_out": expected_outputs,
+            "data_out": outputs_out.int().tolist(),
         }
-    def check_output(self, input, output):
-        self.log.warning(f"currently we dont check it!!!")
+    def check_output(self, expected_output, hardware_output):
+        self.log.debug(f"----------------{self.dut}---------")
+        from cfl_tools.debugger import get_dut_attributes
+        # get_dut_attributes(self.dut, self.log, 'signed_integer')
+        get_dut_attributes(self.dut, self.log)
+        self.log.debug(f"expected_output: {expected_output}, hardware_output: {int(hardware_output.signed_integer)}")
+
+        self.log.debug(f"exp_out_mant: {self.dut.exp_out_mant.value.signed_integer}")
+        self.log.debug(f"exp_out_exp: {self.dut.exp_out_exp.value.signed_integer}")
+        result = self.dut.exp_out_mant.value.signed_integer * 2**(self.dut.exp_out_exp.value.signed_integer)
+        self.log.debug(f"result: {result}")
+        # get_dut_attributes(self.dut.fp_exp_inst.taylor_series_expansion_inst, self.log, "integer")
+        get_dut_attributes(self.dut.fp_normalize, self.log, "signed_integer")
+        get_dut_attributes(self.dut.fp_normalize, self.log)
+        # get_dut_attributes(self.dut.taylor_series_expansion_inst, self.log, 'integer')
+        
+        assert expected_output == hardware_output.signed_integer, f"Expected {expected_output}, but got {int(hardware_output.signed_integer)}"
 
 @cocotb.test()
-async def test(dut):
-    # tb = FPExpTB(dut)
-    # await tb.run_test(10)
-    try:
-        tb = FPExpTB(dut)
-        await tb.run_test(10)
-    except Exception as e:
-        print("\nEntering debugger...")
-        pdb.post_mortem(sys.exc_info()[2])
+async def test_fp_cp_exp(dut):
+    tb = FPCPExpTB(dut)
+    tb.log.setLevel(logging.DEBUG)
+    await tb.run_test(10)
 
-
-if __name__ == "__main__":
+@pytest.mark.dev
+def test_simple_fp_exp():
+    # Run tests with different params
     veri_runner(
-        trace=True, 
-        module="fp_cp_exp",
-        group="vector_machine",
+        group = "fp_operation",
+        module = "fp_cp_exp",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/fixed_operation"),
-            str(SRC_PATH / "basic_components/buffer")
+            str(SRC_PATH / "basic_components/buffer"),
+            str(SRC_PATH / "basic_components/cast"),
+            str(SRC_PATH / "basic_components/int_operation")
         ],
         module_param_list=[
-            {
-                "EXP_WIDTH": 4,
-                "MANT_WIDTH": 8
-            }
-        ]
+            {"IN_EXP_WIDTH" : 4, "IN_MANT_WIDTH" : 3, "OUT_EXP_WIDTH" : 4, "OUT_MANT_WIDTH" : 3},
+            # {"IN_EXP_WIDTH" : 5, "IN_MANT_WIDTH" : 10, "OUT_EXP_WIDTH" : 5, "OUT_MANT_WIDTH" : 10},
+        ],
+        trace = False,
     )
+
+if __name__ == "__main__":
+    test_simple_fp_exp()

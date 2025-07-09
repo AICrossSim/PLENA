@@ -11,6 +11,9 @@ from cocotb.triggers import *
 from cfl_cocotb.testbench import Testbench, CombinationalTestbench
 from cfl_cocotb.runner import veri_runner, SRC_PATH
 
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from cfl_cocotb.torch_fp_conversion import fp_2_bin, bin_2_fp
+
 class FPIEEENormalizeTB(CombinationalTestbench):
     def generate_inputs(self, num):
         from quant.quantizer import fixed_point_quantizer
@@ -40,18 +43,8 @@ class FPIEEENormalizeTB(CombinationalTestbench):
         self.log.debug(f"signed_exp: {signed_exp}")
         self.log.debug(f"q_fp: {q_fp}")
 
-        from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
-        qx, exponent, mantissa = _minifloat_ieee_quantize_hardware(
+        q_fp, fp_bits = fp_2_bin(
             q_fp, 
-            q_config["out_mant_width"] + q_config["out_exp_width"] + 1, 
-            q_config["out_exp_width"],
-        )
-        self.log.debug(f"exponent: {exponent}")
-        self.log.debug(f"mantissa: {mantissa}")
-        self.log.debug(f"qx: {qx}")
-        fp_bits = pack_fp_to_bin(
-            exponent, 
-            mantissa, 
             q_config["out_exp_width"], 
             q_config["out_mant_width"])
         

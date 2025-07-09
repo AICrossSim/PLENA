@@ -14,8 +14,8 @@ from cfl_cocotb.streaming import (
     StreamMonitor,
 )
 from cfl_cocotb.runner import veri_runner, SRC_PATH
-from cfl_cocotb.torch_fp_conversion import torch_fp2bin
-from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
+from cfl_cocotb.torch_fp_conversion import fp_2_bin, bin_2_fp
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
 
 logger = logging.getLogger("testbench")
@@ -38,38 +38,20 @@ class FPIEEECasting(CombinationalTestbench):
         # Generate random inputs between -1 and 1
         x = torch.rand(num) * 10 - 5
 
-        q_x, in_exponent, in_mantissa = _minifloat_ieee_quantize_hardware(
+        q_x, fp_inputs = fp_2_bin(
             x, 
-            self.q_config["in_man_width"] + self.q_config["in_exp_width"] + 1, 
-            self.q_config["in_exp_width"],
-        )
-
-        fp_inputs = pack_fp_to_bin(
-            in_exponent, 
-            in_mantissa, 
             self.q_config["in_exp_width"], 
             self.q_config["in_man_width"]
         )
 
-        self.log.debug(f"Input Exponent: {in_exponent}")
-        self.log.debug(f"Input Mantissa: {in_mantissa}")
         self.log.debug(f"Input Packed FP: {fp_inputs}")
 
-        q_out, out_exponent, out_mantissa = _minifloat_ieee_quantize_hardware(
+        q_x, fp_outputs = fp_2_bin(
             q_x, 
-            self.q_config["out_man_width"] + self.q_config["out_exp_width"] + 1,
-            self.q_config["out_exp_width"],
-        )
-
-        fp_outputs = pack_fp_to_bin(
-            out_exponent, 
-            out_mantissa, 
             self.q_config["out_exp_width"], 
             self.q_config["out_man_width"]
         )
 
-        self.log.debug(f"Output Exponent: {out_exponent}")
-        self.log.debug(f"Output Mantissa: {out_mantissa}")
         self.log.debug(f"Output Packed FP: {fp_outputs}")
 
         self.inputs = {

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-from re import A
 import pytest
 import cocotb
 import sys
@@ -22,7 +21,7 @@ from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
 
 
-class FPCPMultTB(CombinationalTestbench):
+class FPCPAddTB(CombinationalTestbench):
     def generate_inputs(self, num):
         # seed = torch.randint(0, 1000000, (1,)).item()
         torch.manual_seed(0)
@@ -51,15 +50,15 @@ class FPCPMultTB(CombinationalTestbench):
         out_width = q_config["mant_width"] + q_config["exp_width"] + q_config["ext_mant_width"] + q_config["ext_exp_width"] + 1
         out_exponent_width = q_config["exp_width"] + q_config["ext_exp_width"]
 
-        out = qa * qb
+        out = qa + qb
         self.log.debug(f"out : {out}")
-        debug_out, debug_exp, debug_mant = _minifloat_ieee_quantize_hardware(out, 6 + 8 + 1, 6)
-        debug_out_bin = pack_fp_to_bin(debug_exp, debug_mant, 6, 8)
+        debug_out, debug_exp, debug_mant = _minifloat_ieee_quantize_hardware(out, 5 + 8 + 1, 5)
+        debug_out_bin = pack_fp_to_bin(debug_exp, debug_mant, 5, 8)
         self.log.debug(f"debug_out_bin : {debug_out_bin}")
         self.log.debug(f"debug_out : {debug_out}")
         self.log.debug(f"debug_exp : {debug_exp}")
         self.log.debug(f"debug_mant : {debug_mant}")
-        _minifloat_ieee_quantize_hardware(torch.tensor([196]), 4,3)
+
         qout, out_exp, out_mant = _minifloat_ieee_quantize_hardware(out, out_width, out_exponent_width)
 
         inputs_a = pack_fp_to_bin(a_exp, a_mant, q_config["exp_width"], q_config["mant_width"])
@@ -72,9 +71,9 @@ class FPCPMultTB(CombinationalTestbench):
             "data_b": inputs_b.int().tolist(),
         }
 
-        self.log.debug(f"input_0 : {qa}, {a_exp}, {a_mant}")
-        self.log.debug(f"input_1 : {qb}, {b_exp}, {b_mant}")
-        self.log.debug(f"output : {qout}, {out_exp}, {out_mant}")
+        self.log.debug(f"input_0 : {qa}, Converted bin : {inputs_a}")
+        self.log.debug(f"input_1 : {qb}, Converted bin : {inputs_b}")
+        self.log.debug(f"output : {qout}, Converted output : {outputs_out}")
         self.outputs = {
             "data_out": outputs_out.int().tolist(),
         }
@@ -82,29 +81,24 @@ class FPCPMultTB(CombinationalTestbench):
     def check_output(self, input, output):
         self.log.debug(f"Expected result : {input}, got: {int(output)}")
         self.log.debug(f"----------------{self.dut}---------")
-        get_dut_attributes(self.dut, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting}---------")
-        # get_dut_attributes(self.dut.fp_casting, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
+        get_dut_attributes(self.dut, self.log, "signed_integer")
+        # self.log.debug(f"----------------{self.dut.fp_ieee_exponent_casting_inst}---------")
+        # get_dut_attributes(self.dut.fp_ieee_exponent_casting_inst, self.log, None)
+        # self.log.debug(f"----------------{self.dut.fp_ieee_mantissa_casting_inst}---------")
+        # get_dut_attributes(self.dut.fp_ieee_mantissa_casting_inst, self.log, None)
 
         assert input == output, f"Expected {input}, but got {int(output)}"
 
 @cocotb.test()
-async def test_fp_cp_mult(dut):
-    set_excepthook()
-    tb = FPCPMultTB(dut)
-    tb.log.setLevel(logging.INFO)
+async def test(dut):
+    tb = FPCPAddTB(dut)
+    tb.log.setLevel(logging.DEBUG)
     await tb.run_test(10)
     # try:
-    #     tb = FPCPMultTB(dut)
-    #     tb.log.setLevel(logging.DEBUG)
+    #     tb = FPCPAddTB(dut)
+    #     tb.log.setLevel(logging.INFO)
     #     await tb.run_test(10)
-    # except Exception or AssertionError or AttributeError:
+    # except Exception or AssertionError as e:
     #     set_excepthook()
 
 
@@ -114,7 +108,7 @@ def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
         group = "fp_operation",
-        module = "fp_cp_mult",
+        module = "fp_cp_adder_v2",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
@@ -122,8 +116,8 @@ def test_simple_fp_addition():
             str(SRC_PATH / "basic_components/buffer")
         ],
         module_param_list=[
-            # {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 3, "EXT_EXP_WIDTH" : 1},
+            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            # {"EXP_WIDTH" : 3, "MANT_WIDTH" : 4, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
             # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
         ],
         trace = False,
