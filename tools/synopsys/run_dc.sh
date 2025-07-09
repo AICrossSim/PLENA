@@ -4,7 +4,7 @@
 source /mnt/applications/synopsys/2024-25/scripts/SYN_2024.09-SP2_RHELx86.sh
 
 # Synthesis runner script - Handles log redirection automatically
-# Usage: ./run_synthesis.sh
+# Usage: ./run_dc.sh
 
 # Set paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
