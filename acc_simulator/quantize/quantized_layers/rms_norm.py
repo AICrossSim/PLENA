@@ -2,6 +2,8 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
+from transformers.models.llama.modeling_llama import LlamaRMSNorm
+
 from ..quantizer.minifloat import MinifloatMeta, minifloat_ieee_quantizer
 
 
@@ -29,14 +31,15 @@ class FPRMSNormPTQ(nn.Module):
 
     @torch.no_grad()
     def forward(self, x: Tensor) -> Tensor:
+        hidden_dtype = x.dtype
         if "Xq" in self.layer_type:
             assert self.x_minifp_meta is not None
             x = minifloat_ieee_quantizer(x, self.x_minifp_meta)
-
+        x = x.to(torch.float32)
         variance = x.pow(2).mean(-1, keepdim=True)
         x = x * torch.rsqrt(variance + self.eps)
 
-        return self.weight * x
+        return self.weight * x.to(hidden_dtype)
 
     def extra_repr(self) -> str:
         return (
@@ -48,12 +51,12 @@ class FPRMSNormPTQ(nn.Module):
     @classmethod
     def from_rmsnorm(
         cls,
-        layer: nn.Module,
+        layer: LlamaRMSNorm,
         x_minifp_meta: MinifloatMeta | None,
         w_minifp_meta: MinifloatMeta | None,
         layer_type: Literal["XW", "XqW", "XWq", "XqWq"],
     ):
-        assert hasattr(layer, "weight") and layer.weight is not None
+        assert isinstance(layer, LlamaRMSNorm)
         with torch.no_grad():
             return cls(
                 weight=layer.weight.clone(),
