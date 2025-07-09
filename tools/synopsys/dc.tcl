@@ -1,13 +1,11 @@
 #   Recommended usage:
-#   dc_shell -f rundc.tcl | tee ${WORK_DIR}/syn/outputs/logs/rundc.log
-#   Or run from syn directory:
-#   dc_shell -f rundc.tcl | tee outputs/logs/rundc.log
+#   bash run_dc.sh
 #   
-#   Note: Script runs from syn/ directory (no separate work_db needed)
+#   Note: Script runs from synopsys/ directory (no separate work_db needed)
 #   Note: This script is configured for IP core synthesis (no IO pads)
 #
 #------------------------------
-# get the Environment Variable
+# Get the Environment Variable
 #------------------------------
 # Set WORK_DIR to synthesis working directory
 set WORK_DIR "./"
@@ -51,39 +49,39 @@ file mkdir ${out}
 file mkdir ${logs_dir}
 
 #------------------------------
-# set limited log message
+# Set the limited log messages
 #------------------------------
 set_message_info -id ELAB-405 -limit 10
 
 
 #-----------------------------
-# set the source file and parition
+# Set the source file path
 #-----------------------------
 lappend search_path  ${src}
 
 # Note: Using default work library (no custom work_db needed)
 
 #---------------------------------------
-# set the clock and reset in the design
+# Set the clock and reset in the design
 #---------------------------------------
-set top_clk_name         "clk"
+set top_clk_name    "clk"
 set reset           "rst"
 set clk_period      "4.444"
 
 #--------------------------
-# read RTL files
+# Read RTL files
 #--------------------------
 source ${WORK_DIR}/read_rtl.tcl
 
 
 #-------------------------------------
-# check the design with DW and gtech
+# Check the design with DW and Gtech
 #-------------------------------------
 check_design
 check_design > ${log}/${top_design}_pre_check.log
 
 #--------------------------
-# set the current design
+# Set the current design
 #--------------------------
 current_design ${top_design}
 
@@ -99,7 +97,7 @@ uniquify
 # set_max_area 0
 
 #--------------------------
-# read user definded SDC constrain file
+# read user-defined SDC constraint file
 #--------------------------
 source ${WORK_DIR}/constraints/top_constraints.sdc
 
