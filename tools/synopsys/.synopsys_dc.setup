@@ -1,38 +1,47 @@
+# dc-asap7
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Library Setup
-# RTL Debug Setup - Minimal library configuration for debugging
-# Purpose: Fast RTL syntax and connectivity checking without full synthesis libraries
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-#  Minimal Library Setup for Debug
+#  ASAP7 7nm Library Setup for IP Core Design
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-# Only essential libraries for RTL debug
-set link_library        {* dw_foundation.sldb}
-set synthetic_library   {dw_foundation.sldb}
+set techlib_path    ./lib/asap7
+set std_cell_path   ${techlib_path}/asap7sc7p5t_28
+# Note: ASAP7 does not include I/O libraries (academic PDK for research)
+# This setup is optimized for IP core design (no IO pads required)
 
-# set_app_var SYNTHESIS_MEMORY_BLACK_BOXING true
+# ASAP7 lib setting (RVT TT corner) - use the compilied .db files
+set target_library      "asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db \
+                         asap7sc7p5t_AO_RVT_TT_ccs_211120.db \
+                         asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db \
+                         asap7sc7p5t_INVBUF_RVT_TT_ccs_211120.db \
 
-# Basic search path for DesignWare
+set link_library        "* \
+                         asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db \
+                         asap7sc7p5t_AO_RVT_TT_ccs_211120.db \
+                         asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db \
+                         asap7sc7p5t_INVBUF_RVT_TT_ccs_211120.db \
+                         dw_foundation.sldb"
+
+set synthetic_library   "dw_foundation.sldb"
+
+
+# search path set
 set search_path [list . ${synopsys_root}/libraries/syn]
-
-# Work library
-define_design_lib WORK -path ./analyzed/WORK
+lappend search_path ${std_cell_path}
+lappend search_path ${sram_lib_path}
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #  Debug 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-echo "=========================================="
-echo "RTL Debug Mode - Minimal Library Setup"
-echo "=========================================="
-echo "link_library:      $link_library"
+echo "\n\nASAP7 7nm Settings for IP Core Design:"
+echo "techlib_path:      $techlib_path"
+echo "std_cell_path:     $std_cell_path"
 echo "search_path:       $search_path"
-echo "Mode: RTL Debug (no synthesis libraries)"
-echo "=========================================="
+echo "link_library:      $link_library"
+echo "target_library:    $target_library"
 
+
+define_design_lib WORK -path ./analyzed/WORK
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #  History
@@ -90,4 +99,4 @@ alias fr "remove_design -designs"
 
 page_off
 set alib_library_analysis_path ..
-echo "\n\nI am ready...\n"
+echo "\n\nASAP7 7nm PDK ready for IP core synthesis...\n"
