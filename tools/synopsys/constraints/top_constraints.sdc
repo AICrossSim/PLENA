@@ -24,7 +24,7 @@ set_false_path -from [get_ports rst]
 #---------------------------------------
 # Input/Output Timing Constraints
 #---------------------------------------
-# For internal IP, assume reasonable input/output delays relative to system clock
+# For internal IP, assume reasonable input/output delays relative to the system clock
 
 # Instruction Interface Timing
 set_input_delay  [expr $clk_period * 0.1] -clock clk [get_ports instruction]
@@ -52,14 +52,8 @@ set_input_delay  [expr $clk_period * 0.1] -clock clk [get_ports v_out_scale_*_i]
 #---------------------------------------
 # Internal IP Specific Constraints
 #---------------------------------------
-# Set reasonable load and drive for internal connections
+# Set a reasonable load and drive for internal connections
 set_load 0.005 [all_outputs]
-
-#---------------------------------------
-# False Paths
-#---------------------------------------
-# Add false paths between unrelated clock domains if any exist
-# Example: set_false_path -from [get_clocks clk_domain_a] -to [get_clocks clk_domain_b]
 
 #---------------------------------------
 # Maximum Transition and Capacitance
