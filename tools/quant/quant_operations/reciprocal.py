@@ -43,7 +43,6 @@ def fp_reciprocal(
     # mantissa_min = -2**(out_fix_width-1)
     clamped_output_mantissa_integer = torch.clamp(output_mantissa_integer, min=-mantissa_max, max=mantissa_max)
     output_mantissa = clamped_output_mantissa_integer / 2**(out_frac_width)
-    breakpoint()
     return out_exp, output_mantissa
 
 def test_reciprocal():

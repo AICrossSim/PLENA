@@ -66,14 +66,6 @@ class FPReciprocalTB(CombinationalTestbench):
         self.log.debug(f"----------------{self.dut}---------")
         get_dut_attributes(self.dut, self.log, None)
         self.log.debug(f"Expected result : {expected_output}, got: {int(hardware_output.signed_integer)}")
-        # self.log.debug(f"----------------{self.dut.fp_casting}---------")
-        # get_dut_attributes(self.dut.fp_casting, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
         assert expected_output == hardware_output.signed_integer, f"Expected {expected_output}, but got {int(hardware_output.signed_integer)}"
 
 @cocotb.test()
