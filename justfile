@@ -10,8 +10,10 @@ test-hw:
 	# python3 src/basic_components/fp_operation/test/fp_mult_tb.py
 	# python3 src/basic_components/fp_operation/test/fp_cp_adder_v2_tb.py
 	# python3 src/basic_components/fp_operation/test/fp_cp_mult_tb.py
-	python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
-	python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
+	python3 src/basic_components/fp_operation/test/fp_exp_tb.py
+	python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
 	# python3 src/basic_components/fp_operation/test/fp_cp_sqrt_tb.py
 	# python3 src/basic_components/fp_operation/test/fp_sqrt_tb.py
 

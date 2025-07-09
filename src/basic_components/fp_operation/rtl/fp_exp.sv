@@ -8,6 +8,7 @@ module fp_exp #(
     parameter   IN_EXP_WIDTH = 5,
     parameter   IN_FIX_WIDTH = 8,
     parameter   IN_FIX_FRAC_WIDTH = 5,
+    parameter   EXTEND_WIDTH = 5,
     parameter   OUT_EXP_WIDTH = -1,
     parameter   OUT_FIX_WIDTH = -1,
     parameter   OUT_FIX_FRAC_WIDTH = -1
@@ -21,26 +22,30 @@ module fp_exp #(
   localparam signed MLOG2_E = 7'd92;
   localparam signed ELOG2_E = 4'd1;
 
-  localparam MAX_INT_WIDTH = 10;
-  localparam FIXED_POINT_DATA_WIDTH = IN_FIX_WIDTH + MAX_INT_WIDTH;
-  localparam FIXED_POINT_DATA_FRAC_WIDTH = IN_FIX_FRAC_WIDTH;
-  localparam TAYLOR_OUTPUT_WIDTH = FIXED_POINT_DATA_FRAC_WIDTH + 2;
+  localparam LOG2_E_WIDTH = IN_FIX_WIDTH + EXTEND_WIDTH;
 
-  logic [IN_FIX_WIDTH - 1:0] signed_mant_in_log2_e;
-  logic [IN_EXP_WIDTH - 1:0] signed_exp_in_log2_e;
+  localparam MAX_INT_WIDTH = 10;
+  localparam FIXED_POINT_DATA_WIDTH = LOG2_E_WIDTH + MAX_INT_WIDTH;
+  localparam FIXED_POINT_DATA_FRAC_WIDTH = IN_FIX_FRAC_WIDTH + EXTEND_WIDTH;
+  localparam TAYLOR_OUTPUT_WIDTH = FIXED_POINT_DATA_FRAC_WIDTH + 3;
 
   logic unsigned [IN_FIX_WIDTH - 1:0] unsigned_mant_in;
-  logic [IN_FIX_WIDTH - 1:0] unsigned_mant_in_log2_e;
+  logic unsigned [LOG2_E_WIDTH - 1:0] unsigned_mant_in_extended;
+  assign unsigned_mant_in_extended = {unsigned_mant_in, {EXTEND_WIDTH{1'b0}}};
+
+  logic [IN_EXP_WIDTH - 1:0] signed_exp_in_log2_e;
+  logic [LOG2_E_WIDTH - 1:0] signed_mant_in_log2_e;
+  logic [LOG2_E_WIDTH - 1:0] unsigned_mant_in_log2_e;
 
   logic mant_sign;
   assign mant_sign = signed_mant_in[IN_FIX_WIDTH-1];
   assign unsigned_mant_in = mant_sign ? -signed_mant_in : signed_mant_in; 
   
   integer_mult #(
-    .WIDTH(IN_FIX_WIDTH),
+    .WIDTH(LOG2_E_WIDTH),
     .IN_1_WIDTH(7)
   ) integer_mult_inst_0 (
-    .data_in_0(unsigned_mant_in),
+    .data_in_0(unsigned_mant_in_extended),
     .data_in_1(MLOG2_E),
     .data_out(unsigned_mant_in_log2_e)
   );
@@ -53,7 +58,7 @@ module fp_exp #(
   logic [TAYLOR_OUTPUT_WIDTH - 1:0] taylor_output;
 
   bit_width_aware_signed_left_shift #(
-    .IN_WIDTH(IN_FIX_WIDTH),
+    .IN_WIDTH(LOG2_E_WIDTH),
     .OUT_WIDTH(FIXED_POINT_DATA_WIDTH),
     .SHIFT_WIDTH(IN_EXP_WIDTH)
   ) bit_width_aware_signed_left_shift_inst (
@@ -76,7 +81,7 @@ module fp_exp #(
   );
 
   assign signed_exp_out = fixed_point_int_part;
-  assign signed_mant_out = taylor_output;
+  assign signed_mant_out = taylor_output >> EXTEND_WIDTH;
 endmodule
 
 module taylor_series_expansion #(
@@ -92,7 +97,7 @@ module taylor_series_expansion #(
   
   // Fix: Proper array declaration for coefficients
   localparam  TERM_0 = 1 << (IN_WIDTH); // 1.0 in fixed point
-  localparam  LN_2 = 22 << (IN_WIDTH - 5); // ln(2) ≈ 0.693
+  localparam  LN_2 = 22 ; // ln(2) ≈ 0.693
 
   logic unsigned [OUT_WIDTH - 1:0] element_list [4-1:0];
   
@@ -101,7 +106,8 @@ module taylor_series_expansion #(
   
   // Term 1: ln(2) * x
   integer_mult #(
-    .WIDTH(IN_WIDTH)
+    .WIDTH(IN_WIDTH),
+    .IN_1_WIDTH(5)
   ) integer_mult_inst_0 (
     .data_in_0(data_in),
     .data_in_1(LN_2),
@@ -154,7 +160,7 @@ module integer_mult #(
     parameter   IN_1_WIDTH = WIDTH
 )(
     input logic [WIDTH - 1:0] data_in_0,
-    input logic [WIDTH - 1:0] data_in_1,
+    input logic [IN_1_WIDTH - 1:0] data_in_1,
     output logic [WIDTH - 1:0] data_out
 );
 

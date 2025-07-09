@@ -47,7 +47,7 @@ class FPIEEECasting(CombinationalTestbench):
         self.log.debug(f"Input Packed FP: {fp_inputs}")
 
         q_x, fp_outputs = fp_2_bin(
-            x, 
+            q_x, 
             self.q_config["out_exp_width"], 
             self.q_config["out_man_width"]
         )
