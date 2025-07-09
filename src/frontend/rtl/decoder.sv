@@ -207,7 +207,7 @@ always_ff @(posedge clk) begin
         decode_stage_op.v_ele_op        <= STALL_V_ELEMENT;
         decode_stage_op.v_reduct_op     <= STALL_V_REDUCT;
         decode_stage_op.s_fp_op         <= STALL_S_FP;
-        assigned_fixed_op                    <= PASS_ADDR_2;
+        assigned_fixed_op               <= PASS_ADDR_2;
         decode_stage_op.c_op            <= STALL_C;
         decode_stage_op.h_op            <= STALL_H;
         decode_stage_op.m_transposed_read   <= 1'b0;
@@ -267,7 +267,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_reduct_op <=      (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                                     (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                 
-                assigned_fixed_op                        <= PASS_ADDR;
+                assigned_fixed_op                   <= PASS_ADDR;
                 decode_stage_op.c_op                <= STALL_C;
                 decode_stage_op.h_op                <= STALL_H;
                 if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
@@ -359,7 +359,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.m_op            <= STALL_M;
                 decode_stage_op.v_ele_op        <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op     <= STALL_V_REDUCT;
-                decode_stage_op.s_fp_op         <=   (decode_instr_info.opcode == S_ADD_FP )      ? ADD_FP    :
+                decode_stage_op.s_fp_op         <=      (decode_instr_info.opcode == S_ADD_FP )   ? ADD_FP    :
                                                         (decode_instr_info.opcode == S_SUB_FP )   ? SUB_FP    :
                                                         (decode_instr_info.opcode == S_MAX_FP )   ? MAX_FP    :
                                                         (decode_instr_info.opcode == S_MUL_FP )   ? MUL_FP    :
@@ -374,7 +374,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.h_op              <= STALL_H;
                 if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MAX_FP || decode_instr_info.opcode == S_MUL_FP) begin
                     // Two FP source operands and one FP destination operand
-                    assigned_fixed_op                    <= STALL_S_FIXED;
+                    assigned_fixed_op               <= STALL_S_FIXED;
                     decode_stage_op.fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
@@ -384,7 +384,7 @@ always_ff @(posedge clk) begin
                     imm                             <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_RECI_FP || decode_instr_info.opcode == S_SQRT_FP || decode_instr_info.opcode == S_MV_FP) begin
                     // Single FP source operand and single FP destination operand
-                    assigned_fixed_op                    <= STALL_S_FIXED;
+                    assigned_fixed_op               <= STALL_S_FIXED;
                     decode_stage_op.fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
@@ -394,7 +394,7 @@ always_ff @(posedge clk) begin
                     imm                             <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == S_LD_FP || decode_instr_info.opcode == S_ST_FP) begin
                     // Single FIXED Source operand (Storing Addr) and one IMM and one FP destination operand
-                    assigned_fixed_op                    <= COMP_ADDR;
+                    assigned_fixed_op               <= COMP_ADDR;
                     decode_stage_op.fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
@@ -404,7 +404,7 @@ always_ff @(posedge clk) begin
                     imm                             <= decode_instr_info.imm; // Might require shifting
                 end else begin
                     // Not Defined 
-                    assigned_fixed_op                    <= STALL_S_FIXED;
+                    assigned_fixed_op               <= STALL_S_FIXED;
                     decode_stage_op.fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
@@ -420,23 +420,23 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op        <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op     <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op         <= STALL_S_FP;
-                
-                decode_stage_op.h_op                <= STALL_H;
+                decode_stage_op.h_op            <= STALL_H;
+
                 if(decode_instr_info.opcode == C_SET_ADDR_REG) begin
-                    assigned_fixed_op                    <= PASS_ADDR;
-                    decode_stage_op.c_op            <= SET_ADDR_REG;
+                    assigned_fixed_op                   <= PASS_ADDR;
+                    decode_stage_op.c_op                <= SET_ADDR_REG;
                 end else if (decode_instr_info.opcode == C_SET_STRIDE_REG) begin
-                    assigned_fixed_op                    <= PASS_ADDR_2;
-                    decode_stage_op.c_op            <= SET_STRIDE_SIZE;
+                    assigned_fixed_op                   <= PASS_ADDR_2;
+                    decode_stage_op.c_op                <= SET_STRIDE_SIZE;
                 end else if (decode_instr_info.opcode == C_SET_LUT) begin
-                    assigned_fixed_op                    <= STALL_S_FIXED;
-                    decode_stage_op.c_op            <= SET_LUT; // TODO: Left for Cano
+                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    decode_stage_op.c_op                <= SET_LUT; // TODO: Left for Cano
                 end else if (decode_instr_info.opcode == C_SET_SCALE_REG) begin
-                    assigned_fixed_op                    <= PASS_ADDR_2;
-                    decode_stage_op.c_op            <= SET_SCALE_REG;
+                    assigned_fixed_op                   <= PASS_ADDR_2;
+                    decode_stage_op.c_op                <= SET_SCALE_REG;
                 end else begin
-                    assigned_fixed_op                    <= STALL_S_FIXED;
-                    decode_stage_op.c_op            <= STALL_C;
+                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    decode_stage_op.c_op                <= STALL_C;
                 end
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
@@ -452,7 +452,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op        <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op     <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op         <= STALL_S_FP;
-                assigned_fixed_op                    <= PASS_ADDR_2;
+                assigned_fixed_op               <= PASS_ADDR_2;
                 decode_stage_op.c_op            <= STALL_C;
                 decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_C)      ? PREFETCH_M_C    :
                                             (decode_instr_info.opcode == H_PREFETCH_M_S)      ? PREFETCH_M_S    :
@@ -474,7 +474,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op          <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op       <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op           <= STALL_S_FP;
-                assigned_fixed_op                      <= STALL_S_FIXED;
+                assigned_fixed_op                 <= STALL_S_FIXED;
                 decode_stage_op.c_op              <= STALL_C;
                 decode_stage_op.h_op              <= STALL_H;
                 decode_stage_op.fps1              <= 'b0;

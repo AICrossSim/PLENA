@@ -33,9 +33,9 @@ logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
-testcase_name       = "projection"
-instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
-# instr_file          = f"{current_path.parent.parent.parent}/test/Instr_Level_Benchmark/{testcase_name}.mem"
+testcase_name       = "fixed"
+# instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
+instr_file          = f"{current_path.parent.parent.parent}/test/Instr_Level_Benchmark/{testcase_name}.mem"
 hbm_element_file    = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
 hbm_scale_file      = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
 hbm_write_element_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_ele.mem"

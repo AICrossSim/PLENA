@@ -311,10 +311,6 @@ module scalar_machine import precision_pkg::*;  #(
             if (exe_fixed_op == LD_FIX) begin
                 recorded_fixed_reg_exe_waddr    <= rd;
                 fixed_write_from_sram_req       <= 1'b1;
-            end else if (fixed_stall_req) begin
-                fixed_write_from_sram_req       <= 1'b0;
-                recorded_alu_out                <= fixed_alu_out;
-                recorded_fixed_reg_exe_waddr    <= rd;
             end else begin
                 fixed_write_from_sram_req       <= 1'b0;
             end

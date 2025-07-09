@@ -47,13 +47,13 @@ module coprocessor import configuration_pkg::*; #(
     
     // Execution Control
     OP_BUNDLE   decode_stage_op, exe_stage_op;
-    S_FIXED_OP  exe_fixed_op;
+    S_FIXED_OP  assigned_fixed_op;
     logic pipeline_stall;
     MEM_WEN_INFO mem_write_control;
 
     // Status Tracking
     logic hbm_in_used;
-    logic stall_req_from_fp, fixed_stall_req;
+    logic stall_req_from_fp;
     logic v_in_prep, m_in_prep, m_empty_in_progress;
     logic sfu_in_use;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
@@ -149,7 +149,7 @@ module coprocessor import configuration_pkg::*; #(
         .instruction_valid      (instruction_valid),
         .instruction_ready      (instruction_ready),
         .decode_stage_op        (decode_stage_op),
-        .exe_fixed_op           (exe_fixed_op),
+        .assigned_fixed_op           (assigned_fixed_op),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
         .rd                     (s_rd),
@@ -177,7 +177,6 @@ module coprocessor import configuration_pkg::*; #(
         .mem_write_req                  (mem_write_req),
         .hbm_in_used                    (hbm_in_used),
         .fp_stall_req                   (stall_req_from_fp),
-        .fixed_stall_req                (fixed_stall_req),
         .m_load_in_process              (m_in_prep),
         .m_empty_in_progress            (m_empty_in_progress),
         .v_load_in_process              (v_in_prep),
@@ -310,7 +309,7 @@ module coprocessor import configuration_pkg::*; #(
             .clk(clk),
             .rst(rst),
             .exe_stage_op           (exe_stage_op),
-            .assigned_fixed_op      (exe_fixed_op),
+            .assigned_fixed_op      (assigned_fixed_op),
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
             .rd                     (s_rd),
@@ -323,8 +322,7 @@ module coprocessor import configuration_pkg::*; #(
             .external_fp_wtarget    (s_wtarget_from_v),
             .fp_out                 (fp_s_in),
             .sfu_in_use             (sfu_in_use),
-            .fp_stall_req           (stall_req_from_fp),
-            .fixed_stall_req        (fixed_stall_req)
+            .fp_stall_req           (stall_req_from_fp)
         );
     endgenerate
 

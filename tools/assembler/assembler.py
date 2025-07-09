@@ -35,8 +35,7 @@ class Assembler:
 
         ow = self.operands_width
         opw = self.opcode_width
-
-        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX"]:
+        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_ACC_MULI"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
@@ -102,6 +101,7 @@ if __name__ == "__main__":
 
     isa_file_path = '../../src/definitions/operation.svh'
     asm_file_path = f'../../test/{args.test_type}/{args.layer}.asm'
+    print(f'Assembling {asm_file_path} to {args.layer}.mem')
     output_file_path = f'../../test/{args.test_type}/{args.layer}.mem'
     assembler = Assembler(isa_file_path)
     assembler.generate_binary(asm_file_path, output_file_path)
