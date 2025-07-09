@@ -19,6 +19,7 @@ module fixed_alu #(
     input  logic [BITWIDTH-1:0]   imm_value,
     input  S_FIXED_OP             operation,
     output logic                  result_valid,
+    output logic [BITWIDTH-1:0]   computed_address,
     output logic [BITWIDTH-1:0]   result
 );
 
@@ -82,5 +83,6 @@ module fixed_alu #(
             end
         end
     end
+    assign computed_address = (operation == COMP_ADDR) ? operand_a + imm_value : '0;
 
 endmodule

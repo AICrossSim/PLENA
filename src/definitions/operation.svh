@@ -1,7 +1,7 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
-// TODO Remove this parameter definitions
+
 parameter FIXED_OPERAND_WIDTH = 3;
 parameter FP_OPERAND_WIDTH = 3;
 parameter OPERAND_WIDTH = 3;

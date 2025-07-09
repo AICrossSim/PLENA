@@ -39,16 +39,15 @@ S_ADDI_FIX x7, x0, Br * d * h;
 C_SET_STRIDE_REG x7;
 
 S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointer (loop index) across N/Br
-; LOOP N / Br
+; LOOP N / Br (LOOP 0)
     S_ADDI_FIX x2, x0, 0;             set FIX[2] to 0, use it as an incremental pointer (loop index) across N/Bc
-    ; LOOP N / Bc
+    ; LOOP N / Bc (LOOP 1)
         S_ADDI_FIX x8, x0, 0;             set FIX[8] to 0, use it as an incremental pointer (loop index) across MLEN/BLEN
-        ; LOOP across buffer location             
+        ; LOOP across buffer location  (LOOP 2)           
             S_ADDI_FIX x3, x0, 0;               set FIX[3] to 0, use it as an incremental pointer (loop index) across d/MLEN
-            ; LOOP across d/MLEN
+            ; LOOP across d/MLEN (LOOP 3)
                 S_ADDI_FIX x4, x3, MLEN;            set FIX[4] to x3 * MLEN, use it to store start offset for different Q blocks arocss embedding dimension
                 S_ADDI_FIX x5, x3, MLEN;            set FIX[5] to x3 * MLEN, use it to store start offset for different K blocks arocss embedding dimension
-
                 S_ADDI_FIX x6, x0, 1;               set FIX[6] to 1, use as pointer to the beginning M_SRAM, V_SRAM location
                 
                 ; compute address of Q/K blocks
