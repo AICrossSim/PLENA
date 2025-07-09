@@ -55,11 +55,6 @@ set_input_delay  [expr $clk_period * 0.1] -clock clk [get_ports v_out_scale_*_i]
 # Set reasonable load and drive for internal connections
 set_load 0.005 [all_outputs]
 
-# Multi-cycle paths if any (example for complex operations)
-# Uncomment and modify if needed:
-# set_multicycle_path -setup 2 -from [get_pins matrix_machine_init/*] -to [get_pins vector_machine_init/*]
-# set_multicycle_path -hold 1 -from [get_pins matrix_machine_init/*] -to [get_pins vector_machine_init/*]
-
 #---------------------------------------
 # False Paths
 #---------------------------------------
