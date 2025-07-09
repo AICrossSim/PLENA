@@ -12,7 +12,7 @@ set std_cell_path   ${techlib_path}/asap7sc7p5t_28
 set target_library      "asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db \
                          asap7sc7p5t_AO_RVT_TT_ccs_211120.db \
                          asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db \
-                         asap7sc7p5t_INVBUF_RVT_TT_ccs_211120.db \
+                         asap7sc7p5t_INVBUF_RVT_TT_ccs_211120.db"
 
 set link_library        "* \
                          asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db \
@@ -27,7 +27,6 @@ set synthetic_library   "dw_foundation.sldb"
 # search path set
 set search_path [list . ${synopsys_root}/libraries/syn]
 lappend search_path ${std_cell_path}
-lappend search_path ${sram_lib_path}
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #  Debug 
