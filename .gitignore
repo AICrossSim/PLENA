@@ -34,3 +34,7 @@ Coprocessor_Vivado_Prj/
 *.pt
 
 analyzed/
+
+notebooks/
+logs*/
+kube/
