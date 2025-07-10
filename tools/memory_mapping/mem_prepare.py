@@ -17,6 +17,7 @@ class fix_sram_pre_loader:
         high_precision_stride_length = (self.ml_feature["hidden_size"] * self.architecture_feature["MLEN"] * 
                          (self.precision_feature["HIGH_MXFP_MANT_WIDTH"] + self.precision_feature["HIGH_MXFP_MANT_WIDTH"])) // 8
         
+        MLEN = (self.architecture_feature["MLEN"])
         Q_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["HIGH_MXFP_MANT_WIDTH"] + self.precision_feature["HIGH_MXFP_MANT_WIDTH"])) // 8
         KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["LOW_MXFP_MANT_WIDTH"] + self.precision_feature["LOW_MXFP_MANT_WIDTH"])) // 8
         Weight_Size = (self.ml_feature["hidden_size"] * self.ml_feature["hidden_size"] * (self.precision_feature["LOW_MXFP_MANT_WIDTH"] + self.precision_feature["LOW_MXFP_MANT_WIDTH"])) // 8
@@ -24,6 +25,7 @@ class fix_sram_pre_loader:
         with open(self.directory, "w") as f:
             f.write(f"0x{low_precision_stride_length:08x}\n")
             f.write(f"0x{high_precision_stride_length:08x}\n")
+            f.write(f"0x{MLEN:08x}\n")
             f.write(f"0x{Q_Size:08x}\n")
             f.write(f"0x{KV_Size:08x}\n")
             f.write(f"0x{Weight_Size:08x}\n")

@@ -31,6 +31,8 @@ Coprocessor_Vivado_Prj/
 
 *.mem
 
+*.message
+
 *.pt
 
 analyzed/

@@ -39,7 +39,6 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
         insert_block_row = ""
         combined_blk = ""
         index_in_row = 0
-        print(blocks)
         # for i, block in enumerate(reversed(blocks)):
         for i, block in enumerate(blocks):
             combined_blk = combined_blk + map_block_to_value(block, element_width) 

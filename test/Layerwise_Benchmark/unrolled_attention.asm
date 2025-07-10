@@ -40,38 +40,48 @@ C_SET_STRIDE_REG x1, 0, 0;
 S_LD_FIX x1, x0, 1;
 C_SET_SCALE_REG x1, 0, 0;
 
-;<---------------- LOOP 0 Iteration 0 ---------------->
-S_ADDI_FIX x3, x0, 0; 
-;<---------------- LOOP 1 Iteration 0 ---------------->
-S_ADDI_FIX x1, x0, 0;
-;<---------------- LOOP 2 Iteration 0 ---------------->
+;<---------------- LOOP Tr Iteration 0 ---------------->
+S_ADDI_FIX x1, x0, 0; 
+;<---------------- LOOP Tc Iteration 0 ---------------->
 S_ADDI_FIX x2, x0, 0;
-S_LD_FIX x7, x0, 5;
-S_ADDI_FIX x7, x0, 0;
-S_ST_FIX x7, x0, 5;
-; LOOP across buffer location       
-S_ADDI_FIX x6, x0, 0;
-H_PREFETCH_V_S x0, x6, x4;
-H_PREFETCH_M_S x1, x6, x5;
-;<---------------- LOOP 3 Iteration 0 ---------------->      
-S_ADDI_FIX x3, x0, 0;
-S_ADDI_FIX x4, x3, MLEN; 
-S_ADDI_FIX x5, x3, MLEN;
+;<---------------- LOOP Internal QKT (MLEN/BLEN) Iteration 0 ---------------->
+S_ADDI_FIX x3, x0, 0; 
 
+; Assuming prefetching a head_dim * MLEN data to MATRIX and VECTOR SRAM using the following two instructions.
+H_PREFETCH_V_S x0, x0, x2; 
+H_PREFETCH_M_S x0, x0, x3;
 
-; compute address of Q/K blocks
-S_LD_FIX x7, x0, 0;
-S_MUL_FIX  x7, x1, x7;
-S_ADDI_FIX x4, x4, x7;
+;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->      
+S_LD_FIX x4, x0, MLEN;              set FIX[4] to x3 * MLEN, use it to store start offset for different Q blocks arocss embedding dimension
+S_ADDI_FIX x5, x0, 0;               internal counter, looping for (head_dim // MLEN) times
+S_MUL_FIX x6, x5, x4;               set FIX[6] to 1, use as pointer to the beginning M_SRAM, V_SRAM location
 
-S_ADDI_FIX x7, x0, Bc * d * h;
-S_MUL_FIX  x7, x2, x7;
-S_ADDI_FIX x5, x5, x7;
+M_TMM_IC 0, x6, x6;
 
-; if x3 != d/MLEN - 1: Not the last loop
+;<-------LOOP Internal QKT (head_dim // MLEN) Iteration END ------->      
+S_LD_FIX x4, x0, MLEN;
+S_ADDI_FIX x5, x0, 0;
+S_MUL_FIX x6, x5, x4;
+M_TMM_PS x3, x6, x6;
 
-M_MM_IC 0, x6, x6 
-S_ADDI_FIX x3, x3, 1;
-; if x3 == d/MLEN - 1: Not the last loop
-M_MM_PS x6, x6, x8
-S_ADDI_FIX x8, x0, 1;
+;<---------------- LOOP Internal QKT (MLEN/BLEN) Iteration END ---------------->
+S_ADDI_FIX x3, x3, 1; 
+S_LD_FIX x4, x0, MLEN;
+
+S_MUL_FIX x4, x4, x3;
+
+H_PREFETCH_V_S x0, x4, x2; 
+H_PREFETCH_M_S x0, x4, x3;
+
+;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->      
+S_LD_FIX x4, x0, MLEN;
+S_ADDI_FIX x5, x0, 0;
+S_MUL_FIX x6, x5, x4;
+M_TMM_IC 0, x6, x6;
+
+;<-------LOOP Internal QKT (head_dim // MLEN) Iteration end ------->      
+S_LD_FIX x4, x0, MLEN;
+S_ADDI_FIX x5, x0, 0;
+S_MUL_FIX x6, x5, x4;
+M_TMM_PS x3, x6, x6;
+M_MM_WO x0, 0, 0; Write to the 0 addr of the VECTOR SRAM, replacing original K Cache.
