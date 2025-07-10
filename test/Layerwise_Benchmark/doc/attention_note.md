@@ -196,3 +196,17 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 ## Register Arrangement
 - x1: used to store incremental pointer across N/Br
 - x2: used to store incremental pointer across N/Bc
+
+
+## FIXED SRAM Layout
+- HIGH_PRECISION_STRIDE_LENGTH
+- LOW_PRECISION_STRIDE_LENGTH
+- MLEN
+- 2*MLEN
+- Q_SIZE
+- KV_SIZE
+- WEIGHT_SIZE
+- BATCH_SIZE
+
+## FP SRAM Layout
+- FLASH_ATTN_M_VAR

@@ -1,3 +1,4 @@
 `ifndef GLOBAL_DEFINE_VH
-`define SIMULATION
+`define ASIC
+`define SYNTHESIS_MEMORY_BLACK_BOXING
 `endif
