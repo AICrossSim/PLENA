@@ -149,7 +149,7 @@ module coprocessor import configuration_pkg::*; #(
         .instruction_valid      (instruction_valid),
         .instruction_ready      (instruction_ready),
         .decode_stage_op        (decode_stage_op),
-        .assigned_fixed_op           (assigned_fixed_op),
+        .assigned_fixed_op      (assigned_fixed_op),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
         .rd                     (s_rd),

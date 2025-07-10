@@ -189,7 +189,6 @@ typedef struct {
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
-// TODO: The definition is not very efficient, might need to be optimized later.
 typedef struct {
     M_OP            m_op;
     V_ELEMENT_OP    v_ele_op;

@@ -43,11 +43,11 @@ module decoder #(
 logic   stall_for_read_rd;
 logic   [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic   read_instr_from_fifo, decode_instr_valid;
-assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid;
+assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid & !fixed_op_stall_flag;
 logic   p1_pipeline_stall, recover_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_FIXED_OP      exe_fixed_op;
-// Note: When the buffer is empty, there is one last instruction in the buffer
+
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
     .DEPTH(INST_BUFF_DEPTH)
@@ -134,9 +134,10 @@ logic pass_m_update_waddr, pass_v_update_waddr;
 logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
 logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
 logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
-
 logic stall_for_read_rd_flag;
 logic recorded_stall_for_read_rd_flag;
+logic fixed_op_stall_flag;
+// assign fixed_op_stall_flag = (decode_instr_info.opcode == S_ACC_MULI); // Stall the overall execution after detecting S_ACC_MULI for a single clock.
 
 always_ff @(posedge clk) begin
     if (rst) begin
@@ -220,6 +221,7 @@ always_ff @(posedge clk) begin
         decode_stage_op.fixed_rd        <= 'b0;
         decode_stage_op.update_m_waddr  <= pass_m_update_waddr;
         decode_stage_op.update_v_waddr  <= pass_v_update_waddr;
+        fixed_op_stall_flag             <= 1'b0;
         rs1                             <= 'b0;
         rs2                             <= 'b0;
         rd                              <= pass_rd_to_load;
@@ -233,6 +235,7 @@ always_ff @(posedge clk) begin
         decode_stage_op.fixed_rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
         decode_stage_op.fixed_rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
         decode_stage_op.fixed_rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
+        fixed_op_stall_flag                   <= (decode_instr_info.opcode == S_ACC_MULI);
 
         case(decode_instr_info.instruction_type)
             M: begin
@@ -314,7 +317,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op            <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op         <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op             <= STALL_S_FP;
-                assigned_fixed_op                        <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
+                assigned_fixed_op                   <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
                                                         (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
                                                         (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
                                                         (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
@@ -343,6 +346,7 @@ always_ff @(posedge clk) begin
                     rs2             <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
                     imm             <= {{IMM_WIDTH - IMM_2_WIDTH {1'b0}}, decode_instr_info.imm[IMM_2_WIDTH:0]}; 
+
                 end else begin
                     // Other FIXED Instructions
                     decode_stage_op.fps1            <= 'b0;

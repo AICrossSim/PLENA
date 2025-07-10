@@ -65,7 +65,7 @@ module fixed_alu #(
                         result_valid <= 1'b0;
                     end
 
-                    ADDI_FIX, COMP_ADDR, LD_FIX, ST_FIX: begin
+                    ADDI_FIX: begin
                         result <= operand_a + imm_value; // Compute address with immediate
                         result_valid <= 1'b1;
                     end
@@ -83,6 +83,5 @@ module fixed_alu #(
             end
         end
     end
-    assign computed_address = (operation == COMP_ADDR) ? operand_a + imm_value : '0;
-
+    assign computed_address = ((operation == COMP_ADDR) || (operation == LD_FIX) || (operation == ST_FIX)) ? operand_a + imm_value : '0;
 endmodule
