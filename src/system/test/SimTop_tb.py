@@ -149,6 +149,7 @@ def SimToP_test():
             "../../../src/basic_components/systolic_gemm_mxfp",
             "../../../src/basic_components/systolic_gemm_fp",
             "../../../src/basic_components/int_operation",
+            "../../../src/basic_components/cast",
             "../../../src/frontend",
             "../../../src/control",
             "../../../src/matrix_machine",

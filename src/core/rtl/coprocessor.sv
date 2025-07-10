@@ -55,7 +55,6 @@ module coprocessor import configuration_pkg::*; #(
     logic hbm_in_used;
     logic stall_req_from_fp;
     logic v_in_prep, m_in_prep, m_empty_in_progress;
-    logic sfu_in_use;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
 
     // Memory Control Signals Declaration
@@ -180,7 +179,6 @@ module coprocessor import configuration_pkg::*; #(
         .m_load_in_process              (m_in_prep),
         .m_empty_in_progress            (m_empty_in_progress),
         .v_load_in_process              (v_in_prep),
-        .sfu_in_use                     (sfu_in_use),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
         .mem_write_control              (mem_write_control)
@@ -321,7 +319,6 @@ module coprocessor import configuration_pkg::*; #(
             .external_fp_in_ready   (v_s_out_ready),
             .external_fp_wtarget    (s_wtarget_from_v),
             .fp_out                 (fp_s_in),
-            .sfu_in_use             (sfu_in_use),
             .fp_stall_req           (stall_req_from_fp)
         );
     endgenerate

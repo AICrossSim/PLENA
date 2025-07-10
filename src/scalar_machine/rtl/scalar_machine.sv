@@ -44,7 +44,6 @@ module scalar_machine import precision_pkg::*;  #(
     output  logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_out,
 
     // Stall Detection
-    output  logic sfu_in_use,
     output  logic fp_stall_req
 );
 
@@ -57,102 +56,73 @@ module scalar_machine import precision_pkg::*;  #(
     // FP Unit
     //----------------------------//
 
-    struct {
-        logic [FP_OPERAND_WIDTH-1:0] target_fp;
-        S_FP_OP                      fp_op;
-    } fp_track [SCALAR_FP_LONGEST_OPERATE_CYCLES];
     S_FP_OP fp_control, exe_fp_control;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
-    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd, p1_fp_rd;
     logic fp_reg_we;
     logic general_fp_operation;
     logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
+    logic [FP_OPERAND_WIDTH - 1 : 0] recorded_fp_waddr_sfu, recorded_fp_waddr_alu, recorded_fp_waddr_sram;
     logic sfu_out_valid, sfu_out_ready;
+    logic load_fp_sram_valid;
     logic write_data_from_external_fp;
-    logic general_fp_alu_en;
+    logic fp_alu_valid;
     logic [FP_SRAM_ADDR_WIDTH - 1 : 0] fp_sram_addr;
 
     assign  fp_control = exe_stage_op.s_fp_op;
 
     // ------------------- Tracing Register for Stall Detection -------------------
     localparam int TRACE_SIZE = 2 << FP_OPERAND_WIDTH; // Number of FP registers
-    logic tracing_fpreg_in_process [TRACE_SIZE - 1 : 0];
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_wtarget;
 
-    // Dependency Detection
-    always_comb begin
-        if (fp_control == ADD_FP || fp_control == SUB_FP || fp_control == MAX_FP || fp_control == MUL_FP) begin
-            // Two read ports
-            fp_stall_req = (tracing_fpreg_in_process[fp_rs1] || tracing_fpreg_in_process[fp_rs2]) ? 1'b1 : 1'b0;
-        end else if (fp_control == EXP_FP || fp_control == RECI_FP || fp_control == SQRT_FP ) begin
-            // One read port
-            fp_stall_req = (tracing_fpreg_in_process[fp_rs1]) ? 1'b1 : 1'b0;
-        end
-    end
 
-    always_ff @(posedge clk or posedge rst) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
-            for (int i = 0; i < TRACE_SIZE; i++) begin
-                tracing_fpreg_in_process[i] <= 1'b0;
-            end
-
-            for (int i = 0; i < SCALAR_FP_LONGEST_OPERATE_CYCLES; i++) begin
-                fp_track[i] <= '{
-                    target_fp  :'b0,
-                    fp_op      :STALL_S_FP
-                };
-            end
-            exe_fp_control <= STALL_S_FP;
+            exe_fp_control          <= STALL_S_FP;
+            load_fp_sram_valid      <= 1'b0;
+            recorded_fp_waddr_alu   <= 'b0;
+            recorded_fp_waddr_sram  <= 'b0;
+            p1_fp_rd                <= 'b0;
+            fp_stall_req            <= 1'b0;
         end else begin
-            exe_fp_control <= fp_control;
-            // Note: Here involving write to the same variable from the two conditions
-            if (fp_reg_we) begin
-                tracing_fpreg_in_process[fp_wtarget] <= 1'b0;
-            end
-
-            if (fp_stall_req == 1'b0) begin
-                // Check if the fp rd is already in process
-                fp_track[0] <= '{
-                    target_fp  :fp_rd,
-                    fp_op      :fp_control
-                };
-                if (fp_rd != fp_wtarget)
-                    tracing_fpreg_in_process[fp_rd] <= 1'b1;
-            end
-
-            for (int i = 0; i < SCALAR_FP_LONGEST_OPERATE_CYCLES - 1; i++) begin
-                fp_track[i+1] <= fp_track[i];
-            end
+            p1_fp_rd                <= fp_rd;
+            exe_fp_control          <= fp_control;
+            load_fp_sram_valid      <= ( exe_fp_control == LD_REG_FP) ? 1'b1 : 1'b0;
+            recorded_fp_waddr_sram  <= p1_fp_rd;
+            recorded_fp_waddr_alu   <= p1_fp_rd;
+            if (fp_control == RECI_FP || fp_control == EXP_FP) begin
+                fp_stall_req <= 1'b1; // SFU is busy
+            end else if (sfu_out_valid) begin
+                fp_stall_req <= 1'b0; // SFU process completed
+            end 
         end
     end
-
 
     /*
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
 
-    assign  general_fp_alu_en = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
+    // Delay a clk due to fp_alu takes one clk to compute the result
+
+    assign  fp_alu_valid = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
 
     always_comb begin
-        if (general_fp_alu_en) begin
+        if (fp_alu_valid) begin
             // From ALU
             fp_reg_we       = 1'b1;
             fp_reg_wdata    = fp_alu_out; 
-            fp_wtarget      = fp_rd;
+            fp_wtarget      = recorded_fp_waddr_alu;
             write_data_from_external_fp = 1'b0;
-        end else if ((fp_track[SCALAR_FP_SQRT_CYCLES - 1].fp_op == SQRT_FP) && (fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp != fp_rd)) begin
-            // From SFU
-            if (sfu_out_valid) begin
-                fp_reg_we       = 1'b1;
-                fp_reg_wdata    = fp_sfu_out;
-                fp_wtarget      = fp_track[SCALAR_FP_SQRT_CYCLES - 1].target_fp;
-                write_data_from_external_fp = 1'b0;                
-            end
-        end else if (fp_track[1].fp_op ==  LD_REG_FP) begin
+        end if (sfu_out_valid) begin
+            fp_reg_we       = 1'b1;
+            fp_reg_wdata    = fp_sfu_out;
+            fp_wtarget      = recorded_fp_waddr_sfu;
+            write_data_from_external_fp = 1'b0;                
+        end else if (load_fp_sram_valid) begin
             fp_reg_we       = 1'b1;
             fp_reg_wdata    = fp_ld_from_sram;
-            fp_wtarget      = fp_track[1].target_fp;
+            fp_wtarget      = recorded_fp_waddr_sram;
             write_data_from_external_fp = 1'b0;
         end else if (external_fp_in_valid) begin
             fp_reg_we       = 1'b1;
@@ -169,7 +139,6 @@ module scalar_machine import precision_pkg::*;  #(
 
     // Decide external_fp_in_ready. If the external_fp is ready to write (external_fp_in_valid == 1'b1 ) but fp_sram is busy, then the external_fp_in_ready should be 0.
     assign external_fp_in_ready = (external_fp_in_valid & write_data_from_external_fp);
-
     assign fp_rs1 = exe_stage_op.fps1;
     assign fp_rs2 = exe_stage_op.fps2;
     assign fp_rd  = exe_stage_op.fpd;
@@ -189,14 +158,15 @@ module scalar_machine import precision_pkg::*;  #(
         .EXP_WIDTH  (S_FP_EXP_WIDTH),
         .MANT_WIDTH (S_FP_MANT_WIDTH)      
     ) fp_sfu_init (
-        .clk            (clk),
-        .rst            (rst),
-        .data_in        (fp_reg_1),
-        .sfu_in_use     (sfu_in_use),
-        .operation      (fp_control),
-        .data_out       (fp_sfu_out),
-        .data_out_valid (sfu_out_valid),
-        .data_out_ready (sfu_out_ready)
+        .clk                (clk),
+        .rst                (rst),
+        .data_in            (fp_reg_1),
+        .reg_waddr          (p1_fp_rd),
+        .operation          (fp_control),
+        .data_out           (fp_sfu_out),
+        .stored_reg_waddr   (recorded_fp_waddr_sfu),
+        .data_out_valid     (sfu_out_valid),
+        .data_out_ready     (sfu_out_ready)
     );
 
     regfile_2p1w #(
@@ -218,18 +188,19 @@ module scalar_machine import precision_pkg::*;  #(
             fp_out          <= 'b0;
             fp_sram_addr    <= 'b0;
         end else begin
-            if (fp_control == LD_OUT_FP) begin
+            if (exe_fp_control == LD_OUT_FP) begin
                 if (fp_rs2 == fp_wtarget) begin
                     fp_out <= fp_reg_wdata;
                 end else begin
                     fp_out <= fp_reg_2;
                 end
-            end else if (fp_control == ST_REG_FP) begin
+            end else begin
                 fp_out <= 'b0;
             end
             fp_sram_addr <= exe_stage_op.addr_1; 
         end
     end
+    
 
     // SRAM for FP
     scalar_sram #(

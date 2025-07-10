@@ -46,7 +46,6 @@ module pipeline_control #(
     input       logic           m_load_in_process,
     input       logic           m_empty_in_progress,
     input       logic           v_load_in_process,
-    input       logic           sfu_in_use,
     input       logic           m_complete_acc_writeback,
 
     // Current control operation
@@ -104,10 +103,7 @@ module pipeline_control #(
         end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
             // Condition 5: Trying to access the vector sram port B while it is being written to.
             pipeline_stall   = 1'b1;            
-        end else if (fp_stall_req & (determine_stage_op.s_fp_op != STALL_S_FP)) begin
-            // Condition 6: FP unit requests a stall, but the current operation is another FP operation.
-            pipeline_stall   = 1'b1;            
-        end else if (sfu_in_use & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
+        end else if (fp_stall_req & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
             // Condition 7: SFU is in use, but the current operation is a another special floating point operation.
             pipeline_stall = 1'b1;
         end else if (fixed_stall_req) begin
