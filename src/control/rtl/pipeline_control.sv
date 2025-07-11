@@ -42,6 +42,7 @@ module pipeline_control #(
     input       MEM_WREQ_INFO   mem_write_req,
     input       logic           hbm_in_used,            
     input       logic           fp_stall_req,
+    input       logic           fp_sram_stall_req,
     input       logic           fixed_stall_req,
     input       logic           m_load_in_process,
     input       logic           m_empty_in_progress,
@@ -86,7 +87,7 @@ module pipeline_control #(
     // Decision for pipeline stall
     always_comb begin
         if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_C)) begin
-            // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
+            // Condition 0: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall   = 1'b1;            
         end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_C)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
@@ -104,10 +105,13 @@ module pipeline_control #(
             // Condition 5: Trying to access the vector sram port B while it is being written to.
             pipeline_stall   = 1'b1;            
         end else if (fp_stall_req & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin
-            // Condition 7: SFU is in use, but the current operation is a another special floating point operation.
+            // Condition 6: SFU is in use, but the current operation is a another special floating point operation.
             pipeline_stall = 1'b1;
-        end else if (fixed_stall_req) begin
-            // Condition 7: SFU is in use, but the current operation is a another special floating point operation.
+        end else if (fp_sram_stall_req & (determine_stage_op.s_fp_op == LD_REG_FP) || (determine_stage_op.s_fp_op == ST_REG_FP) || (determine_stage_op.s_fp_op == MAP_V_FP))
+            // Condition 7: FP SRAM is in continuously load for MAP_V_FP. Hence the current operation cannot access the FP SRAM.
+            pipeline_stall = 1'b1;
+        else if (fixed_stall_req) begin
+            // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
             pipeline_stall = 1'b1;
         end else if (mem_vwrite_stall_req) begin
             // Unconditionally stall the overall pipeline due to the request from the memory monitor.

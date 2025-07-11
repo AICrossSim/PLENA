@@ -47,7 +47,6 @@ module addr_monitor#(
     always_comb begin
         found_invalid           = 1'b0;
         free_track_entry_idx    = '0; // default value, in case all are valid
-
         for (int i = 0; i < PIPELINE_STAGES; i++) begin
             if (!v_write_addr_track[i].activate && !found_invalid) begin
                 free_track_entry_idx    = i;
@@ -60,19 +59,6 @@ module addr_monitor#(
     // Detection Process
     logic [PIPELINE_STAGES - 1 : 0] addr_collide_flag;
     logic stall_in_process;
-    // logic [ADDR_WIDTH - 1 : 0] fixed_addr_1_to_check;
-    // logic [ADDR_WIDTH - 1 : 0] fixed_addr_2_to_check;
-
-    // always_ff @(posedge clk) begin
-    //     if (rst) begin
-    //         fixed_addr_1_to_check <= {ADDR_WIDTH{1'b0}};
-    //         fixed_addr_2_to_check <= {ADDR_WIDTH{1'b0}};
-    //     end else begin
-    //         fixed_addr_1_to_check <= fixed_addr_1;
-    //         fixed_addr_2_to_check <= fixed_addr_2;
-    //     end
-    // end
-
     always_comb begin
         if (stall_in_process) begin
             // To Check if the tracked address has been written.
@@ -146,7 +132,6 @@ module addr_monitor#(
 
     end
 
-
     // Update Process
     logic   [ADDR_WIDTH - 1 : 0] insert_addr;
     logic   insert_valid;
@@ -157,7 +142,6 @@ module addr_monitor#(
 
     // Decide which source is providing the address this cycle
     always_comb begin
-
         if (exe_stage_op.h_op == PREFETCH_V_C) begin
             // Note, PREFETCH_M_C does not need to be monitored as it cannot be directly written.
             insert_addr  = exe_stage_op.addr_2;
@@ -168,11 +152,13 @@ module addr_monitor#(
         end else if (exe_stage_op.update_v_waddr) begin
             insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
+        end else if (exe_stage_op.s_fp_op == MAP_V_FP) begin
+            insert_addr  = exe_stage_op.addr_2;
+            insert_valid = 1'b1;
         end else begin
             insert_addr  = {ADDR_WIDTH{1'b0}};
             insert_valid = 1'b0;
         end
-
         // Check if the address is already in the pipeline
         matched_waddr                 = 1'b0;
         matched_track_entry_idx     = '0; // default value, in case all are valid

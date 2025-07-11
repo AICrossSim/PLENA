@@ -63,7 +63,8 @@ typedef enum logic [3:0] {
     LD_OUT_FP   = 4'h9,
     ST_REG_FP   = 4'hA,
     ST_IN_FP    = 4'hB,
-    MV_FP       = 4'hC
+    MV_FP       = 4'hC,
+    MAP_V_FP    = 4'hD
 } S_FP_OP;
 
 typedef enum logic [3:0] {
@@ -79,6 +80,7 @@ typedef enum logic [3:0] {
     PASS_ADDR     = 4'hA,
     PASS_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 adress.
     COMP_ADDR     = 4'hC,
+    COMP_ADDR_2   = 4'hD, // addr_port_2: rd and addr_port_1:  rs1 + imm
     STALL_S_FIXED = 4'h0
 } S_FIXED_OP;
 
@@ -142,32 +144,34 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_MV_FP             = 6'h1A,
     S_LD_FP             = 6'h1B,
     S_ST_FP             = 6'h1C,
+    S_MAP_V_FP          = 6'h1D,
 
     // Scalar Operations (Fixed-Point)
-    S_ADD_FIX           = 6'h1D,
-    S_ADDI_FIX          = 6'h1E,
-    S_SUB_FIX           = 6'h1F,
-    S_MUL_FIX           = 6'h20,
-    S_LUI_FIX           = 6'h21,
-    S_MV_FIX            = 6'h22,
-    S_ACC_MULI          = 6'h23,
-    S_LD_FIX            = 6'h24,
-    S_ST_FIX            = 6'h25,
+    S_ADD_FIX           = 6'h1E,
+    S_ADDI_FIX          = 6'h1F,
+    S_SUB_FIX           = 6'h20,
+    S_MUL_FIX           = 6'h21,
+    S_LUI_FIX           = 6'h22,
+    S_MV_FIX            = 6'h23,
+    S_ACC_MULI          = 6'h24,
+    S_LD_FIX            = 6'h25,
+    S_ST_FIX            = 6'h26,
 
     // Memory Operations
-    H_PREFETCH_M_C      = 6'h26,
-    H_PREFETCH_M_S      = 6'h27,
-    H_PREFETCH_V_C      = 6'h28,
-    H_PREFETCH_V_S      = 6'h29,
-    H_STORE_V_C         = 6'h2A,
-    H_STORE_V_S         = 6'h2B,
+    H_PREFETCH_M_C      = 6'h27,
+    H_PREFETCH_M_S      = 6'h28,
+    H_PREFETCH_V_C      = 6'h29,
+    H_PREFETCH_V_S      = 6'h2A,
+    H_STORE_V_C         = 6'h2B,
+    H_STORE_V_S         = 6'h2C,
 
     // CSR Setting
-    C_SET_ADDR_REG      = 6'h2C,
-    C_SET_LUT           = 6'h2D,
-    C_SET_STRIDE_REG    = 6'h2E,
-    C_SET_SCALE_REG     = 6'h2F
+    C_SET_ADDR_REG      = 6'h2D,
+    C_SET_LUT           = 6'h2E,
+    C_SET_STRIDE_REG    = 6'h2F,
+    C_SET_SCALE_REG     = 6'h30
 } CUSTOM_ISA_OPCODE;
+
 
 
 typedef enum logic [2:0] {

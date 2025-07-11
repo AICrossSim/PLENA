@@ -100,7 +100,7 @@ module coprocessor import configuration_pkg::*; #(
     logic v_s_in_valid,     v_s_in_ready;
     logic v_s_out_valid,    v_s_out_ready;
 
-    logic select_write_data_a;
+    logic select_write_data_a, select_write_data_b;
     logic v_sram_req_a, v_sram_req_b;
     logic [1:0] v_sram_mxfp_req_b;
     logic v_sram_wen_a, v_sram_wen_b;
@@ -123,9 +123,11 @@ module coprocessor import configuration_pkg::*; #(
     // Scalar
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_in;
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_out;
+    logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                fp_s_vector_out;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
     logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
+    logic s_map_v_valid, s_map_v_ready;
 
     
 
@@ -218,6 +220,8 @@ module coprocessor import configuration_pkg::*; #(
         .v_s_in_ready               (v_s_in_ready),
         .v_write_request            (v_write_request),
         .v_write_addr               (v_waddr),
+        .s_map_v_valid              (s_map_v_valid),
+        .s_map_v_ready              (s_map_v_ready),
         .v_sram_req_a               (v_sram_req_a),
         .v_sram_wen_a               (v_sram_wen_a),
         .v_sram_addr_a              (v_sram_addr_a),
@@ -228,6 +232,7 @@ module coprocessor import configuration_pkg::*; #(
         .v_sram_wen_b               (v_sram_wen_b),
         .v_sram_addr_b              (v_sram_addr_b),
         .v_sram_mask_b              (v_sram_mask_b),
+        .select_write_data_b        (select_write_data_b),
         .v_prefetch_data_not_ready  (v_prefetch_data_not_ready),
         .prefetch_m_valid           (hbm_m_prefetch_valid),
         .prefetch_v_valid           (hbm_v_prefetch_valid),
@@ -318,6 +323,9 @@ module coprocessor import configuration_pkg::*; #(
             .external_fp_in_valid   (v_s_out_valid),
             .external_fp_in_ready   (v_s_out_ready),
             .external_fp_wtarget    (s_wtarget_from_v),
+            .fp_vector_out          (fp_s_vector_out),
+            .fp_vector_out_ready    (s_map_v_ready),
+            .fp_vector_out_valid    (s_map_v_valid),
             .fp_out                 (fp_s_in),
             .fp_stall_req           (stall_req_from_fp)
         );
@@ -378,7 +386,7 @@ module coprocessor import configuration_pkg::*; #(
     ) vector_sram (
         .clk(clk),
         .rst(rst),
-        .control            (select_write_data_a),
+        .select_write_data_a(select_write_data_a),
         .port_a_req         (v_sram_req_a),
         .port_a_write_en    (v_sram_wen_a),
         .port_a_addr        (v_sram_addr_a),
@@ -391,6 +399,8 @@ module coprocessor import configuration_pkg::*; #(
         .port_b_req         (v_sram_req_b),
         .port_b_write_en    (v_sram_wen_b),
         .port_b_addr        (v_sram_addr_b),
+        .select_write_data_b(select_write_data_b),
+        .port_b_fp_in       (fp_s_vector_out),
         .port_b_fp_out      (v_port_b_out_fp),
         .port_b_mask_in     (v_sram_mask_b),
         .port_b_element_in  (v_element_port_b_in),

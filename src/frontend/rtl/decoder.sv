@@ -372,7 +372,8 @@ always_ff @(posedge clk) begin
                                                         (decode_instr_info.opcode == S_SQRT_FP)   ? SQRT_FP   :
                                                         (decode_instr_info.opcode == S_MV_FP)     ? MV_FP     :
                                                         (decode_instr_info.opcode == S_LD_FP)     ? LD_REG_FP :
-                                                        (decode_instr_info.opcode == S_ST_FP)     ? ST_REG_FP : STALL_S_FP;
+                                                        (decode_instr_info.opcode == S_ST_FP)     ? ST_REG_FP : 
+                                                        (decode_instr_info.opcode == S_MAP_V_FP)  ? MAP_V_FP  : STALL_S_FP;
                 
                 decode_stage_op.c_op              <= STALL_C;
                 decode_stage_op.h_op              <= STALL_H;
@@ -405,6 +406,15 @@ always_ff @(posedge clk) begin
                     rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
                     rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
                     rd                              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    imm                             <= decode_instr_info.imm; // Might require shifting
+                end else if (decode_instr_info.opcode == S_MAP_V_FP) begin
+                    assigned_fixed_op               <= COMP_ADDR_2;
+                    decode_stage_op.fps1            <= {FP_OPERAND_WIDTH{1'b0}};
+                    decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
+                    decode_stage_op.fpd             <= {FP_OPERAND_WIDTH{1'b0}};
+                    rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rd                              <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                     imm                             <= decode_instr_info.imm; // Might require shifting
                 end else begin
                     // Not Defined 

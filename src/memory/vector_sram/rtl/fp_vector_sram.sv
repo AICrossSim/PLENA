@@ -47,7 +47,7 @@ module fp_vector_sram #(
     input   logic port_a_req,
     input   logic port_a_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_a_addr,
-    input   logic control, // 0 for Vector Machine, 1 for Matrix Machine
+    input   logic select_write_data_a, // 0 for Vector Machine, 1 for Matrix Machine, 2 for Scalar Machine
     // FP Data Connection
     input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_in,
     input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_m_fp_in,
@@ -61,7 +61,9 @@ module fp_vector_sram #(
     input   logic port_b_req,
     input   logic port_b_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_b_addr,
+    input   logic select_write_data_b,
     // FP Data Connection
+    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_b_fp_in,
     output  logic [VLEN - 1 : 0]         [EXP_WIDTH + MANT_WIDTH : 0]               port_b_fp_out,
     input   logic [VLEN - 1 : 0]                                                    port_b_mask_in,
     // MX-FP Connection
@@ -94,8 +96,10 @@ module fp_vector_sram #(
 
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_out_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_in_internal;
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_in_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_out_internal;
     localparam int REPL_COUNT = (VLEN - MLEN) * (EXP_WIDTH + MANT_WIDTH + 1);
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_in;
     
     // -----------------------------
     // Prefetch Tag Tracking
@@ -135,11 +139,21 @@ module fp_vector_sram #(
     // -----------------------------
 
     always_comb begin
-        if (control == 1'b0) begin
+        if (select_write_data_a == 1'b0) begin
             // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal   = port_a_v_fp_in;
             port_a_v_fp_out         = port_a_fp_out_internal;
+        end else begin
+            // Matrix Machine Mode, output as MX-FP Data
+            port_a_fp_in_internal   = port_a_m_fp_in;
+            port_a_v_fp_out         = '0;
         end 
+        
+        if (select_write_data_b == 1'b0) begin
+            port_b_fp_in_internal   = converted_b_fp_in;
+        end else begin
+            port_b_fp_in_internal   = port_b_fp_in;
+        end
     end
 
     // Convert FP Data to MX-FP Data for HBM write
@@ -155,7 +169,7 @@ module fp_vector_sram #(
             mxfp_fp_convert_port_a_in_valid <= '0;
             mxfp_fp_convert_port_a_ready <= 1'b0;
         end else begin
-            mxfp_fp_convert_port_a_in_valid <= (control == 1'b0 && port_a_req) ? {V_BLOCK_NUM{1'b1}} : '0;
+            mxfp_fp_convert_port_a_in_valid <= (select_write_data_a == 1'b0 && port_a_req) ? {V_BLOCK_NUM{1'b1}} : '0;
             mxfp_fp_convert_port_a_ready <= 1'b1;
         end
     end
@@ -195,11 +209,10 @@ module fp_vector_sram #(
     // Port B Management
     // -----------------------------
     logic   mxfp_fp_convert_port_b_ready;
-    assign port_b_fp_out = port_b_fp_out_internal;
+    assign  port_b_fp_out = port_b_fp_out_internal;
 
     // Convert MX-FP Data to FP Data for HBM Prefetch
-    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_in;
-    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_out;
+
     generate;
         for (genvar i = 0; i < V_BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
             mx_fp_2_fp_block #(
@@ -323,7 +336,7 @@ module fp_vector_sram #(
         .b_req_i        (port_b_req || port_b_mxfp_req),
         .b_write_i      (port_b_write_en),
         .b_addr_i       (translated_port_b_addr),
-        .b_wdata_i      (converted_b_fp_in),
+        .b_wdata_i      (port_b_fp_in_internal),
         .b_wmask_i      (port_b_mask_in),
         .b_rdata_o      (port_b_fp_out_internal),
         // Unused

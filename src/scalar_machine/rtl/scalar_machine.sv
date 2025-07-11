@@ -32,25 +32,30 @@ module scalar_machine import precision_pkg::*;  #(
     input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
 
     // Fixed Value input
-    input   logic [IMM_WIDTH - 1 : 0] imm_in,
-    output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1,
-    output  logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2,
+    input   logic [IMM_WIDTH - 1 : 0]           imm_in,
+    output  logic [FIXED_DATA_WIDTH - 1 : 0]    fixed_out_1,
+    output  logic [FIXED_DATA_WIDTH - 1 : 0]    fixed_out_2,
 
     // FP Value input
     input   logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] external_fp_in,
     input   logic external_fp_in_valid,
     output  logic external_fp_in_ready,
-    input   logic [FP_OPERAND_WIDTH - 1 : 0] external_fp_wtarget,
-    output  logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_out,
+    input   logic [FP_OPERAND_WIDTH - 1 : 0]                            external_fp_wtarget,
+    output  logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0]                fp_out,
+    output  logic [VLEN - 1 : 0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_vector_out,
+    input   logic fp_vector_out_ready,
+    output  logic fp_vector_out_valid,
 
     // Stall Detection
-    output  logic fp_stall_req
+    output  logic fp_stall_req,
+    output  logic fp_sram_stall_req
 );
 
     import pipeline_pkg::*;
     import configuration_pkg::*;
-    localparam FP_SRAM_ADDR_WIDTH = $clog2(FP_SRAM_DEPTH);
-    localparam FIXED_SRAM_ADDR_WIDTH = $clog2(FIXED_SRAM_DEPTH);
+    localparam FP_SRAM_ADDR_WIDTH       = $clog2(FP_SRAM_DEPTH);
+    localparam FIXED_SRAM_ADDR_WIDTH    = $clog2(FIXED_SRAM_DEPTH);
+    localparam VLEN_COUNTER_WIDTH       = $clog2(VLEN);
 
     //----------------------------//
     // FP Unit
@@ -65,16 +70,21 @@ module scalar_machine import precision_pkg::*;  #(
     logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
     logic [FP_OPERAND_WIDTH - 1 : 0] recorded_fp_waddr_sfu, recorded_fp_waddr_alu, recorded_fp_waddr_sram;
     logic sfu_out_valid, sfu_out_ready;
-    logic load_fp_sram_valid;
+    logic load_fp_sram_valid, fp_sram_req, fp_sram_wen;
+    logic [VLEN_COUNTER_WIDTH - 1 : 0] acc_vec_counter;
+    logic continuous_load_fp_sram;
     logic write_data_from_external_fp;
     logic fp_alu_valid;
-    logic [FP_SRAM_ADDR_WIDTH - 1 : 0] fp_sram_addr;
+    logic [FP_SRAM_ADDR_WIDTH - 1 : 0] fp_sram_addr, recorded_fp_sram_addr;
+    logic [MLEN - 1 : 0] [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_vector_buffer;
 
     assign  fp_control = exe_stage_op.s_fp_op;
 
     // ------------------- Tracing Register for Stall Detection -------------------
     localparam int TRACE_SIZE = 2 << FP_OPERAND_WIDTH; // Number of FP registers
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_wtarget;
+
+    assign fp_vector_out = fp_vector_buffer;
 
 
     always_ff @(posedge clk) begin
@@ -85,26 +95,73 @@ module scalar_machine import precision_pkg::*;  #(
             recorded_fp_waddr_sram  <= 'b0;
             p1_fp_rd                <= 'b0;
             fp_stall_req            <= 1'b0;
+            fp_sram_stall_req       <= 1'b0;
+            fp_vector_buffer        <= 'b0;
+            continuous_load_fp_sram <= 1'b0;
+            acc_vec_counter         <= 'b0;
+            fp_out                  <= 'b0;
+            fp_sram_addr            <= 'b0;
+            fp_sram_req             <= 1'b0;
+            fp_sram_wen             <= 1'b0;
+
         end else begin
+
             p1_fp_rd                <= fp_rd;
             exe_fp_control          <= fp_control;
-            load_fp_sram_valid      <= ( exe_fp_control == LD_REG_FP) ? 1'b1 : 1'b0;
+            load_fp_sram_valid      <= (exe_fp_control == LD_REG_FP) ? 1'b1 : 1'b0;
             recorded_fp_waddr_sram  <= p1_fp_rd;
             recorded_fp_waddr_alu   <= p1_fp_rd;
+
             if (fp_control == RECI_FP || fp_control == EXP_FP) begin
                 fp_stall_req <= 1'b1; // SFU is busy
             end else if (sfu_out_valid) begin
                 fp_stall_req <= 1'b0; // SFU process completed
             end 
+
+            if (fp_control == MAP_V_FP) begin
+                continuous_load_fp_sram <= 1'b1;
+                recorded_fp_sram_addr   <= exe_stage_op.addr_1[FP_SRAM_ADDR_WIDTH - 1 : 0];
+                fp_sram_addr            <= exe_stage_op.addr_1[FP_SRAM_ADDR_WIDTH - 1 : 0];
+                acc_vec_counter         <= 'b1;
+                fp_sram_req             <= 1'b1;
+                fp_sram_stall_req       <= 1'b1;  
+            end else if (acc_vec_counter == (VLEN - 1)) begin
+                acc_vec_counter     <= 'b0;
+                continuous_load_fp_sram <= 1'b0;
+                fp_sram_req             <= 1'b0;
+            end else if (continuous_load_fp_sram) begin
+                acc_vec_counter <= acc_vec_counter + 1'b1;
+                fp_sram_addr    <= recorded_fp_sram_addr + acc_vec_counter;
+                fp_vector_buffer[acc_vec_counter - 1]   <= fp_ld_from_sram;
+                fp_sram_req                             <= 1'b1;
+            end else if (fp_vector_out_valid & fp_vector_out_ready) begin
+                fp_sram_stall_req <= 1'b0;
+                fp_vector_buffer <= 'b0;
+            end else begin
+                fp_sram_addr <= exe_stage_op.addr_1; 
+                fp_sram_req  <= (fp_control == LD_REG_FP) || (fp_control == ST_REG_FP);
+            end
+
+            fp_sram_wen <= (fp_control == ST_REG_FP);
+
+            // Loading fp reg data out.
+            if (exe_fp_control == LD_OUT_FP) begin
+                if (fp_rs2 == fp_wtarget) begin
+                    // Forwarding
+                    fp_out <= fp_reg_wdata;
+                end else begin
+                    fp_out <= fp_reg_2;
+                end
+            end else begin
+                fp_out <= 'b0;
+            end
         end
     end
 
     /*
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
-
     // Delay a clk due to fp_alu takes one clk to compute the result
-
     assign  fp_alu_valid = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
 
     always_comb begin
@@ -182,24 +239,6 @@ module scalar_machine import precision_pkg::*;  #(
         .rdata1     (fp_reg_1),
         .rdata2     (fp_reg_2)
     );
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            fp_out          <= 'b0;
-            fp_sram_addr    <= 'b0;
-        end else begin
-            if (exe_fp_control == LD_OUT_FP) begin
-                if (fp_rs2 == fp_wtarget) begin
-                    fp_out <= fp_reg_wdata;
-                end else begin
-                    fp_out <= fp_reg_2;
-                end
-            end else begin
-                fp_out <= 'b0;
-            end
-            fp_sram_addr <= exe_stage_op.addr_1; 
-        end
-    end
     
 
     // SRAM for FP
@@ -212,8 +251,8 @@ module scalar_machine import precision_pkg::*;  #(
     ) fp_scalar_sram (
         .clk            (clk),
         .rst            (rst),
-        .req            ((exe_fp_control == LD_REG_FP) || (exe_fp_control == ST_REG_FP)),
-        .write_en       ((exe_fp_control == ST_REG_FP)),
+        .req            (fp_sram_req),
+        .write_en       (fp_sram_wen),
         .sram_addr      (fp_sram_addr),
         .sram_data_in   (fp_reg_2),
         .sram_data_out  (fp_ld_from_sram)
@@ -290,6 +329,9 @@ module scalar_machine import precision_pkg::*;  #(
             end else if (exe_fixed_op == COMP_ADDR) begin
                 fixed_out_1                 <= computed_address;
                 fixed_out_2                 <= 'b0;
+            end else if (exe_fixed_op == COMP_ADDR_2) begin
+                fixed_out_1                 <= computed_address;
+                fixed_out_2                 <= fixed_reg_2;
             end else begin
                 fixed_out_1                 <= 'b0;
                 fixed_out_2                 <= 'b0;
@@ -298,21 +340,21 @@ module scalar_machine import precision_pkg::*;  #(
     end
 
     assign fixed_reg_addr_1 = rs1;
-    assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX)) ? rd : rs2;
+    assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX) || (assigned_fixed_op == MAP_V_FP)) ? rd : rs2;
 
 
     fixed_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH)
     ) fixed_alu (
-        .clk        (clk),
-        .rst        (rst),
-        .operand_a  (fixed_reg_1),
-        .operand_b  (fixed_reg_2),
-        .imm_value  ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
-        .operation  (exe_fixed_op),
-        .result_valid (fixed_alu_valid),
+        .clk            (clk),
+        .rst            (rst),
+        .operand_a      (fixed_reg_1),
+        .operand_b      (fixed_reg_2),
+        .imm_value      ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
+        .operation      (exe_fixed_op),
+        .result_valid   (fixed_alu_valid),
         .computed_address(computed_address),
-        .result     (fixed_alu_out)
+        .result         (fixed_alu_out)
     );
 
     regfile_2p1w #(
