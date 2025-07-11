@@ -42,6 +42,10 @@ C_SET_SCALE_REG x1, 0, 0;
 ;<------------------------------------------------ LOOP Tr Iteration 0 ------------------------------------------------>
 S_ADDI_FIX x1, x0, 0; 
 ;<--------------------------------  LOOP Tc Iteration 0 -------------------------------->
+; Setting O(i) to be zero
+; Setting m_curr(i) to be - inf
+
+
 S_ADDI_FIX x2, x0, 0;
 ;<---------------- LOOP Internal QKT (MLEN/BLEN) Iteration 0 ---------------->
 S_ADDI_FIX x3, x0, 0; 
@@ -70,6 +74,7 @@ H_PREFETCH_M_S x0, x4, x3;
 
 ;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->      
 S_LD_FIX x4, x0, 2;
+; Load MLEN
 S_ADDI_FIX x5, x0, 0;
 S_MUL_FIX x6, x5, x4;
 M_TMM_IC 0, x6, x6;
@@ -81,44 +86,103 @@ S_MUL_FIX x6, x5, x4;
 M_TMM_PS x3, x6, x6;
 M_MM_WO x0, 0, 0; 
 
+;<----------------LOOP Internal QKT (MLEN/BLEN) Iteration END---------------->
+
 ;<<<< -------Complete QKT operation------- >>>>
 S_ADDI_FIX x4, x0, 0;
-S_LD_FIX x7, x0, 2;
-S_LD_FIX x5, x0, 3;
+S_LD_FIX x5, x0, 2;
+; Load MLEN
+S_LD_FIX x1, x0, 3;
+; Load 2 * MLEN
+S_ADDI_FIX x6, x0, 0;
+; Counter for m_old
+S_ADDI_FIX x7, x5, 0;
+; Counter for m_res
 
-;<-------Reduction LOOP MLEN times rowmax(S) ------>
-V_RED_MAX x0, x5, x7;
-S_ADD_FIX  x4, x0, x5;
-S_ADD_FIX  x7, x0, x5;
+;<------- Online Softmax Loop BR ------>
+; fp (x1) stores m_curr
+; fp (x2) stores (exp(m_last - m_curr)) ^ -1
+; fp (x3) stores sum(vect)
+; fp (x4) stores l
+S_LD_FP    x1, x6, 0;
+S_MV_FP    x2, x1, 0; 
+V_RED_MAX  x1, x4, 0;
+S_SUB_FP   x2, x2, x1;
+S_EXP_FP   x2, x2, 0;
+S_ST_FP    x1, x6, 0;
+V_SUB_VF   x4, x4, x1;
+S_ADD_FIX  x4, x4, x5;
+S_ADD_FIX x6, x6, 1;
+S_ADD_FIX x7, x7, 1;
+V_EXP_V   x4, x4, 0;
+S_LD_FP    x4, x1, 0;
+V_RED_SUM  x3, x4, 0;
+S_MUL_FP   x4, x4, x2;
+S_ADD_FP   x4, x3, x4;
+S_RECI_FP  x2, x2, 0;
+S_ST_FP    x2, x7, 1;
+S_ST_FP    x4, x1, 0;
+; Store L
 
-;<-------Reduction LOOP END ------>
-V_RED_MAX x0, x5, x7;
-S_ST_FP   x0, x7, x4; 
-S_ADD_FIX  x4, x0, x5;
-S_ADD_FIX  x7, x0, x5;
+;<------- Online Softmax Loop MLEN END ------>
+;<<<< -------Complete Online Softmax------- >>>>
 
-; Compute online softmax
-S_ADDI_FIX x7, x0, 0;
-S_ADDI_FIX x3, x0, 1;
-S_ADDI_FIX x4, x0, 1;
-S_ADDI_FIX x5, x4, 1;
-S_ADDI_FIX x6, x5, 1;
-S_ADDI_FIX x8, x6, 1;
+; Multiplying with V
+; compute sequence address of V      
+S_ADDI_FIX  x2, x0, 0;                      x2 = 0
+S_ADDI_FIX  x3, x0, 0;                      x3 = 0 Address pointer to P in VECTOR SRAM
+S_ADDI_FIX  x4, x0, 0;                      x4 = 0 Accumulate pointer in matrix unit.
+S_ADDI_FIX  x6, x0, 0;                      x6 = 0 Address pointer to V in MATRIX SRAM
+S_LD_FIX    x5, x0, 11;                     x5 = BLEN * MLEN
+S_LD_FIX    x1, x0, 10;                     x1 = MLEN * MLEN; PV result offset in Vector SRAM, address pointer to the result.
+H_PREFETCH_M_S x0, x7, x4;
+;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) Outer LOOP  Head_dim / BLEN ------>
 
-;<------- LOOP Br ------>  
-S_MAX_FP x0, x0, x4;       
-S_SUB_FP x5, x4, x5;        
-V_SUB_VF x4, x3, x3;           
-V_EXP_V  0, x3, x3;         
-V_RED_SUM x0, x3, x6;
-S_EXP_FP 0, x5, x5;      
-S_LD_FP l, x7, x8;    
-S_MUL_FP x8, x5, x8;        
-S_ADD_FP x8, x6, x8; 
-S_ST_FP m_last, x7, x4; 
-S_ST_FP l, x7, x8;  
-S_ST_FP o_scale, x7, x5;   
-S_ADDI_FIX x3, x3, Bc;              
-S_ADDI_FIX x7, x7, 1;     
+;<------- PV (MLEN, MLEN) @ (MLEN, BLEN) Inner LOOP  MLEN / BLEN ------>
+M_MM_PS     x4, x6, x3;
+S_ADDI_FIX  x4, x4, 1;
+S_ADD_FIX   x3, x3, x5;
 
-;<------- LOOP Br END ------>
+;<------- PV (MLEN, MLEN) @ (MLEN, BLEN) End of Inner LOOP  MLEN / BLEN ------>
+M_MM_WO         x1, 0, 0;
+S_ADD_FIX       x1, x1, x5;
+S_ADDI_FIX      x3, x0, 0;             ; Reset x3 to 0, use it as an incremental pointer across MLEN/BLEN;
+S_ADDI_FIX      x4, x0, 0;             ; Reset x4 to 0, use it as an accumulated pointer across MLEN/BLEN;
+S_ADD_FIX       x6, x6, x5;
+
+;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) End of Outer LOOP  Head_dim / BLEN ------>
+
+;<<<< -------Complete PV------- >>>>
+S_LD_FIX        x3, x0, 2; 
+S_MAP_V_FP      x0, x3, 0;        Store at 0 to replace P.
+S_LD_FIX        x1, x0, 12;       x1 = MLEN * MLEN + Head_DIM * MLEN; Offset for O.      
+S_LD_FIX        x2, x0, 10;       x1 = MLEN * MLEN; PV result offset in Vector SRAM, address pointer to the result.
+
+;<------- O = diag() + PV LOOP over hidden------>
+V_MUL_VV        x1, x1, x0;        x4 = diag-1 * O
+V_ADD_VV        x1, x1, x2;        x4 = diag-1 * O + PV
+
+S_ADD_FIX       x1, x1, x3;
+S_ADD_FIX       x2, x2, x3;       
+
+;<------- O = diag() + PV LOOP over hidden END ------>
+;<--------------------------------  End of LOOP Tc Iteration 0 -------------------------------->
+
+S_LD_FIX        x1, x0, 3;
+;<----------- Loop MLEN, l^(-1)------------->
+S_LD_FP         x1, x1, 0;          Load l_old to x1
+S_RECI_FP       x1, x1, 0;
+S_ST_FP         x1, x1, 0;
+S_ADDI_FIX      x1, x1, 1;
+;<----------- Loop MLEN, l^(-1) END---------->
+
+S_LD_FIX        x1, x0, 3;          x1 = 2*MLEN, l_old 
+S_MAP_V_FP      x0, x1, 0;          Store at 0 to replace m.
+;<----------- Loop Hidden, diag O ------------->
+S_LD_FIX        x1, x0, 2;          
+S_LD_FIX        x2, x0, 12;          x1 = MLEN * MLEN + Head_DIM * MLEN; Offset for O.
+V_MUL_VV        x2, x2, x0;          x4 = diag-1 * O
+S_ADD_FIX       x2, x2, x1;          x4 = diag-
+;<----------- STORE to HBM ---------->
+
+
