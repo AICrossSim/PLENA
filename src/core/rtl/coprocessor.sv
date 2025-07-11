@@ -56,6 +56,7 @@ module coprocessor import configuration_pkg::*; #(
     logic stall_req_from_fp;
     logic v_in_prep, m_in_prep, m_empty_in_progress;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
+    logic v_sram_reset_in_progress;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -181,6 +182,7 @@ module coprocessor import configuration_pkg::*; #(
         .m_load_in_process              (m_in_prep),
         .m_empty_in_progress            (m_empty_in_progress),
         .v_load_in_process              (v_in_prep),
+        .v_sram_reset_in_progress       (v_sram_reset_in_progress),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
         .mem_write_control              (mem_write_control)
@@ -366,19 +368,20 @@ module coprocessor import configuration_pkg::*; #(
 
     // Vector SRAM
     fp_vector_sram #(
-        .HIGH_MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
-        .HIGH_MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
-        .LOW_MXFP_EXP_WIDTH      (LOW_MXFP_EXP_WIDTH),
-        .LOW_MXFP_MANT_WIDTH     (LOW_MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
-        .EXP_WIDTH          (V_FP_EXP_WIDTH),
-        .MANT_WIDTH         (V_FP_MANT_WIDTH),
-        .VLEN               (VLEN),
-        .MLEN               (MLEN),
-        .BLOCK_DIM          (BLOCK_DIM),
-        .SRAM_DEPTH         (VECTOR_SRAM_DEPTH),
-        .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
-        .PREFETCH_AMOUNT    (HBM_V_Prefetch_Amount)
+        .HIGH_MXFP_EXP_WIDTH    (HIGH_MXFP_EXP_WIDTH),
+        .HIGH_MXFP_MANT_WIDTH   (HIGH_MXFP_MANT_WIDTH),
+        .LOW_MXFP_EXP_WIDTH     (LOW_MXFP_EXP_WIDTH),
+        .LOW_MXFP_MANT_WIDTH    (LOW_MXFP_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
+        .EXP_WIDTH              (V_FP_EXP_WIDTH),
+        .MANT_WIDTH             (V_FP_MANT_WIDTH),
+        .VLEN                   (VLEN),
+        .MLEN                   (MLEN),
+        .BLOCK_DIM              (BLOCK_DIM),
+        .SRAM_DEPTH             (VECTOR_SRAM_DEPTH),
+        .ON_CHIP_ADDR_WIDTH     (ON_CHIP_ADDR_WIDTH),
+        .PREFETCH_AMOUNT        (HBM_V_Prefetch_Amount),
+        .VECTOR_RESET_AMOUNT    (VECTOR_RESET_AMOUNT)
         `ifdef SIMULATION
             ,
             .MEM_RESULT_FILE    (V_SRAM_RESULT_FILE)
@@ -387,6 +390,7 @@ module coprocessor import configuration_pkg::*; #(
         .clk(clk),
         .rst(rst),
         .select_write_data_a(select_write_data_a),
+        .region_reset_a     (exe_stage_op.v_ele_op == RESET_V),
         .port_a_req         (v_sram_req_a),
         .port_a_write_en    (v_sram_wen_a),
         .port_a_addr        (v_sram_addr_a),

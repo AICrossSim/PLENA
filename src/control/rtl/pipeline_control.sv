@@ -47,7 +47,7 @@ module pipeline_control #(
     input       logic           m_load_in_process,
     input       logic           m_empty_in_progress,
     input       logic           v_load_in_process,
-    input       logic           m_complete_acc_writeback,
+    input       logic           v_sram_reset_in_progress,
 
     // Current control operation
     output      logic           pipeline_stall_req,
@@ -98,10 +98,10 @@ module pipeline_control #(
         end else if ((v_load_in_process) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
             // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
             pipeline_stall   = 1'b1;            
-        end else if (mem_write_req.wreq_s_sram_port_a & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
+        end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_a) & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
             // Condition 4: Trying to access the vector sram port A while it is being written to.
             pipeline_stall   = 1'b1;            
-        end else if (mem_write_req.wreq_s_sram_port_b & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
+        end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_b) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
             // Condition 5: Trying to access the vector sram port B while it is being written to.
             pipeline_stall   = 1'b1;            
         end else if (fp_stall_req & (determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP)) begin

@@ -33,7 +33,8 @@ module fp_vector_sram #(
     // SRAM
     parameter   SRAM_DEPTH              = 128,
     parameter   ON_CHIP_ADDR_WIDTH      = 32,
-    parameter   PREFETCH_AMOUNT         = 4
+    parameter   PREFETCH_AMOUNT         = 4,
+    parameter   VECTOR_RESET_AMOUNT     = 8
     // For Debugging
     `ifdef SIMULATION
         ,parameter string MEM_RESULT_FILE = ""
@@ -48,6 +49,8 @@ module fp_vector_sram #(
     input   logic port_a_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_a_addr,
     input   logic select_write_data_a, // 0 for Vector Machine, 1 for Matrix Machine, 2 for Scalar Machine
+    input   logic region_reset_a,
+    input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] reset_addr_a,
     // FP Data Connection
     input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_in,
     input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_m_fp_in,
@@ -82,6 +85,7 @@ module fp_vector_sram #(
     // Status Tracking for Prefetch
     input   logic prefetch_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] prefetch_addr,
+    output  logic reset_in_progress,
     output  logic data_not_ready
 );
 
@@ -98,21 +102,24 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_in_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_in_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_out_internal;
-    localparam int REPL_COUNT = (VLEN - MLEN) * (EXP_WIDTH + MANT_WIDTH + 1);
-    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]    converted_b_fp_in;
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_fp_in;
+    logic [INTERNAL_ADDR_LEN - 1 : 0] reset_counter;
+    logic port_a_write_en_internal;
     
     // -----------------------------
     // Prefetch Tag Tracking
     // -----------------------------
 
     // Tag Matching, trackinng the prefetch status.
-    logic [INTERNAL_ADDR_LEN - 1 : 0]     translated_port_b_addr, translated_port_a_addr, translated_prefetch_addr;
+    logic [INTERNAL_ADDR_LEN - 1 : 0]     translated_port_b_addr, translated_port_a_addr, translated_port_a_reset_addr, translated_prefetch_addr, translated_port_a_addr_internal;
+    logic [INTERNAL_ADDR_LEN - 1 : 0]     recorded_translated_port_a_reset_addr;
     logic [SRAM_DEPTH - 1 : 0]            mem_data_tag;
     
-    localparam BITWIDTH_PER_ROW =  (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) * VLEN / 8;
-    assign translated_port_a_addr = port_a_addr >> $clog2(BITWIDTH_PER_ROW);
-    assign translated_port_b_addr = port_b_addr >> $clog2(BITWIDTH_PER_ROW);
-    assign translated_prefetch_addr = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
+    localparam BITWIDTH_PER_ROW         = (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) * VLEN / 8;
+    assign translated_port_a_addr       = port_a_addr >> $clog2(BITWIDTH_PER_ROW);
+    assign translated_port_b_addr       = port_b_addr >> $clog2(BITWIDTH_PER_ROW);
+    assign translated_port_a_reset_addr = reset_addr_a >> $clog2(BITWIDTH_PER_ROW);
+    assign translated_prefetch_addr     = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -134,6 +141,7 @@ module fp_vector_sram #(
                                (port_a_req & !(&mem_data_tag[translated_port_a_addr +: VLEN]));
         end
     end
+
     // -----------------------------
     // Port A Management
     // -----------------------------
@@ -141,19 +149,23 @@ module fp_vector_sram #(
     always_comb begin
         if (select_write_data_a == 1'b0) begin
             // Vector Machine Mode, output as FP Data
-            port_a_fp_in_internal   = port_a_v_fp_in;
-            port_a_v_fp_out         = port_a_fp_out_internal;
+            port_a_fp_in_internal       = port_a_v_fp_in;
+            port_a_v_fp_out             = port_a_fp_out_internal;
+            port_a_write_en_internal    = port_a_write_en;
+            translated_port_a_addr_internal        = translated_port_a_addr;
+        end else if (reset_in_progress) begin
+            // Vector Machine Mode, output as FP Data
+            port_a_fp_in_internal       = '0;
+            port_a_v_fp_out             = '0;
+            port_a_write_en_internal    = 1'b1;
+            translated_port_a_addr_internal        = recorded_translated_port_a_reset_addr + reset_counter;
         end else begin
             // Matrix Machine Mode, output as MX-FP Data
-            port_a_fp_in_internal   = port_a_m_fp_in;
-            port_a_v_fp_out         = '0;
+            port_a_fp_in_internal       = port_a_m_fp_in;
+            port_a_v_fp_out             = '0;
+            port_a_write_en_internal    = port_a_write_en;
+            translated_port_a_addr_internal        = translated_port_a_addr;
         end 
-        
-        if (select_write_data_b == 1'b0) begin
-            port_b_fp_in_internal   = converted_b_fp_in;
-        end else begin
-            port_b_fp_in_internal   = port_b_fp_in;
-        end
     end
 
     // Convert FP Data to MX-FP Data for HBM write
@@ -163,14 +175,29 @@ module fp_vector_sram #(
     logic port_a_mxfp_out_valid;
     logic mxfp_fp_convert_port_a_ready;
     
-
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             mxfp_fp_convert_port_a_in_valid <= '0;
-            mxfp_fp_convert_port_a_ready <= 1'b0;
+            mxfp_fp_convert_port_a_ready    <= 1'b0;
+            reset_in_progress               <= 1'b0;    
+            reset_counter                   <= '0;
+            recorded_translated_port_a_reset_addr <= '0;
         end else begin
             mxfp_fp_convert_port_a_in_valid <= (select_write_data_a == 1'b0 && port_a_req) ? {V_BLOCK_NUM{1'b1}} : '0;
             mxfp_fp_convert_port_a_ready <= 1'b1;
+            if (region_reset_a) begin
+                reset_in_progress   <= 1'b1;
+                reset_counter       <= '0;
+                recorded_translated_port_a_reset_addr <= translated_port_a_reset_addr;
+            end else if (reset_counter == VECTOR_RESET_AMOUNT - 1) begin
+                reset_in_progress   <= 1'b0;
+                reset_counter       <= '0;
+                recorded_translated_port_a_reset_addr <= '0;
+            end else if (reset_in_progress) begin
+                reset_counter <= reset_counter + 'b1;
+            end else begin
+                reset_counter <= '0;
+            end
         end
     end
 
@@ -210,6 +237,15 @@ module fp_vector_sram #(
     // -----------------------------
     logic   mxfp_fp_convert_port_b_ready;
     assign  port_b_fp_out = port_b_fp_out_internal;
+
+    always_comb begin
+        if (select_write_data_b == 1'b0) begin
+            port_b_fp_in_internal   = converted_b_fp_in;
+        end else begin
+            port_b_fp_in_internal   = port_b_fp_in;
+        end
+    end
+
 
     // Convert MX-FP Data to FP Data for HBM Prefetch
 
@@ -328,7 +364,7 @@ module fp_vector_sram #(
 
         .a_req_i        (port_a_req),
         .a_write_i      (port_a_write_en),
-        .a_addr_i       (translated_port_a_addr),
+        .a_addr_i       (translated_port_a_addr_internal),
         .a_wdata_i      (port_a_fp_in_internal),
         .a_wmask_i      (port_a_mask_in),
         .a_rdata_o      (port_a_fp_out_internal),
