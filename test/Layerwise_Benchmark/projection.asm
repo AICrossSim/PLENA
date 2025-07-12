@@ -1,5 +1,5 @@
-S_LUI_FIX x1, 0;
-S_LUI_FIX x2, 0;
+S_LUI_FIX x1, x0, 0;
+S_LUI_FIX x2, x0, 0;
 
 C_SET_ADDR_REG x1, x1, x2;
 

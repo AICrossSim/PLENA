@@ -33,28 +33,25 @@ logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
-testcase_name       = "fixed"
+testcase_name       = "vect_fp"
 # instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
-instr_file          = f"{current_path.parent.parent.parent}/test/Instr_Level_Benchmark/{testcase_name}.mem"
-hbm_element_file    = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
-hbm_scale_file      = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
-hbm_write_element_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_ele.mem"
-hbm_write_element_v_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_ele.mem"
-hbm_write_scale_m_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_scale.mem"
-hbm_write_scale_v_file = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_scale.mem"
-vector_mem_result_file = f"{current_path.parent.parent.parent}/test/result_mem/vector_result.mem"
-fp_mem_file         = f"{current_path.parent.parent.parent}/test/load_mem/fp.mem"
-fixed_mem_file      = f"{current_path.parent.parent.parent}/test/load_mem/fixed.mem"
-addr_mapper_file = f"{current_path.parent.parent.parent}/test/load_mem/hbm_addr_mapper.mem"
-INSTRUCTION_LENGTH = 16
+instr_file                  = f"{current_path.parent.parent.parent}/test/Instr_Level_Benchmark/{testcase_name}.mem"
+hbm_element_file            = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
+hbm_scale_file              = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
+hbm_write_element_m_file    = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_ele.mem"
+hbm_write_element_v_file    = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_ele.mem"
+hbm_write_scale_m_file      = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_scale.mem"
+hbm_write_scale_v_file      = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_scale.mem"
+vector_mem_result_file      = f"{current_path.parent.parent.parent}/test/result_mem/vector_result.mem"
+fp_mem_file                 = f"{current_path.parent.parent.parent}/test/load_mem/fp.mem"
+fixed_mem_file              = f"{current_path.parent.parent.parent}/test/load_mem/fixed.mem"
+addr_mapper_file            = f"{current_path.parent.parent.parent}/test/load_mem/hbm_addr_mapper.mem"
 
+INSTRUCTION_LENGTH = 16
 fp_exp = 7
 fp_mant = 8
 mlen = 8
 fp_gen = FpGenerator(fp_exp, fp_mant)
-
-
-
 
 class SimTOP(Testbench):
     def __init__(self, dut, element_file, scale_file, instr_file) -> None:

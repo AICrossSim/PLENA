@@ -78,8 +78,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
     output      logic [VLEN-1:0]                    v_sram_mask_b,
     output      logic select_write_data_b,
-
     input       logic v_prefetch_data_not_ready,
+    output      logic continuous_write_to_v_sram_port_b,
 
     // Interface with HBM
     input       logic prefetch_m_valid,
@@ -300,6 +300,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic end_of_load_v_for_matrix;
     logic p1_vport_a_load_valid, p2_vport_a_load_valid;
     
+    assign continuous_write_to_v_sram_port_b = continuous_v_prefetch_en;
     always_comb begin
         // Port A Addr Mangement
          if (continuous_load_v_for_matrix_en) begin
@@ -420,7 +421,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                         end
                     end 
                 end
-            end else if ((exe_stage_op.v_ele_op != STALL_V_ELEMENT) & (exe_stage_op.v_ele_op != RESET_V)) begin
+            end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) & (exe_stage_op.v_ele_op != RESET_V)) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // TODO: Need to introduce v_prefetch_data_not_ready for vector machine, for safe data fetching.
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b1;

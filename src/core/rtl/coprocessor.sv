@@ -57,6 +57,7 @@ module coprocessor import configuration_pkg::*; #(
     logic v_in_prep, m_in_prep, m_empty_in_progress;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
     logic v_sram_reset_in_progress;
+    logic continuous_write_to_v_sram_port_b;
 
     // Memory Control Signals Declaration
     MEM_WREQ_INFO mem_write_req;
@@ -176,6 +177,7 @@ module coprocessor import configuration_pkg::*; #(
         .v_sram_addr_b                  (v_sram_addr_b),
         .hbm_m_prefetch_in_progress     (hbm_m_prefetch_in_progress),
         .hbm_v_prefetch_in_progress     (hbm_v_prefetch_in_progress),
+        .continuous_write_to_v_sram     (continuous_write_to_v_sram_port_b),
         .mem_write_req                  (mem_write_req),
         .hbm_in_used                    (hbm_in_used),
         .fp_stall_req                   (stall_req_from_fp),
@@ -236,6 +238,7 @@ module coprocessor import configuration_pkg::*; #(
         .v_sram_mask_b              (v_sram_mask_b),
         .select_write_data_b        (select_write_data_b),
         .v_prefetch_data_not_ready  (v_prefetch_data_not_ready),
+        .continuous_write_to_v_sram_port_b (continuous_write_to_v_sram_port_b),
         .prefetch_m_valid           (hbm_m_prefetch_valid),
         .prefetch_v_valid           (hbm_v_prefetch_valid),
         .hbm_ready_to_write         (hbm_ready_to_write),

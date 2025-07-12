@@ -176,7 +176,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             end else if (recorded_element_v_control == LD_V_ELEMENT & recorded_broadcast_en & v_port_b_valid) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
-            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
+            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & s_acc_in_valid) begin
                 complete_element_prepare    = 1'b0;
                 complete_reduct_prepare     = 1'b1;
             end else begin
@@ -360,7 +360,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     //----------------------------//
 
     join_n #(
-        .NUM_HANDSHAKES (3)
+        .NUM_HANDSHAKES (2)
     ) join_reduction (
         .data_in_valid({red_v_in_a_valid, s_acc_in_valid}),
         .data_in_ready({red_v_in_a_ready, s_acc_in_ready}),
