@@ -53,7 +53,7 @@ module coprocessor import configuration_pkg::*; #(
 
     // Status Tracking
     logic hbm_in_used;
-    logic stall_req_from_fp;
+    logic stall_req_from_fp, fp_sram_stall_req, received_v_reduct_result;
     logic v_in_prep, m_in_prep, m_empty_in_progress;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
     logic v_sram_reset_in_progress;
@@ -181,10 +181,12 @@ module coprocessor import configuration_pkg::*; #(
         .mem_write_req                  (mem_write_req),
         .hbm_in_used                    (hbm_in_used),
         .fp_stall_req                   (stall_req_from_fp),
+        .fp_sram_stall_req              (fp_sram_stall_req),
         .m_load_in_process              (m_in_prep),
         .m_empty_in_progress            (m_empty_in_progress),
         .v_load_in_process              (v_in_prep),
         .v_sram_reset_in_progress       (v_sram_reset_in_progress),
+        .s_received_v_reduct_result     (received_v_reduct_result),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
         .mem_write_control              (mem_write_control)
@@ -332,7 +334,9 @@ module coprocessor import configuration_pkg::*; #(
             .fp_vector_out_ready    (s_map_v_ready),
             .fp_vector_out_valid    (s_map_v_valid),
             .fp_out                 (fp_s_in),
-            .fp_stall_req           (stall_req_from_fp)
+            .received_v_reduct_result (received_v_reduct_result),
+            .fp_stall_req           (stall_req_from_fp),
+            .fp_sram_stall_req      (fp_sram_stall_req)
         );
     endgenerate
 
@@ -392,27 +396,27 @@ module coprocessor import configuration_pkg::*; #(
     ) vector_sram (
         .clk(clk),
         .rst(rst),
-        .select_write_data_a(select_write_data_a),
-        .region_reset_a     (exe_stage_op.v_ele_op == RESET_V),
-        .port_a_req         (v_sram_req_a),
-        .port_a_write_en    (v_sram_wen_a),
-        .port_a_addr        (v_sram_addr_a),
-        .port_a_m_fp_in     (m_out_v_fp),
-        .port_a_v_fp_in     (v_out_fp),
-        .port_a_mask_in     (v_sram_mask_a),
-        .port_a_v_fp_out    (v_port_a_out_fp),
-        .port_a_element_out (v_element_port_a_out),
-        .port_a_scale_out   (v_scale_port_a_out),
-        .port_b_req         (v_sram_req_b),
-        .port_b_write_en    (v_sram_wen_b),
-        .port_b_addr        (v_sram_addr_b),
-        .select_write_data_b(select_write_data_b),
-        .port_b_fp_in       (fp_s_vector_out),
-        .port_b_fp_out      (v_port_b_out_fp),
-        .port_b_mask_in     (v_sram_mask_b),
-        .port_b_element_in  (v_element_port_b_in),
-        .port_b_scale_in    (v_scale_port_b_in),
-        .port_b_mxfp_req    (v_sram_mxfp_req_b),
+        .select_write_data_a            (select_write_data_a),
+        .region_reset_a                 (exe_stage_op.v_ele_op == RESET_V),
+        .port_a_req                     (v_sram_req_a),
+        .port_a_write_en                (v_sram_wen_a),
+        .port_a_addr                    (v_sram_addr_a),
+        .port_a_m_fp_in                 (m_out_v_fp),
+        .port_a_v_fp_in                 (v_out_fp),
+        .port_a_mask_in                 (v_sram_mask_a),
+        .port_a_v_fp_out                (v_port_a_out_fp),
+        .port_a_element_out             (v_element_port_a_out),
+        .port_a_scale_out               (v_scale_port_a_out),
+        .port_b_req                     (v_sram_req_b),
+        .port_b_write_en                (v_sram_wen_b),
+        .port_b_addr                    (v_sram_addr_b),
+        .select_write_data_b            (select_write_data_b),
+        .port_b_fp_in                   (fp_s_vector_out),
+        .port_b_fp_out                  (v_port_b_out_fp),
+        .port_b_mask_in                 (v_sram_mask_b),
+        .port_b_element_in              (v_element_port_b_in),
+        .port_b_scale_in                (v_scale_port_b_in),
+        .port_b_mxfp_req                (v_sram_mxfp_req_b),
         .port_b_mxfp_high_out_valid     (v_port_b_high_out_valid),
         .port_b_high_element_out        (v_high_element_port_b_out),
         .port_b_high_scale_out          (v_high_scale_port_b_out),

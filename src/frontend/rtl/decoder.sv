@@ -500,6 +500,8 @@ always_ff @(posedge clk) begin
                 imm             <= {IMM_WIDTH{1'b0}};
             end
         endcase
+    end else begin
+        assigned_fixed_op <= STALL_S_FIXED;
     end 
 end
 

@@ -7,7 +7,7 @@ S_ADDI_FIX x4, x0, 4;
 S_MUL_FIX x5, x3, x4;
 H_PREFETCH_V_C x1, x5, x1;
 S_ADDI_FIX x1, x0, 0;
-S_LUI_FIX x2, x0, 2;
+S_LD_FIX x2, x0, 2;
 S_ADDI_FIX x3, x0, 0;
 //////
 V_RED_SUM x1, x1, 0;

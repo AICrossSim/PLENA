@@ -49,6 +49,7 @@ module pipeline_control #(
     input       logic           m_empty_in_progress,
     input       logic           v_load_in_process,
     input       logic           v_sram_reset_in_progress,
+    input       logic           s_received_v_reduct_result,
 
     // Current control operation
     output      logic           pipeline_stall_req,
@@ -80,45 +81,49 @@ module pipeline_control #(
     };
 
     import pipeline_pkg::*;
-    logic pipeline_stall;
-    logic stall_for_prefetch;
-    logic           mem_vwrite_stall_req;
-    logic stall_in_process, recover_from_stall, start_of_stall;
+    logic   pipeline_stall;
+    logic   stall_for_prefetch;
+    logic   mem_vwrite_stall_req;
+    logic   stall_in_process, recover_from_stall, start_of_stall;
+    logic   vector_reduct_in_process, tracking_vector_reduct_in_process;
     
     // Decision for pipeline stall
     always_comb begin
         if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_C)) begin
             // Condition 0: When prefetching instruction is in processed, another prefetching instruction is not allowed.
-            pipeline_stall   = 1'b1;            
+            pipeline_stall  = 1'b1;            
         end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_C)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
-            pipeline_stall   = 1'b1;            
+            pipeline_stall  = 1'b1;            
         end else if ((m_load_in_process || m_empty_in_progress) & (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO)) begin
             // Condition 2: When prefetching instruction is in processed or matrix at the loading stage / writing back, another matrix-related instruction is not allowed.
-            pipeline_stall   = 1'b1;            
+            pipeline_stall  = 1'b1;            
         end else if ((v_load_in_process || hbm_v_prefetch_in_progress || continuous_write_to_v_sram) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
             // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
-            pipeline_stall   = 1'b1;            
+            pipeline_stall  = 1'b1;            
         end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_a) & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
             // Condition 4: Trying to access the vector sram port A while it is being written to.
-            pipeline_stall   = 1'b1;            
+            pipeline_stall  = 1'b1;            
         end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_b) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
             // Condition 5: Trying to access the vector sram port B while it is being written to.
-            pipeline_stall   = 1'b1;            
+            pipeline_stall  = 1'b1;            
         end else if (fp_stall_req & ((determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP))) begin
             // Condition 6: SFU is in use, but the current operation is a another special floating point operation.
-            pipeline_stall = 1'b1;
+            pipeline_stall  = 1'b1;
         end else if (fp_sram_stall_req & ((determine_stage_op.s_fp_op == LD_REG_FP) || (determine_stage_op.s_fp_op == ST_REG_FP) || (determine_stage_op.s_fp_op == MAP_V_FP)))
             // Condition 7: FP SRAM is in continuously load for MAP_V_FP. Hence the current operation cannot access the FP SRAM.
-            pipeline_stall = 1'b1;
-        else if (fixed_stall_req) begin
-            // Condition 8: SFU is in use, but the current operation is a another special floating point operation.
-            pipeline_stall = 1'b1;
+            pipeline_stall  = 1'b1;
+        else if (vector_reduct_in_process & (determine_stage_op.s_fp_op != STALL_S_FP)) begin
+            // Condition 8: Temporary solution for the checking dependecy among vector reduction operation and the scalar fp operation.
+            pipeline_stall  = 1'b1;
+        end else if (fixed_stall_req) begin
+            // Condition 9: FIX Request
+            pipeline_stall  = 1'b1;
         end else if (mem_vwrite_stall_req) begin
             // Unconditionally stall the overall pipeline due to the request from the memory monitor.
-            pipeline_stall   = 1'b1;                
+            pipeline_stall  = 1'b1;                
         end else begin
-            pipeline_stall   = 1'b0;
+            pipeline_stall  = 1'b0;
         end
     end
 
@@ -165,6 +170,7 @@ module pipeline_control #(
 
     assign recover_from_stall = (!pipeline_stall) && stall_in_process;
     assign start_of_stall = pipeline_stall && !stall_in_process;
+    assign vector_reduct_in_process = tracking_vector_reduct_in_process || (exe_stage_op.v_reduct_op != STALL_V_REDUCT);
 
 
     always_ff @(posedge clk) begin
@@ -176,8 +182,15 @@ module pipeline_control #(
                 w_from_m            : 1'b0
             };
             stall_in_process            <= 1'b0;
+            tracking_vector_reduct_in_process    <= 1'b0;
 
         end else begin
+            // TODO: temporary solution for the checking dependecy among vector reduction operation and the scalar fp operation.
+            if (exe_stage_op.v_reduct_op != STALL_V_REDUCT) begin
+                tracking_vector_reduct_in_process <= 1'b1;
+            end else if (s_received_v_reduct_result) begin
+                tracking_vector_reduct_in_process <= 1'b0;
+            end
             
             mem_write_control <= '{
                 w_m_sram_en           : mem_write_req.wreq_m_sram,

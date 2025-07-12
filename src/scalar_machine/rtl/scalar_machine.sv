@@ -47,6 +47,7 @@ module scalar_machine import precision_pkg::*;  #(
     output  logic fp_vector_out_valid,
 
     // Stall Detection
+    output  logic received_v_reduct_result,
     output  logic fp_stall_req,
     output  logic fp_sram_stall_req
 );
@@ -65,6 +66,7 @@ module scalar_machine import precision_pkg::*;  #(
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs1;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rs2;
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_rd, p1_fp_rd;
+    logic [FP_OPERAND_WIDTH - 1 : 0] fp_reg_addr_1, fp_reg_addr_2;
     logic fp_reg_we;
     logic general_fp_operation;
     logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] fp_reg_1, fp_reg_2, fp_alu_out, fp_sfu_out, fp_reg_wdata, fp_ld_from_sram;
@@ -138,7 +140,7 @@ module scalar_machine import precision_pkg::*;  #(
                 fp_sram_stall_req <= 1'b0;
                 fp_vector_buffer <= 'b0;
             end else begin
-                fp_sram_addr <= exe_stage_op.addr_1; 
+                fp_sram_addr <= exe_stage_op.addr_1[FP_SRAM_ADDR_WIDTH - 1 : 0];
                 fp_sram_req  <= (fp_control == LD_REG_FP) || (fp_control == ST_REG_FP);
             end
 
@@ -146,7 +148,7 @@ module scalar_machine import precision_pkg::*;  #(
 
             // Loading fp reg data out.
             if (exe_fp_control == LD_OUT_FP) begin
-                if (fp_rs2 == fp_wtarget) begin
+                if (fp_reg_addr_2 == fp_wtarget) begin
                     // Forwarding
                     fp_out <= fp_reg_wdata;
                 end else begin
@@ -199,6 +201,9 @@ module scalar_machine import precision_pkg::*;  #(
     assign fp_rs1 = exe_stage_op.fps1;
     assign fp_rs2 = exe_stage_op.fps2;
     assign fp_rd  = exe_stage_op.fpd;
+    assign fp_reg_addr_1 = (fp_control == ST_REG_FP) ? fp_rd : fp_rs1;
+    assign fp_reg_addr_2 = fp_rs2;
+    assign received_v_reduct_result = external_fp_in_ready;
 
     fp_alu #(
         .EXP_WIDTH(S_FP_EXP_WIDTH),
@@ -234,8 +239,8 @@ module scalar_machine import precision_pkg::*;  #(
         .we         (fp_reg_we),
         .waddr      (fp_wtarget),
         .wdata      (fp_reg_wdata),
-        .raddr1     (fp_rs1),
-        .raddr2     (fp_rs2),
+        .raddr1     (fp_reg_addr_1),
+        .raddr2     (fp_reg_addr_2),
         .rdata1     (fp_reg_1),
         .rdata2     (fp_reg_2)
     );
@@ -254,7 +259,7 @@ module scalar_machine import precision_pkg::*;  #(
         .req            (fp_sram_req),
         .write_en       (fp_sram_wen),
         .sram_addr      (fp_sram_addr),
-        .sram_data_in   (fp_reg_2),
+        .sram_data_in   (fp_reg_1),
         .sram_data_out  (fp_ld_from_sram)
     );
 
@@ -384,7 +389,7 @@ module scalar_machine import precision_pkg::*;  #(
         .req            ((exe_fixed_op == LD_FIX) || (exe_fixed_op == ST_FIX)),
         .write_en       ((exe_fixed_op == ST_FIX)),
         .sram_addr      (computed_address[FIXED_SRAM_ADDR_WIDTH - 1 : 0]),
-        .sram_data_in   (fixed_alu_operand_b),
+        .sram_data_in   (fixed_loaded_reg_2),
         .sram_data_out  (fixed_ld_from_sram)
     );
 
