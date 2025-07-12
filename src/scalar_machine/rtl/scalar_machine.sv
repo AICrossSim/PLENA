@@ -73,7 +73,7 @@ module scalar_machine import precision_pkg::*;  #(
     logic [FP_OPERAND_WIDTH - 1 : 0] recorded_fp_waddr_sfu, recorded_fp_waddr_alu, recorded_fp_waddr_sram;
     logic sfu_out_valid, sfu_out_ready;
     logic load_fp_sram_valid, fp_sram_req, fp_sram_wen;
-    logic [VLEN_COUNTER_WIDTH - 1 : 0] acc_vec_counter;
+    logic [VLEN_COUNTER_WIDTH : 0] acc_vec_counter;
     logic continuous_load_fp_sram;
     logic write_data_from_external_fp;
     logic fp_alu_valid;
@@ -87,7 +87,6 @@ module scalar_machine import precision_pkg::*;  #(
     logic [FP_OPERAND_WIDTH - 1 : 0] fp_wtarget;
 
     assign fp_vector_out = fp_vector_buffer;
-
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -126,19 +125,23 @@ module scalar_machine import precision_pkg::*;  #(
                 fp_sram_addr            <= exe_stage_op.addr_1[FP_SRAM_ADDR_WIDTH - 1 : 0];
                 acc_vec_counter         <= 'b1;
                 fp_sram_req             <= 1'b1;
-                fp_sram_stall_req       <= 1'b1;  
-            end else if (acc_vec_counter == (VLEN - 1)) begin
-                acc_vec_counter     <= 'b0;
+                fp_sram_stall_req       <= 1'b1;
+                fp_vector_out_valid     <= 1'b0;  
+            end else if (acc_vec_counter == VLEN) begin
+                acc_vec_counter         <= 'b0;
                 continuous_load_fp_sram <= 1'b0;
                 fp_sram_req             <= 1'b0;
+                fp_vector_buffer[acc_vec_counter - 1]   <= fp_ld_from_sram;
+                fp_vector_out_valid         <= 1'b1;
             end else if (continuous_load_fp_sram) begin
                 acc_vec_counter <= acc_vec_counter + 1'b1;
                 fp_sram_addr    <= recorded_fp_sram_addr + acc_vec_counter;
                 fp_vector_buffer[acc_vec_counter - 1]   <= fp_ld_from_sram;
                 fp_sram_req                             <= 1'b1;
             end else if (fp_vector_out_valid & fp_vector_out_ready) begin
-                fp_sram_stall_req <= 1'b0;
-                fp_vector_buffer <= 'b0;
+                fp_sram_stall_req           <= 1'b0;
+                fp_vector_buffer            <= 'b0;
+                fp_vector_out_valid         <= 1'b0;
             end else begin
                 fp_sram_addr <= exe_stage_op.addr_1[FP_SRAM_ADDR_WIDTH - 1 : 0];
                 fp_sram_req  <= (fp_control == LD_REG_FP) || (fp_control == ST_REG_FP);
