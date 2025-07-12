@@ -10,8 +10,8 @@ class MinifloatMeta:
         self.element_bits = self.element_exp_bits + self.element_frac_bits + 1
 
         legal_exp_frac = ((5, 2), (4, 3), (3, 4), (3, 2), (2, 3), (2, 1))
-        if (self.element_exp_bits, self.element_frac_bits) not in legal_exp_frac:
-            print(f"[Warning] ({self.element_exp_bits}, {self.element_frac_bits}) not in known configs")
+        # if (self.element_exp_bits, self.element_frac_bits) not in legal_exp_frac:
+        #     print(f"[Warning] ({self.element_exp_bits}, {self.element_frac_bits}) not in known configs")
 
         # Set default bias (IEEE style)
         if self.exponent_bias is None:
@@ -28,5 +28,17 @@ FP8_E4M3 = MinifloatMeta(
 FP8_E5M2 = MinifloatMeta(
     element_exp_bits=5,
     element_frac_bits=2,
+    exponent_bias=None,
+)
+
+FP16_E8M7 = MinifloatMeta(
+    element_exp_bits=8,
+    element_frac_bits=7,
+    exponent_bias=None,
+)
+
+FP16_E5M10 = MinifloatMeta(
+    element_exp_bits=5,
+    element_frac_bits=10,
     exponent_bias=None,
 )

@@ -107,14 +107,14 @@ def mxfp_lm_eval(
         model = model.to(device)
     
     # MLP - SILU
-    replace_modules(
-        model,
-        target_class=LlamaMLP,
-        replacement_class=LlamaMLPActFP,
-        factory_fn=LlamaMLPActFP.from_mlp,
-        kwargs=quant_args["mlp_kwargs"],
-        label="LlamaMLP"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaMLP,
+    #     replacement_class=LlamaMLPActFP,
+    #     factory_fn=LlamaMLPActFP.from_mlp,
+    #     kwargs=quant_args["mlp_kwargs"],
+    #     label="LlamaMLP"
+    # )
 
     # Attention - softmax, rope, matmul
     replace_modules(
@@ -127,34 +127,34 @@ def mxfp_lm_eval(
     )
 
     # Linear
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args["fc_kwargs"],
-        label="MXFPLinearPTQ"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=nn.Linear,
+    #     replacement_class=MXFPLinearPTQ,
+    #     factory_fn=MXFPLinearPTQ.from_linear,
+    #     kwargs=quant_args["fc_kwargs"],
+    #     label="MXFPLinearPTQ"
+    # )
 
-    # Embedding
-    replace_modules(
-        model,
-        target_class=nn.Embedding,
-        replacement_class=MXFPEmbeddingPTQ,
-        factory_fn=MXFPEmbeddingPTQ.from_embedding,
-        kwargs=quant_args["embed_kwargs"],
-        label="Embedding"
-    )
+    # # Embedding
+    # replace_modules(
+    #     model,
+    #     target_class=nn.Embedding,
+    #     replacement_class=MXFPEmbeddingPTQ,
+    #     factory_fn=MXFPEmbeddingPTQ.from_embedding,
+    #     kwargs=quant_args["embed_kwargs"],
+    #     label="Embedding"
+    # )
 
     # RMSNorm
-    replace_modules(
-        model,
-        target_class=LlamaRMSNorm,
-        replacement_class=FPRMSNormPTQ,
-        factory_fn=FPRMSNormPTQ.from_rmsnorm,
-        kwargs=quant_args["rms_kwargs"],
-        label="FPRMSNormPTQ"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaRMSNorm,
+    #     replacement_class=FPRMSNormPTQ,
+    #     factory_fn=FPRMSNormPTQ.from_rmsnorm,
+    #     kwargs=quant_args["rms_kwargs"],
+    #     label="FPRMSNormPTQ"
+    # )
 
     # Wrap and evaluate
     model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=2048)

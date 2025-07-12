@@ -1,8 +1,8 @@
 conda activate acc-sim
-export CX_DATA_HOME="/data/models/cx922"
-export CX_PROJECT_HOME="/home/cx922/Coprocessor_for_Llama"
+export CX_DATA_HOME="/data/cx922"
+export CX_PROJECT_HOME="/home/jianyicheng/cx922/Coprocessor_for_Llama"
 export CUDA_DEVICE="2,3"
 export PROC_NUM="2"
-export HF_DATASETS_CACHE="/data/datasets"
-export HF_HUB="${CX_DATA_HOME}/hf_hub"
-export HF_HUB_CACHE="${CX_DATA_HOME}/hf_hub"
+
+# HuggingFace environment variables
+export HF_HOME="${CX_DATA_HOME}/hf_home"

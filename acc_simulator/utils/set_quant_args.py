@@ -1,6 +1,6 @@
 from typing import Literal, Union
 
-from ..quantize.quantizer.minifloat import FP8_E5M2, FP8_E4M3
+from ..quantize.quantizer.minifloat import FP8_E5M2, FP8_E4M3, FP16_E8M7, FP16_E5M10
 from ..quantize.quantizer.mxfp import (
     OCP_MXFP4_E2M1,
     OCP_MXFP6_E2M3,
@@ -16,7 +16,9 @@ PRESET_META_MAP = {
     "MXFP6_E3M2": OCP_MXFP6_E3M2,
     "MXFP4_E2M1": OCP_MXFP4_E2M1,
     "FP8_E4M3": FP8_E4M3,
-    "FP8_E5M2": FP8_E5M2
+    "FP8_E5M2": FP8_E5M2,
+    "FP16_E8M7": FP16_E8M7,
+    "FP16_E5M1": FP16_E5M10,
 }
 
 
