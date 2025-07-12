@@ -6,14 +6,8 @@ from functools import partial
 
 from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
 
-from .softmax import tayor_exp
+from .hardware_aware_operations import silu_approx
 
-def silu_approx(x: Tensor, quantizer) -> Tensor:
-    x_exp = tayor_exp(-x)
-    x_exp = quantizer(x_exp)
-    reciprocal = 1 / (1 + x_exp)
-    reciprocal = quantizer(reciprocal)
-    return x * reciprocal
 
 def silu_minifloat(
     input: Tensor,

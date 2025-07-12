@@ -7,26 +7,6 @@ from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 from ..quantizer.minifloat import MinifloatMeta, minifloat_ieee_quantizer
 
-def sqrt_newton(x, iters=5):
-    x = x.float()
-    y = x  # 初始猜测值
-    for _ in range(10):
-        intermediate = x / y
-        intermediate = minifloat_ieee_quantizer(intermediate, MinifloatMeta(element_exp_bits=8, element_frac_bits=7))
-        y = 0.5 * (y + intermediate)
-    return y
-
-def rms_norm_approx(x: Tensor, quantizer, eps: float = 1e-6) -> Tensor:
-    variance = x.pow(2)
-    variance = quantizer(variance)
-    variance = variance.mean(-1, keepdim=True)
-    variance = quantizer(variance)
-    variance = variance + eps
-    sqrt = sqrt_newton(variance, iters=10)
-    sqrt = quantizer(sqrt)
-    sqrt = 1 / sqrt
-    sqrt = quantizer(sqrt)
-    return x * sqrt
 
 class FPRMSNormPTQ(nn.Module):
     def __init__(

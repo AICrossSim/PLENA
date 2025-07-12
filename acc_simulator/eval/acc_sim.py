@@ -107,14 +107,14 @@ def mxfp_lm_eval(
         model = model.to(device)
     
     # MLP - SILU
-    # replace_modules(
-    #     model,
-    #     target_class=LlamaMLP,
-    #     replacement_class=LlamaMLPActFP,
-    #     factory_fn=LlamaMLPActFP.from_mlp,
-    #     kwargs=quant_args["mlp_kwargs"],
-    #     label="LlamaMLP"
-    # )
+    replace_modules(
+        model,
+        target_class=LlamaMLP,
+        replacement_class=LlamaMLPActFP,
+        factory_fn=LlamaMLPActFP.from_mlp,
+        kwargs=quant_args["mlp_kwargs"],
+        label="LlamaMLP"
+    )
 
     # Attention - softmax, rope, matmul
     replace_modules(
