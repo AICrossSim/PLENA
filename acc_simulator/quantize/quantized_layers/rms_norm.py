@@ -6,6 +6,7 @@ from functools import partial
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 from ..quantizer.minifloat import MinifloatMeta, minifloat_ieee_quantizer
+from ..quantized_functions.hardware_aware_operations import rms_norm_approx
 
 
 class FPRMSNormPTQ(nn.Module):

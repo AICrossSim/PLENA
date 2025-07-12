@@ -127,14 +127,14 @@ def mxfp_lm_eval(
     )
 
     # Linear
-    # replace_modules(
-    #     model,
-    #     target_class=nn.Linear,
-    #     replacement_class=MXFPLinearPTQ,
-    #     factory_fn=MXFPLinearPTQ.from_linear,
-    #     kwargs=quant_args["fc_kwargs"],
-    #     label="MXFPLinearPTQ"
-    # )
+    replace_modules(
+        model,
+        target_class=nn.Linear,
+        replacement_class=MXFPLinearPTQ,
+        factory_fn=MXFPLinearPTQ.from_linear,
+        kwargs=quant_args["fc_kwargs"],
+        label="MXFPLinearPTQ"
+    )
 
     # # Embedding
     # replace_modules(
@@ -147,14 +147,14 @@ def mxfp_lm_eval(
     # )
 
     # RMSNorm
-    # replace_modules(
-    #     model,
-    #     target_class=LlamaRMSNorm,
-    #     replacement_class=FPRMSNormPTQ,
-    #     factory_fn=FPRMSNormPTQ.from_rmsnorm,
-    #     kwargs=quant_args["rms_kwargs"],
-    #     label="FPRMSNormPTQ"
-    # )
+    replace_modules(
+        model,
+        target_class=LlamaRMSNorm,
+        replacement_class=FPRMSNormPTQ,
+        factory_fn=FPRMSNormPTQ.from_rmsnorm,
+        kwargs=quant_args["rms_kwargs"],
+        label="FPRMSNormPTQ"
+    )
 
     # Wrap and evaluate
     model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=2048)

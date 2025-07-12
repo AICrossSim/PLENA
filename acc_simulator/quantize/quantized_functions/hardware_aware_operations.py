@@ -7,7 +7,7 @@ from functools import partial
 from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
 
 def reciprocal_approx(x: Tensor, quantizer) -> Tensor:
-    reciprocal = 1 / (x+1e-6)
+    reciprocal = 1 / (x+1e-9)
     reciprocal = quantizer(reciprocal)
     return reciprocal
 
@@ -61,9 +61,9 @@ def silu_approx(x: Tensor, quantizer) -> Tensor:
 def sqrt_newton(x, quantizer, iters=5):
     x = x.float()
     y = x  # 初始猜测值
-    for _ in range(10):
+    for _ in range(iters):
         intermediate = reciprocal_approx(y, quantizer)
-        y = 0.5 * (y + intermediate)
+        y = 0.5 * (y + x * intermediate)
     return y
 
 
@@ -74,6 +74,7 @@ def rms_norm_approx(x: Tensor, quantizer, eps: float = 1e-6) -> Tensor:
     variance = quantizer(variance)
     variance = variance + eps
     sqrt = sqrt_newton(variance, quantizer, iters=10)
+
     sqrt = quantizer(sqrt)
-    sqrt = reciprocal_approx(sqrt, quantizer)
-    return x * sqrt
+    reciprocal_sqrt = reciprocal_approx(sqrt, quantizer)
+    return x * reciprocal_sqrt
