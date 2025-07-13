@@ -15,8 +15,12 @@ module fp_cp_reciprocal #(
     parameter   OUT_EXP_WIDTH = 5,
     parameter   OUT_MANT_WIDTH = 10
 )(
+    input  logic clk,
+    input  logic rst,
     input  logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
-    output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] data_out
+    input  logic data_in_valid,
+    output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] data_out,
+    output logic data_out_valid
 );
 
     localparam int IN_FIXED_WIDTH = IN_MANT_WIDTH + 2;

@@ -164,8 +164,6 @@ In **low precision**, shape is `(batch, s + s_out, num_key_value_heads, head_dim
   batch * s * num_key_value_heads * (head_dim // block_dim) * (scale_width // 8)
   ```
 
-
-
 ---
 
 ### Region for O Cache (Prefill)
@@ -193,20 +191,33 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 
   ---
 
+## HBM ADDR Reg Arrangement
+- x0: used to store HBM_ADDR[0] (WEIGHT_OFFSET)
+- x1: used to store HBM_ADDR[1] (WEIGHT_BIAS_OFFSET)
+- x2: used to store HBM_ADDR[2] (Q_CACHE_OFFSET)
+- x3: used to store HBM_ADDR[3] (K_CACHE_OFFSET)
+- x4: used to store HBM_ADDR[4] (V_CACHE_OFFSET)
+- x5: used to store HBM_ADDR[5] (O_CACHE_OFFSET)
+
 ## Register Arrangement
 - x1: used to store incremental pointer across N/Br
 - x2: used to store incremental pointer across N/Bc
 
 
 ## FIXED SRAM Layout
-- HIGH_PRECISION_STRIDE_LENGTH
-- LOW_PRECISION_STRIDE_LENGTH
+- HIGH_PRECISION_STRIDE_LENGTH (hidden_size * (HIGH_PRECISION_BLOCK_SIZE) // 8)
+- LOW_PRECISION_STRIDE_LENGTH (hidden_size * (LOW_PRECISION_BLOCK_SIZE) // 8)
 - MLEN
 - 2*MLEN
 - Q_SIZE
 - KV_SIZE
 - WEIGHT_SIZE
 - BATCH_SIZE
+- HIGH_PRECISION_ADDR_DISTANCE_PER_STRIDE
+- LOW_PRECISION_ADDR_DISTANCE_PER_STRIDE
+- MLEN * MLEN
+- MLEN * BLEN
+- MLEN * MLEN + Head_DIM * MLEN
 
 ## FP SRAM Layout
 - FLASH_ATTN_M_VAR
