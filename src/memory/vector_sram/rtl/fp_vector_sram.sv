@@ -105,6 +105,7 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_fp_in;
     logic [INTERNAL_ADDR_LEN - 1 : 0] reset_counter;
     logic port_a_write_en_internal;
+    logic port_a_req_internal;
     
     // -----------------------------
     // Prefetch Tag Tracking
@@ -153,18 +154,21 @@ module fp_vector_sram #(
             port_a_v_fp_out             = '0;
             port_a_write_en_internal    = 1'b1;
             translated_port_a_addr_internal  = recorded_translated_port_a_reset_addr + reset_counter;
+            port_a_req_internal         = 1'b1;
         end else if (select_write_data_a == 1'b0) begin
             // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal       = port_a_v_fp_in;
             port_a_v_fp_out             = port_a_fp_out_internal;
             port_a_write_en_internal    = port_a_write_en;
             translated_port_a_addr_internal  = translated_port_a_addr;
+            port_a_req_internal         = port_a_req;
         end else begin
             // Matrix Machine Mode, output as MX-FP Data
             port_a_fp_in_internal       = port_a_m_fp_in;
             port_a_v_fp_out             = '0;
             port_a_write_en_internal    = port_a_write_en;
             translated_port_a_addr_internal  = translated_port_a_addr;
+            port_a_req_internal         = port_a_req;
         end 
     end
 
@@ -359,11 +363,11 @@ module fp_vector_sram #(
         ,
         .ResultFile(MEM_RESULT_FILE)
         `endif
-    ) element_storage (
+    ) vect_storage (
         .clk_i(clk),
 
-        .a_req_i        (port_a_req),
-        .a_write_i      (port_a_write_en),
+        .a_req_i        (port_a_req_internal),
+        .a_write_i      (port_a_write_en_internal),
         .a_addr_i       (translated_port_a_addr_internal),
         .a_wdata_i      (port_a_fp_in_internal),
         .a_wmask_i      (port_a_mask_in),
