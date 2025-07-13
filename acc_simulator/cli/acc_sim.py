@@ -35,9 +35,8 @@ import torch
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
-from .eval_utils import *
-from .eval_harness import evaluate_with_lm_eval
-from .eval_ppl import evaluate_perplexity
+from ..eval.eval_utils import *
+from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 
 from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
 from torch import nn
