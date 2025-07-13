@@ -24,7 +24,7 @@ LOOP_MLEN_MATRIX:
         S_ADDI_FIX      x13,  x13, 0x1;            // Prefetched address of K and Q
 
         H_PREFETCH_M_C  x13, x11, csr_adr[0];         Fetch the weight for ith hidden layer Q from HBM to MVM SRAM
-        H_PREFETCH_V_C  x13, x8,  csr_adr[8];         Fetch the embedded vector from HBM to MVM SRAM
+        H_PREFETCH_V_H_C  x13, x8,  csr_adr[8];         Fetch the embedded vector from HBM to MVM SRAM
         C_SET_MV_OFFSET x13;                        Set the offset addr for the MVM operation
 
         M_MV_IC x9, x13, x13;  
@@ -78,14 +78,14 @@ LOOP_NUM_HEAD:
     LOOP_TILE_VECTOR_IN_HEAD:
         // assuming Head_Dim | MLEN
         // cos[i : i + MLEN] * q[i : i + MLEN]
-        H_PREFETCH_V_C x1, x12, csr_adr[8]; q_projected
-        H_PREFETCH_V_C x2, x12, csr_adr[8]; cos
+        H_PREFETCH_V_H_C x1, x12, csr_adr[8]; q_projected
+        H_PREFETCH_V_H_C x2, x12, csr_adr[8]; cos
         V_MUL_VV x3, x1, x2;
         
         // sin[i : i + MLEN] * rotated_q[i : i + MLEN]
-        H_PREFETCH_V_C x10, x13, csr_adr[9]; q_roped
-        H_PREFETCH_V_C x1, x12, csr_adr[8]; rotated_q
-        H_PREFETCH_V_C x2, x12, csr_adr[8]; sin
+        H_PREFETCH_V_H_C x10, x13, csr_adr[9]; q_roped
+        H_PREFETCH_V_H_C x1, x12, csr_adr[8]; rotated_q
+        H_PREFETCH_V_H_C x2, x12, csr_adr[8]; sin
         V_MUL_VV x4, x1, x2;
         V_ADD_VV x1, x3, x4;
 

@@ -50,7 +50,7 @@ S_ADDI_FIX x2, x0, 0;
 ;<---------------- LOOP Internal QKT (MLEN/BLEN) Iteration 0 ---------------->
 S_ADDI_FIX x3, x0, 0; 
 ; Assuming prefetching a head_dim * MLEN data to MATRIX and VECTOR SRAM using the following two instructions.
-H_PREFETCH_V_S x0, x0, x2; 
+H_PREFETCH_V_H_S x0, x0, x2; 
 H_PREFETCH_M_S x0, x0, x3;
 
 ;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->      
@@ -69,7 +69,7 @@ M_TMM_PS x3, x6, x6;
 S_ADDI_FIX x3, x3, 1; 
 S_LD_FIX x4, x0, 2;
 S_MUL_FIX x4, x4, x3;
-H_PREFETCH_V_S x0, x4, x2; 
+H_PREFETCH_V_H_S x0, x4, x2; 
 H_PREFETCH_M_S x0, x4, x3;
 
 ;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->      

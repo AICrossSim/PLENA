@@ -92,7 +92,7 @@ module pipeline_control #(
         if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_C)) begin
             // Condition 0: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall  = 1'b1;            
-        end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_C)) begin
+        end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_H_C)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall  = 1'b1;            
         end else if ((m_load_in_process || m_empty_in_progress) & (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO)) begin

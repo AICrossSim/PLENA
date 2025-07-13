@@ -20,7 +20,7 @@ package configuration_pkg;
     parameter   SinkWidth = 1;
     parameter   MATRIX_ACC_ADR_DEPTH = 8;
     // Memory Related
-    parameter   MATRIX_SRAM_WIDTH = (precision_pkg::LOW_MXFP_MANT_WIDTH + precision_pkg::LOW_MXFP_EXP_WIDTH + 1 + precision_pkg::MXFP_SCALE_WIDTH) * MLEN;
+    parameter   MATRIX_SRAM_WIDTH = (precision_pkg::WT_MXFP_MANT_WIDTH + precision_pkg::WT_MXFP_EXP_WIDTH + 1 + precision_pkg::MXFP_SCALE_WIDTH) * MLEN;
     parameter   MATRIX_SRAM_DEPTH = 128;
     parameter   VECTOR_SRAM_WIDTH = (precision_pkg::V_FP_MANT_WIDTH + precision_pkg::V_FP_EXP_WIDTH + 1) * VLEN;
     parameter   VECTOR_SRAM_DEPTH = 128;

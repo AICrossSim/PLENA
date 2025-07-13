@@ -60,12 +60,12 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
                 S_ADDI_FIX x5, x5, x7;                  x4 = x4 + x7
 
                 ; if x3 != d/MLEN - 1: Not the last loop
-                H_PREFETCH_V_S x6, x4, ADR[Q]
+                H_PREFETCH_V_H_S x6, x4, ADR[Q]
                 H_PREFETCH_M_S x6, x5, ADR[K]
                 M_MM_IC x6, x6, 0
                 S_ADDI_FIX x3, x3, 1;
                 ; if x3 == d/MLEN - 1: Not the last loop
-                ; H_PREFETCH_V_S x6, x4, ADR[Q]
+                ; H_PREFETCH_V_H_S x6, x4, ADR[Q]
                 ; H_PREFETCH_M_S x6, x5, ADR[K]
                 M_MM_PS x8, x6, x6, 
                 ; - opcode rd, rs1, rs2;

@@ -77,7 +77,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     output      logic v_sram_wen_b,
     output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
     output      logic [VLEN-1:0]                    v_sram_mask_b,
-    output      logic select_write_data_b,
+    output      logic [1:0] select_write_data_b,
     input       logic v_prefetch_data_not_ready,
     output      logic continuous_write_to_v_sram_port_b,
 
@@ -100,8 +100,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
 
 
     // Memory Execution Control and Dependency Monitor
-    localparam MSRAM_BYTES_PER_ROW =  (LOW_MXFP_EXP_WIDTH + LOW_MXFP_MANT_WIDTH + 1) * MLEN * Matrix_Parallel_Rd_Dim / 8;
-    localparam VSRAM_BYTES_PER_ROW =  (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) * VLEN / 8;
+    localparam MSRAM_BYTES_PER_ROW =  (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1) * MLEN * Matrix_Parallel_Rd_Dim / 8;
+    localparam VSRAM_BYTES_PER_ROW =  (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) * VLEN / 8;
     OP_BUNDLE  mem_stage_op;
     MEM_WEN_INFO mem_stage_write_control;
 
@@ -280,8 +280,9 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
 
     // Assuming the read cycle is 1 cycle for both ports.
-    // Port A ->  R: Matrix Multiplicand Vector & Vector Operand (RS1)                          W: Vector Result from either Matrix or Vector Machine, 
-    // Port B ->  R: Vector Operand (RS2)  or Load HBM Write Data                               W: Vector Prefetch
+    
+    // Port A ->  R: Matrix Multiplicand Vector & Vector Machine input Operand (RS1)   W: Vector Result from either Matrix or Vector Machine, 
+    // Port B ->  R: Vector Machine input Operand (RS2)  or Load HBM Write Data        W: Vector Prefetch
     // For Port A, if loading it to the matrix machine, this takes extra cycle as we need to quantise the fp data (activation) into MX-FP format.
 
     logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
@@ -335,9 +336,9 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (rst) begin
             recorded_v_prefetch_addr = 'b0;
             hbm_waddr = 'b0;
-        end else if (exe_stage_op.h_op == PREFETCH_V_C) begin
+        end else if (exe_stage_op.h_op == PREFETCH_V_H_C) begin
             recorded_v_prefetch_addr = exe_stage_op.addr_2;
-        end else if (exe_stage_op.h_op == STORE_V_S || exe_stage_op.h_op == STORE_V_C) begin
+        end else if (exe_stage_op.h_op == STORE_V_H_S || exe_stage_op.h_op == STORE_V_H_C) begin
             hbm_waddr = exe_stage_op.addr_2;
         end
     end
@@ -469,12 +470,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && (exe_stage_op.v_ele_op != RESET_V) && !exe_stage_op.v_broadcast_en)) begin
                 // Read Port activated
                 v_v_b_load                  <= 1'b1;
-            end else if ((exe_stage_op.h_op == STORE_V_C || exe_stage_op.h_op == STORE_V_S) & hbm_ready_to_write) begin
+            end else if ((exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_H_S) & hbm_ready_to_write) begin
                 // Start HBM Writeback to the scratchpad sram
                 continuous_write_to_hbm     <= 1'b1;
                 hbm_write_counter           <= 'b0;
                 v_v_b_load                  <= 1'b0;
-                v_sram_mxfp_req_b           <= (exe_stage_op.h_op == STORE_V_C) ? 2'b01 : 2'b10; // 01 for C, 10 for S
+                v_sram_mxfp_req_b           <= (exe_stage_op.h_op == STORE_V_H_C) ? 2'b01 : 2'b10; // 01 for C, 10 for S
             end else if (continuous_write_to_hbm && hbm_write_counter < HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Intermediate HBM Writeback to the scratchpad sram
                 v_sram_mxfp_req_b           <= v_sram_mxfp_req_b;

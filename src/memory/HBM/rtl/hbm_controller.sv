@@ -14,8 +14,6 @@ module hbm_controller #(
     parameter int   MXFP_EXP_WIDTH     = 4,
     parameter int   MXFP_MANT_WIDTH    = 3,
     parameter int   MXFP_SCALE_WIDTH   = 16,
-    parameter int   LOWEST_MXFP_EXP_WIDTH = 4,
-    parameter int   LOWEST_MXFP_MANT_WIDTH = 3,
     parameter int   BLOCK_DIM          = 4,
     parameter int   DATA_DIM          = 8,
     localparam      BLOCK_NUM       = DATA_DIM / BLOCK_DIM,
@@ -60,8 +58,7 @@ module hbm_controller #(
 
     localparam int ELE_MASK_WIDTH   = ELE_WIDTH / 8;
     localparam int SCALE_MASK_WIDTH = SCALE_WIDTH / 8;
-
-    localparam int ELE_SCALE_ADR_RATIO = $clog2((LOWEST_MXFP_EXP_WIDTH + LOWEST_MXFP_MANT_WIDTH + 1) * BLOCK_DIM / MXFP_SCALE_WIDTH);
+    localparam int ELE_SCALE_ADR_RATIO = $clog2(ELE_WIDTH / SCALE_WIDTH);
 
     logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
     logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
@@ -76,14 +73,14 @@ module hbm_controller #(
     always_comb begin
         if (hbm_write_en) begin
             offset_addr = hbm_waddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
-            hbm_raddr_for_ele   = hbm_waddr;
-            hbm_raddr_for_scale = offset_addr + scale_offset;
+            hbm_raddr_for_ele       = hbm_waddr;
+            hbm_raddr_for_scale     = offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             stride_offset_for_scale = stride_offset >> ELE_SCALE_ADR_RATIO;
         end else begin
             offset_addr = hbm_raddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
-            hbm_raddr_for_ele   = hbm_raddr;
-            hbm_raddr_for_scale = offset_addr + scale_offset;
+            hbm_raddr_for_ele       = hbm_raddr;
+            hbm_raddr_for_scale     = offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             stride_offset_for_scale = stride_offset >> ELE_SCALE_ADR_RATIO;
         end
@@ -102,13 +99,13 @@ module hbm_controller #(
 
     // TL for element
     tl_master #(
-        .DataWidth(ELE_WIDTH),
-        .AddrWidth(HBM_ADDR_WIDTH),
-        .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(LOAD_AMOUNT),
-        .WRITE_AMOUNT(WRITE_AMOUNT),
-        .ONCHIP_ADDR(ON_CHIP_ADDR_WIDTH)
+        .DataWidth      (ELE_WIDTH),
+        .AddrWidth      (HBM_ADDR_WIDTH),
+        .SourceWidth    (SourceWidth),
+        .SinkWidth      (SinkWidth),
+        .LOAD_AMOUNT    (LOAD_AMOUNT),
+        .WRITE_AMOUNT   (WRITE_AMOUNT),
+        .ONCHIP_ADDR    (ON_CHIP_ADDR_WIDTH)
     ) element_master (
         .clk(clk),
         .rst(rst),
@@ -127,13 +124,13 @@ module hbm_controller #(
     );
 
     tl_adapter #(
-        .HostDataWidth(ELE_WIDTH),
-        .DeviceDataWidth(HBM_ELE_WIDTH),
-        .AddrWidth(HBM_ADDR_WIDTH),
-        .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth),
-        .HostFifo(1'b0),
-        .DeviceFifo(1'b1)
+        .HostDataWidth      (ELE_WIDTH),
+        .DeviceDataWidth    (HBM_ELE_WIDTH),
+        .AddrWidth          (HBM_ADDR_WIDTH),
+        .SourceWidth        (SourceWidth),
+        .SinkWidth          (SinkWidth),
+        .HostFifo           (1'b0),
+        .DeviceFifo         (1'b1)
     ) adapter_for_element (
         .clk_i(clk),
         .rst_ni(!rst),
@@ -150,12 +147,12 @@ module hbm_controller #(
     `TL_BIND_HOST_PORT(host_scale, adapted_tl_scale);
 
     tl_master #(
-        .DataWidth(SCALE_WIDTH),
-        .AddrWidth(HBM_ADDR_WIDTH),
-        .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth),
-        .LOAD_AMOUNT(LOAD_AMOUNT),
-        .WRITE_AMOUNT(WRITE_AMOUNT)
+        .DataWidth      (SCALE_WIDTH),
+        .AddrWidth      (HBM_ADDR_WIDTH),
+        .SourceWidth    (SourceWidth),
+        .SinkWidth      (SinkWidth),
+        .LOAD_AMOUNT    (LOAD_AMOUNT),
+        .WRITE_AMOUNT   (WRITE_AMOUNT)
     ) scale_master (
         .clk(clk),
         .rst(rst),
@@ -173,17 +170,17 @@ module hbm_controller #(
     );
 
     tl_adapter #(
-        .HostDataWidth(SCALE_WIDTH),
-        .DeviceDataWidth(HBM_SCALE_WIDTH),
-        .AddrWidth(HBM_ADDR_WIDTH),
-        .SourceWidth(SourceWidth),
-        .SinkWidth(SinkWidth),
-        .HostFifo(1'b0),
-        .DeviceFifo(1'b1)
+        .HostDataWidth      (SCALE_WIDTH),
+        .DeviceDataWidth    (HBM_SCALE_WIDTH),
+        .AddrWidth          (HBM_ADDR_WIDTH),
+        .SourceWidth        (SourceWidth),
+        .SinkWidth          (SinkWidth),
+        .HostFifo           (1'b0),
+        .DeviceFifo         (1'b1)
     ) adapter_for_scale (
         .clk_i(clk),
         .rst_ni(!rst),
-        `TL_CONNECT_DEVICE_PORT     (host, tl_scale ),
+        `TL_CONNECT_DEVICE_PORT     (host, tl_scale),
         `TL_CONNECT_HOST_PORT       (device, adapted_tl_scale)
     );
 

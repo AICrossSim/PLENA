@@ -107,7 +107,7 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_M_C, H_PREFETCH_M_S, H_PREFETCH_V_C, H_PREFETCH_V_S, H_STORE_V_C, H_STORE_V_S: begin
+        H_PREFETCH_M_C, H_PREFETCH_M_S, H_PREFETCH_V_H_C, H_PREFETCH_V_H_S, H_STORE_V_H_C, H_STORE_V_H_S: begin
             decode_instruction_type = H;
         end
 
@@ -471,10 +471,10 @@ always_ff @(posedge clk) begin
                 decode_stage_op.c_op            <= STALL_C;
                 decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_C)      ? PREFETCH_M_C    :
                                             (decode_instr_info.opcode == H_PREFETCH_M_S)      ? PREFETCH_M_S    :
-                                            (decode_instr_info.opcode == H_PREFETCH_V_C)      ? PREFETCH_V_C    :
-                                            (decode_instr_info.opcode == H_PREFETCH_V_S)      ? PREFETCH_V_S    :
-                                            (decode_instr_info.opcode == H_STORE_V_C)         ? STORE_V_C       : 
-                                            (decode_instr_info.opcode == H_STORE_V_S)         ? STORE_V_S       : STALL_H;
+                                            (decode_instr_info.opcode == H_PREFETCH_V_H_C)      ? PREFETCH_V_H_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_H_S)      ? PREFETCH_V_H_S    :
+                                            (decode_instr_info.opcode == H_STORE_V_H_C)         ? STORE_V_H_C       : 
+                                            (decode_instr_info.opcode == H_STORE_V_H_S)         ? STORE_V_H_S       : STALL_H;
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;

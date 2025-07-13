@@ -17,8 +17,8 @@ module vector_machine_v1 import precision_pkg::*; import configuration_pkg::*; #
     localparam   ADDR_WIDTH         = ON_CHIP_ADDR_WIDTH,    // Vector write address
     parameter FP_EXP_WIDTH         = 8,
     parameter FP_MANT_WIDTH        = 7,
-    parameter MXFP_MANT_WIDTH       = HIGH_MXFP_MANT_WIDTH,
-    parameter MXFP_EXP_WIDTH        = HIGH_MXFP_EXP_WIDTH
+    parameter MXFP_MANT_WIDTH       = ACT_MXFP_MANT_WIDTH,
+    parameter MXFP_EXP_WIDTH        = ACT_MXFP_EXP_WIDTH
 ) (
     input   logic clk,
     input   logic rst,

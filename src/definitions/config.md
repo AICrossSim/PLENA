@@ -25,9 +25,9 @@ To set `VLEN` to 4 and `MLEN` to 123 for the ASIC mode:
 make set CONFIG="VLEN=4 MLEN=123" MODE=ASIC
 ```
 
-To set `HIGH_MXFP_MANT_WIDTH` to 8 for the ASIC mode:
+To set `ACT_MXFP_MANT_WIDTH` to 8 for the ASIC mode:
 ```bash
- make set PRECISION="HIGH_MXFP_MANT_WIDTH=8"
+ make set PRECISION="ACT_MXFP_MANT_WIDTH=8"
 ```
 
 This approach enables flexible, fine-grained control over build configurations for different deployment targets.

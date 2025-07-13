@@ -46,7 +46,7 @@ S_ADDI_FIX x1, x0, 0;                          Set FIX[1] to 0, use it to record
 
 ; load whole x from HBM[ACTIVATION_OFFSET] to Vector SRAM
 ;< - Duplicate VEC_LOOP_SIZE times{
-    H_PREFETCH_V_C x1, x1, ADR[0];                   Prefetch x from HBM to MVM SRAM 
+    H_PREFETCH_V_H_C x1, x1, ADR[0];                   Prefetch x from HBM to MVM SRAM 
     S_ADDI_FIX x1, x1, VLEN;                       Assume datatype is 8 bits, increment the address offset by V_LEN every iteration
 ;}
 
@@ -76,7 +76,7 @@ S_ADDI_FIX x2, x0, Hidden_Size;             Point to beginning of x^2 in VSRAM
 S_ADDI_FIX x3, x0, 0;                       Counter for looping over VLEN
 ; |x1| 0 |x2| Hidden_size |x3| 0
 ;< - Duplicate VEC_LOOP_SIZE times{
-H_PREFETCH_V_C x2, x3, ADR[1];
+H_PREFETCH_V_H_C x2, x3, ADR[1];
 S_ADDI_FIX x3, x3, VLEN;
 S_ADDI_FIX x2, x2, VLEN;
 ;}
@@ -113,6 +113,6 @@ V_MUL_VV x2, x1, x2;
 S_ADDI_FIX x1, x1, VLEN;
 S_ADDI_FIX x2, x2, VLEN;
 
-H_STORE_V_C x2, x2, ADR[0];                       Store the result of x_norm_bsh to HBM
+H_STORE_V_H_C x2, x2, ADR[0];                       Store the result of x_norm_bsh to HBM
 ;}
 
