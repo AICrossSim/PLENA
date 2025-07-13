@@ -1,4 +1,5 @@
-from memory_mapping.rand_gen import RandomTensorGenerator
+from assembler.memory_mapping.rand_gen import RandomTensorGenerator
+from bitstring import BitArray
 import torch
 import os
 
@@ -15,6 +16,19 @@ def map_scale_to_value(scale, data_width):
 
     hex_digits = data_width // 4  # e.g., 32 bits = 8 hex digits
     return f"{scale:0{hex_digits}X}"
+
+
+def map_fp_data_to_fake_hbm(packed_input, element_width, path):
+    assert len(packed_input.shape) == 2, "packed_input must be a 2D tensor"
+    with open(os.path.join(path, "hbm.mem"), "a") as f:
+        row = ""
+        index_in_row = 0
+        for i, vector in enumerate(packed_input):
+            for j, element in enumerate(vector):
+                row = row + BitArray(uint=int(element), length=element_width).hex
+            f.write("0x" + row + "\n")
+            row = ""
+            index_in_row += 1
 
 def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
 
@@ -84,12 +98,6 @@ if __name__ == "__main__":
         "block_size": [1, 4],
         "skip_first_dim": False,
     }
-    rand_gen_high = RandomTensorGenerator(
-        shape=(16, 8),
-        directory=directory,
-        filename=filename,
-        quant_config=quant_config_high
-    )
     
     # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
     rand_gen_high.tensor_gen()

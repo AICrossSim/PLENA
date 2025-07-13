@@ -1,8 +1,10 @@
-from parser import load_isa_definitions, load_isa_settings, parse_asm_file
+from assembler.parser import load_isa_definitions, load_isa_settings, parse_asm_file
+import torch
+from cfl_tools import PROJECT_PATH
+from pathlib import Path
 import argparse
 
-
-class Assembler:
+class AssemblyToBinary:
     def __init__(self, isa_definition_file: str ):
         """
         Initialize the Assembler with the ISA file.
@@ -71,7 +73,7 @@ class Assembler:
             for instruction in binary_instructions:
                 file.write(f"0x{instruction:04X}\n")
     
-    def generate_binary(self, asm_file: str, output_file: str):
+    def generate_binary(self, asm_file: str, output_file: str | Path):
         """
         Generate binary instructions from the assembled instructions.
         """
@@ -85,19 +87,3 @@ class Assembler:
         self.write_binary_to_file(binary_instructions, output_file)
         return binary_instructions
     
-
-    
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--layer', type=str, required=True, help='Input file name')
-    parser.add_argument('--test_type', type=str, default='Layerwise_Benchmark', help='Input file name (default: basic)')
-    args = parser.parse_args()
-
-    isa_file_path = '../../src/definitions/operation.svh'
-    asm_file_path = f'../../test/{args.test_type}/{args.layer}.asm'
-    print(f'Assembling {asm_file_path} to {args.layer}.mem')
-    output_file_path = f'../../test/{args.test_type}/{args.layer}.mem'
-    assembler = Assembler(isa_file_path)
-    assembler.generate_binary(asm_file_path, output_file_path)

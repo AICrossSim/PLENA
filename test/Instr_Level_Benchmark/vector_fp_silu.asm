@@ -14,4 +14,4 @@ V_ADD_VF x3, x3, x4;
 V_REC_V x3, x3;
 
 S_LUI_FIX x1, 1; // x1 = 0 << 12
-H_STORE_V_H_C x3, x1, x2; // HBM[addr_x2 + 1] = VSRAM[x3]
+H_STORE_V_C x3, x1, x2; // HBM[addr_x2 + 1] = VSRAM[x3]

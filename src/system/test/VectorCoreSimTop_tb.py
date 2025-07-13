@@ -80,7 +80,20 @@ class SimTOP(Testbench):
 @cocotb.test()
 async def test(dut):
     # cocotb.start_soon(check_signal(dut))
-    tb = SimTOP(dut, hbm_element_file, hbm_scale_file, instr_file)
+    import torch
+    from cfl_cocotb.torch_fp_conversion import fp_2_bin
+    from assembler.instruction_mapping_pipeline import instruction_mapping_pipeline, parse_args
+    from cfl_tools import PROJECT_PATH
+    from pathlib import Path
+    args = parse_args()
+    tensor = torch.randn(1, 8)
+    _, packed_hbm_tensor = fp_2_bin(tensor, 5, 10)
+    instruction_mapping_pipeline(packed_hbm_tensor, args.path)
+    hbm_element_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / "hbm.mem"
+    hbm_scale_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / "hbm.mem"
+    instr_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / f"{Path(args.path).stem}.mem"
+
+    tb = SimTOP(dut, hbm_element_file, instr_file)
     await tb.run_test()
 
 async def check_signal(dut):
