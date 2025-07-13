@@ -32,13 +32,12 @@ from typing import Literal, Union
 import time
 
 import torch
-from lm_eval.evaluator import simple_evaluate
-from lm_eval.models.huggingface import HFLM
-from lm_eval.utils import make_table
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
 from .eval_utils import *
+from .eval_harness import evaluate_with_lm_eval
+from .eval_ppl import evaluate_perplexity
 
 from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
 from torch import nn
@@ -52,16 +51,17 @@ from accelerate import dispatch_model
 
 
 def mxfp_lm_eval(
-    # meta-llama/Llama-3.2-1B
-    model_name: str = "meta-llama/Llama-3.1-70B",
+    # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
+    model_name: str = "meta-llama/Meta-Llama-3-8B",
     tasks: Union[str, list[str]] = "wikitext",
-    preset: Union[ Literal["XqWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"], None] = "XqWqBqKVq",
+    preset: Union[ Literal["XqWqBqKVqNLq", "XWqBqKVNL", "XWBKVNLq", "XWqBqKVq", "XWqBqKV", "XWqBqKVq","original"], None] = "XqWqBqKVq",
     preset_mxfp_X: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
     preset_mxfp_W: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
     preset_mxfp_Kv: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
-    preset_minifloat: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
+    preset_minifloat_NL: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
     model_parallel: bool = True,
-    log_base_dir: Union[str, None] = "logs"
+    log_dir: Union[str, None] = "logs",
+    enable_eval_harness: bool = False
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -73,18 +73,29 @@ def mxfp_lm_eval(
     Args:
         model_name (str): HuggingFace model ID.
         tasks (str or list): lm-eval task(s) to run.
-        preset (str): Quantization preset, e.g., "XqWqBqKVq" or "original".
+        preset (str): Quantization preset, e.g., "XqWqBqKVqNLq" enables quantization of inputs (Xq), weights (Wq), biases (Bq), KV cache (KVq) and Non linear Ops(NLq). Use "original" to disable all quantization.
         preset_mxfp_X (str): MXFP format for activations.
         preset_mxfp_W (str): MXFP format for weights.
         preset_minifloat (str): Minifloat format for nonlinear ops (e.g., SiLU, softmax).
+        model_parallel: Whether to auto-dispatch model across GPUs, will trigger Triton Kernel for mxfp quantization if set.
+        log_dir: Directory to save logs and results.
+        enable_eval_harness: Whether to run evaluation via EleutherAI lm-eval-harness.
     """
+    preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
+        preset,
+        preset_mxfp_X,
+        preset_mxfp_W,
+        preset_mxfp_Kv,
+        preset_minifloat_NL
+    )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat)
+    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat_NL)
 
-    log_dir = create_experiment_log_dir(log_base_dir)
-    full_args = locals().copy()         
-    full_args["quant_args"] = quant_args 
-    save_args(log_dir, full_args)
+    if log_dir:
+        log_dir = create_experiment_log_dir(log_dir)
+        full_args = locals().copy()         
+        full_args["quant_args"] = quant_args 
+        save_args(log_dir, full_args)
 
     if preset != "original":
         print(f"Using preset {preset}, which sets the following parameters:\n")
@@ -95,7 +106,9 @@ def mxfp_lm_eval(
 
     
     # create the tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name, use_fast=False, trust_remote_code=True
+    )
     model = AutoModelForCausalLM.from_pretrained(
         model_name, torch_dtype=torch.bfloat16, attn_implementation="eager"
     )
@@ -106,74 +119,74 @@ def mxfp_lm_eval(
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = model.to(device)
     
-    # MLP - SILU
-    replace_modules(
-        model,
-        target_class=LlamaMLP,
-        replacement_class=LlamaMLPActFP,
-        factory_fn=LlamaMLPActFP.from_mlp,
-        kwargs=quant_args["mlp_kwargs"],
-        label="LlamaMLP"
-    )
+    if preset != "original":
+        # MLP - SILU
+        replace_modules(
+            model,
+            target_class=LlamaMLP,
+            replacement_class=LlamaMLPActFP,
+            factory_fn=LlamaMLPActFP.from_mlp,
+            kwargs=quant_args["mlp_kwargs"],
+            label="LlamaMLP"
+        )
 
-    # Attention - softmax, rope, matmul
-    replace_modules(
-        model,
-        target_class=LlamaAttention,
-        replacement_class=LlamaAttentionMXFP,
-        factory_fn=LlamaAttentionMXFP.from_attention,
-        kwargs=quant_args["attn_kwargs"],
-        label="LlamaAttention"
-    )
+        # Attention - softmax, rope, matmul
+        replace_modules(
+            model,
+            target_class=LlamaAttention,
+            replacement_class=LlamaAttentionMXFP,
+            factory_fn=LlamaAttentionMXFP.from_attention,
+            kwargs=quant_args["attn_kwargs"],
+            label="LlamaAttention"
+        )
 
-    # Linear
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args["fc_kwargs"],
-        label="MXFPLinearPTQ"
-    )
+        # Linear
+        replace_modules(
+            model,
+            target_class=nn.Linear,
+            replacement_class=MXFPLinearPTQ,
+            factory_fn=MXFPLinearPTQ.from_linear,
+            kwargs=quant_args["fc_kwargs"],
+            label="MXFPLinearPTQ"
+        )
 
-    # Embedding
-    replace_modules(
-        model,
-        target_class=nn.Embedding,
-        replacement_class=MXFPEmbeddingPTQ,
-        factory_fn=MXFPEmbeddingPTQ.from_embedding,
-        kwargs=quant_args["embed_kwargs"],
-        label="Embedding"
-    )
+        # Embedding
+        replace_modules(
+            model,
+            target_class=nn.Embedding,
+            replacement_class=MXFPEmbeddingPTQ,
+            factory_fn=MXFPEmbeddingPTQ.from_embedding,
+            kwargs=quant_args["embed_kwargs"],
+            label="Embedding"
+        )
 
-    # RMSNorm
-    replace_modules(
-        model,
-        target_class=LlamaRMSNorm,
-        replacement_class=FPRMSNormPTQ,
-        factory_fn=FPRMSNormPTQ.from_rmsnorm,
-        kwargs=quant_args["rms_kwargs"],
-        label="FPRMSNormPTQ"
-    )
+        # RMSNorm
+        replace_modules(
+            model,
+            target_class=LlamaRMSNorm,
+            replacement_class=FPRMSNormPTQ,
+            factory_fn=FPRMSNormPTQ.from_rmsnorm,
+            kwargs=quant_args["rms_kwargs"],
+            label="FPRMSNormPTQ"
+        )
+    
+    if enable_eval_harness:
+        results = evaluate_with_lm_eval(
+            model=model, 
+            tokenizer=tokenizer, 
+            tasks=tasks, 
+            max_length=2048, 
+            batch_size="auto", 
+            log_samples=False)
+    else:
+        results = evaluate_perplexity(
+            model=model, 
+            tokenizer=tokenizer, 
+            dataset_name=tasks, 
+            max_length=2048)
 
-    # Wrap and evaluate
-    model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=2048)
-    if isinstance(tasks, str):
-        tasks = [tasks]
-
-    results = simple_evaluate(
-        model=model_lm_eval,
-        tasks=tasks,
-        batch_size="auto",
-        log_samples=False
-    )
-
-    save_results(log_dir, results)
-
-    table = make_table(results)
-    print(table)
-    print(f"[INFO] Results saved in {log_dir}")
-
+    if log_dir:
+        save_results(log_dir, results)
 
 if __name__ == "__main__":
     import time
