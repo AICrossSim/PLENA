@@ -398,6 +398,7 @@ module coprocessor import configuration_pkg::*; #(
         .rst(rst),
         .select_write_data_a            (select_write_data_a),
         .region_reset_a                 (exe_stage_op.v_ele_op == RESET_V),
+        .reset_addr_a                   (exe_stage_op.addr_1),
         .port_a_req                     (v_sram_req_a),
         .port_a_write_en                (v_sram_wen_a),
         .port_a_addr                    (v_sram_addr_a),

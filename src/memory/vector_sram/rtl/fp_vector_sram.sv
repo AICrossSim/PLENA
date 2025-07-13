@@ -48,7 +48,7 @@ module fp_vector_sram #(
     input   logic port_a_req,
     input   logic port_a_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_a_addr,
-    input   logic select_write_data_a, // 0 for Vector Machine, 1 for Matrix Machine, 2 for Scalar Machine
+    input   logic select_write_data_a, // 0 for Vector Machine, 1 for Matrix Machine
     input   logic region_reset_a,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] reset_addr_a,
     // FP Data Connection
@@ -147,24 +147,24 @@ module fp_vector_sram #(
     // -----------------------------
 
     always_comb begin
-        if (select_write_data_a == 1'b0) begin
-            // Vector Machine Mode, output as FP Data
-            port_a_fp_in_internal       = port_a_v_fp_in;
-            port_a_v_fp_out             = port_a_fp_out_internal;
-            port_a_write_en_internal    = port_a_write_en;
-            translated_port_a_addr_internal        = translated_port_a_addr;
-        end else if (reset_in_progress) begin
+        if (reset_in_progress) begin
             // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal       = '0;
             port_a_v_fp_out             = '0;
             port_a_write_en_internal    = 1'b1;
-            translated_port_a_addr_internal        = recorded_translated_port_a_reset_addr + reset_counter;
+            translated_port_a_addr_internal  = recorded_translated_port_a_reset_addr + reset_counter;
+        end else if (select_write_data_a == 1'b0) begin
+            // Vector Machine Mode, output as FP Data
+            port_a_fp_in_internal       = port_a_v_fp_in;
+            port_a_v_fp_out             = port_a_fp_out_internal;
+            port_a_write_en_internal    = port_a_write_en;
+            translated_port_a_addr_internal  = translated_port_a_addr;
         end else begin
             // Matrix Machine Mode, output as MX-FP Data
             port_a_fp_in_internal       = port_a_m_fp_in;
             port_a_v_fp_out             = '0;
             port_a_write_en_internal    = port_a_write_en;
-            translated_port_a_addr_internal        = translated_port_a_addr;
+            translated_port_a_addr_internal  = translated_port_a_addr;
         end 
     end
 

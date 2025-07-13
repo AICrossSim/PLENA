@@ -127,17 +127,19 @@ module scalar_machine import precision_pkg::*;  #(
                 fp_sram_req             <= 1'b1;
                 fp_sram_stall_req       <= 1'b1;
                 fp_vector_out_valid     <= 1'b0;  
-            end else if (acc_vec_counter == VLEN) begin
-                acc_vec_counter         <= 'b0;
+            end else if (acc_vec_counter == VLEN + 1) begin
+                acc_vec_counter         <=  'b0;
                 continuous_load_fp_sram <= 1'b0;
                 fp_sram_req             <= 1'b0;
-                fp_vector_buffer[acc_vec_counter - 1]   <= fp_ld_from_sram;
-                fp_vector_out_valid         <= 1'b1;
+                fp_vector_buffer[acc_vec_counter - 2]   <= fp_ld_from_sram;
+                fp_vector_out_valid     <= 1'b1;
             end else if (continuous_load_fp_sram) begin
                 acc_vec_counter <= acc_vec_counter + 1'b1;
                 fp_sram_addr    <= recorded_fp_sram_addr + acc_vec_counter;
-                fp_vector_buffer[acc_vec_counter - 1]   <= fp_ld_from_sram;
-                fp_sram_req                             <= 1'b1;
+                if (acc_vec_counter > 'b1) begin
+                    fp_vector_buffer[acc_vec_counter - 2]   <= fp_ld_from_sram;
+                end
+                fp_sram_req                                 <= 1'b1;
             end else if (fp_vector_out_valid & fp_vector_out_ready) begin
                 fp_sram_stall_req           <= 1'b0;
                 fp_vector_buffer            <= 'b0;

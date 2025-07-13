@@ -506,22 +506,25 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
 
             if (hbm_v_req_prefetch_data && prefetch_v_valid) begin
                 v_sram_req_b            <= 1'b1;
+                v_sram_wen_b            <= 1'b1;
                 s_map_v_ready           <= 1'b0;
                 select_write_data_b     <= 1'b0;
             end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && ((exe_stage_op.v_ele_op != RESET_V)) && !exe_stage_op.v_broadcast_en)) begin
                 v_sram_req_b            <= 1'b1;
+                v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
                 select_write_data_b     <= 1'b0;
-            end else if (s_map_v_valid) begin
+            end else if (s_map_v_valid & !s_map_v_ready) begin
                 v_sram_req_b            <= 1'b1;
+                v_sram_wen_b            <= 1'b1;
                 s_map_v_ready           <= 1'b1;
                 select_write_data_b     <= 1'b1;
             end else begin
                 v_sram_req_b            <= 1'b0;
+                v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
                 select_write_data_b     <= 1'b0;
             end
-            v_sram_wen_b            <= (hbm_v_req_prefetch_data && prefetch_v_valid);
             recorded_v_load_addr_1  <= exe_stage_op.addr_1;
             recorded_v_load_addr_2  <= exe_stage_op.addr_2;
 
