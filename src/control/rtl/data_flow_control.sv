@@ -280,7 +280,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
 
     // Assuming the read cycle is 1 cycle for both ports.
-    
+
     // Port A ->  R: Matrix Multiplicand Vector & Vector Machine input Operand (RS1)   W: Vector Result from either Matrix or Vector Machine, 
     // Port B ->  R: Vector Machine input Operand (RS2)  or Load HBM Write Data        W: Vector Prefetch
     // For Port A, if loading it to the matrix machine, this takes extra cycle as we need to quantise the fp data (activation) into MX-FP format.
@@ -300,6 +300,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic v_v_a_load, v_v_b_load;
     logic end_of_load_v_for_matrix;
     logic p1_vport_a_load_valid, p2_vport_a_load_valid;
+    logic recorded_prefetch_precision; // 0 for high precision, 1 for low precision
     
     assign continuous_write_to_v_sram_port_b = continuous_v_prefetch_en;
     always_comb begin
@@ -336,10 +337,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (rst) begin
             recorded_v_prefetch_addr = 'b0;
             hbm_waddr = 'b0;
-        end else if (exe_stage_op.h_op == PREFETCH_V_H_C) begin
+        end else if (exe_stage_op.h_op == PREFETCH_V_H_C || exe_stage_op.h_op == PREFETCH_V_H_S || exe_stage_op.h_op == PREFETCH_V_L_C || exe_stage_op.h_op == PREFETCH_V_L_S) begin
             recorded_v_prefetch_addr = exe_stage_op.addr_2;
-        end else if (exe_stage_op.h_op == STORE_V_H_S || exe_stage_op.h_op == STORE_V_H_C) begin
+            recorded_prefetch_precision = (exe_stage_op.h_op == PREFETCH_V_H_C || exe_stage_op.h_op == PREFETCH_V_H_S) ? 1'b0 : 1'b1;
+        end else if (exe_stage_op.h_op == STORE_V_H_S || exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_L_C || exe_stage_op.h_op == STORE_V_L_S ) begin
             hbm_waddr = exe_stage_op.addr_2;
+            recorded_prefetch_precision = (exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_H_S) ? 1'b0 : 1'b1;
         end
     end
 
@@ -373,7 +376,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             v_sram_load_for_matrix_counter  <= 'b0;
             v_sram_write_from_matrix_counter <= 'b0;
             s_map_v_ready                   <= 1'b0;
-            select_write_data_b             <= 1'b0;
+            select_write_data_b             <= 2'b0;
 
         end else begin
             v_v_out_ready               <= 1'b1;
@@ -509,22 +512,26 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 v_sram_req_b            <= 1'b1;
                 v_sram_wen_b            <= 1'b1;
                 s_map_v_ready           <= 1'b0;
-                select_write_data_b     <= 1'b0;
+                if (recorded_prefetch_precision == 1'b0) begin
+                    select_write_data_b     <= 2'b0; // High Precision
+                end else begin
+                    select_write_data_b     <= 2'b01; // Low Precision
+                end
             end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && ((exe_stage_op.v_ele_op != RESET_V)) && !exe_stage_op.v_broadcast_en)) begin
                 v_sram_req_b            <= 1'b1;
                 v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
-                select_write_data_b     <= 1'b0;
+                select_write_data_b     <= 2'b0;
             end else if (s_map_v_valid & !s_map_v_ready) begin
                 v_sram_req_b            <= 1'b1;
                 v_sram_wen_b            <= 1'b1;
                 s_map_v_ready           <= 1'b1;
-                select_write_data_b     <= 1'b1;
+                select_write_data_b     <= 2'b10;
             end else begin
                 v_sram_req_b            <= 1'b0;
                 v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
-                select_write_data_b     <= 1'b0;
+                select_write_data_b     <= 2'b0;
             end
             recorded_v_load_addr_1  <= exe_stage_op.addr_1;
             recorded_v_load_addr_2  <= exe_stage_op.addr_2;

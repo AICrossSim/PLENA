@@ -94,7 +94,7 @@ module double_precision_hbm_controller #(
             end
             
             hbm_raddr_for_ele       = hbm_waddr;
-            hbm_raddr_for_scale     = offset_addr + scale_offset;
+            hbm_raddr_for_scale     = hbm_waddr  + offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             
         end else begin
@@ -107,7 +107,7 @@ module double_precision_hbm_controller #(
             end
 
             hbm_raddr_for_ele       = hbm_raddr;
-            hbm_raddr_for_scale     = offset_addr + scale_offset;
+            hbm_raddr_for_scale     = hbm_waddr + offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
         end
 

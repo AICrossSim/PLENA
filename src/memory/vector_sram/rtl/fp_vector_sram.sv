@@ -112,9 +112,8 @@ module fp_vector_sram #(
     logic port_a_write_en_internal;
     logic port_a_req_internal;
 
-    assign port_b_scale_out =   (select_write_data_b == 2'b01) ? port_b_high_scale_out :
-                                (select_write_data_b == 2'b10) ? port_b_low_scale_out :
-                                '0;
+    assign port_b_scale_out =   (select_write_data_b == 2'b01) ? port_b_high_scale_out  :
+                                (select_write_data_b == 2'b10) ? port_b_low_scale_out   : '0;
     
     // -----------------------------
     // Prefetch Tag Tracking

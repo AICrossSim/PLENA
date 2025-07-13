@@ -81,7 +81,7 @@ typedef enum logic [3:0] {
     PASS_ADDR     = 4'hA,
     PASS_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 adress.
     COMP_ADDR     = 4'hC,
-    COMP_ADDR_2   = 4'hD, // addr_port_2: rd and addr_port_1:  rs1 + imm
+    COMP_ADDR_2   = 4'hD, // addr_port_2: rd and addr_port_1: rs1 + imm
     STALL_S_FIXED = 4'h0
 } S_FIXED_OP;
 

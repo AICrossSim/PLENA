@@ -210,7 +210,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         end else begin
             if (exe_stage_op.c_op == SET_STRIDE_SIZE) begin
                 stored_stride_size <= exe_stage_op.addr_2;
-            end else if (exe_stage_op.c_op == C_SET_SCALE_REG) begin
+            end else if (exe_stage_op.c_op == SET_SCALE_REG) begin
                 stored_scale_offset <= exe_stage_op.addr_2;
             end
         end

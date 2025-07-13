@@ -64,7 +64,7 @@ module hbm_controller #(
     logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_ele;
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_scale;
-    logic   [ON_CHIP_ADDR_WIDTH - 1 : 0]    stride_offset_for_ele, stride_offset_for_scale;
+    logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  stride_offset_for_ele, stride_offset_for_scale;
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  offset_addr;
     logic ele_ready_to_write, scale_ready_to_write;
 
@@ -74,13 +74,13 @@ module hbm_controller #(
         if (hbm_write_en) begin
             offset_addr = hbm_waddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
             hbm_raddr_for_ele       = hbm_waddr;
-            hbm_raddr_for_scale     = offset_addr + scale_offset;
+            hbm_raddr_for_scale     = hbm_waddr + offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             stride_offset_for_scale = stride_offset >> ELE_SCALE_ADR_RATIO;
         end else begin
             offset_addr = hbm_raddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> ELE_SCALE_ADR_RATIO;
             hbm_raddr_for_ele       = hbm_raddr;
-            hbm_raddr_for_scale     = offset_addr + scale_offset;
+            hbm_raddr_for_scale     = hbm_waddr + offset_addr + scale_offset;
             stride_offset_for_ele   = stride_offset;
             stride_offset_for_scale = stride_offset >> ELE_SCALE_ADR_RATIO;
         end

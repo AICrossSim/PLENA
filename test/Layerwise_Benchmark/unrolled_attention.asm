@@ -44,8 +44,6 @@ S_ADDI_FIX x1, x0, 0;
 ;<--------------------------------  LOOP Tc Iteration 0 -------------------------------->
 ; Setting O(i) to be zero
 ; Setting m_curr(i) to be - inf
-
-
 S_ADDI_FIX x2, x0, 0;
 ;<---------------- LOOP Internal QKT (MLEN/BLEN) Iteration 0 ---------------->
 S_ADDI_FIX x3, x0, 0; 
