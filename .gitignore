@@ -43,3 +43,4 @@ analyzed/
 notebooks/
 logs*/
 kube/
+*.out
