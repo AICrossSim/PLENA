@@ -11,7 +11,7 @@ def reciprocal_approx(x: Tensor, quantizer) -> Tensor:
     reciprocal = quantizer(reciprocal)
     return reciprocal
 
-def tayor_exp(x: torch.Tensor):
+def tayor_exp(x: torch.Tensor, quantizer):
     """
     Taylor series expansion of 2^x for testing
     """
@@ -19,9 +19,10 @@ def tayor_exp(x: torch.Tensor):
         """
         Range reduction of x
         """
-        MLOG2_E = 92/2**7
+        MLOG2_E = torch.tensor(92/2**7)
         ELOG2_E = 1
         new_mx = x * MLOG2_E * 2
+        new_mx = new_mx.clamp(min=-512, max=512)
         integ = new_mx.floor()
         frac = new_mx - integ
         return frac, integ
@@ -40,23 +41,33 @@ def tayor_exp(x: torch.Tensor):
 
     frac, integ = range_reduction(x)
     taylor_result = taylor_series(frac)
-    taylor_result[torch.where(x == torch.tensor(-float("inf")))] = 0.0
-    return taylor_result * 2**integ
+    taylor_result = taylor_result * 2**integ
+    taylor_result = quantizer(taylor_result)
+    if torch.isnan(taylor_result).any():
+        print("taylor_result is nan")
+        breakpoint() 
+    return taylor_result
 
 def softmax_approx(x: Tensor, quantizer, dim: int = -1) -> Tensor:
     x_max = x.max(dim=dim, keepdim=True).values
-    x_exp = tayor_exp(x-x_max)
-    x_exp = quantizer(x_exp)
+    x_exp = tayor_exp(x-x_max, quantizer)
     x_exp_sum = x_exp.sum(dim=dim, keepdim=True)
     x_exp_sum = quantizer(x_exp_sum)
     reciprocal = reciprocal_approx(x_exp_sum, quantizer)
-    return x_exp * reciprocal
+    result = x_exp * reciprocal
+    if torch.isnan(result).any():
+        print("softmax is nan")
+        breakpoint() 
+    return result
 
 def silu_approx(x: Tensor, quantizer) -> Tensor:
-    x_exp = tayor_exp(-x)
-    x_exp = quantizer(x_exp)
+    x_exp = tayor_exp(-x, quantizer)
     reciprocal = reciprocal_approx(1 + x_exp, quantizer)
-    return x * reciprocal
+    result = x * reciprocal
+    if torch.isnan(result).any():
+        print("silu is nan")
+        breakpoint()
+    return result
 
 def sqrt_newton(x, quantizer, iters=5):
     x = x.float()
@@ -72,9 +83,11 @@ def rms_norm_approx(x: Tensor, quantizer, eps: float = 1e-6) -> Tensor:
     variance = quantizer(variance)
     variance = variance.mean(-1, keepdim=True)
     variance = quantizer(variance)
-    variance = variance + eps
+    # variance = variance + eps
     sqrt = sqrt_newton(variance, quantizer, iters=10)
 
     sqrt = quantizer(sqrt)
     reciprocal_sqrt = reciprocal_approx(sqrt, quantizer)
+    if torch.isnan(reciprocal_sqrt*x).any():
+        breakpoint() 
     return x * reciprocal_sqrt

@@ -116,7 +116,7 @@ def mxfp_lm_eval(
         label="LlamaMLP"
     )
 
-    # Attention - softmax, rope, matmul
+    # # Attention - softmax, rope, matmul
     replace_modules(
         model,
         target_class=LlamaAttention,
@@ -127,14 +127,14 @@ def mxfp_lm_eval(
     )
 
     # Linear
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args["fc_kwargs"],
-        label="MXFPLinearPTQ"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=nn.Linear,
+    #     replacement_class=MXFPLinearPTQ,
+    #     factory_fn=MXFPLinearPTQ.from_linear,
+    #     kwargs=quant_args["fc_kwargs"],
+    #     label="MXFPLinearPTQ"
+    # )
 
     # # Embedding
     # replace_modules(

@@ -10,7 +10,7 @@ def _minifloat_ieee_quantize(x: Tensor, meta: MinifloatMeta) -> Tensor:
     mantissa_bits = meta.element_frac_bits
     exponent_bias = meta.exponent_bias
 
-    exponent_max = 2 ** exponent_width - 1 - exponent_bias
+    exponent_max = 2 ** exponent_width - 2 - exponent_bias
     exponent_min = -exponent_bias
     shift = 2 ** mantissa_bits
     shifted_mantissa_max = shift - 1
@@ -18,6 +18,7 @@ def _minifloat_ieee_quantize(x: Tensor, meta: MinifloatMeta) -> Tensor:
 
     sign = torch.sign(x + 1e-9)
     value = torch.abs(x)
+    is_inf = value.isinf()
 
     # Calculate exponent and clamp
     exponent = torch.floor(torch.log2(value + 1e-9))
@@ -46,7 +47,19 @@ def _minifloat_ieee_quantize(x: Tensor, meta: MinifloatMeta) -> Tensor:
 
     # Handle x == 0 explicitly to preserve gradient
     is_zero = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))
-    quantized = (~is_zero) * (sign * (2 ** exponent) * mantissa) + is_zero * x
+    quantized = torch.where(
+        is_zero,
+        x,
+        torch.where(
+            is_inf,
+            sign * 2**exponent_max,
+            sign * (2 ** exponent) * mantissa
+        )
+    )
+
+    if torch.isnan(quantized).any():
+        print("quantized is nan")
+        breakpoint() 
     return quantized
 
 

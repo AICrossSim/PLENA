@@ -13,7 +13,7 @@ def llm_eval():
         preset_mxfp_X="MXFP8_E4M3",
         preset_mxfp_W="MXFP8_E4M3",
         preset_mxfp_Kv="MXFP8_E4M3",
-        preset_minifloat="FP16_E8M7",
+        preset_minifloat="FP16_E5M10",
     )
 if __name__ == "__main__":
     llm_eval()
