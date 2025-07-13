@@ -49,14 +49,9 @@ class Assembler:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP"]:
+        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
-                (rd << opw) +
-                opcode
-            )
-        elif instruction.opcode in ["S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
-            binary_instruction = (
                 (rd << opw) +
                 opcode
             )
