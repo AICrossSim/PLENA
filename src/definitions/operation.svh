@@ -1,15 +1,8 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
-
-parameter FIXED_OPERAND_WIDTH = 3;
-parameter FP_OPERAND_WIDTH = 3;
-parameter OPERAND_WIDTH = 3;
-parameter OPCODE_WIDTH = 6;
-parameter IMM_WIDTH = 7;
-parameter IMM_2_WIDTH = 4;
-parameter INSTRUCTION_LENGTH = 16;
-parameter ON_CHIP_ADDR_WIDTH = 32;
+import configuration_pkg::*;
+import instruction_pkg::*;
 
 typedef struct {
     logic w_m_sram_en;
@@ -188,7 +181,6 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
 } CUSTOM_ISA_OPCODE;
 
 
-
 typedef enum logic [2:0] {
     INVALID_TYPE = 3'h0,
     M            = 3'h1,
@@ -200,11 +192,11 @@ typedef enum logic [2:0] {
 } CUSTOM_ISA_TYPE;
 
 typedef struct {
-    logic [OPCODE_WIDTH - 1:0]  opcode;
-    logic [OPERAND_WIDTH:0]     rs1;
-    logic [OPERAND_WIDTH:0]     rs2;
-    logic [OPERAND_WIDTH:0]     rd;
-    logic [IMM_WIDTH - 1:0]     imm;
+    logic [instruction_pkg::OPCODE_WIDTH  - 1 : 0]  opcode;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]     rs1;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]     rs2;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]     rd;
+    logic [instruction_pkg::IMM_WIDTH - 1 : 0]     imm;
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
@@ -217,14 +209,14 @@ typedef struct {
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
-    logic [FP_OPERAND_WIDTH - 1:0]      fps1;
-    logic [FP_OPERAND_WIDTH - 1:0]      fps2;
-    logic [FP_OPERAND_WIDTH - 1:0]      fpd;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs1;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs2;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rd;
-    logic [ON_CHIP_ADDR_WIDTH - 1:0]    addr_1;
-    logic [ON_CHIP_ADDR_WIDTH - 1:0]    addr_2;
+    logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]      fps1;
+    logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]      fps2;
+    logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]      fpd;
+    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]   fixed_rs1;
+    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]   fixed_rs2;
+    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]   fixed_rd;
+    logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]    addr_1;
+    logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]    addr_2;
     logic update_m_waddr;
     logic update_v_waddr;
 } OP_BUNDLE;

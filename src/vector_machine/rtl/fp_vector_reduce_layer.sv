@@ -1,5 +1,8 @@
 `timescale 1ns / 1ps
+
+`include "configuration.svh"
 `include "operation.svh"
+
 /*
 Module      : Floating Point Reduction Tree
 Timing      : Combinatorial Logic

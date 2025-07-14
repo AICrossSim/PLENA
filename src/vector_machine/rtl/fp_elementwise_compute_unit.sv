@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "configuration.svh"
 `include "operation.svh"
 /*
 Module      : Elementwise Computation Module

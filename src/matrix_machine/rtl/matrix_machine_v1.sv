@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
-`include "configuration.svh"
+
 `include "precision.svh"
+`include "configuration.svh"
+`include "operation.svh"
 
 /*
 Module      : Matrix Machine Module
@@ -343,7 +344,7 @@ mx_fp_mv #(
     .FP_ADD_EXT_EXP_WIDTH(FP_ADD_EXT_EXP_WIDTH),
     .FP_ADD_EXT_MANT_WIDTH(FP_ADD_EXT_MANT_WIDTH),
 
-    .OUTPUT_FP_ROUND_EN(ROUND_FP_EN),
+    // .OUTPUT_FP_ROUND_EN(ROUND_FP_EN),
     .ROUND_FP_EXP_WIDTH(ROUND_FP_EXP_WIDTH),
     .ROUND_FP_MANT_WIDTH(ROUND_FP_MANT_WIDTH)
 ) mx_fp_mv_init (

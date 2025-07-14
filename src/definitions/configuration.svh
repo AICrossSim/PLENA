@@ -14,11 +14,9 @@ package configuration_pkg;
     parameter   INST_BUFF_DEPTH = 8;
     parameter   ON_CHIP_ADDR_WIDTH = 32;
     parameter   HBM_ADDR_WIDTH = 64;
-    parameter   ADR_OPERAND_WIDTH = 3;
-    parameter   HBM_ADDR_REG_NUM = 8;
     parameter   SourceWidth = 1;
     parameter   SinkWidth = 1;
-    parameter   MATRIX_ACC_ADR_DEPTH = 8;
+    parameter   MATRIX_ACC_ADR_DEPTH = 8; // Not suggested to change this parameter.
     // Memory Related
     parameter   MATRIX_SRAM_WIDTH = (precision_pkg::WT_MXFP_MANT_WIDTH + precision_pkg::WT_MXFP_EXP_WIDTH + 1 + precision_pkg::MXFP_SCALE_WIDTH) * MLEN;
     parameter   MATRIX_SRAM_DEPTH = 128;
@@ -35,6 +33,17 @@ package configuration_pkg;
     parameter   HBM_V_Writeback_Amount = 8;
     parameter   HBM_ELE_WIDTH = 256;
     parameter   HBM_SCALE_WIDTH = 256;
+endpackage
+
+package instruction_pkg;
+    parameter FIXED_OPERAND_WIDTH   = 3;
+    parameter FP_OPERAND_WIDTH      = 3;
+    parameter HBM_ADR_OPERAND_WIDTH = 3;
+    parameter OPERAND_WIDTH         = 3;
+    parameter OPCODE_WIDTH          = 6;
+    parameter IMM_WIDTH             = 7;
+    parameter IMM_2_WIDTH           = 4;
+    parameter INSTRUCTION_LENGTH    = 16;
 endpackage
 
 package simulation_pkg;

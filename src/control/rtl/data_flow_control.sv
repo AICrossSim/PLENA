@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
+
 `include "precision.svh"
 `include "configuration.svh"
+`include "operation.svh"
 
 /*
 Module      : Data Flow Control

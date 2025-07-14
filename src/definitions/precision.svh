@@ -30,7 +30,6 @@ package precision_pkg;
     parameter   BLOCK_ADD_EXT_MANT_WIDTH        = 0;
     parameter   FP_ADD_EXT_EXP_WIDTH            = 1;
     parameter   FP_ADD_EXT_MANT_WIDTH           = 0;
-    parameter   ROUND_FP_EN                     = 0;
     parameter   ROUND_FP_EXP_WIDTH              = 4;
     parameter   ROUND_FP_MANT_WIDTH             = 3; 
 endpackage

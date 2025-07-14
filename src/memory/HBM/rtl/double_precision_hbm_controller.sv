@@ -260,7 +260,7 @@ module double_precision_hbm_controller #(
         .fetch_data         (prefetch_scale),
         .fetch_data_ready   (prefetch_scale_data_ready),
         .ready_to_write     (scale_ready_to_write),
-        .write_data         (write_high_precision_scale),
+        .write_data         (write_scale),
         .write_mask         (hbm_scale_write_mask),
         `TL_CONNECT_HOST_PORT(host, tl_scale)
     );

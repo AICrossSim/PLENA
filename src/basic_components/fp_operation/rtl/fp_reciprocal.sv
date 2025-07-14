@@ -26,6 +26,7 @@ module fp_reciprocal #(
     localparam IN_WIDTH = IN_FIX_WIDTH - 1;
     localparam EXTEND_EXP_WIDTH = OUT_EXP_WIDTH + 1;
     localparam RECIPROCAL_MANTISSA_WIDTH = OUT_FIX_WIDTH + IN_FIX_WIDTH; //RANDOM set a large width for the reciprocal mantissa
+    localparam LEAD_ZERO_WIDTH = $clog2(RECIPROCAL_MANTISSA_WIDTH + 1);
 
     logic sign;
     logic unsigned [IN_WIDTH - 1:0] unsigned_mant_in;
@@ -59,7 +60,7 @@ module fp_reciprocal #(
         .width_i(RECIPROCAL_MANTISSA_WIDTH)
     ) clz_inst (
         .i_num(unsigned_reciprocal_mantissa),
-        .o_lz(leading_zeros)
+        .o_lz(leading_zeros[LEAD_ZERO_WIDTH - 1:0])
     );
     
     // Calculate leading zeros and extended exponent

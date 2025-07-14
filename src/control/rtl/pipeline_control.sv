@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
+
 `include "configuration.svh"
+`include "operation.svh"
 
 /*
 Module      : Pipeline Control
@@ -14,7 +15,6 @@ Description : This module monitors the execution stages of each module and decid
 */
 
 module pipeline_control #(
-    parameter   OPERAND_WIDTH           = 5,
     parameter   FIXED_OPERAND_WIDTH     = 5,
     parameter   FP_OPERAND_WIDTH        = 5,
     parameter   FIXED_DATA_WIDTH        = 32,

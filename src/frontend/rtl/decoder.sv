@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "configuration.svh"
 `include "operation.svh"
 
 /*
@@ -11,7 +13,7 @@ Description :
     [IMM]        [RD] [OPCODE_WID]
 */
 
-module decoder #(
+module decoder import instruction_pkg::*; #(
     parameter INSTRUCTION_LENGTH = 16,
     parameter OPERAND_WIDTH = 5,
     parameter OPCODE_WIDTH = 4,
@@ -43,11 +45,23 @@ module decoder #(
 logic   stall_for_read_rd;
 logic   [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic   read_instr_from_fifo, decode_instr_valid;
-assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & !fixed_op_stall_flag;
 
 logic   p1_pipeline_stall, recover_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_FIXED_OP      exe_fixed_op;
+
+logic rd_operand_ready; // The stall is for loading the third operand from the register files.
+logic m_update_waddr, v_update_waddr;
+logic recorded_m_update_waddr, recorded_v_update_waddr;
+logic pass_m_update_waddr, pass_v_update_waddr;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
+logic stall_for_read_rd_flag;
+logic recorded_stall_for_read_rd_flag;
+logic fixed_op_stall_flag;
+
+assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & !fixed_op_stall_flag;
 
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
@@ -128,17 +142,6 @@ assign decode_instr_info = (read_instr_from_fifo & decode_instr_valid) ? '{opcod
 
 
 // Decoding
-logic rd_operand_ready; // The stall is for loading the third operand from the register files.
-logic m_update_waddr, v_update_waddr;
-logic recorded_m_update_waddr, recorded_v_update_waddr;
-logic pass_m_update_waddr, pass_v_update_waddr;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
-logic stall_for_read_rd_flag;
-logic recorded_stall_for_read_rd_flag;
-logic fixed_op_stall_flag;
-// assign fixed_op_stall_flag = (decode_instr_info.opcode == S_ACC_MULI); // Stall the overall execution after detecting S_ACC_MULI for a single clock.
 
 always_ff @(posedge clk) begin
     if (rst) begin

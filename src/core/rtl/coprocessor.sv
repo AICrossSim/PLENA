@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
 
-`include "operation.svh"
+`include "global_define.vh"
 `include "precision.svh"
 `include "configuration.svh"
+`include "operation.svh"
 `include "tl_util.svh"
-`include "global_define.vh"
+
 
 /*
 Module      : Coprocessor Top Module
@@ -14,7 +15,7 @@ Description : This module serves as the top level of the coprocessor,
               It currently only supports single batch execution.
 */
 
-module coprocessor import configuration_pkg::*; #(
+module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
         parameter string FIXED_MEM_INIT_FILE    = "",
@@ -160,7 +161,6 @@ module coprocessor import configuration_pkg::*; #(
     );
 
     pipeline_control #(
-        .OPERAND_WIDTH          (OPERAND_WIDTH),
         .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
         .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
         .FIXED_DATA_WIDTH       (FIXED_DATA_WIDTH),
@@ -454,7 +454,7 @@ module coprocessor import configuration_pkg::*; #(
         .exe_stage_op                           (exe_stage_op),
         .prefetch_m_ready                       (hbm_m_req_prefetch_data),
         .prefetch_m_valid                       (hbm_m_prefetch_valid),
-        .prefetch_m_element                     (prefetch_m_high_precision_element),
+        .prefetch_m_element                     (prefetch_m_element),
         .prefetch_m_scale                       (prefetch_m_scale),
         .prefetch_v_ready                       (hbm_v_req_prefetch_data),
         .prefetch_v_valid                       (hbm_v_prefetch_valid),

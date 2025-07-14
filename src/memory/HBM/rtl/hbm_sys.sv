@@ -200,9 +200,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     address_mapper #(
         .ADDR_WIDTH         (ADDR_WIDTH),
-        .ADR_OPERAND_WIDTH  (ADR_OPERAND_WIDTH),
-        .HBM_ADDR_WIDTH     (HBM_ADDR_WIDTH),
-        .HBM_ADDR_REG_NUM   (HBM_ADDR_REG_NUM)
+        .HBM_ADR_OPERAND_WIDTH  (HBM_ADR_OPERAND_WIDTH),
+        .HBM_ADDR_WIDTH     (HBM_ADDR_WIDTH)
         `ifdef SIMULATION
         , .MemInitFile       (MemInitFile)
         `endif
