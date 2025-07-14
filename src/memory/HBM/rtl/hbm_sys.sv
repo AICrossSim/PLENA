@@ -99,7 +99,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic [MLEN - 1 : 0] [WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]       m_hbm_upcasted_element_out;
     logic [M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
 
-    logic [ADDR_WIDTH - 1 : 0] stored_stride_size, stored_scale_offset;
+    logic [ADDR_WIDTH - 1 : 0] stored_m_stride_size, stored_v_stride_size, stored_m_scale_offset, stored_v_scale_offset;
     logic [VLEN * (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) - 1 : 0]   v_hbm_high_precision_element_out;
     logic [VLEN * (KV_MXFP_EXP_WIDTH + KV_MXFP_MANT_WIDTH + 1) - 1 : 0]     v_hbm_low_precision_element_out;
     logic [V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
@@ -233,14 +233,18 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            stored_stride_size  <= 'b0;
-            stored_scale_offset        <= 'b0;
-        end else begin
-            if (exe_stage_op.c_op == SET_STRIDE_SIZE) begin
-                stored_stride_size <= exe_stage_op.addr_2;
-            end else if (exe_stage_op.c_op == SET_SCALE_REG) begin
-                stored_scale_offset <= exe_stage_op.addr_2;
-            end
+            stored_m_stride_size <= 'b0;
+            stored_v_stride_size <= 'b0;
+            stored_m_scale_offset <= 'b0;
+            stored_v_scale_offset <= 'b0;
+        end else if (exe_stage_op.c_op == SET_M_STRIDE_SIZE) begin
+            stored_m_stride_size <= exe_stage_op.addr_2;
+        end else if (exe_stage_op.c_op == SET_V_STRIDE_SIZE) begin
+            stored_v_stride_size <= exe_stage_op.addr_2;
+        end else if (exe_stage_op.c_op == SET_M_SCALE_REG) begin
+            stored_m_scale_offset <= exe_stage_op.addr_2;
+        end else if (exe_stage_op.c_op == SET_V_SCALE_REG) begin
+            stored_v_scale_offset <= exe_stage_op.addr_2;
         end
     end
     
@@ -268,8 +272,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .rst(rst),
         .stride_mode                        (stride_mode_en),
         .precision_select                   (m_controller_precision_select),
-        .stride_offset                      (stored_stride_size),
-        .scale_offset                       (stored_scale_offset),
+        .stride_offset                      (stored_m_stride_size),
+        .scale_offset                       (stored_m_scale_offset),
         .prefetch_high_precision_element    (m_hbm_high_precision_element_out),
         .prefetch_low_precision_element     (m_hbm_low_precision_element_out),
         .prefetch_scale                     (m_hbm_scale_out),
@@ -311,19 +315,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .data_out_valid     (stored_prefetch_m_element_valid),
         .data_out_ready     (stored_prefetch_m_element_ready)
     );
-
-    // skid_buffer #(
-    //     .DATA_WIDTH(MLEN * (KV_MXFP_EXP_WIDTH + KV_MXFP_MANT_WIDTH + 1))
-    // ) matrix_sram_low_precision_prefetch_buffer (
-    //     .clk(clk),
-    //     .rst(rst),
-    //     .data_in            (m_hbm_low_precision_element_out),
-    //     .data_in_valid      (m_hbm_low_precision_element_out_valid),
-    //     .data_in_ready      (m_hbm_low_precision_element_out_ready),
-    //     .data_out           (prefetch_m_low_precision_element),
-    //     .data_out_valid     (stored_prefetch_high_precision_m_element_valid),
-    //     .data_out_ready     (stored_prefetch_low_precision_m_element_valid)
-    // );
 
     skid_buffer #(
         .DATA_WIDTH(M_BLOCKNUM * MXFP_SCALE_WIDTH)
@@ -379,8 +370,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .rst(rst),
         .stride_mode                        (stride_mode_en),
         .precision_select                   (v_controller_precision_select),
-        .stride_offset                      (stored_stride_size),
-        .scale_offset                       (stored_scale_offset),
+        .stride_offset                      (stored_v_stride_size),
+        .scale_offset                       (stored_v_scale_offset),
         .prefetch_high_precision_element    (v_hbm_high_precision_element_out),
         .prefetch_low_precision_element     (v_hbm_low_precision_element_out),
         .prefetch_scale                     (v_hbm_scale_out),

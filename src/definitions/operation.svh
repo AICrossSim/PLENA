@@ -85,11 +85,13 @@ typedef enum logic [3:0] {
 } S_FIXED_OP;
 
 typedef enum logic [2:0] {
-    STALL_C         = 3'h0,
-    SET_ADDR_REG    = 3'h1,
-    SET_STRIDE_SIZE = 3'h2,
-    SET_LUT         = 3'h3,
-    SET_SCALE_REG   = 3'h4
+    STALL_C             = 3'h0,
+    SET_ADDR_REG        = 3'h1,
+    SET_V_STRIDE_SIZE   = 3'h2,
+    SET_M_STRIDE_SIZE   = 3'h3,
+    SET_LUT             = 3'h4,
+    SET_V_SCALE_REG     = 3'h5,
+    SET_M_SCALE_REG     = 3'h6
 } C_OP;
 
 typedef enum logic [3:0] {

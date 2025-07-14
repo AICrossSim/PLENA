@@ -69,6 +69,7 @@ module coprocessor import configuration_pkg::*; #(
     logic m_v_valid,    m_v_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
+    logic m_prefetch_en;
 
     // HBM Control
     logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
@@ -251,8 +252,6 @@ module coprocessor import configuration_pkg::*; #(
     // Computation Units
     // -----------------------------
  
-
-                
     generate;
         // Matrix Compute Unit
         matrix_machine_v2 #(
@@ -345,6 +344,8 @@ module coprocessor import configuration_pkg::*; #(
     // -----------------------------
 
     // Matrix SRAM 
+    assign m_prefetch_en = (exe_stage_op.h_op == PREFETCH_M_H_C || exe_stage_op.h_op == PREFETCH_M_H_S || 
+                            exe_stage_op.h_op == PREFETCH_M_L_C || exe_stage_op.h_op == PREFETCH_M_L_S);
     matrix_sram_without_rounding #(
         .MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
@@ -368,7 +369,7 @@ module coprocessor import configuration_pkg::*; #(
         .element_in         (prefetch_m_element),
         .scale_in           (prefetch_m_scale),
         .prefetch_addr      (exe_stage_op.addr_2),
-        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M_H_C),
+        .prefetch_en        (m_prefetch_en),                // For address Tag.
         .data_not_ready     (m_prefetch_data_not_ready)
     );
 

@@ -443,13 +443,21 @@ always_ff @(posedge clk) begin
                     decode_stage_op.c_op                <= SET_ADDR_REG;
                 end else if (decode_instr_info.opcode == C_SET_STRIDE_REG) begin
                     assigned_fixed_op                   <= PASS_ADDR_2;
-                    decode_stage_op.c_op                <= SET_STRIDE_SIZE;
+                    if (decode_instr_info.imm == '0) begin
+                        decode_stage_op.c_op <= SET_V_STRIDE_SIZE;
+                    end else begin
+                        decode_stage_op.c_op <= SET_M_STRIDE_SIZE;
+                    end
                 end else if (decode_instr_info.opcode == C_SET_LUT) begin
                     assigned_fixed_op                   <= STALL_S_FIXED;
                     decode_stage_op.c_op                <= SET_LUT; // TODO: Left for Cano
                 end else if (decode_instr_info.opcode == C_SET_SCALE_REG) begin
                     assigned_fixed_op                   <= PASS_ADDR_2;
-                    decode_stage_op.c_op                <= SET_SCALE_REG;
+                    if (decode_instr_info.imm == '0) begin
+                        decode_stage_op.c_op <= SET_V_SCALE_REG;
+                    end else begin
+                        decode_stage_op.c_op <= SET_M_SCALE_REG;
+                    end
                 end else begin
                     assigned_fixed_op                   <= STALL_S_FIXED;
                     decode_stage_op.c_op                <= STALL_C;
