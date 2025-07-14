@@ -15,16 +15,18 @@ Status      : Under Development
 
 module fp_sfu #(
     parameter   EXP_WIDTH = 5,
-    parameter   MANT_WIDTH = 10
+    parameter   MANT_WIDTH = 10,
+    parameter   FP_OPERAND_WIDTH = 3
 )(
     input   logic clk,
     input   logic rst,
-    input   logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,       
-    input   S_FP_OP operation,       
-    output   logic sfu_in_use,    
-    output  logic [EXP_WIDTH + MANT_WIDTH : 0] data_out,
-    output  logic data_out_valid,   
-    output  logic data_out_ready  
+    input   logic [EXP_WIDTH + MANT_WIDTH : 0]  data_in,     
+    input   logic [FP_OPERAND_WIDTH - 1 : 0]    reg_waddr, 
+    input   S_FP_OP                             operation,         
+    output  logic [EXP_WIDTH + MANT_WIDTH : 0]  data_out,
+    output  logic [FP_OPERAND_WIDTH - 1 : 0]    stored_reg_waddr, 
+    output  logic                               data_out_valid,   
+    output  logic                               data_out_ready  
 );
 
 
@@ -32,14 +34,17 @@ module fp_sfu #(
 S_FP_OP recorded_operation;
 logic data_in_valid;
 logic data_in_ready;
+logic sfu_in_use;
 
 always_ff @(posedge clk) begin
     if (rst) begin
         recorded_operation <= STALL_S_FP;
         data_in_valid <= 1'b0;
+        stored_reg_waddr <= 'b0;
     end else begin
         if (!sfu_in_use & operation != STALL_S_FP) begin
             recorded_operation <= operation;
+            stored_reg_waddr <= reg_waddr;
             data_in_valid <= 1'b1;
             sfu_in_use <= 1'b1;
         end else if (data_out_valid & data_out_ready & sfu_in_use) begin
@@ -56,53 +61,56 @@ always_ff @(posedge clk) begin
     end
 end
 
-logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_sqrt_out, fp_exp_out;
+logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_exp_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] result_data;
 logic result_valid, result_ready;
-logic reciprocal_out_valid, sqrt_out_valid, exp_out_valid;
+logic reciprocal_out_valid, exp_out_valid;
 
 
 always_comb begin
     case (recorded_operation)
         RECI_FP: begin
-            result_data = fp_reciprocal_out;
-            result_valid = reciprocal_out_valid;
-        end
-
-        SQRT_FP: begin
-            result_data = fp_sqrt_out;
-            result_valid = sqrt_out_valid;
+            result_data     = fp_reciprocal_out;
+            result_valid    = reciprocal_out_valid;
         end
 
         EXP_FP: begin
-            result_data = fp_exp_out;
-            result_valid = exp_out_valid;
+            result_data     = fp_exp_out;
+            result_valid    = exp_out_valid;
         end
 
         default: begin
-
             result_data = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
         end
     endcase
 end
 
-
     fp_cp_reciprocal #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
+        .IN_EXP_WIDTH(EXP_WIDTH),
+        .IN_MANT_WIDTH(MANT_WIDTH),
+        .OUT_EXP_WIDTH(EXP_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH)
     ) fp_reciprocal (
-        .clk(),
-        .data_in(data_in),
-        .data_out(fp_reciprocal_out)
+        .clk(clk),
+        .rst(rst),
+        .data_in        (data_in),
+        .data_in_valid  (data_in_valid),
+        .data_out       (fp_reciprocal_out),
+        .data_out_valid (reciprocal_out_valid)
     );
 
     fp_cp_exp #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
+        .IN_EXP_WIDTH(EXP_WIDTH),
+        .IN_MANT_WIDTH(MANT_WIDTH),
+        .OUT_EXP_WIDTH(EXP_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH)
     ) fp_sqrt (
-        .clk(),
-        .data_in(data_in),
-        .data_out(fp_sqrt_out)
+        .clk(clk),
+        .rst(rst),
+        .data_in        (data_in),
+        .data_in_valid  (data_in_valid),
+        .data_out       (fp_exp_out),
+        .data_out_valid (exp_out_valid)
     );
 
     skid_buffer #(
@@ -117,6 +125,5 @@ end
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready)
     );
-
 
 endmodule

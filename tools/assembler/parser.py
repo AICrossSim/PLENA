@@ -108,10 +108,12 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 operand_0 = operands[0]
                 if operand_0[-1] == ';':
                     operand_0 = operand_0[:-1]
-                if operand_0.startswith('x'):
+                if operand_0.startswith('i'):
                     rd = int(operand_0[1:], 16)
-                elif operand_0.startswith('fp'):
-                    rd = int(operand_0[2:], 16)
+                elif operand_0.startswith('f'):
+                    rd = int(operand_0[1:], 16)
+                elif operand_0.startswith('a'):
+                    rd = int(operand_0[1:], 16)
                 else:
                     try:
                         rd = int(operand_0)
@@ -126,10 +128,12 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 operand_1 = operands[1]
                 if operand_1[-1] == ';':
                     operand_1 = operand_1[:-1]
-                if operand_1.startswith('x'):
+                if operand_1.startswith('i'):
                     rs1 = int(operand_1[1:], 16)
-                elif operand_1.startswith('fp'):
-                    rs1 = int(operand_1[2:], 16)
+                elif operand_1.startswith('f'):
+                    rs1 = int(operand_1[1:], 16)
+                elif operand_0.startswith('a'):
+                    rs1 = int(operand_1[1:], 16)
                 else:
                     try:
                         imm = int(operand_1)
@@ -141,10 +145,12 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 operand_2 = operands[2]
                 if operand_2[-1] == ';':
                     operand_2 = operand_2[:-1]
-                if operand_2.startswith('x'):
+                if operand_2.startswith('i'):
                     rs2 = int(operand_2[1:], 16)
-                elif operand_2.startswith('fp'):
-                    rs2 = int(operand_2[2:], 16)
+                elif operand_2.startswith('f'):
+                    rs2 = int(operand_2[1:], 16)
+                elif operand_2.startswith('a'):
+                    rs2 = int(operand_2[1:], 16)
                 else:
                     try:
                         imm = int(operand_2)

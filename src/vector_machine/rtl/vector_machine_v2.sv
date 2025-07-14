@@ -88,7 +88,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     logic s_acc_in_valid, s_acc_in_ready;
     logic red_v_in_a_valid, red_v_in_a_ready;
-    logic red_v_in_b_valid, red_v_in_b_ready;
     logic red_v_in_valid, red_v_in_ready;
     logic red_v_out_valid, red_v_out_ready;
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0] s_acc_in;
@@ -120,14 +119,14 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
                 recorded_result_waddr <= result_waddr;
             end
 
-            if (!in_preparation_stage & (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
+            if (!in_preparation_stage & (((element_v_control != STALL_V_ELEMENT) & (element_v_control != RESET_V)) || reduct_v_control != STALL_V_REDUCT)) begin
                 recorded_element_v_control  <= element_v_control;
                 recorded_reduct_v_control   <= reduct_v_control;
                 recorded_broadcast_en       <= broadcast_fp2;
                 recorded_s_wtarget          <= s_wtarget;
             end
 
-            if ((recorded_element_v_control != STALL_V_ELEMENT) & complete_element_prepare) begin
+            if (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & complete_element_prepare) begin
                 pipeline_compute_track[0] <= '{
                     waddr  : recorded_result_waddr,
                     ele_op : recorded_element_v_control,
@@ -163,7 +162,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             complete_element_prepare = 1'b0;
             complete_reduct_prepare = 1'b0;
         end else begin
-            if (!in_preparation_stage & (element_v_control != STALL_V_ELEMENT || reduct_v_control != STALL_V_REDUCT)) begin
+            if (!in_preparation_stage & (((element_v_control != STALL_V_ELEMENT) & (element_v_control != RESET_V)) || reduct_v_control != STALL_V_REDUCT)) begin
                 next_preparation_stage = 1'b1;
             end else if (complete_element_prepare || complete_reduct_prepare) begin
                 next_preparation_stage = 1'b0;
@@ -171,13 +170,13 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
                 next_preparation_stage = 1'b1;
             end
 
-            if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
+            if ((((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & recorded_broadcast_en & v_port_a_valid)) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
             end else if (recorded_element_v_control == LD_V_ELEMENT & recorded_broadcast_en & v_port_b_valid) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
-            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & v_port_b_valid & s_acc_in_valid) begin
+            end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & s_acc_in_valid) begin
                 complete_element_prepare    = 1'b0;
                 complete_reduct_prepare     = 1'b1;
             end else begin
@@ -186,8 +185,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             end
         end
     end
-
-
 
     assign s_in_ready = v_b_ready;
 
@@ -256,25 +253,22 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
     always_comb begin
-        if (recorded_element_v_control != STALL_V_ELEMENT & recorded_element_v_control != LD_V_ELEMENT) begin
+        if (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & recorded_element_v_control != LD_V_ELEMENT) begin
             element_v_in_a_valid = v_port_a_valid;
             element_v_in_b_valid = v_port_b_valid;
             red_v_in_a_valid     = 1'b0;
-            red_v_in_b_valid     = 1'b0;
             v_port_a_ready       = element_v_in_a_ready;
             v_port_b_ready       = element_v_in_b_ready;
         end else if (recorded_reduct_v_control != STALL_V_REDUCT) begin
             element_v_in_a_valid = 1'b0;
             element_v_in_b_valid = 1'b0;
-            red_v_in_a_valid     = v_port_a_valid;
-            red_v_in_b_valid     = v_port_b_valid;        
+            red_v_in_a_valid     = v_port_a_valid;    
             v_port_a_ready       = red_v_in_a_ready;
-            v_port_b_ready       = red_v_in_b_ready;
+            v_port_b_ready       = 1'b1;
         end else begin
             element_v_in_a_valid = 1'b0;
             element_v_in_b_valid = 1'b0;
             red_v_in_a_valid     = 1'b0;
-            red_v_in_b_valid     = 1'b0;
             v_port_a_ready       = 1'b1;
             v_port_b_ready       = 1'b1;
         end
@@ -366,10 +360,10 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     //----------------------------//
 
     join_n #(
-        .NUM_HANDSHAKES (3)
+        .NUM_HANDSHAKES (2)
     ) join_reduction (
-        .data_in_valid({red_v_in_a_valid, red_v_in_b_valid, s_acc_in_valid}),
-        .data_in_ready({red_v_in_a_ready, red_v_in_b_ready, s_acc_in_ready}),
+        .data_in_valid({red_v_in_a_valid, s_acc_in_valid}),
+        .data_in_ready({red_v_in_a_ready, s_acc_in_ready}),
         .data_out_valid(red_v_in_valid),
         .data_out_ready(red_v_in_ready)
     );
@@ -381,7 +375,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     ) reduction_unit (
         .clk(clk),
         .rst(rst),
-        .v_in({prepared_v_a, prepared_v_b, s_acc_in}),
+        .v_in({prepared_v_a, s_acc_in}),
         .v_in_valid(red_v_in_valid),
         .v_in_ready(red_v_in_ready),
         .operation(recorded_reduct_v_control),

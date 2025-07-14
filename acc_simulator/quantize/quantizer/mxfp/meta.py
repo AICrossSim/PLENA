@@ -38,31 +38,31 @@ OCP_MXFP8_E2M5 = MXFPMeta(
     element_frac_bits=5,
 )
 OCP_MXFP8_E4M3 = MXFPMeta(
-    block_size=32,
+    block_size=16,
     scale_exp_bits=8,
     element_exp_bits=4,
     element_frac_bits=3,
 )
 OCP_MXFP8_E5M2 = MXFPMeta(
-    block_size=32,
+    block_size=16,
     scale_exp_bits=8,
     element_exp_bits=5,
     element_frac_bits=2,
 )
 OCP_MXFP6_E2M3 = MXFPMeta(
-    block_size=32,
+    block_size=16,
     scale_exp_bits=8,
     element_exp_bits=2,
     element_frac_bits=3,
 )
 OCP_MXFP6_E3M2 = MXFPMeta(
-    block_size=32,
+    block_size=16,
     scale_exp_bits=8,
     element_exp_bits=3,
     element_frac_bits=2,
 )
 OCP_MXFP4_E2M1 = MXFPMeta(
-    block_size=32,
+    block_size=16,
     scale_exp_bits=8,
     element_exp_bits=2,
     element_frac_bits=1,

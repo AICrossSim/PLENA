@@ -14,13 +14,13 @@ Status      : Passed Simple Tests
 
 module fp_reduction_compute_unit #(
     // FP Data Format
-    parameter EXP_WIDTH    = 4,
-    parameter MANT_WIDTH   = 3,
+    parameter EXP_WIDTH     = 4,
+    parameter MANT_WIDTH    = 3,
 
     // Dimensions
-    parameter VLEN      = 8,
-    localparam VEC_DIM   = VLEN * 2 + 1, // 2 FP vector read + 1 FP from scalar machine for loop
-    localparam LEVELS = $clog2(VEC_DIM),
+    parameter  VLEN         = 8,
+    localparam VEC_DIM      = VLEN + 1, // 2 FP vector read + 1 FP from scalar machine for loop
+    localparam LEVELS       = $clog2(VEC_DIM),
 
     // Precision Control, for the vector core, currently focus solely on fixed data type width, left for future work.
     parameter ACC_EXT_EXP_WIDTH   = 0,
@@ -40,7 +40,6 @@ module fp_reduction_compute_unit #(
     input   logic rst,
 
     // Input vector
-
     input   logic [VEC_DIM - 1 : 0] [IN_WIDTH - 1 : 0] v_in,
     input   logic v_in_valid,
     output  logic v_in_ready,

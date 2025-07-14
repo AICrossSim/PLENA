@@ -79,3 +79,51 @@ def print_all_layers(model: nn.Module):
             device = "No parameters"
         print(f"{name}: {type(layer).__name__} | device: {device}")
     print("====================")
+
+
+def validate_and_sanitize_quant_args(
+    preset: str,
+    preset_mxfp_X: str | None,
+    preset_mxfp_W: str | None,
+    preset_mxfp_Kv: str | None,
+    preset_minifloat_NL: str | None,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    """
+    Validate and sanitize quantization flags based on the preset string.
+
+    Ensures that:
+    - If a quantization type (e.g., Xq, Wq) is specified in the preset,
+      the corresponding format must be provided.
+    - If not specified in the preset, any provided format is ignored with a warning.
+
+    Raises:
+        AssertionError: If the preset is not one of the allowed values.
+        ValueError: If a required quantization format is missing.
+
+    Returns:
+        A tuple of (preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL),
+        with unused arguments set to None.
+    """
+    allowed_presets = [
+        "XqWqBqKVqNLq", "XWqBqKVNL", "XWBKVNLq",
+        "XWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"
+    ]
+
+    assert preset in allowed_presets, f"Unsupported preset: '{preset}'"
+
+    def check_and_clear(flag: str, arg_value: str | None, arg_name: str) -> str | None:
+        if flag in preset:
+            if arg_value is None:
+                raise ValueError(f"Preset includes '{flag}' but '{arg_name}' is not specified.")
+            return arg_value
+        else:
+            if arg_value is not None:
+                print(f"[Warning] '{arg_name}' is provided but '{flag}' not in preset. Ignoring it.")
+            return None
+
+    preset_mxfp_X = check_and_clear("Xq", preset_mxfp_X, "preset_mxfp_X")
+    preset_mxfp_W = check_and_clear("Wq", preset_mxfp_W, "preset_mxfp_W")
+    preset_mxfp_Kv = check_and_clear("KVq", preset_mxfp_Kv, "preset_mxfp_Kv")
+    preset_minifloat_NL = check_and_clear("NLq", preset_minifloat_NL, "preset_minifloat_NL")
+
+    return preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL

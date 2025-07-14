@@ -60,12 +60,12 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
                 S_ADDI_FIX x5, x5, x7;                  x4 = x4 + x7
 
                 ; if x3 != d/MLEN - 1: Not the last loop
-                H_PREFETCH_V_S x6, x4, ADR[Q]
+                H_PREFETCH_V_H_S x6, x4, ADR[Q]
                 H_PREFETCH_M_S x6, x5, ADR[K]
                 M_MM_IC x6, x6, 0
                 S_ADDI_FIX x3, x3, 1;
                 ; if x3 == d/MLEN - 1: Not the last loop
-                ; H_PREFETCH_V_S x6, x4, ADR[Q]
+                ; H_PREFETCH_V_H_S x6, x4, ADR[Q]
                 ; H_PREFETCH_M_S x6, x5, ADR[K]
                 M_MM_PS x8, x6, x6, 
                 ; - opcode rd, rs1, rs2;
@@ -104,13 +104,14 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
             V_RED_SUM x0, x3, x6;               x6 (p_sum) = x7.sum (p.sum())
 
             S_EXP_FP 0, x5, x5;                 x5 (l_scale/o_scale) = exp(x5 (m_res))
+
             S_LD_FP l, x7, x8;                  load l to x8
             S_MUL_FP x8, x5, x8;                x8 (l_inter) = x5 (l_scale) * x8 (l)
             S_ADD_FP x8, x6, x8;                x8 (l_new) =  x8 (l_inter) + x5 (p_sum)
 
             S_ST_FP m_last, x7, x4;             store m_new to m_last
             S_ST_FP l, x7, x8;                  store l_new to l
-            S_ST_FP o_scale, x7, x5;            store o_scale to o_scale
+            S_ST_FP o_scale, x7, x5;            store o_scale to o_scale ? what is oscale?
 
             S_ADDI_FIX x3, x3, Bc;              next vector
             S_ADDI_FIX x7, x7, 1;               next scaler
@@ -167,8 +168,6 @@ S_ADDI_FIX x1, x0, 0;           set FIX[1] to 0, use it as an incremental pointe
                 S_MULI_ACC_FIX x8, x7, h * d;
                 S_MULI_ACC_FIX x8, x6, MLEN;
                 H_STORE_V_H_C ADR[O], x8, x5;
-
-
 
                 S_ADDI_FIX x3, x3, 1;
                 S_ADDI_FIX x7, x7, Bc;
