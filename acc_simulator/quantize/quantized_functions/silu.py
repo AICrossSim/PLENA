@@ -18,7 +18,7 @@ def silu_minifloat(
     if func_type =="Xq":
         assert x_minifp_meta is not None, "MinifloatMeta must be provided for 'Xq' input"
         quantizer = partial(minifloat_ieee_quantizer, meta=x_minifp_meta)
-        q_input = quantizer(q_input)
+        q_input = quantizer(input)
         output = silu_approx(q_input, quantizer)
 
         return output

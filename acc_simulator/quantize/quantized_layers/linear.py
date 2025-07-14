@@ -4,7 +4,7 @@ import torch
 from torch import Tensor, nn
 
 from ..quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
-
+from ..quantizer.minifloat import MinifloatMeta, minifloat_ieee_quantizer
 
 class MXFPLinearPTQ(nn.Module):
     in_features: int
@@ -17,6 +17,7 @@ class MXFPLinearPTQ(nn.Module):
         x_mxfp_meta: MXFPMeta | None,
         w_mxfp_meta: MXFPMeta | None,
         b_mxfp_meta: MXFPMeta | None,
+        out_minifp_meta: MinifloatMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ]
@@ -32,6 +33,7 @@ class MXFPLinearPTQ(nn.Module):
         self.x_mxfp_meta = x_mxfp_meta
         self.w_mxfp_meta = w_mxfp_meta
         self.b_mxfp_meta = b_mxfp_meta
+        self.out_minifp_meta = out_minifp_meta
         self.layer_type = layer_type
 
         self.weight = None
@@ -53,9 +55,13 @@ class MXFPLinearPTQ(nn.Module):
     def forward(self, input: Tensor) -> Tensor:
         if "Xq" in self.layer_type:
             input = mxfp_quantizer_sim(input, block_dim=-1, mxfp_meta=self.x_mxfp_meta)
+        
+        output = torch.nn.functional.linear(input, self.weight, self.bias)
 
-        # print(f"[DEBUG] input dtype: {input.dtype}, weight dtype: {self.weight.dtype}, bias dtype: {self.bias.dtype if self.bias is not None else 'None'}")
-        return torch.nn.functional.linear(input, self.weight, self.bias)
+        if "Xq" in self.layer_type:
+            output = minifloat_ieee_quantizer(output, meta=self.out_minifp_meta)
+
+        return output
 
 
     def extra_repr(self) -> str:
@@ -73,6 +79,7 @@ class MXFPLinearPTQ(nn.Module):
         x_mxfp_meta: MXFPMeta | None,
         w_mxfp_meta: MXFPMeta | None,
         b_mxfp_meta: MXFPMeta | None,
+        out_minifp_meta: MinifloatMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ]
@@ -88,5 +95,6 @@ class MXFPLinearPTQ(nn.Module):
                 x_mxfp_meta=x_mxfp_meta,
                 w_mxfp_meta=w_mxfp_meta,
                 b_mxfp_meta=b_mxfp_meta,
+                out_minifp_meta=out_minifp_meta,
                 layer_type=layer_type
             )

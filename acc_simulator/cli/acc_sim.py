@@ -38,7 +38,7 @@ from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
 from ..eval.eval_utils import *
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 
-from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
+from ..utils import setup_args_linear_nonlinear_cc, replace_modules, create_device_map
 from torch import nn
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.models.llama.modeling_llama import (
@@ -57,6 +57,7 @@ def mxfp_lm_eval(
     preset_mxfp_X: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
     preset_mxfp_W: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
     preset_mxfp_Kv: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
+    preset_minifloat_X: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
     preset_minifloat_NL: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
     model_parallel: bool = True,
     log_dir: Union[str, None] = "logs",
@@ -80,15 +81,16 @@ def mxfp_lm_eval(
         log_dir: Directory to save logs and results.
         enable_eval_harness: Whether to run evaluation via EleutherAI lm-eval-harness.
     """
-    preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
+    preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_X, preset_minifloat_NL = validate_and_sanitize_quant_args(
         preset,
         preset_mxfp_X,
         preset_mxfp_W,
         preset_mxfp_Kv,
+        preset_minifloat_X,
         preset_minifloat_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat_NL)
+    quant_args = setup_args_linear_nonlinear_cc(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat_X, preset_minifloat_NL)
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)

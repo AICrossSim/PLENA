@@ -8,13 +8,13 @@ class MXFPMeta:
     element_frac_bits: int
 
     def __post_init__(self):
-        legal_scale_exp_bits = (8,)
+        # legal_scale_exp_bits = (8,)
         # assert self.scale_exp_bits in legal_scale_exp_bits, (
         #     f"Invalid exponent bits: {self.scale_exp_bits}. "
         #     f"Legal values are: {legal_scale_exp_bits}."
         # )
 
-        legal_element_exp_frac_bits = ((4, 3), (5, 2), (2, 3), (3, 2), (2, 1))
+        # legal_element_exp_frac_bits = ((4, 3), (5, 2), (2, 3), (3, 2), (2, 1))
         el_exp_frac = (self.element_exp_bits, self.element_frac_bits)
         # assert el_exp_frac in legal_element_exp_frac_bits, (
         #     f"Invalid element exponent and fraction bits: {self.element_exp_bits}, {self.element_frac_bits}. "

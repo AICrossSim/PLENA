@@ -22,9 +22,11 @@ class LlamaAttentionMXFP(LlamaAttention):
         qk_q_meta: MXFPMeta | None,
         qk_k_meta: MXFPMeta | None,
         qk_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None,
+        qk_out_meta: MinifloatMeta | None,
         av_a_meta: MXFPMeta | None,
         av_v_meta: MXFPMeta | None,
         av_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None,
+        av_out_meta: MinifloatMeta | None,
         rope_meta: MinifloatMeta | None,
         rope_func_type: Literal["X", "Xq"] | None,
         softmax_meta: MinifloatMeta | None,
@@ -35,10 +37,12 @@ class LlamaAttentionMXFP(LlamaAttention):
         super().__init__(config, layer_idx)
         self.qk_q_meta = qk_q_meta
         self.qk_k_meta = qk_k_meta
+        self.qk_out_meta = qk_out_meta
         self.qk_func_type = qk_func_type
         self.av_a_meta = av_a_meta
         self.av_v_meta = av_v_meta
         self.av_func_type = av_func_type
+        self.av_out_meta = av_out_meta
         self.rope_meta = rope_meta
         self.rope_func_type = rope_func_type
         self.softmax_meta = softmax_meta
@@ -100,9 +104,11 @@ class LlamaAttentionMXFP(LlamaAttention):
             qk_q_meta=self.qk_q_meta,
             qk_k_meta=self.qk_k_meta,
             qk_func_type=self.qk_func_type,
+            qk_out_meta=self.qk_out_meta,
             av_a_meta=self.av_a_meta,
             av_v_meta=self.av_v_meta,
             av_func_type=self.av_func_type,
+            av_out_meta=self.av_out_meta,
             softmax_meta=self.softmax_meta,
             softmax_func_type=self.softmax_func_type,
             **kwargs,
@@ -119,9 +125,11 @@ class LlamaAttentionMXFP(LlamaAttention):
         qk_q_meta: MXFPMeta | None,
         qk_k_meta: MXFPMeta | None,
         qk_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None,
+        qk_out_meta: MinifloatMeta | None,
         av_a_meta: MXFPMeta | None,
         av_v_meta: MXFPMeta | None,
         av_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None,
+        av_out_meta: MinifloatMeta | None,
         rope_meta: MinifloatMeta | None,
         rope_func_type: Literal["X", "Xq"] | None,
         softmax_meta: MinifloatMeta | None,
@@ -135,9 +143,11 @@ class LlamaAttentionMXFP(LlamaAttention):
             qk_q_meta=qk_q_meta,
             qk_k_meta=qk_k_meta,
             qk_func_type=qk_func_type,
+            qk_out_meta=qk_out_meta,
             av_a_meta=av_a_meta,
             av_v_meta=av_v_meta,
             av_func_type=av_func_type,
+            av_out_meta=av_out_meta,
             rope_meta=rope_meta,
             rope_func_type=rope_func_type,
             softmax_meta=softmax_meta,
@@ -164,8 +174,10 @@ def eager_attention_forward_mxfp(
     qk_q_meta: MXFPMeta | None = None,
     qk_k_meta: MXFPMeta | None = None,
     qk_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None = None,
+    qk_out_meta: MinifloatMeta | None = None,
     av_a_meta: MXFPMeta | None = None,
     av_v_meta: MXFPMeta | None = None,
+    av_out_meta: MinifloatMeta | None = None,
     softmax_meta: MinifloatMeta | None = None,
     softmax_func_type: Literal["X", "Xq"] | None = None,
     av_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None = None,
@@ -181,6 +193,7 @@ def eager_attention_forward_mxfp(
         key_states.transpose(2, 3),
         input_meta=qk_q_meta,
         other_meta=qk_k_meta,
+        output_meta=qk_out_meta,
         func_type=qk_func_type
     )
     attn_weights = attn_weights * scaling
@@ -205,6 +218,7 @@ def eager_attention_forward_mxfp(
         value_states,
         input_meta=av_a_meta,
         other_meta=av_v_meta,
+        output_meta=av_out_meta,
         func_type=av_func_type
     )
     attn_output = attn_output.transpose(1, 2).contiguous()

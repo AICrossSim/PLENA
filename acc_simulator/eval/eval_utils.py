@@ -87,6 +87,7 @@ def validate_and_sanitize_quant_args(
     preset_mxfp_W: str | None,
     preset_mxfp_Kv: str | None,
     preset_minifloat_NL: str | None,
+    preset_minifloat_X: str | None,
 ) -> tuple[str | None, str | None, str | None, str | None]:
     """
     Validate and sanitize quantization flags based on the preset string.
@@ -105,8 +106,8 @@ def validate_and_sanitize_quant_args(
         with unused arguments set to None.
     """
     allowed_presets = [
-        "XqWqBqKVqNLq", "XWqBqKVNL", "XWBKVNLq",
-        "XWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"
+        "XqWqBqKVqNLq", "XWBKVNLq",
+        "XWqBqKVq", "XWqBqKV", "XWqBqKVq", "original", "XqWqBqKVq"
     ]
 
     assert preset in allowed_presets, f"Unsupported preset: '{preset}'"
@@ -122,8 +123,9 @@ def validate_and_sanitize_quant_args(
             return None
 
     preset_mxfp_X = check_and_clear("Xq", preset_mxfp_X, "preset_mxfp_X")
+    preset_minifloat_X = check_and_clear("Xq", preset_minifloat_X, "preset_minifloat_X")
     preset_mxfp_W = check_and_clear("Wq", preset_mxfp_W, "preset_mxfp_W")
     preset_mxfp_Kv = check_and_clear("KVq", preset_mxfp_Kv, "preset_mxfp_Kv")
     preset_minifloat_NL = check_and_clear("NLq", preset_minifloat_NL, "preset_minifloat_NL")
 
-    return preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL
+    return preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_X, preset_minifloat_NL
