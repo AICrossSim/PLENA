@@ -12,10 +12,10 @@ Status      : Passed Simple Row/Col Read/Write Tests
 
 module matrix_sram_without_rounding #(
     // MX-FP Data Format
-    parameter MXFP_EXP_WIDTH    = 4,
-    parameter MXFP_MANT_WIDTH   = 3,
-    parameter MXFP_SCALE_WIDTH  = 8,
-    parameter FIXED_DATA_WIDTH  = 32,
+    parameter WT_MXFP_EXP_WIDTH     = 4,
+    parameter WT_MXFP_MANT_WIDTH    = 3,
+    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter ON_CHIP_ADDR_WIDTH    = 32,
 
     // Dimension
     parameter   MLEN            = 8,
@@ -35,19 +35,19 @@ module matrix_sram_without_rounding #(
     // Read Operation
     input   logic req,
     input   logic transposed_read,
-    input   logic [FIXED_DATA_WIDTH-1:0] sram_raddr,   
-    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]    element_out,
+    input   logic [ON_CHIP_ADDR_WIDTH-1:0] sram_raddr,   
+    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]    element_out,
     output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                scale_out,
 
     // Write Operation
     input   logic wen,
     output  logic write_response,
-    input   logic [FIXED_DATA_WIDTH-1:0] sram_waddr,
-    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]  element_in,
+    input   logic [ON_CHIP_ADDR_WIDTH-1:0] sram_waddr,
+    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]  element_in,
     input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in,
 
     // Prefetch Status
-    input   logic [FIXED_DATA_WIDTH - 1 : 0] prefetch_addr,
+    input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] prefetch_addr,
     input   logic prefetch_en,
     output  logic data_not_ready
 );
@@ -57,7 +57,7 @@ module matrix_sram_without_rounding #(
 // -----------------------------
 
 logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram, prefetch_addr_for_sub_sram;
-localparam BITWIDTH_PER_ROW =  (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
+localparam BITWIDTH_PER_ROW =  (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
 wire [AddrLen + $clog2(BITWIDTH_PER_ROW) - 1 : 0] shifted_prefetch_addr;
 
 assign waddr_for_sub_sram = sram_waddr >> $clog2(BITWIDTH_PER_ROW);
@@ -113,7 +113,7 @@ end
 logic scale_write_response, element_write_response;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
-logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0] loaded_element_out;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0] loaded_element_out;
 
 assign write_response = scale_write_response & element_write_response;
 
@@ -146,7 +146,7 @@ biaccess_sram #(
 
 // element storage
 biaccess_sram #(
-    .DataWidth      (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1),
+    .DataWidth      (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1),
     .SRAM_DEPTH     (SRAM_DEPTH),
     .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)

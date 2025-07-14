@@ -64,8 +64,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     MEM_WREQ_INFO mem_write_req;
 
     // Matrix SRAM
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
+    logic [INT_DATA_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
+    logic [INT_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
     logic m_out_valid,  m_out_ready;
@@ -109,7 +109,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic v_sram_req_a, v_sram_req_b;
     logic [1:0] v_sram_mxfp_req_b;
     logic v_sram_wen_a, v_sram_wen_b;
-    logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
+    logic [INT_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
     logic [VLEN-1:0]                [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]                    v_high_element_port_b_out;
@@ -128,8 +128,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_in;
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_out;
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                fp_s_vector_out;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_out_1;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_out_2;
     logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
     logic s_map_v_valid, s_map_v_ready;
 
@@ -163,7 +163,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     pipeline_control #(
         .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
         .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
-        .FIXED_DATA_WIDTH       (FIXED_DATA_WIDTH),
+        .INT_DATA_WIDTH       (INT_DATA_WIDTH),
         .IMM_WIDTH              (IMM_WIDTH)
     ) pipeline_control_init (
         .clk(clk),
@@ -350,7 +350,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
         .MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
-        .FIXED_DATA_WIDTH   (ON_CHIP_ADDR_WIDTH),
+        .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
         .MLEN               (MLEN),
         .BLOCK_DIM          (BLOCK_DIM),
         .SRAM_DEPTH         (MATRIX_SRAM_DEPTH),

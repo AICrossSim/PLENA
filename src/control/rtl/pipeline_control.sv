@@ -17,7 +17,7 @@ Description : This module monitors the execution stages of each module and decid
 module pipeline_control #(
     parameter   FIXED_OPERAND_WIDTH     = 5,
     parameter   FP_OPERAND_WIDTH        = 5,
-    parameter   FIXED_DATA_WIDTH        = 32,
+    parameter   INT_DATA_WIDTH        = 32,
     parameter   IMM_WIDTH               = 12
 ) (
     input       logic clk,
@@ -27,14 +27,14 @@ module pipeline_control #(
     input       OP_BUNDLE       decode_stage_op,
 
     // Address
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_1,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] fixed_addr_2,
+    input       logic [INT_DATA_WIDTH - 1 : 0] fixed_addr_1,
+    input       logic [INT_DATA_WIDTH - 1 : 0] fixed_addr_2,
 
     // Memory Monitor
     input       logic v_sram_wen_a,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_a,
+    input       logic [INT_DATA_WIDTH - 1 : 0]    v_sram_addr_a,
     input       logic v_sram_wen_b,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
+    input       logic [INT_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
     input       logic hbm_m_prefetch_in_progress,
     input       logic hbm_v_prefetch_in_progress,
     input       logic continuous_write_to_v_sram,
@@ -131,7 +131,7 @@ module pipeline_control #(
 
     // Memory Monitor
     addr_monitor #(
-        .ADDR_WIDTH(FIXED_DATA_WIDTH),
+        .ADDR_WIDTH(INT_DATA_WIDTH),
         .PIPELINE_STAGES(MAX_PIPELINE_STAGE)
     ) addr_monitor_inst (
         .clk(clk),

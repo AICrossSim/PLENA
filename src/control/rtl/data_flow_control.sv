@@ -36,11 +36,11 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     output      logic m_out_ready,
     output      logic m_load_in_process,
     input       logic [1:0] m_write_request,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0] m_write_addr,
+    input       logic [INT_DATA_WIDTH - 1 : 0] m_write_addr,
 
     // Interface with Matrix SRAM
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_waddr,
+    output      logic [INT_DATA_WIDTH - 1 : 0] m_sram_raddr,
+    output      logic [INT_DATA_WIDTH - 1 : 0] m_sram_waddr,
     output      logic m_sram_wen,
     output      logic m_sram_req,
     output      logic m_sram_transposed_read,
@@ -60,7 +60,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     input       logic v_s_in_ready,
 
     input       logic v_write_request,
-    input       logic [FIXED_DATA_WIDTH - 1 : 0]    v_write_addr,
+    input       logic [INT_DATA_WIDTH - 1 : 0]    v_write_addr,
 
     // Interface with Scalar Machine
     input       logic s_map_v_valid,
@@ -69,14 +69,14 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // Interface with Vector SRAM
     output      logic v_sram_req_a,
     output      logic v_sram_wen_a,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_a,
+    output      logic [INT_DATA_WIDTH - 1 : 0]    v_sram_addr_a,
     output      logic [VLEN-1:0]                    v_sram_mask_a,
     output      logic select_write_data_a,          
 
     output      logic v_sram_req_b,
     output      logic [1:0] v_sram_mxfp_req_b,
     output      logic v_sram_wen_b,
-    output      logic [FIXED_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
+    output      logic [INT_DATA_WIDTH - 1 : 0]    v_sram_addr_b,
     output      logic [VLEN-1:0]                    v_sram_mask_b,
     output      logic [1:0] select_write_data_b,
     input       logic v_prefetch_data_not_ready,
@@ -136,8 +136,8 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
     // Matrix SRAM
     // -----------------------------
-    logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr, recorded_m_load_addr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr_offset;
+    logic [INT_DATA_WIDTH - 1 : 0] recorded_m_prefetch_addr, recorded_m_load_addr;
+    logic [INT_DATA_WIDTH - 1 : 0] m_sram_raddr_offset;
     logic continuous_load_m_en, continuous_prefetch_m_en;
     logic [M_LD_COUNT_WIDTH : 0] m_sram_load_counter, load_m_amount;
     logic [M_LD_COUNT_WIDTH : 0] recorded_m_sram_load_counter;
@@ -286,12 +286,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     // Port B ->  R: Vector Machine input Operand (RS2)  or Load HBM Write Data        W: Vector Prefetch
     // For Port A, if loading it to the matrix machine, this takes extra cycle as we need to quantise the fp data (activation) into MX-FP format.
 
-    logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_for_matrix_addr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
-    logic [FIXED_DATA_WIDTH - 1 : 0] recorded_s_map_v_addr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] hbm_waddr;
+    logic [INT_DATA_WIDTH - 1 : 0] recorded_v_prefetch_addr;
+    logic [INT_DATA_WIDTH - 1 : 0] recorded_v_load_for_matrix_addr;
+    logic [INT_DATA_WIDTH - 1 : 0] recorded_v_load_addr_1, recorded_v_load_addr_2;
+    logic [INT_DATA_WIDTH - 1 : 0] recorded_s_map_v_addr;
+    logic [INT_DATA_WIDTH - 1 : 0] recorded_m_write_addr, recorded_v_write_addr;
+    logic [INT_DATA_WIDTH - 1 : 0] hbm_waddr;
     logic port_b_prefetch_ready;
     logic continuous_v_prefetch_en, continuous_load_v_for_matrix_en, continuous_v_write_from_matrix_en, continuous_write_to_hbm;
     logic [M_LD_COUNT_WIDTH : 0] v_sram_load_for_matrix_counter, v_sram_write_from_matrix_counter;

@@ -8,12 +8,12 @@ Status      : Under Testing
 */
 
 module fix_with_shift_2_fp #(
-    parameter FIXED_DATA_WIDTH      = 8,
+    parameter INT_DATA_WIDTH      = 8,
     parameter FP_EXP_WIDTH          = 3,
     parameter FP_MANT_WIDTH         = 2,
     parameter SHIFT_WIDTH           = 8
 )(
-    input  logic signed         [FIXED_DATA_WIDTH-1:0]  data_in,
+    input  logic signed         [INT_DATA_WIDTH-1:0]  data_in,
     input  logic unsigned       [SHIFT_WIDTH-1:0]       shift_in,
     output logic                [FP_EXP_WIDTH-1:0]      exp_out,
     output logic                [FP_MANT_WIDTH-1:0]     mant_out
@@ -26,14 +26,14 @@ module fix_with_shift_2_fp #(
     // Max exponent/mantissa values of element type.
     localparam MAX_EXP_ELEM = (1 << (FP_EXP_WIDTH-1)) - 1;
     localparam MAX_MAN_ELEM = (1 << FP_MANT_WIDTH) - 1;
-    localparam RND_BITS = FIXED_DATA_WIDTH-FP_MANT_WIDTH;
+    localparam RND_BITS = INT_DATA_WIDTH-FP_MANT_WIDTH;
 
     // Count leading zeros, align input.
-    logic [$clog2(FIXED_DATA_WIDTH + 1) - 1 : 0] lz_num;
-    logic [FIXED_DATA_WIDTH-1:0] aligned_data;
+    logic [$clog2(INT_DATA_WIDTH + 1) - 1 : 0] lz_num;
+    logic [INT_DATA_WIDTH-1:0] aligned_data;
 
     clz_int #(
-        .width_i(FIXED_DATA_WIDTH)
+        .width_i(INT_DATA_WIDTH)
     ) u_clz (
         .i_num(data_in),
         .o_lz(lz_num)
@@ -49,13 +49,13 @@ module fix_with_shift_2_fp #(
 
     generate;
         if (RND_BITS > 1) begin : gen_R
-            assign R_nrm = aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-2];
+            assign R_nrm = aligned_data[INT_DATA_WIDTH-FP_MANT_WIDTH-2];
         end
         else begin
             assign R_nrm = 1'b0;
         end
         if (RND_BITS > 2) begin : gen_S
-            assign S_nrm = |aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-3:0];
+            assign S_nrm = |aligned_data[INT_DATA_WIDTH-FP_MANT_WIDTH-3:0];
         end
         else begin
             assign S_nrm = 1'b0;
@@ -64,13 +64,13 @@ module fix_with_shift_2_fp #(
 
     endgenerate
 
-    assign p0_nrm_rnd = R_nrm && (aligned_data[FIXED_DATA_WIDTH-FP_MANT_WIDTH-1] || S_nrm);
+    assign p0_nrm_rnd = R_nrm && (aligned_data[INT_DATA_WIDTH-FP_MANT_WIDTH-1] || S_nrm);
 
     logic [FP_MANT_WIDTH:0]     p0_man_nrm_ofl;     // Extra bit to check for overflow after rounding.
     logic [FP_MANT_WIDTH-1:0]   p0_man_nrm;         // Output mantissa if output is not denormal.
     logic                   p0_exp_nrm_ofl;         // 1 if mantissa overflowed, 0 otherwise.
 
-    assign p0_man_nrm_ofl = aligned_data[FIXED_DATA_WIDTH-2:FIXED_DATA_WIDTH-FP_MANT_WIDTH-1] + {{(FP_MANT_WIDTH-1){1'b0}}, p0_nrm_rnd};
+    assign p0_man_nrm_ofl = aligned_data[INT_DATA_WIDTH-2:INT_DATA_WIDTH-FP_MANT_WIDTH-1] + {{(FP_MANT_WIDTH-1){1'b0}}, p0_nrm_rnd};
 
     assign p0_exp_nrm_ofl = p0_man_nrm_ofl[FP_MANT_WIDTH];
     assign p0_man_nrm     = p0_man_nrm_ofl[FP_MANT_WIDTH-1:0];
@@ -82,17 +82,17 @@ module fix_with_shift_2_fp #(
 
     // Handle denormal case. Round mantissa.
     logic [SHIFT_WIDTH+1:0] p0_dnm_shift; // Amount to shift by if output is denormal.
-    logic [FIXED_DATA_WIDTH-2:0] sticky_mask;
+    logic [INT_DATA_WIDTH-2:0] sticky_mask;
 
     logic R_dnm;
     logic S_dnm;
     logic p0_dnm_rnd;
 
-    assign p0_dnm_shift = $unsigned(shift_in) + $unsigned(lz_num) + $unsigned(FIXED_DATA_WIDTH) - $unsigned(MAX_EXP_ELEM) - $unsigned(FP_MANT_WIDTH);
+    assign p0_dnm_shift = $unsigned(shift_in) + $unsigned(lz_num) + $unsigned(INT_DATA_WIDTH) - $unsigned(MAX_EXP_ELEM) - $unsigned(FP_MANT_WIDTH);
 
-    assign sticky_mask = ~({(FIXED_DATA_WIDTH-1){1'b1}} << (p0_dnm_shift-1));
+    assign sticky_mask = ~({(INT_DATA_WIDTH-1){1'b1}} << (p0_dnm_shift-1));
 
-    assign S_dnm = |(aligned_data[FIXED_DATA_WIDTH-2:0] & sticky_mask);
+    assign S_dnm = |(aligned_data[INT_DATA_WIDTH-2:0] & sticky_mask);
 
     always_comb begin
         if($signed({1'b0, shift_in}) <= $signed($unsigned(MAX_EXP_ELEM) + $unsigned(FP_MANT_WIDTH) - $unsigned(lz_num))) begin

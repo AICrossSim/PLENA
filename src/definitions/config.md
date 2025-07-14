@@ -40,7 +40,7 @@ This approach enables flexible, fine-grained control over build configurations f
 - `MLEN` % `BLEN` == 0
 - `MATRIX_SRAM_DEPTH` >= `2 * MLEN`
 - `VECTOR_SRAM_DEPTH` >= `2* head_dim + (hidden_dim // VLEN)`
-- `FIXED_SRAM_DEPTH`  >= `num_hidden_layers * REPEAT_SETTINGS + FIXED_CONSTANT_NUM`
+- `INT_SRAM_DEPTH`  >= `num_hidden_layers * REPEAT_SETTINGS + FIXED_CONSTANT_NUM`
 - `FP_SRAM_DEPTH`     >= `3 * MLEN + FP_CONSTANT_NUM`
 - `HBM_M_Prefetch_Amount` >= `BLEN`
 - `HBM_V_Prefetch_Amount` >= `BLEN`

@@ -34,8 +34,8 @@ module scalar_machine import precision_pkg::*;  #(
 
     // Fixed Value input
     input   logic [IMM_WIDTH - 1 : 0]           imm_in,
-    output  logic [FIXED_DATA_WIDTH - 1 : 0]    fixed_out_1,
-    output  logic [FIXED_DATA_WIDTH - 1 : 0]    fixed_out_2,
+    output  logic [INT_DATA_WIDTH - 1 : 0]    fixed_out_1,
+    output  logic [INT_DATA_WIDTH - 1 : 0]    fixed_out_2,
 
     // FP Value input
     input   logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] external_fp_in,
@@ -56,7 +56,7 @@ module scalar_machine import precision_pkg::*;  #(
     import pipeline_pkg::*;
     import configuration_pkg::*;
     localparam FP_SRAM_ADDR_WIDTH       = $clog2(FP_SRAM_DEPTH);
-    localparam FIXED_SRAM_ADDR_WIDTH    = $clog2(FIXED_SRAM_DEPTH);
+    localparam FIXED_SRAM_ADDR_WIDTH    = $clog2(INT_SRAM_DEPTH);
     localparam VLEN_COUNTER_WIDTH       = $clog2(VLEN);
 
     //----------------------------//
@@ -273,8 +273,8 @@ module scalar_machine import precision_pkg::*;  #(
     // INt Unit
     //----------------------------//
 
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_loaded_reg_1, fixed_loaded_reg_2;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_loaded_reg_1, fixed_loaded_reg_2;
     logic fixed_reg_wen, fixed_write_from_sram_req, p1_fixed_write_from_sram_req, fixed_alu_valid;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_waddr, recorded_fixed_reg_exe_waddr, p1_recorded_fixed_reg_exe_waddr;
     S_FIXED_OP exe_fixed_op;
@@ -355,13 +355,13 @@ module scalar_machine import precision_pkg::*;  #(
 
 
     int_alu #(
-        .BITWIDTH(FIXED_DATA_WIDTH)
+        .BITWIDTH(INT_DATA_WIDTH)
     ) int_alu_init (
         .clk            (clk),
         .rst            (rst),
         .operand_a      (fixed_reg_1),
         .operand_b      (fixed_reg_2),
-        .imm_value      ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
+        .imm_value      ({{(INT_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
         .operation      (exe_fixed_op),
         .result_valid   (fixed_alu_valid),
         .computed_address(computed_address),
@@ -369,7 +369,7 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     regfile_2p1w #(
-        .BITWIDTH(FIXED_DATA_WIDTH),
+        .BITWIDTH(INT_DATA_WIDTH),
         .DEPTH(1 << FIXED_OPERAND_WIDTH)
     ) int_reg_file (
         .clk        (clk),
@@ -383,8 +383,8 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     scalar_sram #(
-        .DATA_WIDTH(FIXED_SRAM_WIDTH),
-        .DEPTH(FIXED_SRAM_DEPTH)
+        .DATA_WIDTH     (INT_SRAM_WIDTH),
+        .DEPTH          (INT_SRAM_DEPTH)
         `ifdef SIMULATION
             ,
             .MemInitFile(FIXED_MEM_INIT_FILE)

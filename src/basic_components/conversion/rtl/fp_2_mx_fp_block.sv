@@ -94,7 +94,7 @@ module fp_2_mx_fp_block #(
     generate;
         for(genvar i=0; i<BLOCK_DIM; i++) begin : gen_mxfp_element
             fix_with_shift_2_fp # (
-                .FIXED_DATA_WIDTH   (FP_MANT_WIDTH + 1),
+                .INT_DATA_WIDTH   (FP_MANT_WIDTH + 1),
                 .FP_EXP_WIDTH       (MXFP_EXP_WIDTH),
                 .FP_MANT_WIDTH      (MXFP_MANT_WIDTH),
                 .SHIFT_WIDTH        (FP_EXP_WIDTH)
