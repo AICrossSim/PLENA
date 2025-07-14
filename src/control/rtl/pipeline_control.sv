@@ -89,7 +89,7 @@ module pipeline_control #(
     
     // Decision for pipeline stall
     always_comb begin
-        if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_C)) begin
+        if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_H_C || determine_stage_op.h_op == PREFETCH_M_H_S || determine_stage_op.h_op == PREFETCH_M_L_C || determine_stage_op.h_op == PREFETCH_M_L_S )) begin
             // Condition 0: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall  = 1'b1;            
         end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_H_C)) begin

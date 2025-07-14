@@ -24,11 +24,8 @@ S_ADDI_FIX i1, i0, 1;
 S_ST_FP f1, i1, 0;
 S_ADDI_FIX i1, i1, 1;
 S_ST_FP f1, i1, 0;
-S_ADDI_FIX i1, i0, 1;
+S_ADDI_FIX i1, i1, 1;
 S_ST_FP f1, i1, 0;
-S_ADDI_FIX i1, i0, 1;
-S_ST_FP f1, i1, 0;
-S_LD_FP f1, i0, 0;
 S_LD_FIX i1, i0, 15;
 V_RESET_SRAM 0, i1, 0;
 
