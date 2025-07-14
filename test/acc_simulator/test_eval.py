@@ -9,11 +9,12 @@ from acc_simulator.cli.acc_sim import mxfp_lm_eval
 def llm_eval():
     torch.manual_seed(0)
     mxfp_lm_eval(
-        model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        model_name="meta-llama/Meta-Llama-3-8B",
+        # model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         tasks="wikitext",
         # preset="original",
-        # preset="XqWqBqKVqNLq",
-        preset="XqWqBqKVq",
+        preset="XqWqBqKVqNLq",
+        # preset="XqWqBqKVq",
         preset_mxfp_X="MXFP8_E4M3",
         preset_mxfp_W="MXFP8_E4M3",
         preset_mxfp_Kv="MXFP8_E4M3",
