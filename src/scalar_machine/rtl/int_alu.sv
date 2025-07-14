@@ -10,7 +10,7 @@ Description : This module is mainly used for address manipulation
 Status      : Passed Simple Test
 */
 
-module fixed_alu #(
+module int_alu #(
     parameter int BITWIDTH = 32,
     parameter int IMM_SHIFT_AMOUNT = 12
 )(

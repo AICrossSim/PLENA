@@ -270,7 +270,7 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     //----------------------------//
-    // Fixed Unit
+    // INt Unit
     //----------------------------//
 
     logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;
@@ -354,9 +354,9 @@ module scalar_machine import precision_pkg::*;  #(
     assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX) || (assigned_fixed_op == MAP_V_FP)) ? rd : rs2;
 
 
-    fixed_alu #(
+    int_alu #(
         .BITWIDTH(FIXED_DATA_WIDTH)
-    ) fixed_alu (
+    ) int_alu_init (
         .clk            (clk),
         .rst            (rst),
         .operand_a      (fixed_reg_1),
@@ -371,7 +371,7 @@ module scalar_machine import precision_pkg::*;  #(
     regfile_2p1w #(
         .BITWIDTH(FIXED_DATA_WIDTH),
         .DEPTH(1 << FIXED_OPERAND_WIDTH)
-    ) fixed_reg_file (
+    ) int_reg_file (
         .clk        (clk),
         .we         (fixed_reg_wen),
         .waddr      (fixed_reg_waddr),
@@ -389,7 +389,7 @@ module scalar_machine import precision_pkg::*;  #(
             ,
             .MemInitFile(FIXED_MEM_INIT_FILE)
         `endif
-    ) fixed_scalar_sram (
+    ) int_scalar_sram (
         .clk(clk),
         .rst(rst),
         .req            ((exe_fixed_op == LD_FIX) || (exe_fixed_op == ST_FIX)),

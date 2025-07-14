@@ -25,13 +25,13 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output logic        stall_for_addr,
 
     // Matix - row-major order
-    input  logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]          m_element,
+    input  logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]            m_element,
     input  logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                                  m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
     // Vector - row-major order
-    input  logic [MLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]        v_element,
+    input  logic [MLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]          v_element,
     input  logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                             v_scale,
     input  logic                   v_valid,
     output logic                   v_ready,
@@ -124,7 +124,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
 
     // Data from Matrix SRAM Buffering
-    logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]     stored_m_element;
+    logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]       stored_m_element;
     logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                             stored_m_scale;
     logic stored_m_in_ele_ready, stored_m_in_scale_ready;
     logic stored_m_in_ele_valid, stored_m_in_scale_valid;
