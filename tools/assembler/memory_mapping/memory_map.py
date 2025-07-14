@@ -98,6 +98,12 @@ if __name__ == "__main__":
         "block_size": [1, 4],
         "skip_first_dim": False,
     }
+    rand_gen_high = RandomTensorGenerator(
+        shape=(16, 8),
+        directory=directory,
+        filename=filename,
+        quant_config=quant_config_high
+    )
     
     # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
     rand_gen_high.tensor_gen()

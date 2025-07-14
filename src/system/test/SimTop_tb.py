@@ -6,7 +6,7 @@ import os, logging
 import cocotb
 from cocotb.log import SimLog
 from cocotb.triggers import *
-
+from cfl_cocotb.runner import veri_runner, SRC_PATH
 from cfl_cocotb.testbench import Testbench
 from cfl_cocotb.streaming import (
     StreamDriver,
@@ -23,35 +23,15 @@ from functools import partial
 import random
 import argparse
 from pathlib import Path
-from cfl_cocotb.fp_generation import FpGenerator
-
-# parser = argparse.ArgumentParser(description="Greet someone.")
-# parser.add_argument("--benchmark", type=str, default="general")
-# args = parser.parse_args()
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
-testcase_name       = "vect_fp"
-# instr_file          = f"{current_path.parent.parent.parent}/test/Layerwise_Benchmark/{testcase_name}.mem"
-instr_file                  = f"{current_path.parent.parent.parent}/test/Instr_Level_Benchmark/{testcase_name}.mem"
-hbm_element_file            = f"{current_path.parent.parent.parent}/test/load_mem/hbm_ele.mem"
-hbm_scale_file              = f"{current_path.parent.parent.parent}/test/load_mem/hbm_scale.mem"
-hbm_write_element_m_file    = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_ele.mem"
-hbm_write_element_v_file    = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_ele.mem"
-hbm_write_scale_m_file      = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_m_scale.mem"
-hbm_write_scale_v_file      = f"{current_path.parent.parent.parent}/test/result_mem/hbm_write_v_scale.mem"
-vector_mem_result_file      = f"{current_path.parent.parent.parent}/test/result_mem/vector_result.mem"
-fp_mem_file                 = f"{current_path.parent.parent.parent}/test/load_mem/fp.mem"
-fixed_mem_file              = f"{current_path.parent.parent.parent}/test/load_mem/fixed.mem"
-addr_mapper_file            = f"{current_path.parent.parent.parent}/test/load_mem/hbm_addr_mapper.mem"
+testcase_name = "matrix"
+
 
 INSTRUCTION_LENGTH = 16
-fp_exp = 7
-fp_mant = 8
-mlen = 8
-fp_gen = FpGenerator(fp_exp, fp_mant)
 
 class SimTOP(Testbench):
     def __init__(self, dut, element_file, scale_file, instr_file) -> None:
@@ -92,42 +72,11 @@ class SimTOP(Testbench):
 
 @cocotb.test()
 async def test(dut):
-    # cocotb.start_soon(record_data_on_trigger(dut=dut.dut.matrix_machine_init.matrix_compute_unit, clk=dut.clk, trigger_signal=dut.dut.matrix_machine_init.matrix_compute_unit.v1_in_valid, output_file=f"{current_path}/log/recorded_data.txt"))
-    # cocotb.start_soon()
-    tb = SimTOP(dut, hbm_element_file, hbm_scale_file, instr_file)
+    tb = SimTOP(dut, os.environ["HBM_ELEMENT_FILE"], os.environ["HBM_SCALE_FILE"], os.environ["INSTR_FILE"])
     await tb.run_test()
 
-
-@cocotb.coroutine
-async def record_data_on_trigger(dut, clk, trigger_signal, num_cycles=10, output_file="recorded_data.txt"):
-    await RisingEdge(trigger_signal)
-    dut._log.info("Trigger detected. Recording begins.")
-
-    with open(output_file, "w") as f:
-        for cycle in range(num_cycles):
-            await RisingEdge(clk)
-
-            if dut.v1_in_valid.value:
-                # for i, v in enumerate(dut.v1_data.value):
-                f.write(f"V1:  {hex(dut.v1_data.value)}\n")
-                converted_v1_data = fp_gen.translate_packed_array_fp(mlen, fp_exp, fp_mant, dut.v1_data.value)
-                f.write(f"V1 Cycle {cycle} - \n")
-                f.write(f"[")
-                for i, v in enumerate(reversed(converted_v1_data)):
-                    f.write(f"{v}, ")
-                f.write(f"]\n")
-
-            if dut.v2_in_valid.value:
-                # for i, v in enumerate(dut.v2_data.value):
-                f.write(f"V2:  {hex(dut.v2_data.value)}\n")
-                converted_v2_data = fp_gen.translate_packed_array_fp(mlen, fp_exp, fp_mant, dut.v2_data.value)
-                f.write(f"V2 Cycle {cycle} - \n")
-                f.write(f"[")
-                for i, v in enumerate(reversed(converted_v2_data)):
-                    f.write(f"{v}, ")
-                f.write(f"]\n")
-
-    dut._log.info(f"Recording complete. Data saved to {output_file}")
+async def check_signal(dut):
+    await Timer(40, units="ns")
 
 @pytest.mark.dev
 def SimToP_test():
@@ -136,50 +85,81 @@ def SimToP_test():
         group = "system",
         module = "SimTop",
         additional_include_paths = [
-            "../../../src/basic_components/common",
-            "../../../src/basic_components/mx_fp_operation",
-            "../../../src/basic_components/fp_operation",
-            "../../../src/basic_components/conversion",
-            "../../../src/basic_components/buffer",
-            "../../../src/basic_components/gemv",
-            "../../../src/basic_components/fixed_operation",
-            "../../../src/basic_components/systolic_gemm_mxfp",
-            "../../../src/basic_components/systolic_gemm_fp",
-            "../../../src/basic_components/int_operation",
-            "../../../src/basic_components/cast",
-            "../../../src/frontend",
-            "../../../src/control",
-            "../../../src/matrix_machine",
-            "../../../src/vector_machine",
-            "../../../src/scalar_machine",
-            "../../../src/memory/matrix_sram",
-            "../../../src/memory/vector_sram",
-            "../../../src/memory/scalar_sram",
-            "../../../src/memory/HBM",
-            "../../../src/core"
+            str(SRC_PATH / "basic_components/common"),
+            str(SRC_PATH / "basic_components/mx_fp_operation"),
+            str(SRC_PATH / "basic_components/fp_operation"),
+            str(SRC_PATH / "basic_components/conversion"),
+            str(SRC_PATH / "basic_components/buffer"),
+            str(SRC_PATH / "basic_components/fixed_operation"),
+            str(SRC_PATH / "basic_components/int_operation"),
+            str(SRC_PATH / "basic_components/cast"),
+            str(SRC_PATH / "basic_components/systolic_gemm_mxfp"),
+            str(SRC_PATH / "basic_components/gemv"),
+            str(SRC_PATH / "frontend"),
+            str(SRC_PATH / "control"),
+            str(SRC_PATH / "matrix_machine"),
+            str(SRC_PATH / "vector_machine"),
+            str(SRC_PATH / "scalar_machine"),
+            str(SRC_PATH / "memory/matrix_sram"),
+            str(SRC_PATH / "memory/vector_sram"),
+            str(SRC_PATH / "memory/scratch_sram"),
+            str(SRC_PATH / "memory/scalar_sram"),
+            str(SRC_PATH / "memory/HBM"),
+            str(SRC_PATH / "core")
         ],       
-        definitions_path = ["../../../src/definitions", 
-                            "../../../src/memory/HBM/TileLink_Lib" ],
+        definitions_path = [
+            str(SRC_PATH / "definitions"), 
+            str(SRC_PATH / "memory/HBM/TileLink_Lib")
+        ],
         module_param_list=[
             {
                 "INSTRUCTION_LENGTH": INSTRUCTION_LENGTH,
-                "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{hbm_element_file}\"",
-                "FAKE_HBM_SCALE_INIT_FILE": f"\"{hbm_scale_file}\"",
-                "FP_MEM_INIT_FILE": f"\"{fp_mem_file}\"",
-                "FIXED_MEM_INIT_FILE": f"\"{fixed_mem_file}\"",
-                "VECTOR_MEM_RESULT_FILE": f"\"{vector_mem_result_file}\"",
-                "HBM_ADDR_MAPPER_FILE": f"\"{addr_mapper_file}\"",
-                "FAKE_HBM_ELEMENT_WRITE_M_FILE": f"\"{hbm_write_element_m_file}\"",
-                "FAKE_HBM_ELEMENT_WRITE_V_FILE": f"\"{hbm_write_element_v_file}\"",
-                "FAKE_HBM_SCALE_WRITE_M_FILE": f"\"{hbm_write_scale_m_file}\"",
-                "FAKE_HBM_SCALE_WRITE_V_FILE": f"\"{hbm_write_scale_v_file}\""
+                "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{os.environ['HBM_ELEMENT_FILE']}\"",
+                "FAKE_HBM_SCALE_INIT_FILE": f"\"{os.environ['HBM_SCALE_FILE']}\""
             }
         ],
         trace = True,
     )
 
+def initialize_global_variables():
+    global hbm_element_file, hbm_scale_file, instr_file
+    
+    from assembler.instruction_mapping_pipeline import instruction_mapping_pipeline, parse_args
+    from cfl_tools import PROJECT_PATH
+    from pathlib import Path
+    from assembler.memory_mapping.rand_gen import RandomTensorGenerator
+    
+    args = parse_args()
+    quant_config = {
+            "exp_width": 4,
+            "man_width": 3,
+            "exp_bias_width": 8,
+            "block_size": [1, 4],
+            "skip_first_dim": False,
+        }
+    rand_gen_high = RandomTensorGenerator(
+        shape=(1, 8),
+        directory=PROJECT_PATH / "test" / Path(args.path).parent.stem / "build",
+        filename="test_projection_data.pt",
+        quant_config=quant_config
+    )
+    
+    # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
+    rand_gen_high.tensor_gen()
+    data = rand_gen_high.tensor_load()
+    blocks, bias = rand_gen_high.quantize_tensor(data)
+    
+    hbm_element_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem / "hbm_ele.mem"
+    hbm_scale_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem / "hbm_scale.mem"
+    instr_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem / f"{Path(args.path).stem}.mem"
+
+    os.environ["HBM_ELEMENT_FILE"] = str(hbm_element_file)
+    os.environ["HBM_SCALE_FILE"] = str(hbm_scale_file)
+    os.environ["INSTR_FILE"] = str(instr_file) 
+    instruction_mapping_pipeline(blocks, bias, args.path, quant_config)
 
 if __name__ == "__main__":
+    initialize_global_variables()
     SimToP_test()
 
 

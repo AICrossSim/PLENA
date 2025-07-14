@@ -117,44 +117,44 @@ def mxfp_lm_eval(
     )
 
     # Attention - softmax, rope, matmul
-    replace_modules(
-        model,
-        target_class=LlamaAttention,
-        replacement_class=LlamaAttentionMXFP,
-        factory_fn=LlamaAttentionMXFP.from_attention,
-        kwargs=quant_args["attn_kwargs"],
-        label="LlamaAttention"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaAttention,
+    #     replacement_class=LlamaAttentionMXFP,
+    #     factory_fn=LlamaAttentionMXFP.from_attention,
+    #     kwargs=quant_args["attn_kwargs"],
+    #     label="LlamaAttention"
+    # )
 
     # Linear
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args["fc_kwargs"],
-        label="MXFPLinearPTQ"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=nn.Linear,
+    #     replacement_class=MXFPLinearPTQ,
+    #     factory_fn=MXFPLinearPTQ.from_linear,
+    #     kwargs=quant_args["fc_kwargs"],
+    #     label="MXFPLinearPTQ"
+    # )
 
     # Embedding
-    replace_modules(
-        model,
-        target_class=nn.Embedding,
-        replacement_class=MXFPEmbeddingPTQ,
-        factory_fn=MXFPEmbeddingPTQ.from_embedding,
-        kwargs=quant_args["embed_kwargs"],
-        label="Embedding"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=nn.Embedding,
+    #     replacement_class=MXFPEmbeddingPTQ,
+    #     factory_fn=MXFPEmbeddingPTQ.from_embedding,
+    #     kwargs=quant_args["embed_kwargs"],
+    #     label="Embedding"
+    # )
 
     # RMSNorm
-    replace_modules(
-        model,
-        target_class=LlamaRMSNorm,
-        replacement_class=FPRMSNormPTQ,
-        factory_fn=FPRMSNormPTQ.from_rmsnorm,
-        kwargs=quant_args["rms_kwargs"],
-        label="FPRMSNormPTQ"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaRMSNorm,
+    #     replacement_class=FPRMSNormPTQ,
+    #     factory_fn=FPRMSNormPTQ.from_rmsnorm,
+    #     kwargs=quant_args["rms_kwargs"],
+    #     label="FPRMSNormPTQ"
+    # )
 
     # Wrap and evaluate
     model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=2048)

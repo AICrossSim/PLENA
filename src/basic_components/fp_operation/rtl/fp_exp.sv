@@ -96,8 +96,8 @@ module taylor_series_expansion #(
   localparam COEFFICIENT_WIDTH = IN_WIDTH + 2; // the maximum is 2.7..
   
   // Fix: Proper array declaration for coefficients
-  localparam  TERM_0 = 1 << (IN_WIDTH); // 1.0 in fixed point
-  localparam  LN_2 = 22 ; // ln(2) ≈ 0.693
+  localparam  [IN_WIDTH:0] TERM_0 = 1 << (IN_WIDTH); // 1.0 in fixed point
+  localparam  [5 - 1:0] LN_2 = 22 ; // ln(2) ≈ 0.693
 
   logic unsigned [OUT_WIDTH - 1:0] element_list [4-1:0];
   
@@ -135,7 +135,8 @@ module taylor_series_expansion #(
     .data_out(intermediate_data_out_2)
   );
   integer_mult #(
-    .WIDTH(IN_WIDTH)
+    .WIDTH(IN_WIDTH),
+    .IN_1_WIDTH(10)
   ) integer_mult_inst_3 (
     .data_in_0(intermediate_data_out_2),
     .data_in_1(TERM_0/3),
