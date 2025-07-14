@@ -5,6 +5,7 @@ from torch import Tensor
 from functools import partial
 
 from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
+from ..quantizer.mxfp import mxfp_quantizer_sim, OCP_MXFP8_E2M5
 
 from .hardware_aware_operations import silu_approx
 
@@ -17,7 +18,9 @@ def silu_minifloat(
     if func_type =="Xq":
         assert x_minifp_meta is not None, "MinifloatMeta must be provided for 'Xq' input"
         quantizer = partial(minifloat_ieee_quantizer, meta=x_minifp_meta)
-        input = quantizer(input)
-        return silu_approx(input, quantizer)
+        q_input = quantizer(q_input)
+        output = silu_approx(q_input, quantizer)
+
+        return output
 
     return torch.nn.functional.silu(input)

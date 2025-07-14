@@ -37,9 +37,9 @@ class FPRMSNormPTQ(nn.Module):
         if "Xq" in self.layer_type:
             assert self.x_minifp_meta is not None
             quantizer = partial(minifloat_ieee_quantizer, meta=self.x_minifp_meta)
-            x = quantizer(x)
-            x = rms_norm_approx(x, quantizer, self.eps)
-            return self.weight * x.to(hidden_dtype)
+            q_input = quantizer(x)
+            output = rms_norm_approx(q_input, quantizer)
+            return self.weight * output.to(hidden_dtype)
 
         x = x.to(torch.float32)
         variance = x.pow(2).mean(-1, keepdim=True)

@@ -42,3 +42,9 @@ FP16_E5M10 = MinifloatMeta(
     element_frac_bits=10,
     exponent_bias=None,
 )
+
+FP10_E6M3= MinifloatMeta(
+    element_exp_bits=6,
+    element_frac_bits=3,
+    exponent_bias=None,
+)

@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from functools import partial
 
-from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
+from ..quantizer.minifloat import minifloat_ieee_quantizer
 
 def reciprocal_approx(x: Tensor, quantizer) -> Tensor:
     reciprocal = 1 / (x+1e-9)
@@ -77,6 +77,28 @@ def sqrt_newton(x, quantizer, iters=5):
         y = 0.5 * (y + x * intermediate)
     return y
 
+def _get_similarity(tensor_raw, tensor_sim, metric=None):
+    if metric == "cosine":
+        similarity = F.cosine_similarity(tensor_raw, tensor_sim, dim=-1)
+    elif metric == "pearson":
+        similarity = F.cosine_similarity(
+            tensor_raw - torch.mean(tensor_raw, dim=-1, keepdim=True),
+            tensor_sim - torch.mean(tensor_sim, dim=-1, keepdim=True),
+            dim=-1,
+        )
+    else:
+        if metric == "L1_norm":
+            similarity = -torch.abs(tensor_raw - tensor_sim)
+        elif metric == "L2_norm" or "l2norm" or "l2":
+            similarity = -((tensor_raw - tensor_sim) ** 2)
+        elif metric == "linear_weighted_L2_norm":
+            similarity = -tensor_raw.abs() * (tensor_raw - tensor_sim) ** 2
+        elif metric == "square_weighted_L2_norm":
+            similarity = -((tensor_raw * (tensor_raw - tensor_sim)) ** 2)
+        else:
+            raise NotImplementedError(f"metric {metric} not implemented!")
+        similarity = torch.mean(similarity, dim=-1)
+    return similarity
 
 def rms_norm_approx(x: Tensor, quantizer, eps: float = 1e-6) -> Tensor:
     variance = x.pow(2)
