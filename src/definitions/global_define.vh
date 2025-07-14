@@ -1,3 +1,4 @@
 `ifndef GLOBAL_DEFINE_VH
 `define ASIC
+`define SYNTHESIS_MEMORY_BLACK_BOXING
 `endif

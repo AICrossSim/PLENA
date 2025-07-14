@@ -347,8 +347,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     assign m_prefetch_en = (exe_stage_op.h_op == PREFETCH_M_H_C || exe_stage_op.h_op == PREFETCH_M_H_S || 
                             exe_stage_op.h_op == PREFETCH_M_L_C || exe_stage_op.h_op == PREFETCH_M_L_S);
     matrix_sram_without_rounding #(
-        .MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
+        .WT_MXFP_EXP_WIDTH  (WT_MXFP_EXP_WIDTH),
+        .WT_MXFP_MANT_WIDTH (WT_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
         .MLEN               (MLEN),
