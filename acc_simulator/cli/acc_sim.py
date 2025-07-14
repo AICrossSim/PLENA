@@ -17,14 +17,6 @@ Evaluation is done via EleutherAI's lm-eval harness on tasks like Wikitext.
 
 Usage:
     python -m acc_simulator.eval.acc_sim --help
-
-Examples:
-    # Full quantization of weights, bias, activations, and KV cache, rope, and non-linear ops
-    python -m acc_simulator.eval.acc_sim --preset XqWqBqKVq --preset_mxfp_X MXFP8_E4M3 --preset_mxfp_W MXFP8_E4M3 --preset_minifloat FP8_E4M3
-
-    # No quantization (baseline)
-    python -m acc_simulator.eval.acc_sim --preset original
-
 """
 
 from pprint import pformat
@@ -53,11 +45,11 @@ def mxfp_lm_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
     model_name: str = "meta-llama/Meta-Llama-3-8B",
     tasks: Union[str, list[str]] = "wikitext",
-    preset: Union[ Literal["XqWqBqKVqNLq", "XWqBqKVNL", "XWBKVNLq", "XWqBqKVq", "XWqBqKV", "XWqBqKVq","original"], None] = "XqWqBqKVq",
-    preset_mxfp_X: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
-    preset_mxfp_W: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
-    preset_mxfp_Kv: Union[Literal["MXFP8_E4M3", "MXFP8_E5M2", "MXFP6_E2M3", "MXFP6_E3M2", "MXFP4_E2M1"], None] = None,
-    preset_minifloat_NL: Union[Literal["FP8_E4M3", "FP8_E5M2"], None] = None,
+    preset: Union[ Literal["XqWqBqKVqNLq", "XqWqBqKVqNL", "XWqBqKVNL", "XWBKVNLq", "XWqBqKVq", "XWqBqKV", "XWqBqKVq","original"], None] = "XqWqBqKVq",
+    preset_mxfp_X: Union[str, None] = None,
+    preset_mxfp_W: Union[str, None] = None,
+    preset_mxfp_Kv: Union[str, None] = None,
+    preset_minifloat_NL: Union[str, None] = None,
     model_parallel: bool = True,
     log_dir: Union[str, None] = "logs",
     enable_eval_harness: bool = False
@@ -73,9 +65,10 @@ def mxfp_lm_eval(
         model_name (str): HuggingFace model ID.
         tasks (str or list): lm-eval task(s) to run.
         preset (str): Quantization preset, e.g., "XqWqBqKVqNLq" enables quantization of inputs (Xq), weights (Wq), biases (Bq), KV cache (KVq) and Non linear Ops(NLq). Use "original" to disable all quantization.
-        preset_mxfp_X (str): MXFP format for activations.
-        preset_mxfp_W (str): MXFP format for weights.
-        preset_minifloat (str): Minifloat format for nonlinear ops (e.g., SiLU, softmax).
+        preset_mxfp_X (str): MXFP format for activations. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_mxfp_W (str): MXFP format for weights. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_mxfp_Kv (str): MXFP format for KV cache. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_minifloat_NL (str): Minifloat format for nonlinear ops. Expected format: FP_E<exp>M<frac>[_B<bias>]
         model_parallel: Whether to auto-dispatch model across GPUs, will trigger Triton Kernel for mxfp quantization if set.
         log_dir: Directory to save logs and results.
         enable_eval_harness: Whether to run evaluation via EleutherAI lm-eval-harness.

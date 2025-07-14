@@ -7,6 +7,9 @@ from pathlib import Path
 import torch
 from torch import nn
 
+from ..quantize.quantizer.mxfp import MXFPMeta
+from ..quantize.quantizer.minifloat import MinifloatMeta
+
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
     # Always store logs inside acc_simulator/logs regardless of current working directory
@@ -98,14 +101,14 @@ def validate_and_sanitize_quant_args(
 
     Raises:
         AssertionError: If the preset is not one of the allowed values.
-        ValueError: If a required quantization format is missing.
+        ValueError: If a required quantization format is missing or invalid.
 
     Returns:
         A tuple of (preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL),
         with unused arguments set to None.
     """
     allowed_presets = [
-        "XqWqBqKVqNLq", "XWqBqKVNL", "XWBKVNLq",
+        "XqWqBqKVqNLq", "XqWqBqKVqNL", "XWqBqKVNL", "XWBKVNLq",
         "XWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"
     ]
 
@@ -115,6 +118,11 @@ def validate_and_sanitize_quant_args(
         if flag in preset:
             if arg_value is None:
                 raise ValueError(f"Preset includes '{flag}' but '{arg_name}' is not specified.")
+            # Early input Str format validation, will rasie ValueError from ../meta.py if format invalid
+            if "MXFP" in arg_value:
+                _ = MXFPMeta.from_string(arg_value)
+            elif "FP" in arg_value:
+                _ = MinifloatMeta.from_string(arg_value)
             return arg_value
         else:
             if arg_value is not None:
