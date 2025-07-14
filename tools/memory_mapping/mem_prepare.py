@@ -19,19 +19,21 @@ class fix_sram_pre_loader:
         
         MLEN = (self.architecture_feature["MLEN"])
         Q_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["ACT_MXFP_MANT_WIDTH"] + self.precision_feature["ACT_MXFP_MANT_WIDTH"])) // 8
-        KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["WT_MXFP_MANT_WIDTH"] + self.precision_feature["WT_MXFP_MANT_WIDTH"])) // 8
+        KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["KV_MXFP_MANT_WIDTH"] + self.precision_feature["KV_MXFP_MANT_WIDTH"])) // 8
         Weight_Size = (self.ml_feature["hidden_size"] * self.ml_feature["hidden_size"] * (self.precision_feature["WT_MXFP_MANT_WIDTH"] + self.precision_feature["WT_MXFP_MANT_WIDTH"])) // 8
         Batch_Size = (self.ml_feature["batchsize"])
+        Head_Dim = (self.ml_feature["hidden_size"] // self.ml_feature["num_attention_heads"])
         
         # FlashAtten
         with open(self.directory, "w") as f:
-            f.write(f"0x{low_precision_stride_length:08x}\n")
             f.write(f"0x{high_precision_stride_length:08x}\n")
+            f.write(f"0x{low_precision_stride_length:08x}\n")
             f.write(f"0x{MLEN:08x}\n")
             f.write(f"0x{2*MLEN:08x}\n")
             f.write(f"0x{Q_Size:08x}\n")
             f.write(f"0x{KV_Size:08x}\n")
             f.write(f"0x{Weight_Size:08x}\n")
+            f.write(f"0x{Head_Dim:08x}\n")
             f.write(f"0x{Batch_Size:08x}\n")
 
 

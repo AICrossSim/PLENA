@@ -211,7 +211,7 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 
 
 ## FIXED SRAM Layout
-- 0: WEIGHT_PRECISION_STRIDE_LENGTH (hidden_size * (Q_PRECISION_BLOCK_SIZE) // 8)
+- 0: ACT_PRECISION_STRIDE_LENGTH (hidden_size * (Q_PRECISION_BLOCK_SIZE) // 8)
 - 1: KV_PRECISION_STRIDE_LENGTH  (hidden_size * (KV_PRECISION_BLOCK_SIZE) // 8)
 - 2: MLEN
 - 3: 2*MLEN

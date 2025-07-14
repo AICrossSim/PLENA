@@ -32,10 +32,9 @@ class Assembler:
         rs2 = instruction.rs2
         imm = instruction.imm
         binary_instruction = 0
-
+        print(f"Converting instruction: {instruction.opcode} with rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        print(f"Converting instruction: {instruction.opcode} with rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_ACC_MULI", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
@@ -43,7 +42,7 @@ class Assembler:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_FIX"]:
+        elif instruction.opcode in ["S_LUI_FIX", "C_SET_STRIDE_REG"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +

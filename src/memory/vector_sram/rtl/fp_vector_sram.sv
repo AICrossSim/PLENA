@@ -251,17 +251,16 @@ module fp_vector_sram #(
     assign  port_b_fp_out = port_b_fp_out_internal;
 
     always_comb begin
-        if (select_write_data_b == 2'b0) begin
+        if (select_write_data_b == 2'b01) begin
             port_b_fp_in_internal   = converted_b_high_fp_in;
-        end else if (select_write_data_b == 2'b01) begin
-            port_b_fp_in_internal   = converted_b_low_fp_in;
         end else if (select_write_data_b == 2'b10) begin
+            port_b_fp_in_internal   = converted_b_low_fp_in;
+        end else if (select_write_data_b == 2'b11) begin
             port_b_fp_in_internal   = port_b_fp_in;
         end else begin
             port_b_fp_in_internal   = 'b0;
         end
     end
-
 
     // Convert MX-FP Data to FP Data for HBM Prefetch
 

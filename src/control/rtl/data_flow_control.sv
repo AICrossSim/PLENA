@@ -513,20 +513,20 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 v_sram_wen_b            <= 1'b1;
                 s_map_v_ready           <= 1'b0;
                 if (recorded_prefetch_precision == 1'b0) begin
-                    select_write_data_b     <= 2'b0; // High Precision
+                    select_write_data_b     <= 2'b01; // High Precision
                 end else begin
-                    select_write_data_b     <= 2'b01; // Low Precision
+                    select_write_data_b     <= 2'b10; // Low Precision
                 end
             end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && ((exe_stage_op.v_ele_op != RESET_V)) && !exe_stage_op.v_broadcast_en)) begin
                 v_sram_req_b            <= 1'b1;
                 v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
-                select_write_data_b     <= 2'b0;
+                select_write_data_b     <= 2'b01;
             end else if (s_map_v_valid & !s_map_v_ready) begin
                 v_sram_req_b            <= 1'b1;
                 v_sram_wen_b            <= 1'b1;
                 s_map_v_ready           <= 1'b1;
-                select_write_data_b     <= 2'b10;
+                select_write_data_b     <= 2'b11;
             end else begin
                 v_sram_req_b            <= 1'b0;
                 v_sram_wen_b            <= 1'b0;
