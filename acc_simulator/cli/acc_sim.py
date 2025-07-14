@@ -45,7 +45,7 @@ def mxfp_lm_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
     model_name: str = "meta-llama/Meta-Llama-3-8B",
     tasks: Union[str, list[str]] = "wikitext",
-    preset: Union[ Literal["XqWqBqKVqNLq", "XqWqBqKVqNL", "XWqBqKVNL", "XWBKVNLq", "XWqBqKVq", "XWqBqKV", "XWqBqKVq","original"], None] = "XqWqBqKVq",
+    preset: Union[str, None] = "original",
     preset_mxfp_X: Union[str, None] = None,
     preset_mxfp_W: Union[str, None] = None,
     preset_mxfp_Kv: Union[str, None] = None,

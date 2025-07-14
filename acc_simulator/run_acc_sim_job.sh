@@ -6,9 +6,9 @@ python -m acc_simulator.cli.acc_sim \
   --enable_eval_harness False \
   > acc_simulator/baseline_bf16.out 2>&1
 
-echo "Running XWqBqKV (weights only) W8"
+echo "Running XWqBqKVNL (weights only) W8"
 python -m acc_simulator.cli.acc_sim \
-  --preset XWqBqKV \
+  --preset XWqBqKVNL \
   --preset_mxfp_W MXFP_E4M3_B16_S16 \
   --model_parallel True \
   > acc_simulator/weights_only_w8.out 2>&1

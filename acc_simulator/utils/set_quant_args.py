@@ -19,7 +19,7 @@ def setup_linear_args(preset, preset_mxfp_x, preset_mxfp_w):
         if "Wq" in preset:
             linear_kwargs["w_mxfp_meta"] = MXFPMeta.from_string(preset_mxfp_w)
         # bias and weights sharing the same datatype setup
-        if "Bq" in preset:
+        if "Bq" in preset and preset_mxfp_w != None:
             linear_kwargs["b_mxfp_meta"] = MXFPMeta.from_string(preset_mxfp_w)
         linear_kwargs["layer_type"] = preset
     
