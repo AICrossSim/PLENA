@@ -1,6 +1,6 @@
-# AIXSim: Llama Acceleration Coprocessor Design
+# AIXSim: Mamba 2 Acceleration Coprocessor Design
 
-This project contains the implementation of a coprocessor for Llama model's inference process.
+This project contains the implementation of a coprocessor for Mamba-2 model's inference process.
 
 
 **ISA Summary:**  
