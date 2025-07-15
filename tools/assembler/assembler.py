@@ -1,6 +1,6 @@
 from parser import load_isa_definitions, load_isa_settings, parse_asm_file
 import argparse
-from utils import load_architecture_settings
+from utils import load_svh_settings
 
 class Assembler:
     def __init__(self, isa_definition_file: str, config_file: str):
@@ -11,7 +11,7 @@ class Assembler:
         """
         self.isa_definitions = load_isa_definitions(isa_definition_file)
         self.isa_definition_file = isa_definition_file
-        config_settings = load_architecture_settings(config_file)
+        config_settings = load_svh_settings(config_file)
         self.opcode_width = config_settings.get("OPCODE_WIDTH", 0)
         self.operands_width = config_settings.get("OPERAND_WIDTH", 0)
         self.imm_width = config_settings.get("IMM_WIDTH", 0)

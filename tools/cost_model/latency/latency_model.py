@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from math import log2
 import re
-from utils import load_architecture_settings
+from utils import load_svh_settings
 
 
 
@@ -26,7 +26,7 @@ def build_instr_model(
     hardware_settings_file: str = "configuration.svh",
     custom_isa_lib_file:    str = "customISA_lib.json"
 ):
-    hardware_settings = load_architecture_settings(hardware_settings_file)
+    hardware_settings = load_svh_settings(hardware_settings_file)
     hardware_settings["SA_ACC_CYCLES"] = int(log2(hardware_settings["MLEN"] / hardware_settings["BLEN"]) + 1)
     custom_isa_lib = load_custom_isa_lib(custom_isa_lib_file)
 
