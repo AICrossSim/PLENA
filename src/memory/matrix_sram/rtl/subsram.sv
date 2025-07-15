@@ -1,4 +1,5 @@
 `timescale 1ns/1ps
+`include "global_define.vh"
 
 /*
 Module      : Sub SRAM units within the Matrix Machine SRAM
