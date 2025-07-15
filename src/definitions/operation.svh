@@ -84,7 +84,8 @@ typedef enum logic [2:0] {
     SET_M_STRIDE_SIZE   = 3'h3,
     SET_LUT             = 3'h4,
     SET_V_SCALE_REG     = 3'h5,
-    SET_M_SCALE_REG     = 3'h6
+    SET_M_SCALE_REG     = 3'h6,
+    BREAK               = 3'h7
 } C_OP;
 
 typedef enum logic [3:0] {
@@ -177,7 +178,8 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     C_SET_ADDR_REG         = 6'h34,
     C_SET_LUT              = 6'h35,
     C_SET_STRIDE_REG       = 6'h36,
-    C_SET_SCALE_REG        = 6'h37
+    C_SET_SCALE_REG        = 6'h37,
+    C_BREAK                = 6'h38
 } CUSTOM_ISA_OPCODE;
 
 
