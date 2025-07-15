@@ -41,14 +41,16 @@ def load_json(file_path):
 def load_toml_config(file_path, mode=None):
     section_to_load = ["CONFIG", "PRECISION", "INSTR"]
     config = {}
+
     with open(file_path, "r") as f:
-        for section in section_to_load:
-            toml_config = toml.load(f).get(section, {})
-            if toml_config:
-                hardware_settings = {
-                    param: values.get(mode)
-                    for param, values in toml_config.items()
-                    if mode in values
-                }
-                config.update(hardware_settings)
+        full_toml = toml.load(f)
+    for section in section_to_load:
+        toml_config = full_toml.get(section, {})
+        if toml_config:
+            hardware_settings = {
+                param: values.get(mode)
+                for param, values in toml_config.items()
+                if mode in values
+            }
+            config.update(hardware_settings)
     return config

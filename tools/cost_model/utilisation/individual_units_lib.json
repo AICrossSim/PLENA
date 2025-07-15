@@ -39,7 +39,7 @@
       "P4": 1,
       "P5": 1
     },
-    "Relationship": "P1 * (S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1) + P2 * INT_DATA_WIDTH + P3 * INT_SRAM_WIDTH * INT_DATA_WIDTH + P4 * FP_SRAM_WIDTH * (S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1) + P5"
+    "Relationship": "P1 * (S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1) + P2 * INT_DATA_WIDTH + P3 * INT_SRAM_DEPTH * INT_DATA_WIDTH + P4 * FP_SRAM_DEPTH * (S_FP_EXP_WIDTH + S_FP_MANT_WIDTH + 1) + P5"
   },
   "HBMSystem": {
     "Coefficients": {
