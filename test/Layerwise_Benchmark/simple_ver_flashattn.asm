@@ -37,7 +37,6 @@ H_PREFETCH_V_H_S i0, i0, i0;
 S_LD_FIX i1, i0, 1;
 C_SET_STRIDE_REG i1, 0, 0;
 H_PREFETCH_M_L_S i0, i0, i0;      
-; Load K
 
 ;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->    
 ; i1: Address for Q
@@ -71,4 +70,3 @@ S_MUL_FIX i1, i3, i4;
 S_MUL_FIX i2, i3, i5;
 M_TMM_PS i6, i1, i2;
 S_ADDI_FIX i6, i0, 1;
-
