@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
 
+`include "configuration.svh"
+`include "operation.svh"
 
 /*
 Module      : Address Dependency Monitor
@@ -102,7 +103,7 @@ module addr_monitor#(
                     end
                 end
                 stall_req = |addr_collide_flag;
-            end else if (determine_stage_op.h_op == STORE_V_C ||determine_stage_op.h_op == STORE_V_S ) begin
+            end else if (determine_stage_op.h_op == STORE_V_H_C ||determine_stage_op.h_op == STORE_V_H_S ) begin
                 // One port of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -142,8 +143,8 @@ module addr_monitor#(
 
     // Decide which source is providing the address this cycle
     always_comb begin
-        if (exe_stage_op.h_op == PREFETCH_V_C) begin
-            // Note, PREFETCH_M_C does not need to be monitored as it cannot be directly written.
+        if (exe_stage_op.h_op == PREFETCH_V_H_C) begin
+            // Note, PREFETCH_M_H_C does not need to be monitored as it cannot be directly written.
             insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else if (exe_stage_op.update_m_waddr) begin

@@ -204,20 +204,34 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 - x2: used to store incremental pointer across N/Bc
 
 
+## Vector SRAM Layout
+- Q     (Prefetch_Amount_V, MLEN), P
+- PV    (Head_Dim, MLEN)
+- O_Old (Head_Dim, MLEN)
+
+
 ## FIXED SRAM Layout
-- HIGH_PRECISION_STRIDE_LENGTH (hidden_size * (HIGH_PRECISION_BLOCK_SIZE) // 8)
-- LOW_PRECISION_STRIDE_LENGTH (hidden_size * (LOW_PRECISION_BLOCK_SIZE) // 8)
-- MLEN
-- 2*MLEN
-- Q_SIZE
-- KV_SIZE
-- WEIGHT_SIZE
-- BATCH_SIZE
-- HIGH_PRECISION_ADDR_DISTANCE_PER_STRIDE
-- LOW_PRECISION_ADDR_DISTANCE_PER_STRIDE
-- MLEN * MLEN
-- MLEN * BLEN
-- MLEN * MLEN + Head_DIM * MLEN
+- 0: ACT_PRECISION_STRIDE_LENGTH (hidden_size * (Q_PRECISION_BLOCK_SIZE) // 8)
+- 1: KV_PRECISION_STRIDE_LENGTH  (hidden_size * (KV_PRECISION_BLOCK_SIZE) // 8)
+- 2: MLEN
+- 3: 2*MLEN
+- 4: Q_SIZE
+- 5: KV_SIZE
+- 6: WEIGHT_SIZE
+- 7: HEAD_DIM
+- 8: HIGH_PRECISION_ADDR_DISTANCE_PER_STRIDE
+- 9: LOW_PRECISION_ADDR_DISTANCE_PER_STRIDE
+- 10: MLEN * BLEN * (WEIGHT_PRECISION_BLOCK_SIZE // 8)
+- 11: MLEN * BLEN * (KV_PRECISION_BLOCK_SIZE // 8)
+- 12: MLEN * MLEN + Head_DIM * MLEN
+- 13: Counter for Tr Iteration
+- 14: Counter for Tc Iteration
+- 15: O_OFFSET
+- 16: BATCH_SIZE
+
 
 ## FP SRAM Layout
-- FLASH_ATTN_M_VAR
+- Negative Max
+- M_OLD (MLEN)
+- M_RES (MLEN)
+- L_OLD (MLEN)

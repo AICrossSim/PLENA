@@ -8,7 +8,7 @@
 Module      : Sim Top Module
 */
 
-module SimTop#(
+module SimTop import instruction_pkg::*; #(
     parameter   INSTRUCTION_LENGTH = 32,
     parameter string    FAKE_HBM_ELEMENT_INIT_FILE    = "",
     parameter string    FAKE_HBM_SCALE_INIT_FILE      = "",
@@ -31,6 +31,7 @@ module SimTop#(
 
 import simulation_pkg::*;
 import configuration_pkg::*;
+
 
 `TL_DECLARE(HBM_ELE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_element_link);
 `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_scale_link);

@@ -3,9 +3,13 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo 
 from pathlib import Path
+import re
 
 import torch
 from torch import nn
+
+from ..quantize.quantizer.mxfp import MXFPMeta
+from ..quantize.quantizer.minifloat import MinifloatMeta
 
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
@@ -79,3 +83,71 @@ def print_all_layers(model: nn.Module):
             device = "No parameters"
         print(f"{name}: {type(layer).__name__} | device: {device}")
     print("====================")
+
+def validate_preset_format(preset: str) -> None:
+    """
+    Ensures that the preset string:
+    - Contains exactly all 5 components (X, W, B, KV, NL)
+    - Appears in fixed order
+    - Each followed optionally by 'q' (e.g., X or Xq)
+
+    Raises:
+        ValueError if format is invalid.
+    """
+    if preset == "original":
+        return
+
+    pattern = r"^(Xq|X)(Wq|W)(Bq|B)(KVq|KV)(NLq|NL)$"
+    match = re.fullmatch(pattern, preset)
+    if not match:
+        raise ValueError(
+            f"Invalid preset format: '{preset}'. Must include X, W, B, KV, and NL "
+            f"in order, each optionally suffixed with 'q'."
+        )
+
+
+def validate_and_sanitize_quant_args(
+    preset: str,
+    preset_mxfp_X: str | None,
+    preset_mxfp_W: str | None,
+    preset_mxfp_Kv: str | None,
+    preset_minifloat_NL: str | None,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    """
+    Validate and sanitize quantization flags based on the preset string.
+
+    Ensures that:
+    - If a quantization type (e.g., Xq, Wq) is specified in the preset,
+      the corresponding format must be provided.
+    - If not specified in the preset, any provided format is ignored with a warning.
+
+    Raises:
+        ValueError: If a required preset and quantization format is missing or invalid.
+
+    Returns:
+        A tuple of (preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL),
+        with unused arguments set to None.
+    """
+    validate_preset_format(preset)
+
+    def check_and_clear(flag: str, arg_value: str | None, arg_name: str) -> str | None:
+        if flag in preset:
+            if arg_value is None:
+                raise ValueError(f"Preset includes '{flag}' but '{arg_name}' is not specified.")
+            # Early input Str format validation, will rasie ValueError from ../meta.py if format invalid
+            if "MXFP" in arg_value:
+                _ = MXFPMeta.from_string(arg_value)
+            elif "FP" in arg_value:
+                _ = MinifloatMeta.from_string(arg_value)
+            return arg_value
+        else:
+            if arg_value is not None:
+                print(f"[Warning] '{arg_name}' is provided but '{flag}' not in preset. Ignoring it.")
+            return None
+
+    preset_mxfp_X = check_and_clear("Xq", preset_mxfp_X, "preset_mxfp_X")
+    preset_mxfp_W = check_and_clear("Wq", preset_mxfp_W, "preset_mxfp_W")
+    preset_mxfp_Kv = check_and_clear("KVq", preset_mxfp_Kv, "preset_mxfp_Kv")
+    preset_minifloat_NL = check_and_clear("NLq", preset_minifloat_NL, "preset_minifloat_NL")
+
+    return preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL

@@ -1,5 +1,5 @@
 # TODO: Write Function that automatically map the FIXED and FP memory.
-from utils import load_architecture_settings, load_ml_model_config
+from utils import load_svh_settings, load_json
 import os
 from pathlib import Path
 
@@ -13,25 +13,27 @@ class fix_sram_pre_loader:
 
     def load(self):
         low_precision_stride_length = (self.ml_feature["hidden_size"] * self.architecture_feature["MLEN"] * 
-                         (self.precision_feature["LOW_MXFP_MANT_WIDTH"] + self.precision_feature["LOW_MXFP_MANT_WIDTH"])) // 8
+                         (self.precision_feature["WT_MXFP_MANT_WIDTH"] + self.precision_feature["WT_MXFP_MANT_WIDTH"])) // 8
         high_precision_stride_length = (self.ml_feature["hidden_size"] * self.architecture_feature["MLEN"] * 
-                         (self.precision_feature["HIGH_MXFP_MANT_WIDTH"] + self.precision_feature["HIGH_MXFP_MANT_WIDTH"])) // 8
+                         (self.precision_feature["ACT_MXFP_MANT_WIDTH"] + self.precision_feature["ACT_MXFP_MANT_WIDTH"])) // 8
         
         MLEN = (self.architecture_feature["MLEN"])
-        Q_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["HIGH_MXFP_MANT_WIDTH"] + self.precision_feature["HIGH_MXFP_MANT_WIDTH"])) // 8
-        KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["LOW_MXFP_MANT_WIDTH"] + self.precision_feature["LOW_MXFP_MANT_WIDTH"])) // 8
-        Weight_Size = (self.ml_feature["hidden_size"] * self.ml_feature["hidden_size"] * (self.precision_feature["LOW_MXFP_MANT_WIDTH"] + self.precision_feature["LOW_MXFP_MANT_WIDTH"])) // 8
+        Q_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["ACT_MXFP_MANT_WIDTH"] + self.precision_feature["ACT_MXFP_MANT_WIDTH"])) // 8
+        KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["KV_MXFP_MANT_WIDTH"] + self.precision_feature["KV_MXFP_MANT_WIDTH"])) // 8
+        Weight_Size = (self.ml_feature["hidden_size"] * self.ml_feature["hidden_size"] * (self.precision_feature["WT_MXFP_MANT_WIDTH"] + self.precision_feature["WT_MXFP_MANT_WIDTH"])) // 8
         Batch_Size = (self.ml_feature["batchsize"])
+        Head_Dim = (self.ml_feature["hidden_size"] // self.ml_feature["num_attention_heads"])
         
         # FlashAtten
         with open(self.directory, "w") as f:
-            f.write(f"0x{low_precision_stride_length:08x}\n")
             f.write(f"0x{high_precision_stride_length:08x}\n")
+            f.write(f"0x{low_precision_stride_length:08x}\n")
             f.write(f"0x{MLEN:08x}\n")
             f.write(f"0x{2*MLEN:08x}\n")
             f.write(f"0x{Q_Size:08x}\n")
             f.write(f"0x{KV_Size:08x}\n")
             f.write(f"0x{Weight_Size:08x}\n")
+            f.write(f"0x{Head_Dim:08x}\n")
             f.write(f"0x{Batch_Size:08x}\n")
 
 
@@ -76,11 +78,11 @@ if __name__ == "__main__":
     project_path = Path(__file__).resolve().parents[2]
     hardware_feature_path = os.path.join(project_path, "src/definitions/configuration.svh")
     print(f"Loading hardware feature from {hardware_feature_path}")
-    architecture_feature = load_architecture_settings(hardware_feature_path)
+    architecture_feature = load_svh_settings(hardware_feature_path)
     ml_feature_path = os.path.join(project_path, "doc/Model_Lib/llama-3.1-8b.json")
-    ml_feature = load_ml_model_config(ml_feature_path)
+    ml_feature = load_json(ml_feature_path)
     precision_feature_path = os.path.join(project_path, "src/definitions/precision.svh")
-    precision_feature = load_architecture_settings(precision_feature_path)
+    precision_feature = load_svh_settings(precision_feature_path)
     directory = os.path.join(project_path, "test/load_mem")
 
     fixed_sram_loader = fix_sram_pre_loader(architecture_feature, ml_feature, precision_feature, directory)

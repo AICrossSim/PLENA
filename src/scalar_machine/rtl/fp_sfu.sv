@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "configuration.svh"
 `include "operation.svh"
 
 /*
@@ -81,6 +83,7 @@ always_comb begin
 
         default: begin
             result_data = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
+            result_valid = 1'b0;
         end
     endcase
 end

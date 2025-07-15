@@ -40,7 +40,7 @@ LOOP_ATTENTION_Q_HEADS:
             S_ADDI_FIX      x13,  x13, 0x1;            // Prefetched address of K and Q
 
             H_PREFETCH_M_C    x13,  x10, csr_adr[0];    
-            H_PREFETCH_V_C    x13,  x11, csr_adr[1]; 
+            H_PREFETCH_V_H_C    x13,  x11, csr_adr[1]; 
             C_SET_MV_OFFSET x13;
             
             // s_j = q @ k_j.transpose(1, 2)

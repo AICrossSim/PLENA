@@ -11,7 +11,7 @@ module bit_width_aware_signed_left_shift #(
 );
 
   logic in_data_sign;
-  logic [IN_WIDTH-2:0] abs_in_data;
+  logic [IN_WIDTH-1:0] abs_in_data;
   logic [OUT_WIDTH-1:0] abs_out_data;
 
   logic shift_sign;

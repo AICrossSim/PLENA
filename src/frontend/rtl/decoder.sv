@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "configuration.svh"
 `include "operation.svh"
 
 /*
@@ -11,7 +13,7 @@ Description :
     [IMM]        [RD] [OPCODE_WID]
 */
 
-module decoder #(
+module decoder import instruction_pkg::*; #(
     parameter INSTRUCTION_LENGTH = 16,
     parameter OPERAND_WIDTH = 5,
     parameter OPCODE_WIDTH = 4,
@@ -20,6 +22,7 @@ module decoder #(
 )(
     input   logic clk,
     input   logic rst,
+    input   logic system_stall_flag,
     
     // Decoder Control
     input   logic pipeline_stall,
@@ -39,14 +42,26 @@ module decoder #(
     output      logic [IMM_WIDTH - 1 : 0] imm
 );
 
-
-logic   stall_for_read_rd;
-logic   [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
-logic   read_instr_from_fifo, decode_instr_valid;
-assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid & !fixed_op_stall_flag;
-logic   p1_pipeline_stall, recover_from_stall;
+logic           system_stall;
+logic           stall_for_read_rd;
+logic           [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
+logic           read_instr_from_fifo, decode_instr_valid;
+logic           p1_pipeline_stall, recover_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_FIXED_OP      exe_fixed_op;
+
+logic rd_operand_ready; // The stall is for loading the third operand from the register files.
+logic m_update_waddr, v_update_waddr;
+logic recorded_m_update_waddr, recorded_v_update_waddr;
+logic pass_m_update_waddr, pass_v_update_waddr;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
+logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
+logic stall_for_read_rd_flag;
+logic recorded_stall_for_read_rd_flag;
+logic fixed_op_stall_flag;
+
+assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & !fixed_op_stall_flag & (system_stall == 1'b0);
 
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
@@ -62,15 +77,12 @@ fifo #(
     .data_out_ready (read_instr_from_fifo)
 );
 
-
 // Operand Assignments
 logic [OPCODE_WIDTH - 1 : 0]    loaded_opcode;
 logic [OPERAND_WIDTH:0]         loaded_rs1;
 logic [OPERAND_WIDTH:0]         loaded_rs2;
 logic [OPERAND_WIDTH:0]         loaded_rd;
 logic [IMM_WIDTH - 1 : 0]       loaded_imm;
-
-
 
 assign loaded_imm       = ((loaded_opcode == S_ADDI_FIX) || (loaded_opcode == S_LD_FP)  || (loaded_opcode == S_ST_FP)
                                                          || (loaded_opcode == S_LD_FIX) || (loaded_opcode == S_ST_FIX) ) ? 
@@ -107,12 +119,12 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_M_C, H_PREFETCH_M_S, H_PREFETCH_V_C, H_PREFETCH_V_S, H_STORE_V_C, H_STORE_V_S: begin
+        H_PREFETCH_M_H_C, H_PREFETCH_M_H_S, H_PREFETCH_M_L_C, H_PREFETCH_M_L_S, H_PREFETCH_V_H_C, H_PREFETCH_V_H_S, H_STORE_V_H_C, H_STORE_V_H_S: begin
             decode_instruction_type = H;
         end
 
         // CSR Setting
-        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG, C_SET_SCALE_REG: begin
+        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG, C_SET_SCALE_REG, C_BREAK: begin
             decode_instruction_type = C;
         end
 
@@ -123,22 +135,9 @@ always_comb begin
     endcase
 end
 
-assign decode_instr_info = read_instr_from_fifo ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
-
+assign decode_instr_info = (read_instr_from_fifo & decode_instr_valid) ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
 
 // Decoding
-logic rd_operand_ready; // The stall is for loading the third operand from the register files.
-logic m_update_waddr, v_update_waddr;
-logic recorded_m_update_waddr, recorded_v_update_waddr;
-logic pass_m_update_waddr, pass_v_update_waddr;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
-logic stall_for_read_rd_flag;
-logic recorded_stall_for_read_rd_flag;
-logic fixed_op_stall_flag;
-// assign fixed_op_stall_flag = (decode_instr_info.opcode == S_ACC_MULI); // Stall the overall execution after detecting S_ACC_MULI for a single clock.
-
 always_ff @(posedge clk) begin
     if (rst) begin
         recorded_stall_for_read_rd_flag <= 1'b0;
@@ -147,7 +146,11 @@ always_ff @(posedge clk) begin
         recorded_rd_to_load <= {FIXED_OPERAND_WIDTH{1'b0}};
         p1_pipeline_stall <= 1'b0;
         exe_fixed_op <= STALL_S_FIXED;
+        system_stall <= 1'b0;
     end else begin
+        if (system_stall_flag) begin
+            system_stall <= 1'b1;
+        end
         recorded_stall_for_read_rd_flag <= stall_for_read_rd_flag;
         recorded_m_update_waddr         <= m_update_waddr;
         recorded_v_update_waddr         <= v_update_waddr;
@@ -442,16 +445,27 @@ always_ff @(posedge clk) begin
                     decode_stage_op.c_op                <= SET_ADDR_REG;
                 end else if (decode_instr_info.opcode == C_SET_STRIDE_REG) begin
                     assigned_fixed_op                   <= PASS_ADDR_2;
-                    decode_stage_op.c_op                <= SET_STRIDE_SIZE;
+                    if (decode_instr_info.imm == '0) begin
+                        decode_stage_op.c_op <= SET_V_STRIDE_SIZE;
+                    end else begin
+                        decode_stage_op.c_op <= SET_M_STRIDE_SIZE;
+                    end
                 end else if (decode_instr_info.opcode == C_SET_LUT) begin
                     assigned_fixed_op                   <= STALL_S_FIXED;
                     decode_stage_op.c_op                <= SET_LUT; // TODO: Left for Cano
                 end else if (decode_instr_info.opcode == C_SET_SCALE_REG) begin
                     assigned_fixed_op                   <= PASS_ADDR_2;
-                    decode_stage_op.c_op                <= SET_SCALE_REG;
+                    if (decode_instr_info.imm == '0) begin
+                        decode_stage_op.c_op <= SET_V_SCALE_REG;
+                    end else begin
+                        decode_stage_op.c_op <= SET_M_SCALE_REG;
+                    end
+                end else if (decode_instr_info.opcode == C_BREAK) begin
+                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    decode_stage_op.c_op                <= SET_LUT;
                 end else begin
                     assigned_fixed_op                   <= STALL_S_FIXED;
-                    decode_stage_op.c_op                <= STALL_C;
+                    decode_stage_op.c_op                <= BREAK;
                 end
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
@@ -469,12 +483,18 @@ always_ff @(posedge clk) begin
                 decode_stage_op.s_fp_op         <= STALL_S_FP;
                 assigned_fixed_op               <= PASS_ADDR_2;
                 decode_stage_op.c_op            <= STALL_C;
-                decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_C)      ? PREFETCH_M_C    :
-                                            (decode_instr_info.opcode == H_PREFETCH_M_S)      ? PREFETCH_M_S    :
-                                            (decode_instr_info.opcode == H_PREFETCH_V_C)      ? PREFETCH_V_C    :
-                                            (decode_instr_info.opcode == H_PREFETCH_V_S)      ? PREFETCH_V_S    :
-                                            (decode_instr_info.opcode == H_STORE_V_C)         ? STORE_V_C       : 
-                                            (decode_instr_info.opcode == H_STORE_V_S)         ? STORE_V_S       : STALL_H;
+                decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_H_C)      ? PREFETCH_M_H_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_M_H_S)      ? PREFETCH_M_H_S    :
+                                            (decode_instr_info.opcode == H_PREFETCH_M_L_C)      ? PREFETCH_M_L_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_M_L_S)      ? PREFETCH_M_L_S    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_H_C)      ? PREFETCH_V_H_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_H_S)      ? PREFETCH_V_H_S    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_L_C)      ? PREFETCH_V_L_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_L_S)      ? PREFETCH_V_L_S    :
+                                            (decode_instr_info.opcode == H_STORE_V_H_C)         ? STORE_V_H_C       : 
+                                            (decode_instr_info.opcode == H_STORE_V_H_S)         ? STORE_V_H_S       : 
+                                            (decode_instr_info.opcode == H_STORE_V_L_C)         ? STORE_V_L_C       :
+                                            (decode_instr_info.opcode == H_STORE_V_L_S)         ? STORE_V_L_S       : STALL_H;
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;

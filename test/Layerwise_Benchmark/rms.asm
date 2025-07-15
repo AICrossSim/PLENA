@@ -12,7 +12,7 @@ S_MUL_FIX x3, x3, x3;
 
 ; Repeat the following sections{
 
-H_PREFETCH_V_C x1, x1, x0;
+H_PREFETCH_V_H_C x1, x1, x0;
 V_MUL_VV x3, x1, x1;
 ; x3 = 'h10
 
@@ -25,7 +25,7 @@ S_ADDI_FIX x1, x1, 4;
 
 S_ADDI_FIX x3, x3, 4;
 ; x3 = 'h16
-H_PREFETCH_V_C x1, x1, x0;
+H_PREFETCH_V_H_C x1, x1, x0;
 V_MUL_VV x3, x1, x1;
 V_RED_SUM fp3, x2, x3;
 S_ADDI_FIX x1, x1, 4;

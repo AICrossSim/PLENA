@@ -25,16 +25,24 @@ To set `VLEN` to 4 and `MLEN` to 123 for the ASIC mode:
 make set CONFIG="VLEN=4 MLEN=123" MODE=ASIC
 ```
 
-To set `HIGH_MXFP_MANT_WIDTH` to 8 for the ASIC mode:
+To set `ACT_MXFP_MANT_WIDTH` to 8 for the ASIC mode:
 ```bash
- make set PRECISION="HIGH_MXFP_MANT_WIDTH=8"
+ make set PRECISION="ACT_MXFP_MANT_WIDTH=8"
 ```
 
 This approach enables flexible, fine-grained control over build configurations for different deployment targets.
 
-## Design Space
+## Design Space Constraints
 
 ### Configuration Parameters
-
+- `MLEN` >= `BLEN`
+- `MLEN` = `VLEN`
+- `MLEN` % `BLEN` == 0
+- `MATRIX_SRAM_DEPTH` >= `2 * MLEN`
+- `VECTOR_SRAM_DEPTH` >= `2* head_dim + (hidden_dim // VLEN)`
+- `INT_SRAM_DEPTH`  >= `num_hidden_layers * REPEAT_SETTINGS + FIXED_CONSTANT_NUM`
+- `FP_SRAM_DEPTH`     >= `3 * MLEN + FP_CONSTANT_NUM`
+- `HBM_M_Prefetch_Amount` >= `BLEN`
+- `HBM_V_Prefetch_Amount` >= `BLEN`
 
 ### Precision Parameters

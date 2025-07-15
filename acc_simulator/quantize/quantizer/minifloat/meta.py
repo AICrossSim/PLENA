@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import re
 
 @dataclass
 class MinifloatMeta:
@@ -7,26 +8,32 @@ class MinifloatMeta:
     exponent_bias: int | None = None
 
     def __post_init__(self):
-        self.element_bits = self.element_exp_bits + self.element_frac_bits + 1
-
-        legal_exp_frac = ((5, 2), (4, 3), (3, 4), (3, 2), (2, 3), (2, 1))
-        if (self.element_exp_bits, self.element_frac_bits) not in legal_exp_frac:
-            print(f"[Warning] ({self.element_exp_bits}, {self.element_frac_bits}) not in known configs")
-
         # Set default bias (IEEE style)
         if self.exponent_bias is None:
             self.exponent_bias = (2 ** (self.element_exp_bits - 1)) - 1
 
         assert self.exponent_bias >= 0, "Exponent bias must be non-negative."
 
-FP8_E4M3 = MinifloatMeta(
-    element_exp_bits=4,
-    element_frac_bits=3,
-    exponent_bias=None,
-)
+    @classmethod
+    def from_string(cls, name: str) -> "MinifloatMeta":
+        """
+        Parse strings like:
+        - FP_E4M3          (auto bias)
+        - FP_E4M3_B7    (explicit bias)
+        """
+        match = re.fullmatch(r"FP_E(\d+)M(\d+)(?:_B(\d+))?", name)
+        if not match:
+            raise ValueError(
+                f"Invalid MinifloatMeta string: '{name}'. "
+                f"Expected format: FP_E<exp>M<frac>[_B<bias>]"
+            )
 
-FP8_E5M2 = MinifloatMeta(
-    element_exp_bits=5,
-    element_frac_bits=2,
-    exponent_bias=None,
-)
+        exp_bits = int(match.group(1))
+        frac_bits = int(match.group(2))
+        bias = int(match.group(3)) if match.group(3) else None
+
+        return cls(
+            element_exp_bits=exp_bits,
+            element_frac_bits=frac_bits,
+            exponent_bias=bias,
+        )

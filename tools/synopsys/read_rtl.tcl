@@ -39,6 +39,7 @@ set dir_list [list \
     "basic_components/buffer/rtl" \
     "basic_components/gemv/rtl" \
     "basic_components/systolic_gemm_mxfp/rtl" \
+    "basic_components/int_operation/rtl" \
     "memory/matrix_sram/rtl" \
     "memory/vector_sram/rtl" \
     "memory/scalar_sram/rtl" \

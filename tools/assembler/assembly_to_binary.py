@@ -13,11 +13,11 @@ class AssemblyToBinary:
         """
         self.isa_definitions = load_isa_definitions(isa_definition_file)
         self.isa_definition_file = isa_definition_file
-        isa_settings = load_isa_settings(isa_definition_file)
-        self.opcode_width = isa_settings.get("OPCODE_WIDTH", 0)
-        self.operands_width = isa_settings.get("OPERAND_WIDTH", 0)
-        self.imm_width = isa_settings.get("IMM_WIDTH", 0)
-        self.imm2_width = isa_settings.get("IMM_2_WIDTH", 0)
+        config_settings = load_svh_settings(config_file)
+        self.opcode_width = config_settings.get("OPCODE_WIDTH", 0)
+        self.operands_width = config_settings.get("OPERAND_WIDTH", 0)
+        self.imm_width = config_settings.get("IMM_WIDTH", 0)
+        self.imm2_width = config_settings.get("IMM_2_WIDTH", 0)
 
 
     def _convert_to_binary(self, instruction):
@@ -34,10 +34,9 @@ class AssemblyToBinary:
         rs2 = instruction.rs2
         imm = instruction.imm
         binary_instruction = 0
-
+        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        print(f"Converting instruction: {instruction.opcode} with rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_ACC_MULI", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
@@ -45,7 +44,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_FIX"]:
+        elif instruction.opcode in ["S_LUI_FIX", "C_SET_STRIDE_REG"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +

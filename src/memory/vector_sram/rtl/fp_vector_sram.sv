@@ -14,11 +14,14 @@ Status      :
 module fp_vector_sram #(
     
     // MX-FP Data Format
-    parameter   HIGH_MXFP_EXP_WIDTH     = 4,
-    parameter   HIGH_MXFP_MANT_WIDTH    = 3,
-    parameter   LOW_MXFP_EXP_WIDTH      = 4,
-    parameter   LOW_MXFP_MANT_WIDTH     = 3,
+    parameter   ACT_MXFP_EXP_WIDTH      = 4,
+    parameter   ACT_MXFP_MANT_WIDTH     = 3,
+    parameter   WT_MXFP_EXP_WIDTH       = 4,
+    parameter   WT_MXFP_MANT_WIDTH      = 3,
+    parameter   KV_MXFP_EXP_WIDTH       = 4,
+    parameter   KV_MXFP_MANT_WIDTH      = 3,
     parameter   MXFP_SCALE_WIDTH        = 8,
+
     // FP Data Format
     parameter   EXP_WIDTH               = 8,                                  
     parameter   MANT_WIDTH              = 7,
@@ -57,30 +60,29 @@ module fp_vector_sram #(
     input   logic [VLEN - 1 : 0]                                                    port_a_mask_in,
     output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_out,
 
-    output  logic [MLEN - 1 : 0]            [HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH : 0]    port_a_element_out,
+    output  logic [MLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_a_element_out,
     output  logic [M_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_a_scale_out,
 
     // Port B
     input   logic port_b_req,
     input   logic port_b_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_b_addr,
-    input   logic select_write_data_b,
+    input   logic [1:0] select_write_data_b, // 0 for high MXFP vector load, 1 for low MXFP vector load, 2 for FP vector load
     // FP Data Connection
-    input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_b_fp_in,
+    input   logic [MLEN - 1 : 0]         [EXP_WIDTH + MANT_WIDTH : 0]               port_b_fp_in,
     output  logic [VLEN - 1 : 0]         [EXP_WIDTH + MANT_WIDTH : 0]               port_b_fp_out,
     input   logic [VLEN - 1 : 0]                                                    port_b_mask_in,
     // MX-FP Connection
-    input   logic [VLEN - 1 : 0]            [HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH : 0]    port_b_element_in,
+    input   logic [VLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_b_high_precision_element_in,
+    input   logic [VLEN - 1 : 0]            [KV_MXFP_EXP_WIDTH  + KV_MXFP_MANT_WIDTH  : 0]      port_b_low_precision_element_in,
     input   logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_in,
 
     input   logic [1:0] port_b_mxfp_req , // 0 for STALL, 1 for High Precision MXFP Load, 2 for Low Precision MXFP Load
     output  logic port_b_mxfp_high_out_valid,
-    output  logic [VLEN - 1 : 0]            [HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH : 0]    port_b_high_element_out,
-    output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_high_scale_out,
-    
     output  logic port_b_mxfp_low_out_valid,
-    output  logic [VLEN - 1 : 0]            [LOW_MXFP_EXP_WIDTH + LOW_MXFP_MANT_WIDTH : 0]      port_b_low_element_out,
-    output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_low_scale_out,
+    output  logic [VLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_b_high_element_out,
+    output  logic [VLEN - 1 : 0]            [KV_MXFP_EXP_WIDTH + KV_MXFP_MANT_WIDTH : 0]        port_b_low_element_out,
+    output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_out,
 
     // Status Tracking for Prefetch
     input   logic prefetch_en,
@@ -102,10 +104,16 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_a_fp_in_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_in_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_out_internal;
-    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_fp_in;
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_high_fp_in;
+    logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_low_fp_in;
+    logic [V_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]   port_b_high_scale_out;
+    logic [V_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]   port_b_low_scale_out;
     logic [INTERNAL_ADDR_LEN - 1 : 0] reset_counter;
     logic port_a_write_en_internal;
     logic port_a_req_internal;
+
+    assign port_b_scale_out =   (select_write_data_b == 2'b01) ? port_b_high_scale_out  :
+                                (select_write_data_b == 2'b10) ? port_b_low_scale_out   : '0;
     
     // -----------------------------
     // Prefetch Tag Tracking
@@ -116,7 +124,7 @@ module fp_vector_sram #(
     logic [INTERNAL_ADDR_LEN - 1 : 0]     recorded_translated_port_a_reset_addr;
     logic [SRAM_DEPTH - 1 : 0]            mem_data_tag;
     
-    localparam BITWIDTH_PER_ROW         = (HIGH_MXFP_EXP_WIDTH + HIGH_MXFP_MANT_WIDTH + 1) * VLEN / 8;
+    localparam BITWIDTH_PER_ROW         = (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) * VLEN / 8;
     assign translated_port_a_addr       = port_a_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_port_b_addr       = port_b_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_port_a_reset_addr = reset_addr_a >> $clog2(BITWIDTH_PER_ROW);
@@ -210,8 +218,8 @@ module fp_vector_sram #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
             .FP_EXP_WIDTH       (EXP_WIDTH),
-            .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
             .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
         ) fp_2_mx_port_a_convert_init(
             .clk(clk),
@@ -243,13 +251,16 @@ module fp_vector_sram #(
     assign  port_b_fp_out = port_b_fp_out_internal;
 
     always_comb begin
-        if (select_write_data_b == 1'b0) begin
-            port_b_fp_in_internal   = converted_b_fp_in;
-        end else begin
+        if (select_write_data_b == 2'b01) begin
+            port_b_fp_in_internal   = converted_b_high_fp_in;
+        end else if (select_write_data_b == 2'b10) begin
+            port_b_fp_in_internal   = converted_b_low_fp_in;
+        end else if (select_write_data_b == 2'b11) begin
             port_b_fp_in_internal   = port_b_fp_in;
+        end else begin
+            port_b_fp_in_internal   = 'b0;
         end
     end
-
 
     // Convert MX-FP Data to FP Data for HBM Prefetch
 
@@ -257,15 +268,28 @@ module fp_vector_sram #(
         for (genvar i = 0; i < V_BLOCK_NUM; i++) begin : gen_mxfp_2_fp_convert
             mx_fp_2_fp_block #(
                 .BLOCK_DIM          (BLOCK_DIM),
-                .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
-                .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+                .MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
                 .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
-            ) port_b_mx_fp_2_fp_convert (
-                .element_in     (port_b_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
+            ) port_b_mx_fp_2_fp_high_precision_convert (
+                .element_in     (port_b_high_precision_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (port_b_scale_in[i]),
-                .fp_out         (converted_b_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
+                .fp_out         (converted_b_high_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
+            );
+            
+            mx_fp_2_fp_block #(
+                .BLOCK_DIM          (BLOCK_DIM),
+                .MXFP_MANT_WIDTH    (KV_MXFP_MANT_WIDTH),
+                .MXFP_EXP_WIDTH     (KV_MXFP_EXP_WIDTH),
+                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .FP_MANT_WIDTH      (MANT_WIDTH),
+                .FP_EXP_WIDTH       (EXP_WIDTH)
+            ) port_b_mx_fp_2_fp_low_precision_convert (
+                .element_in     (port_b_low_precision_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
+                .scale_in       (port_b_scale_in[i]),
+                .fp_out         (converted_b_low_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
             );
         end
     endgenerate
@@ -296,8 +320,8 @@ module fp_vector_sram #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
             .FP_EXP_WIDTH       (EXP_WIDTH),
-            .MXFP_MANT_WIDTH    (HIGH_MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH     (HIGH_MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
             .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
         ) fp_2_mx_high_port_b_convert_init(
             .clk(clk),
@@ -317,8 +341,8 @@ module fp_vector_sram #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
             .FP_EXP_WIDTH       (EXP_WIDTH),
-            .MXFP_MANT_WIDTH    (LOW_MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH     (LOW_MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (KV_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (KV_MXFP_EXP_WIDTH),
             .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
         ) fp_2_mx_low_port_b_convert_init(
             .clk(clk),
@@ -365,21 +389,18 @@ module fp_vector_sram #(
         `endif
     ) vect_storage (
         .clk_i(clk),
-
         .a_req_i        (port_a_req_internal),
         .a_write_i      (port_a_write_en_internal),
         .a_addr_i       (translated_port_a_addr_internal),
         .a_wdata_i      (port_a_fp_in_internal),
         .a_wmask_i      (port_a_mask_in),
         .a_rdata_o      (port_a_fp_out_internal),
-
         .b_req_i        (port_b_req || port_b_mxfp_req),
         .b_write_i      (port_b_write_en),
         .b_addr_i       (translated_port_b_addr),
         .b_wdata_i      (port_b_fp_in_internal),
         .b_wmask_i      (port_b_mask_in),
         .b_rdata_o      (port_b_fp_out_internal),
-        // Unused
         .cfg_i('0),
         .cfg_rsp_o()
     );

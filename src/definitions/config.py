@@ -25,7 +25,7 @@ def patch_config_svh_from_toml(
     svh_path: str
 ):
     """Configures the SystemVerilog header file based on the TOML [active] configuration."""
-    pkg_name = {"CONFIG": "configuration_pkg", "PRECISION": "precision_pkg"}.get(section, None)
+    pkg_name = {"CONFIG": "configuration_pkg", "PRECISION": "precision_pkg", "INSTR": "instruction_pkg"}.get(section, None)
 
     with open(toml_path, "r") as f:
         data = toml.load(f)

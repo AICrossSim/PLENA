@@ -21,8 +21,8 @@ default.svf
 
 Coprocessor_Vivado_Prj/
 
-synopsys/outputs/
-synopsys/analyzed/
+tools/synopsys/outputs/
+tools/synopsys/analyzed/
 
 .Xil
 
@@ -43,3 +43,4 @@ analyzed/
 notebooks/
 logs*/
 kube/
+*.out

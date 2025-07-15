@@ -11,9 +11,9 @@ Status      : Under Development
 
 module address_mapper #(
     parameter ADDR_WIDTH = 32,
-    parameter ADR_OPERAND_WIDTH = 5,
+    parameter HBM_ADR_OPERAND_WIDTH = 5,
     parameter HBM_ADDR_WIDTH = 64,
-    parameter HBM_ADDR_REG_NUM = 4,
+    localparam HBM_ADDR_REG_NUM = 2 ** HBM_ADR_OPERAND_WIDTH,
     `ifdef SIMULATION
         parameter string MemInitFile = "",
     `endif
@@ -31,8 +31,8 @@ module address_mapper #(
     input   logic [ADDR_WIDTH - 1 : 0] addr_in_a,
     input   logic [ADDR_WIDTH - 1 : 0] addr_in_b,
     input   logic [ADDR_WIDTH - 1 : 0] addr_offset,
-    input   logic [ADR_OPERAND_WIDTH - 1 : 0] write_operand,
-    input   logic [ADR_OPERAND_WIDTH - 1 : 0] read_operand,
+    input   logic [HBM_ADR_OPERAND_WIDTH - 1 : 0] write_operand,
+    input   logic [HBM_ADR_OPERAND_WIDTH - 1 : 0] read_operand,
 
     // HBM Address Mapping
     output  logic [HBM_ADDR_WIDTH - 1 : 0] hbm_addr_out

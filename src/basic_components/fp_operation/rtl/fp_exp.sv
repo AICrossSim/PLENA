@@ -19,7 +19,7 @@ module fp_exp #(
     output logic signed [OUT_FIX_WIDTH - 1:0] signed_mant_out
 );
 
-  localparam signed MLOG2_E = 7'd92;
+  localparam signed [7-1:0] MLOG2_E = 7'd92;
   localparam signed ELOG2_E = 4'd1;
 
   localparam LOG2_E_WIDTH = IN_FIX_WIDTH + EXTEND_WIDTH;
@@ -96,10 +96,11 @@ module taylor_series_expansion #(
   localparam COEFFICIENT_WIDTH = IN_WIDTH + 2; // the maximum is 2.7..
   
   // Fix: Proper array declaration for coefficients
-  localparam  [IN_WIDTH:0] TERM_0 = 1 << (IN_WIDTH); // 1.0 in fixed point
-  localparam  [5 - 1:0] LN_2 = 22 ; // ln(2) ≈ 0.693
+  localparam [IN_WIDTH : 0] TERM_0 = 1 << (IN_WIDTH); // 1.0 in fixed point
+  localparam [IN_WIDTH : 0] TERM_1 = TERM_0 / 3; // 2.0 in fixed point
+  localparam [5-1:0] LN_2 = 22 ; // ln(2) ≈ 0.693
 
-  logic unsigned [OUT_WIDTH - 1:0] element_list [4-1:0];
+  logic unsigned [IN_WIDTH - 1:0] element_list [4-1:0];
   
   // Term 0: 1
   assign element_list[0] = TERM_0;
@@ -136,15 +137,15 @@ module taylor_series_expansion #(
   );
   integer_mult #(
     .WIDTH(IN_WIDTH),
-    .IN_1_WIDTH(10)
+    .IN_1_WIDTH(IN_WIDTH)
   ) integer_mult_inst_3 (
     .data_in_0(intermediate_data_out_2),
-    .data_in_1(TERM_0/3),
+    .data_in_1(TERM_1),
     .data_out(element_list[3])
   );
 
   // Sum all terms
-  logic [IN_WIDTH + 2 - 1:0] fixed_tree_in [4-1:0];
+  logic [OUT_WIDTH - 1:0] fixed_tree_in [4-1:0];
   assign fixed_tree_in[0] = element_list[0];
   assign fixed_tree_in[1] = element_list[1];
   assign fixed_tree_in[2] = element_list[2];
