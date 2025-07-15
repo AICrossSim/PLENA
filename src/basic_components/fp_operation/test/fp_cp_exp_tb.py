@@ -68,8 +68,6 @@ class FPCPExpTB(CombinationalTestbench):
         logger.debug(f"exp_out_mant: {exp_out_mant}")
         logger.debug(f"exp_out_exp: {exp_out_exp}")
         logger.debug(f"hardware_result: {hardware_result}")
-
-
         
         # Quantize output
         out_width = q_config["out_mant_width"] + q_config["out_exp_width"] + 1
@@ -102,9 +100,10 @@ class FPCPExpTB(CombinationalTestbench):
         self.log.debug(f"exp_out_exp: {self.dut.exp_out_exp.value.signed_integer}")
         result = self.dut.exp_out_mant.value.signed_integer * 2**(self.dut.exp_out_exp.value.signed_integer)
         self.log.debug(f"result: {result}")
+        # breakpoint()
         # get_dut_attributes(self.dut.fp_exp_inst.taylor_series_expansion_inst, self.log, "integer")
         get_dut_attributes(self.dut.fp_normalize, self.log, "signed_integer")
-        get_dut_attributes(self.dut.fp_normalize, self.log)
+        get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log)
         # get_dut_attributes(self.dut.taylor_series_expansion_inst, self.log, 'integer')
         
         assert expected_output == hardware_output.signed_integer, f"Expected {expected_output}, but got {int(hardware_output.signed_integer)}"
