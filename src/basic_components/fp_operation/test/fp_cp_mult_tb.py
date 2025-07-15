@@ -119,7 +119,9 @@ def test_simple_fp_addition():
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/fixed_operation"),
-            str(SRC_PATH / "basic_components/buffer")
+            str(SRC_PATH / "basic_components/buffer"),
+            str(SRC_PATH / "basic_components/fp_operation"),
+            str(SRC_PATH / "basic_components/int_operation")
         ],
         module_param_list=[
             # {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},

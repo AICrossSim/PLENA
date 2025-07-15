@@ -66,10 +66,6 @@ class FPIEEECasting(CombinationalTestbench):
         self.log.debug(f"Expected result : {input}, got: {int(output.integer)}")
         self.log.debug(f"----------------{self.dut}---------")
         get_dut_attributes(self.dut, self.log, None)
-        self.log.debug(f"----------------{self.dut.fp_ieee_exponent_casting_inst}---------")
-        get_dut_attributes(self.dut.fp_ieee_exponent_casting_inst, self.log, None)
-        self.log.debug(f"----------------{self.dut.fp_ieee_mantissa_casting_inst}---------")
-        get_dut_attributes(self.dut.fp_ieee_mantissa_casting_inst, self.log, None)
 
         assert input == int(output.integer), f"Expected {input}, but got {int(output.integer)}"
 
@@ -85,7 +81,7 @@ async def test(dut):
 if __name__ == "__main__":
     veri_runner(
         trace=True, 
-        module="fp_ieee_casting",
+        module="fp_ieee_upcasting",
         group="vector_machine",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
@@ -97,10 +93,10 @@ if __name__ == "__main__":
         ],
         module_param_list=[
             {
-                "IN_EXP_WIDTH": 5,
-                "IN_MANT_WIDTH": 10,
-                "OUT_EXP_WIDTH": 4,
-                "OUT_MANT_WIDTH": 7
+                "IN_EXP_WIDTH": 3,
+                "IN_MANT_WIDTH": 5,
+                "OUT_EXP_WIDTH": 5,
+                "OUT_MANT_WIDTH": 8
             }
         ]
     )
