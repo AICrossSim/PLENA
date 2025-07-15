@@ -4,8 +4,8 @@ import os
 from pathlib import Path
 from math import log2
 import re
-from utils import load_architecture_settings
-
+from utils import load_svh_settings
+from overall_inference_estimation import model_config
 
 
 def load_custom_isa_lib(
@@ -26,7 +26,7 @@ def build_instr_model(
     hardware_settings_file: str = "configuration.svh",
     custom_isa_lib_file:    str = "customISA_lib.json"
 ):
-    hardware_settings = load_architecture_settings(hardware_settings_file)
+    hardware_settings = load_svh_settings(hardware_settings_file)
     hardware_settings["SA_ACC_CYCLES"] = int(log2(hardware_settings["MLEN"] / hardware_settings["BLEN"]) + 1)
     custom_isa_lib = load_custom_isa_lib(custom_isa_lib_file)
 
@@ -43,13 +43,15 @@ def build_instr_model(
 
 
 class instr_latency_model:
-    def __init__(self, hardware_settings_file: str = "config.toml", custom_isa_lib_file: str = "customISA_lib.json"):
+    def __init__(self, hardware_settings_file: str = "config.toml", custom_isa_lib_file: str = "customISA_lib.json", model_config_file: str = "model_config.json"):
         self.instr_model = build_instr_model(hardware_settings_file, custom_isa_lib_file)
+        self.model_config_file = model_config_file
+        self.hardware_config = load_svh_settings(hardware_settings_file)
 
     def get_instr_info(self, instr_name):
         return self.model.get(instr_name, None)
     
-    def obtain_pipelined_latency(self, output_file: str = "instr_latency_model.json"):
+    def obtain_per_instr_pipelined_latency(self, output_file: str = "instr_latency_model.json"):
         pipelined_latency = {
             instr_name: {
                 "pipelined": instr_info.pipelined
@@ -62,7 +64,7 @@ class instr_latency_model:
         
         print(f"Average latency model saved to {output_file}")
     
-    def obtain_alone_latency(self, output_file: str = "instr_alone_latency_model.json"):
+    def obtain_per_instr_alone_latency(self, output_file: str = "instr_alone_latency_model.json"):
         alone_latency = {
             instr_name: {
                 "alone": instr_info.alone
@@ -74,7 +76,13 @@ class instr_latency_model:
             json.dump(alone_latency, f, indent=4)
         
         print(f"Alone latency model saved to {output_file}")
+    
 
+    def obtain_overall_latency(self):
+        overall_latency = 0
+        model = model_config(self.model_config_file)
+        _, overall_latency = model.compute_overall_inst(self.hardware_config["MLEN"])
+        return overall_latency
 
 
 if __name__ == "__main__":
@@ -82,7 +90,7 @@ if __name__ == "__main__":
     config_path = os.path.join(config_parent_path, "src/definitions/configuration.svh")
     custom_isa_parent_path  = os.path.dirname(os.path.abspath(__file__))
     custom_isa_path         = os.path.join(custom_isa_parent_path, "customISA_lib.json")
-
-    model = instr_latency_model(config_path, custom_isa_path)
-    model.obtain_pipelined_latency  ("instr_pipelined_ver_latency_model.json")
-    model.obtain_alone_latency      ("instr_alone_ver_latency_model.json")
+    model_config_path = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-8b.json")
+    model = instr_latency_model(config_path, custom_isa_path, model_config_path)
+    overall_latency = model.obtain_overall_latency()
+    print(f"Overall latency: {overall_latency} seconds")

@@ -32,10 +32,10 @@ V_RESET_SRAM 0, i1, 0;
 ;<--------------------------------  LOOP Tc Iteration 0 -------------------------------->
 
 S_LD_FIX i1, i0, 0;
-C_SET_STRIDE_REG i1, 0;
+C_SET_STRIDE_REG i1, 0, 0;
 H_PREFETCH_V_H_S i0, i0, i0;    
 S_LD_FIX i1, i0, 1;
-C_SET_STRIDE_REG i1, 0, 0;
+C_SET_STRIDE_REG i1, 0, 1;
 H_PREFETCH_M_L_S i0, i0, i0;      
 
 ;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 0 -------->    

@@ -1,5 +1,5 @@
 # TODO: Write Function that automatically map the FIXED and FP memory.
-from utils import load_architecture_settings, load_ml_model_config
+from utils import load_svh_settings, load_json
 import os
 from pathlib import Path
 
@@ -57,11 +57,11 @@ if __name__ == "__main__":
     project_path = Path(__file__).resolve().parents[2]
     hardware_feature_path = os.path.join(project_path, "src/definitions/configuration.svh")
     print(f"Loading hardware feature from {hardware_feature_path}")
-    architecture_feature = load_architecture_settings(hardware_feature_path)
+    architecture_feature = load_svh_settings(hardware_feature_path)
     ml_feature_path = os.path.join(project_path, "doc/Model_Lib/llama-3.1-8b.json")
-    ml_feature = load_ml_model_config(ml_feature_path)
+    ml_feature = load_json(ml_feature_path)
     precision_feature_path = os.path.join(project_path, "src/definitions/precision.svh")
-    precision_feature = load_architecture_settings(precision_feature_path)
+    precision_feature = load_svh_settings(precision_feature_path)
     directory = os.path.join(project_path, "test/load_mem")
 
     fixed_sram_loader = fix_sram_pre_loader(architecture_feature, ml_feature, precision_feature, directory)

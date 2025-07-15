@@ -22,6 +22,7 @@ module decoder import instruction_pkg::*; #(
 )(
     input   logic clk,
     input   logic rst,
+    input   logic system_stall_flag,
     
     // Decoder Control
     input   logic pipeline_stall,
@@ -41,12 +42,11 @@ module decoder import instruction_pkg::*; #(
     output      logic [IMM_WIDTH - 1 : 0] imm
 );
 
-
-logic   stall_for_read_rd;
-logic   [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
-logic   read_instr_from_fifo, decode_instr_valid;
-
-logic   p1_pipeline_stall, recover_from_stall;
+logic           system_stall;
+logic           stall_for_read_rd;
+logic           [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
+logic           read_instr_from_fifo, decode_instr_valid;
+logic           p1_pipeline_stall, recover_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_FIXED_OP      exe_fixed_op;
 
@@ -61,7 +61,7 @@ logic stall_for_read_rd_flag;
 logic recorded_stall_for_read_rd_flag;
 logic fixed_op_stall_flag;
 
-assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & !fixed_op_stall_flag;
+assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & !fixed_op_stall_flag & (system_stall == 1'b0);
 
 fifo #(
     .DATA_WIDTH(INSTRUCTION_LENGTH), 
@@ -77,15 +77,12 @@ fifo #(
     .data_out_ready (read_instr_from_fifo)
 );
 
-
 // Operand Assignments
 logic [OPCODE_WIDTH - 1 : 0]    loaded_opcode;
 logic [OPERAND_WIDTH:0]         loaded_rs1;
 logic [OPERAND_WIDTH:0]         loaded_rs2;
 logic [OPERAND_WIDTH:0]         loaded_rd;
 logic [IMM_WIDTH - 1 : 0]       loaded_imm;
-
-
 
 assign loaded_imm       = ((loaded_opcode == S_ADDI_FIX) || (loaded_opcode == S_LD_FP)  || (loaded_opcode == S_ST_FP)
                                                          || (loaded_opcode == S_LD_FIX) || (loaded_opcode == S_ST_FIX) ) ? 
@@ -127,7 +124,7 @@ always_comb begin
         end
 
         // CSR Setting
-        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG, C_SET_SCALE_REG: begin
+        C_SET_ADDR_REG, C_SET_LUT, C_SET_STRIDE_REG, C_SET_SCALE_REG, C_BREAK: begin
             decode_instruction_type = C;
         end
 
@@ -140,9 +137,7 @@ end
 
 assign decode_instr_info = (read_instr_from_fifo & decode_instr_valid) ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
 
-
 // Decoding
-
 always_ff @(posedge clk) begin
     if (rst) begin
         recorded_stall_for_read_rd_flag <= 1'b0;
@@ -151,7 +146,11 @@ always_ff @(posedge clk) begin
         recorded_rd_to_load <= {FIXED_OPERAND_WIDTH{1'b0}};
         p1_pipeline_stall <= 1'b0;
         exe_fixed_op <= STALL_S_FIXED;
+        system_stall <= 1'b0;
     end else begin
+        if (system_stall_flag) begin
+            system_stall <= 1'b1;
+        end
         recorded_stall_for_read_rd_flag <= stall_for_read_rd_flag;
         recorded_m_update_waddr         <= m_update_waddr;
         recorded_v_update_waddr         <= v_update_waddr;
@@ -461,9 +460,12 @@ always_ff @(posedge clk) begin
                     end else begin
                         decode_stage_op.c_op <= SET_M_SCALE_REG;
                     end
+                end else if (decode_instr_info.opcode == C_BREAK) begin
+                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    decode_stage_op.c_op                <= SET_LUT;
                 end else begin
                     assigned_fixed_op                   <= STALL_S_FIXED;
-                    decode_stage_op.c_op                <= STALL_C;
+                    decode_stage_op.c_op                <= BREAK;
                 end
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;

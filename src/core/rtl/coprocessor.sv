@@ -29,13 +29,14 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     input   logic [INSTRUCTION_LENGTH - 1 : 0] instruction,
     input   logic instruction_valid,
     output  logic instruction_ready,
+    output  logic system_break,
 
     // HBM Interface 1 for Matrix
-    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_element),
-    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale),
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,    HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale),
     // HBM Interface 2 for Vector
-    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_element),
-    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_scale)
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,    HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_scale)
 );
     // Import Packages
     import precision_pkg::*;
@@ -137,7 +138,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
     // Dataflow & Execution Control
     // -----------------------------
-    
+    assign system_break = (exe_stage_op.c_op == C_BREAK);
+
     // Frontend
     decoder #(
         .INSTRUCTION_LENGTH         (INSTRUCTION_LENGTH),
@@ -148,6 +150,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     ) decoder_init (
         .clk(clk),
         .rst(rst),
+        .system_stall_flag      (system_break),
         .pipeline_stall         (pipeline_stall),
         .instruction            (instruction),
         .instruction_valid      (instruction_valid),
