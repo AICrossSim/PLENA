@@ -23,6 +23,12 @@ from functools import partial
 import random
 import argparse
 from pathlib import Path
+from cfl_cocotb.fp_generation import FpGenerator
+from cfl_cocotb import SRC_PATH
+
+# parser = argparse.ArgumentParser(description="Greet someone.")
+# parser.add_argument("--benchmark", type=str, default="general")
+# args = parser.parse_args()
 
 logger = logging.getLogger("testbench")
 logger.setLevel(logging.DEBUG)

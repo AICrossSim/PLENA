@@ -50,7 +50,6 @@ module fp_vector_element_alu #(
     always_ff @(posedge clk) begin
         if (rst) begin
             recorded_operation <= STALL_V_ELEMENT;
-            data_out_valid <= 1'b0;
         end else begin
             if ( operation != STALL_V_ELEMENT) begin
                 recorded_operation <= operation;

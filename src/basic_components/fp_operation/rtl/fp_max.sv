@@ -13,8 +13,14 @@ module fp_max #(
     parameter int EXP_WIDTH = 5,
     parameter int MANT_WIDTH = 10
 )(
+    input  logic clk,
+    input  logic rst,
+    input  logic data_in_valid,
+    output logic data_in_ready,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
+    output logic data_out_valid,
+    input  logic data_out_ready,
     output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
 );
 
@@ -22,6 +28,7 @@ module fp_max #(
     logic sign_a, sign_b, sign_res;
     logic [EXP_WIDTH-1:0] exp_a, exp_b;
     logic [MANT_WIDTH-1:0] mant_a, mant_b;
+    logic [EXP_WIDTH + MANT_WIDTH : 0] max_data;
 
     // Extract sign, exponent, mantissa
     assign sign_a = data_a[EXP_WIDTH + MANT_WIDTH];
@@ -36,25 +43,37 @@ module fp_max #(
     always_comb begin
         if (sign_a == sign_b) begin
             if (exp_a > exp_b) begin
-                data_out = data_a;
+                max_data = data_a;
             end else if (exp_a < exp_b) begin
-                data_out = data_b;
+                max_data = data_b;
             end else begin
                 if (mant_a > mant_b) begin
-                    data_out = data_a;
+                    max_data = data_a;
                 end else begin
-                    data_out = data_b;
+                    max_data = data_b;
                 end
             end
         end else begin
             if (sign_a == 1'b0) begin
-                data_out = data_a;
+                max_data = data_a;
             end else begin
-                data_out = data_b;
+                max_data = data_b;
             end
         end
     end
 
+    skid_buffer #(
+        .DATA_WIDTH(EXP_WIDTH + MANT_WIDTH + 1)
+    ) buffer_max (
+        .clk(clk),
+        .rst(rst),
+        .data_in(max_data),
+        .data_in_valid(data_in_valid),
+        .data_in_ready(data_in_ready),
+        .data_out(data_out),
+        .data_out_valid(data_out_valid),
+        .data_out_ready(data_out_ready)
+    );
 
 
 endmodule

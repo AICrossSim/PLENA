@@ -10,7 +10,7 @@ Description : Multiply two FP numbers with different exponents and signs.
 Status      : Passed Simple Tests
 */
 
-module fp_cp_mult #(
+module fp_cp_mult_old #(
     parameter   MANT_WIDTH = 4,
     parameter   EXP_WIDTH = 3,
     // Amount of bits needed to shift mantissas for alignment
