@@ -1,0 +1,127 @@
+#!/usr/bin/env dc_shell
+
+#===============================================================================
+# RTL Debug Script - Simple version
+# Purpose: analyze -> elaborate -> check_design
+#===============================================================================
+
+puts "=========================================="
+puts "RTL Debug Script Started"
+puts "=========================================="
+
+# Set paths
+set src "../../../src/lut_components/"
+set outputs "./outputs"
+set top_design "fp_lut_array_b_cycle_stage1"
+
+set_message_info -id ELAB-405 -limit 10
+
+
+#------------------------------
+# Import package files
+#------------------------------
+puts "\n=== Import Package Files ==="
+
+# Package files to import
+# set package_files [list \
+#     "${src}/definitions/global_define.vh" \
+#     "${src}/definitions/precision.svh" \
+#     "${src}/definitions/configuration.svh" \
+#     "${src}/definitions/operation.svh" \
+# ]
+
+# foreach pkg_file $package_files {
+#     set filename [file tail $pkg_file]
+#     puts "Importing package: $filename"
+#     analyze -f sverilog -lib work $pkg_file
+# }
+
+#------------------------------
+# Analyze all .sv files
+#------------------------------
+puts "\n=== Analyze RTL Files ==="
+
+# Define directories to search
+set dir_list [list \
+    "sv_lut_array/rtl" \
+]
+
+
+# Set search paths based on dir_list
+set search_path [list . ${src}]
+foreach dir $dir_list {
+    lappend search_path "${src}/${dir}"
+}
+
+
+# Define files to skip (add Non-synthesisable files here)
+# set skip_list [list \
+    # "fp_rounding.sv" \
+    # "bit_width_aware_right_shift.sv" \
+    # "bram.sv" \
+    # "fake_hbm.sv" \
+    # "peripheral_system.sv" \
+# ]
+
+
+# Analyze all .sv and .v files in directories
+foreach dir $dir_list {
+    set full_path "${src}/${dir}"
+    if {[file exists $full_path]} {
+        # Search for both .sv and .v files
+        set sv_files [glob -nocomplain "${full_path}/*.sv"]
+        set v_files [glob -nocomplain "${full_path}/*.v"]
+        set all_files [concat $sv_files $v_files]
+
+        puts "=========================================="
+        puts "Analyzing: $full_path"
+        puts "Analyzing: $sv_files"
+        puts "Analyzing: $v_files"
+        puts "Analyzing: $all_files"
+        
+        foreach file $all_files {
+            set filename [file tail $file]
+            
+            # Check if file should be skipped
+            if {[lsearch $skip_list $filename] >= 0} {
+                puts "Skipping: $filename (in skip list)"
+                continue
+            }
+            
+            puts "Analyzing: $filename"
+            # Use appropriate format based on file extension
+            if {[string match "*.sv" $file]} {
+                analyze -f sverilog -lib work $file
+            } else {
+                analyze -f verilog -lib work $file
+            }
+        }
+    }
+}
+
+#------------------------------
+# Elaborate
+#------------------------------
+puts "\n=== Elaborate ==="
+elaborate ${top_design}
+
+#------------------------------
+# Check Design
+#------------------------------
+puts "\n=== Check Design ==="
+check_design
+check_design > ${outputs}/logs/${top_design}_check.log
+
+#------------------------------
+# Link
+#------------------------------
+link
+
+
+#------------------------------
+# Done
+#------------------------------
+puts "\n=========================================="
+puts "RTL Debug Complete!"
+puts "=========================================="
+quit 
