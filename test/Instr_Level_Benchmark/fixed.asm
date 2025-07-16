@@ -1,5 +1,8 @@
-S_LD_FIX x1, x0, 4;
-S_ADDI_FIX x2, x1, 8; 
-S_ADDI_FIX x2, x2, 8; 
-S_ACC_MULI x3, x2, 4;
-S_ST_FIX x3, x0, 4;
+S_LUI_FIX i1, 0;
+C_SET_ADDR_REG a1, i1, i1;
+H_PREFETCH_V_H_C i1, i1, a1;
+S_LD_FP f1, i1, 0;
+V_ADD_VF i1, i1, f1;
+V_ADD_VV i1, i1, i1;
+S_LUI_FIX i2, 1;
+H_STORE_V_H_C i1, i2, a2;
