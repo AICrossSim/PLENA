@@ -44,3 +44,9 @@ notebooks/
 logs*/
 kube/
 *.out
+
+test/synopsys/**/outputs/
+test/synopsys/**/cksum_dir/
+test/synopsys/**/*.pvl
+test/synopsys/**/*.syn
+test/synopsys/**/*.mr

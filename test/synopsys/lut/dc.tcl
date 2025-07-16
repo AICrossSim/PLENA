@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "coprocessor"
+set top_design "fp_lut_array_b_cycle_stage1"
 
 #------------------------------
 # Setup DC logging paths
@@ -34,7 +34,7 @@ proc cal_freq { clock_period } {
 # set the necessary path
 #------------------------------
 # Set paths
-set src ${WORK_DIR}/../../src
+set src ${WORK_DIR}/../../../src/lut_components
 set outputs ${WORK_DIR}/outputs
 set run ${WORK_DIR}/outputs/netlist
 set log ${WORK_DIR}/outputs/logs    

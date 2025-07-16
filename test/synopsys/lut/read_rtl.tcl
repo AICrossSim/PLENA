@@ -1,20 +1,6 @@
-#!/usr/bin/env dc_shell
-
-#===============================================================================
-# RTL Debug Script - Simple version
-# Purpose: analyze -> elaborate -> check_design
-#===============================================================================
-
 puts "=========================================="
 puts "RTL Debug Script Started"
 puts "=========================================="
-
-# Set paths
-set src "../../../src/lut_components/"
-set outputs "./outputs"
-set top_design "fp_lut_array_b_cycle_stage1"
-
-set_message_info -id ELAB-405 -limit 10
 
 
 #------------------------------
@@ -24,10 +10,10 @@ puts "\n=== Import Package Files ==="
 
 # Package files to import
 # set package_files [list \
-#     "${src}/definitions/global_define.vh" \
-#     "${src}/definitions/precision.svh" \
-#     "${src}/definitions/configuration.svh" \
-#     "${src}/definitions/operation.svh" \
+    # "${src}/definitions/global_define.vh" \
+    # "${src}/definitions/precision.svh" \
+    # "${src}/definitions/configuration.svh" \
+    # "${src}/definitions/operation.svh" \
 # ]
 
 # foreach pkg_file $package_files {
@@ -48,7 +34,7 @@ set dir_list [list \
 
 
 # Set search paths based on dir_list
-set search_path [list . ${src}]
+lappend search_path ${src}
 foreach dir $dir_list {
     lappend search_path "${src}/${dir}"
 }
@@ -72,12 +58,6 @@ foreach dir $dir_list {
         set sv_files [glob -nocomplain "${full_path}/*.sv"]
         set v_files [glob -nocomplain "${full_path}/*.v"]
         set all_files [concat $sv_files $v_files]
-
-        puts "=========================================="
-        puts "Analyzing: $full_path"
-        puts "Analyzing: $sv_files"
-        puts "Analyzing: $v_files"
-        puts "Analyzing: $all_files"
         
         foreach file $all_files {
             set filename [file tail $file]
@@ -104,24 +84,3 @@ foreach dir $dir_list {
 #------------------------------
 puts "\n=== Elaborate ==="
 elaborate ${top_design}
-
-#------------------------------
-# Check Design
-#------------------------------
-puts "\n=== Check Design ==="
-check_design
-check_design > ${outputs}/logs/${top_design}_check.log
-
-#------------------------------
-# Link
-#------------------------------
-link
-
-
-#------------------------------
-# Done
-#------------------------------
-puts "\n=========================================="
-puts "RTL Debug Complete!"
-puts "=========================================="
-quit 
