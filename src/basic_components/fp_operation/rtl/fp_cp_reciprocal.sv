@@ -47,6 +47,7 @@ module fp_cp_reciprocal #(
     logic signed [OUT_EXP_WIDTH - 1:0]      p2_signed_reciprocal_exp_out;
     logic signed [OUT_MANT_WIDTH + 2 - 1:0] p2_signed_reciprocal_mant_out;
     logic p2_reciprocal_valid, p2_reciprocal_ready;
+    logic p3_reciprocal_valid, p3_reciprocal_ready;
 
     logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] casted_data;
     
@@ -72,7 +73,6 @@ module fp_cp_reciprocal #(
         .data_out_ready(p1_partition_ready)
     );
 
-
     fp_reciprocal #(
         .IN_EXP_WIDTH       (IN_EXP_WIDTH),
         .IN_FIX_WIDTH       (IN_MANT_WIDTH + 2),
@@ -81,8 +81,14 @@ module fp_cp_reciprocal #(
         .OUT_FIX_WIDTH      (OUT_MANT_WIDTH + 2),
         .OUT_FIX_FRAC_WIDTH (OUT_MANT_WIDTH)
     ) fp_reciprocal_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid      (p1_partition_valid),
+        .data_in_ready      (p1_partition_ready),
         .signed_exp_in      (p1_signed_exp_in),
         .signed_mant_in     (p1_signed_mant_in),
+        .data_out_valid     (p2_reciprocal_valid),
+        .data_out_ready     (p2_reciprocal_ready),
         .signed_exp_out     (reciprocal_exp_out),
         .signed_mant_out    (reciprocal_mant_out)
     );
@@ -93,13 +99,12 @@ module fp_cp_reciprocal #(
         .clk(clk),
         .rst(rst),
         .data_in        ({reciprocal_exp_out, reciprocal_mant_out}),
-        .data_in_valid  (p1_partition_valid),
-        .data_in_ready  (p1_partition_ready),
+        .data_in_valid  (p2_reciprocal_valid),
+        .data_in_ready  (p2_reciprocal_ready),
         .data_out       ({p2_signed_reciprocal_exp_out, p2_signed_reciprocal_mant_out}),
-        .data_out_valid (p2_reciprocal_valid),
-        .data_out_ready (p2_reciprocal_ready)
+        .data_out_valid (p3_reciprocal_valid),
+        .data_out_ready (p3_reciprocal_ready)
     );
-
 
     fp_ieee_normalize #(
         .IN_FIXED_WIDTH(RECIP_OUT_FIXED_WIDTH),
@@ -128,8 +133,8 @@ module fp_cp_reciprocal #(
         .clk(clk),
         .rst(rst),
         .data_in(casted_data),
-        .data_in_valid(p2_reciprocal_valid),
-        .data_in_ready(p2_reciprocal_ready),
+        .data_in_valid(p3_reciprocal_valid),
+        .data_in_ready(p3_reciprocal_ready),
         .data_out(data_out),
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready)
