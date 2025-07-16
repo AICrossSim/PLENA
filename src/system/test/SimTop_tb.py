@@ -121,7 +121,7 @@ def SimToP_test():
         trace = True,
     )
 
-def initialize_global_variables():
+def init_mem():
     global hbm_element_file, hbm_scale_file, instr_file
     
     from assembler.instruction_mapping_pipeline import instruction_mapping_pipeline, parse_args
@@ -159,7 +159,7 @@ def initialize_global_variables():
     instruction_mapping_pipeline(blocks, bias, args.path, quant_config)
 
 if __name__ == "__main__":
-    initialize_global_variables()
+    init_mem()
     SimToP_test()
 
 

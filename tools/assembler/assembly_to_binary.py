@@ -13,7 +13,7 @@ class AssemblyToBinary:
         """
         self.isa_definitions = load_isa_definitions(isa_definition_file)
         self.isa_definition_file = isa_definition_file
-        config_settings = load_svh_settings(config_file)
+        config_settings = load_isa_settings(isa_definition_file)
         self.opcode_width = config_settings.get("OPCODE_WIDTH", 0)
         self.operands_width = config_settings.get("OPERAND_WIDTH", 0)
         self.imm_width = config_settings.get("IMM_WIDTH", 0)
