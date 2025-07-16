@@ -93,7 +93,6 @@ module scalar_machine import precision_pkg::*;  #(
         if (rst) begin
             exe_fp_control          <= STALL_S_FP;
             load_fp_sram_valid      <= 1'b0;
-            recorded_fp_waddr_alu   <= 'b0;
             recorded_fp_waddr_sram  <= 'b0;
             p1_fp_rd                <= 'b0;
             fp_stall_req            <= 1'b0;
@@ -112,7 +111,6 @@ module scalar_machine import precision_pkg::*;  #(
             exe_fp_control          <= fp_control;
             load_fp_sram_valid      <= (exe_fp_control == LD_REG_FP) ? 1'b1 : 1'b0;
             recorded_fp_waddr_sram  <= p1_fp_rd;
-            recorded_fp_waddr_alu   <= p1_fp_rd;
 
             if (fp_control == RECI_FP || fp_control == EXP_FP) begin
                 fp_stall_req <= 1'b1; // SFU is busy
@@ -169,8 +167,6 @@ module scalar_machine import precision_pkg::*;  #(
     /*
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
-    // Delay a clk due to fp_alu takes one clk to compute the result
-    assign  fp_alu_valid = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
 
     always_comb begin
         if (fp_alu_valid) begin
@@ -216,10 +212,14 @@ module scalar_machine import precision_pkg::*;  #(
         .MANT_WIDTH(S_FP_MANT_WIDTH)
     ) fp_alu_init (
         .clk        (clk),
+        .rst        (rst),
+        .operation  (exe_fp_control),
+        .reg_waddr  (p1_fp_rd),
+        .stored_reg_waddr (recorded_fp_waddr_alu),
         .data_a     (fp_reg_1),
         .data_b     (fp_reg_2),
-        .operation  (exe_fp_control),
-        .data_out   (fp_alu_out)
+        .data_out   (fp_alu_out),
+        .data_out_valid(fp_alu_valid)
     );
 
     fp_sfu #(
@@ -233,8 +233,7 @@ module scalar_machine import precision_pkg::*;  #(
         .operation          (fp_control),
         .data_out           (fp_sfu_out),
         .stored_reg_waddr   (recorded_fp_waddr_sfu),
-        .data_out_valid     (sfu_out_valid),
-        .data_out_ready     (sfu_out_ready)
+        .data_out_valid     (sfu_out_valid)
     );
 
     regfile_2p1w #(

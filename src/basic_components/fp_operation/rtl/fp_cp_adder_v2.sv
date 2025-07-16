@@ -145,7 +145,7 @@ module fp_cp_adder_v2 #(
     );
     
     skid_buffer #(
-        .DATA_WIDTH(MULT_OUT_EXP_WIDTH + MULT_OUT_FIXED_WIDTH)
+        .DATA_WIDTH(ADDER_OUT_EXP_WIDTH + ADDER_OUT_FIXED_WIDTH)
     ) buffer_add (
         .clk(clk),
         .rst(rst),
@@ -161,12 +161,12 @@ module fp_cp_adder_v2 #(
     fp_ieee_normalize #(
         .IN_FIXED_WIDTH(ADDER_OUT_FIXED_WIDTH),
         .IN_FIXED_FRAC_WIDTH(ADDER_OUT_FIXED_FRAC_WIDTH),
-        .IN_EXP_WIDTH(ADDER_OUT_EXP_WIDTH),
-        .OUT_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH)
+        .IN_EXP_WIDTH   (ADDER_OUT_EXP_WIDTH),
+        .OUT_MANT_WIDTH (NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
-        .signed_mant(signed_mant_out),
-        .signed_exp(signed_exp_out),
-        .fp_out(normalized_data)
+        .signed_mant    (p2_signed_mant_out),
+        .signed_exp     (p2_signed_exp_out),
+        .fp_out         (normalized_data)
     );
 
     fp_ieee_casting #(

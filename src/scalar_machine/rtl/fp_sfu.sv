@@ -27,8 +27,7 @@ module fp_sfu #(
     input   S_FP_OP                             operation,         
     output  logic [EXP_WIDTH + MANT_WIDTH : 0]  data_out,
     output  logic [FP_OPERAND_WIDTH - 1 : 0]    stored_reg_waddr, 
-    output  logic                               data_out_valid,   
-    output  logic                               data_out_ready  
+    output  logic                               data_out_valid
 );
 
 
@@ -37,13 +36,16 @@ S_FP_OP recorded_operation;
 logic data_in_valid;
 logic data_in_ready;
 logic sfu_in_use;
+logic data_out_ready;  
 
 always_ff @(posedge clk) begin
     if (rst) begin
         recorded_operation <= STALL_S_FP;
         data_in_valid <= 1'b0;
         stored_reg_waddr <= 'b0;
+        data_out_ready <= 1'b0;
     end else begin
+        data_out_ready <= 1'b1;
         if (!sfu_in_use & operation != STALL_S_FP) begin
             recorded_operation <= operation;
             stored_reg_waddr <= reg_waddr;
@@ -66,24 +68,33 @@ end
 logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_exp_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] result_data;
 logic result_valid, result_ready;
+logic reciprocal_in_valid, exp_in_valid;
+logic reciprocal_in_ready, exp_in_ready;
 logic reciprocal_out_valid, exp_out_valid;
+logic reciprocal_out_ready, exp_out_ready;
 
 
 always_comb begin
     case (recorded_operation)
         RECI_FP: begin
-            result_data     = fp_reciprocal_out;
-            result_valid    = reciprocal_out_valid;
+            result_data             = fp_reciprocal_out;
+            reciprocal_in_valid     = data_in_valid;
+            data_in_ready           = reciprocal_in_ready;
+            result_valid            = reciprocal_out_valid;
+            reciprocal_out_ready    = result_ready;
         end
 
         EXP_FP: begin
-            result_data     = fp_exp_out;
-            result_valid    = exp_out_valid;
+            result_data             = fp_exp_out;
+            exp_in_valid            = data_in_valid;
+            data_in_ready           = exp_in_ready;
+            result_valid            = exp_out_valid;
+            exp_out_ready           = result_ready;
         end
 
         default: begin
-            result_data = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
-            result_valid = 1'b0;
+            result_data             = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
+            result_valid            = 1'b0;
         end
     endcase
 end
@@ -93,13 +104,15 @@ end
         .IN_MANT_WIDTH(MANT_WIDTH),
         .OUT_EXP_WIDTH(EXP_WIDTH),
         .OUT_MANT_WIDTH(MANT_WIDTH)
-    ) fp_reciprocal (
+    ) scalar_fp_reciprocal_init (
         .clk(clk),
         .rst(rst),
+        .data_in_valid  (reciprocal_in_valid),
+        .data_in_ready  (reciprocal_in_ready),
         .data_in        (data_in),
-        .data_in_valid  (data_in_valid),
-        .data_out       (fp_reciprocal_out),
-        .data_out_valid (reciprocal_out_valid)
+        .data_out_valid (reciprocal_out_valid),
+        .data_out_ready (reciprocal_out_ready),
+        .data_out       (fp_reciprocal_out)
     );
 
     fp_cp_exp #(
@@ -107,13 +120,15 @@ end
         .IN_MANT_WIDTH(MANT_WIDTH),
         .OUT_EXP_WIDTH(EXP_WIDTH),
         .OUT_MANT_WIDTH(MANT_WIDTH)
-    ) fp_sqrt (
+    ) scalar_fp_exp_init (
         .clk(clk),
         .rst(rst),
+        .data_in_valid  (exp_in_valid),
+        .data_in_ready  (exp_in_ready),
         .data_in        (data_in),
-        .data_in_valid  (data_in_valid),
-        .data_out       (fp_exp_out),
-        .data_out_valid (exp_out_valid)
+        .data_out_valid (exp_out_valid),
+        .data_out_ready (exp_out_ready),
+        .data_out       (fp_exp_out)
     );
 
     skid_buffer #(

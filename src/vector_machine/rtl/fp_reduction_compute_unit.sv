@@ -9,7 +9,7 @@ Timing      : Sequential, Takes log2(VLEN) + 1 cycles
 Description : This module includes vector reduction computations
             : 1. SUM, 2. MAX
             : As we are targeting for high dim vector reduction, which need to be decomposed into a series of instructions, we maximally utilize the instruction and read port width of the sram by considering sources together.
-
+            ：Note that, for reduction units, there's no need to support per clk level pipelining, as during the inference process, reduction is requried per MLEN vector.
 Status      : Passed Simple Tests
 */
 
@@ -58,8 +58,10 @@ module fp_reduction_compute_unit #(
   generate
       logic [OUT_WIDTH*VEC_DIM-1:0] data_storage [LEVELS:0];  // TODO: Need to be optimized, memory inefficient
       logic [OUT_WIDTH*VEC_DIM-1:0] sum  [LEVELS-1:0];
-      logic valid[VEC_DIM-1:0];
-      logic ready[VEC_DIM-1:0];
+      logic [VEC_DIM-1:0] valid;
+      logic [VEC_DIM-1:0] ready;
+      logic [VEC_DIM-1:0] compute_valid;
+      logic [VEC_DIM-1:0] compute_ready;
 
       // Generate adder for each layer
       for (genvar i = 0; i < LEVELS; i++) begin : level
@@ -81,9 +83,15 @@ module fp_reduction_compute_unit #(
             .EXT_MANT_WIDTH(ACC_EXT_MANT_WIDTH),
             .EXT_EXP_WIDTH(ACC_EXT_EXP_WIDTH)
         ) vector_layer (
+            .clk(clk),
+            .rst(rst),
             .operation(operation),
+            .data_in_valid(valid[i]),
+            .data_in_ready(ready[i]),
             .data_in(data_storage[i]),
-            .data_out(sum[i])
+            .data_out(sum[i]),
+            .data_out_valid(compute_valid[i]),
+            .data_out_ready(compute_ready[i])
         );
 
         skid_buffer #(
@@ -92,8 +100,8 @@ module fp_reduction_compute_unit #(
             .clk           (clk),
             .rst           (rst),                        
             .data_in       (sum[i][LEVEL_OUT_DIM * LEVEL_OUT_WIDTH - 1 : 0]),                      // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
-            .data_in_valid (valid[i]),
-            .data_in_ready (ready[i]),
+            .data_in_valid (compute_valid[i]),
+            .data_in_ready (compute_ready[i]),
             .data_out      (data_storage[i+1][LEVEL_OUT_DIM * LEVEL_OUT_WIDTH - 1 : 0]),
             .data_out_valid(valid[i+1]),
             .data_out_ready(ready[i+1])
