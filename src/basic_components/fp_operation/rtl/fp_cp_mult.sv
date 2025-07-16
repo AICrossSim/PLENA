@@ -44,6 +44,8 @@ module fp_cp_mult #(
     // Internal signal declarations
     logic signed [IN_EXP_WIDTH - 1:0]   signed_exp_a, signed_exp_b;
     logic signed [IN_FIXED_WIDTH - 1:0] signed_mant_a, signed_mant_b;
+    logic signed [IN_EXP_WIDTH - 1:0]   p1_signed_exp_a, p1_signed_exp_b;
+    logic signed [IN_FIXED_WIDTH - 1:0] p1_signed_mant_a, p1_signed_mant_b;
     logic partition_a_valid, partition_a_ready;
     logic partition_b_valid, partition_b_ready;
 

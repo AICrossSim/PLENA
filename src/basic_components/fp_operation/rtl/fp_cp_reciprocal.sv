@@ -42,9 +42,9 @@ module fp_cp_reciprocal #(
     logic signed [IN_MANT_WIDTH + 2 - 1:0]  p1_signed_mant_in;
     logic p1_partition_valid, p1_partition_ready;
 
-    logic signed [OUT_EXP_WIDTH - 1:0] reciprocal_exp_out;
+    logic signed [OUT_EXP_WIDTH - 1:0]      reciprocal_exp_out;
     logic signed [OUT_MANT_WIDTH + 2 - 1:0] reciprocal_mant_out;
-    logic signed [OUT_EXP_WIDTH - 1:0] p2_signed_reciprocal_exp_out;
+    logic signed [OUT_EXP_WIDTH - 1:0]      p2_signed_reciprocal_exp_out;
     logic signed [OUT_MANT_WIDTH + 2 - 1:0] p2_signed_reciprocal_mant_out;
     logic p2_reciprocal_valid, p2_reciprocal_ready;
 
@@ -67,7 +67,7 @@ module fp_cp_reciprocal #(
         .data_in({signed_exp_in, signed_mant_in}),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
-        .data_out({p1_signed_exp_a, p1_signed_mant_a}),
+        .data_out({p1_signed_exp_in, p1_signed_mant_in}),
         .data_out_valid(p1_partition_valid),
         .data_out_ready(p1_partition_ready)
     );
@@ -81,8 +81,8 @@ module fp_cp_reciprocal #(
         .OUT_FIX_WIDTH      (OUT_MANT_WIDTH + 2),
         .OUT_FIX_FRAC_WIDTH (OUT_MANT_WIDTH)
     ) fp_reciprocal_inst (
-        .signed_exp_in      (signed_exp_in),
-        .signed_mant_in     (signed_mant_in),
+        .signed_exp_in      (p1_signed_exp_in),
+        .signed_mant_in     (p1_signed_mant_in),
         .signed_exp_out     (reciprocal_exp_out),
         .signed_mant_out    (reciprocal_mant_out)
     );

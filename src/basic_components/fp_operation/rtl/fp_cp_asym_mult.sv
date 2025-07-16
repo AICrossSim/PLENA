@@ -171,14 +171,14 @@ module fp_cp_asym_mult #(
 
     // Instantiate fp_ieee_normalize for output
     fp_ieee_normalize #(
-        .IN_FIXED_WIDTH(MULT_OUT_FIXED_WIDTH),
-        .IN_FIXED_FRAC_WIDTH(MULT_OUT_FIXED_FRAC_WIDTH),
-        .IN_EXP_WIDTH(MULT_OUT_EXP_WIDTH),
-        .OUT_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH)
+        .IN_FIXED_WIDTH         (MULT_OUT_FIXED_WIDTH),
+        .IN_FIXED_FRAC_WIDTH    (MULT_OUT_FIXED_FRAC_WIDTH),
+        .IN_EXP_WIDTH           (MULT_OUT_EXP_WIDTH),
+        .OUT_MANT_WIDTH         (NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
-        .signed_mant(p2_signed_mant_out),
-        .signed_exp(p2_signed_exp_out),
-        .fp_out(normalized_data)
+        .signed_mant    (p2_signed_mant_out),
+        .signed_exp     (p2_signed_exp_out),
+        .fp_out         (normalized_data)
     );
 
     fp_ieee_casting #(
@@ -187,8 +187,8 @@ module fp_cp_asym_mult #(
         .OUT_EXP_WIDTH  (OUT_EXP_WIDTH + EXT_EXP_WIDTH),
         .OUT_MANT_WIDTH (OUT_MANT_WIDTH + EXT_MANT_WIDTH)
     ) fp_casting (
-        .data_in(normalized_data),
-        .data_out(casted_data)
+        .data_in        (normalized_data),
+        .data_out       (casted_data)
     );
 
     skid_buffer #(
@@ -196,12 +196,12 @@ module fp_cp_asym_mult #(
     ) buffer_normalise_cast (
         .clk(clk),
         .rst(rst),
-        .data_in(casted_data),
-        .data_in_valid(p2_mult_valid),
-        .data_in_ready(p2_mult_ready),
-        .data_out(data_out),
-        .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready)
+        .data_in            (casted_data),
+        .data_in_valid      (p2_mult_valid),
+        .data_in_ready      (p2_mult_ready),
+        .data_out           (data_out),
+        .data_out_valid     (data_out_valid),
+        .data_out_ready     (data_out_ready)
     );
 
 

@@ -122,12 +122,12 @@ module fp_cp_adder_v2 #(
 
     // Instantiate fp_adder
     fp_adder #(
-        .IN_EXP_WIDTH(IN_EXP_WIDTH),
-        .IN_FIX_WIDTH(IN_FIXED_WIDTH),
-        .IN_FIX_FRAC_WIDTH(IN_FIXED_FRAC_WIDTH),
-        .OUT_EXP_WIDTH(ADDER_OUT_EXP_WIDTH),
-        .OUT_FIX_WIDTH(ADDER_OUT_FIXED_WIDTH),
-        .OUT_FIX_FRAC_WIDTH(ADDER_OUT_FIXED_FRAC_WIDTH)
+        .IN_EXP_WIDTH       (IN_EXP_WIDTH),
+        .IN_FIX_WIDTH       (IN_FIXED_WIDTH),
+        .IN_FIX_FRAC_WIDTH  (IN_FIXED_FRAC_WIDTH),
+        .OUT_EXP_WIDTH      (ADDER_OUT_EXP_WIDTH),
+        .OUT_FIX_WIDTH      (ADDER_OUT_FIXED_WIDTH),
+        .OUT_FIX_FRAC_WIDTH (ADDER_OUT_FIXED_FRAC_WIDTH)
     ) fp_adder_inst (
         .exp_a      (p1_signed_exp_a),
         .mant_a     (p1_signed_mant_a),
@@ -159,10 +159,10 @@ module fp_cp_adder_v2 #(
 
     // Instantiate fp_ieee_normalize for output
     fp_ieee_normalize #(
-        .IN_FIXED_WIDTH(ADDER_OUT_FIXED_WIDTH),
-        .IN_FIXED_FRAC_WIDTH(ADDER_OUT_FIXED_FRAC_WIDTH),
-        .IN_EXP_WIDTH   (ADDER_OUT_EXP_WIDTH),
-        .OUT_MANT_WIDTH (NORMALIZE_OUT_MANT_WIDTH)
+        .IN_FIXED_WIDTH         (ADDER_OUT_FIXED_WIDTH),
+        .IN_FIXED_FRAC_WIDTH    (ADDER_OUT_FIXED_FRAC_WIDTH),
+        .IN_EXP_WIDTH           (ADDER_OUT_EXP_WIDTH),
+        .OUT_MANT_WIDTH         (NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
         .signed_mant    (p2_signed_mant_out),
         .signed_exp     (p2_signed_exp_out),
@@ -170,10 +170,10 @@ module fp_cp_adder_v2 #(
     );
 
     fp_ieee_casting #(
-        .IN_EXP_WIDTH(NORMALIZE_OUT_EXP_WIDTH),
-        .IN_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH),
-        .OUT_EXP_WIDTH(EXP_WIDTH + EXT_EXP_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH + EXT_MANT_WIDTH)
+        .IN_EXP_WIDTH       (NORMALIZE_OUT_EXP_WIDTH),
+        .IN_MANT_WIDTH      (NORMALIZE_OUT_MANT_WIDTH),
+        .OUT_EXP_WIDTH      (EXP_WIDTH + EXT_EXP_WIDTH),
+        .OUT_MANT_WIDTH     (MANT_WIDTH + EXT_MANT_WIDTH)
     ) fp_casting (
         .data_in    (normalized_data),
         .data_out   (casted_data)

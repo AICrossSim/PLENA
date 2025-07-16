@@ -32,6 +32,7 @@ logic add_data_out_valid, add_data_out_ready;
 
 logic [EXP_WIDTH + MANT_WIDTH : 0] fp_add_out, fp_sub_out, fp_mul_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
+logic [EXP_WIDTH + MANT_WIDTH : 0] data_out_add, data_out_mul, data_out_exp;
 logic negated_en;
 logic data_out_ready;
 
