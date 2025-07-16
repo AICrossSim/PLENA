@@ -121,7 +121,15 @@ def SimToP_test():
             {
                 "INSTRUCTION_LENGTH": INSTRUCTION_LENGTH,
                 "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{os.environ['HBM_ELEMENT_FILE']}\"",
-                "FAKE_HBM_SCALE_INIT_FILE": f"\"{os.environ['HBM_SCALE_FILE']}\""
+                # "FAKE_HBM_SCALE_INIT_FILE": f"\"{os.environ['HBM_SCALE_FILE']}\"",
+                # "FP_MEM_INIT_FILE": f"\"{os.environ['FP_MEM_INIT_FILE']}\"",
+                # "FIXED_MEM_INIT_FILE": f"\"{os.environ['FIXED_MEM_INIT_FILE']}\"",
+                # "VECTOR_MEM_RESULT_FILE": f"\"{os.environ['VECTOR_MEM_RESULT_FILE']}\"",
+                # "HBM_ADDR_MAPPER_FILE": f"\"{os.environ['HBM_ADDR_MAPPER_FILE']}\"",
+                # "FAKE_HBM_ELEMENT_WRITE_M_FILE": f"\"{os.environ['FAKE_HBM_ELEMENT_WRITE_M_FILE']}\"",
+                # "FAKE_HBM_ELEMENT_WRITE_V_FILE": f"\"{os.environ['FAKE_HBM_ELEMENT_WRITE_V_FILE']}\"",
+                # "FAKE_HBM_SCALE_WRITE_M_FILE": f"\"{os.environ['FAKE_HBM_SCALE_WRITE_M_FILE']}\"",
+                # "FAKE_HBM_SCALE_WRITE_V_FILE": f"\"{os.environ['FAKE_HBM_SCALE_WRITE_V_FILE']}\""
             }
         ],
         trace = True,
@@ -155,13 +163,47 @@ def init_mem():
     data = rand_gen_high.tensor_load()
     blocks, bias = rand_gen_high.quantize_tensor(data)
     
-    hbm_element_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem / "hbm_ele.mem"
-    hbm_scale_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem / "hbm_scale.mem"
-    instr_file = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem / f"{Path(args.path).stem}.mem"
+    build_path = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem
+    hbm_element_file = build_path / "hbm_ele.mem"
+    hbm_scale_file = build_path / "hbm_scale.mem"
+    instr_file = build_path / f"{Path(args.path).stem}.mem"
 
     os.environ["HBM_ELEMENT_FILE"] = str(hbm_element_file)
     os.environ["HBM_SCALE_FILE"] = str(hbm_scale_file)
     os.environ["INSTR_FILE"] = str(instr_file) 
+
+    hbm_write_element_m_file    = build_path / "hbm_write_m_ele.mem"
+    # the back result need , just create it 
+    hbm_write_element_v_file    = build_path / "hbm_write_v_ele.mem"
+    # same 
+    hbm_write_scale_m_file      = build_path / "hbm_write_m_scale.mem"
+    # same 
+    hbm_write_scale_v_file      = build_path / "hbm_write_v_scale.mem"
+    # same 
+    vector_mem_result_file      = build_path / "vector_result.mem"
+    # same 
+    hbm_write_element_m_file.touch()
+    hbm_write_element_v_file.touch()
+    hbm_write_scale_m_file.touch()
+    hbm_write_scale_v_file.touch()
+    vector_mem_result_file.touch()
+
+    fp_mem_file                 = build_path / "fp.mem"
+    fixed_mem_file              = build_path / "fixed.mem"
+    addr_mapper_file            = build_path / "hbm_addr_mapper.mem"
+
+    fp_mem_file.touch()
+    fixed_mem_file.touch()
+    addr_mapper_file.touch()
+
+    os.environ["FP_MEM_INIT_FILE"] = str(fp_mem_file)
+    os.environ["FIXED_MEM_INIT_FILE"] = str(fixed_mem_file)
+    os.environ["VECTOR_MEM_RESULT_FILE"] = str(vector_mem_result_file)
+    os.environ["HBM_ADDR_MAPPER_FILE"] = str(addr_mapper_file)
+    os.environ["FAKE_HBM_ELEMENT_WRITE_M_FILE"] = str(hbm_write_element_m_file)
+    os.environ["FAKE_HBM_ELEMENT_WRITE_V_FILE"] = str(hbm_write_element_v_file)
+    os.environ["FAKE_HBM_SCALE_WRITE_M_FILE"] = str(hbm_write_scale_m_file)
+    os.environ["FAKE_HBM_SCALE_WRITE_V_FILE"] = str(hbm_write_scale_v_file)
     instruction_mapping_pipeline(blocks, bias, args.path, quant_config)
 
 if __name__ == "__main__":
