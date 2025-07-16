@@ -2,7 +2,6 @@
 `include "tl_util.svh"
 `include "configuration.svh"
 `include "tl_pkg.svh"
-`define SIMULATION
 
 /*
 Module      : Sim Top Module

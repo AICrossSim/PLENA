@@ -9,7 +9,7 @@ Timing      : Combinatorial
 Description : This module monitors the execution stages of each module and decide whether the pipeline is stalled or not. 
             : This module will also control the overall execution of the coprocessor.
             ：Note: The pipeline stages are listed as follows:
-            Control Flow Decode - > Register Read -> Check Address Dependencies -> Determine Stall -> Data Preparation -> Execute -> Write Back
+            Control Flow Decode - > INT Register Read -> Check Address Dependencies -> Determine Stall -> Data Preparation -> Execute -> Write Back
             For Vect/Matrix/FP  | Decode | Register Rd  | Check      | Determine Stall | Data Prep | Execute | Write Back |
             For Fixed Scalar    | Decode | Execute      | Write Back |
 */
