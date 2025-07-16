@@ -67,7 +67,7 @@ module fp_ieee_exponent_casting #(
         .data_out(mantissa_rounded)
     );
 
-    assign round_up = mantissa[MANT_WIDTH+1] && (|mantissa_rounded[MANT_WIDTH:0]);
+    assign round_up = mantissa[MANT_WIDTH+1] && (|mantissa_rounded[MANT_WIDTH-1:0]);
 
     always_comb begin
         if (in_exp < EXP_LOWER_BOUND) begin

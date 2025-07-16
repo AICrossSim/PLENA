@@ -24,6 +24,7 @@ import random
 import argparse
 from pathlib import Path
 from cfl_cocotb.fp_generation import FpGenerator
+from cfl_cocotb import SRC_PATH
 
 # parser = argparse.ArgumentParser(description="Greet someone.")
 # parser.add_argument("--benchmark", type=str, default="general")
@@ -136,30 +137,30 @@ def SimToP_test():
         group = "system",
         module = "SimTop",
         additional_include_paths = [
-            "../../../src/basic_components/common",
-            "../../../src/basic_components/mx_fp_operation",
-            "../../../src/basic_components/fp_operation",
-            "../../../src/basic_components/conversion",
-            "../../../src/basic_components/buffer",
-            "../../../src/basic_components/gemv",
-            "../../../src/basic_components/fixed_operation",
-            "../../../src/basic_components/systolic_gemm_mxfp",
-            "../../../src/basic_components/systolic_gemm_fp",
-            "../../../src/basic_components/int_operation",
-            "../../../src/basic_components/cast",
-            "../../../src/frontend",
-            "../../../src/control",
-            "../../../src/matrix_machine",
-            "../../../src/vector_machine",
-            "../../../src/scalar_machine",
-            "../../../src/memory/matrix_sram",
-            "../../../src/memory/vector_sram",
-            "../../../src/memory/scalar_sram",
-            "../../../src/memory/HBM",
-            "../../../src/core"
+            SRC_PATH/"basic_components/common",
+            SRC_PATH/"basic_components/mx_fp_operation",
+            SRC_PATH/"basic_components/fp_operation",
+            SRC_PATH/"basic_components/conversion",
+            SRC_PATH/"basic_components/buffer",
+            SRC_PATH/"basic_components/gemv",
+            SRC_PATH/"basic_components/fixed_operation",
+            SRC_PATH/"basic_components/systolic_gemm_mxfp",
+            SRC_PATH/"basic_components/systolic_gemm_fp",
+            SRC_PATH/"basic_components/int_operation",
+            SRC_PATH/"basic_components/cast",
+            SRC_PATH/"frontend",
+            SRC_PATH/"control",
+            SRC_PATH/"matrix_machine",
+            SRC_PATH/"vector_machine",
+            SRC_PATH/"scalar_machine",
+            SRC_PATH/"memory/matrix_sram",
+            SRC_PATH/"memory/vector_sram",
+            SRC_PATH/"memory/scalar_sram",
+            SRC_PATH/"memory/HBM",
+            SRC_PATH/"core"
         ],       
-        definitions_path = ["../../../src/definitions", 
-                            "../../../src/memory/HBM/TileLink_Lib" ],
+        definitions_path = [SRC_PATH/"definitions", 
+                            SRC_PATH/"memory/HBM/TileLink_Lib" ],
         module_param_list=[
             {
                 "INSTRUCTION_LENGTH": INSTRUCTION_LENGTH,

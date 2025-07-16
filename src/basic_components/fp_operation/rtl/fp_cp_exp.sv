@@ -76,7 +76,7 @@ module fp_cp_exp #(
         .data_in({signed_exp_in, signed_mant_in}),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
-        .data_out({p1_signed_exp_a, p1_signed_mant_a}),
+        .data_out({p1_signed_exp_in, p1_signed_mant_in}),
         .data_out_valid(p1_partition_valid),
         .data_out_ready(p1_partition_ready)
     );
@@ -91,8 +91,8 @@ module fp_cp_exp #(
         .OUT_FIX_WIDTH(EXP_OUT_FIXED_WIDTH),
         .OUT_FIX_FRAC_WIDTH(EXP_OUT_FIXED_FRAC_WIDTH)
     ) fp_exp_inst (
-        .signed_exp_in(signed_exp_in),
-        .signed_mant_in(signed_mant_in),
+        .signed_exp_in(p1_signed_exp_in),
+        .signed_mant_in(p1_signed_mant_in),
         .signed_exp_out(exp_out_exp),
         .signed_mant_out(exp_out_mant)
     );
@@ -105,7 +105,7 @@ module fp_cp_exp #(
         .data_in        ({exp_out_exp, exp_out_mant}),
         .data_in_valid  (p1_partition_valid),
         .data_in_ready  (p1_partition_ready),
-        .data_out       ({p2_signed_exp_out, p2_signed_mant_out}),
+        .data_out       ({p2_exp_out_exp, p2_exp_out_mant}),
         .data_out_valid (p2_exp_out_valid),
         .data_out_ready (p2_exp_out_ready)
     );
@@ -116,8 +116,8 @@ module fp_cp_exp #(
         .IN_EXP_WIDTH(EXP_OUT_EXP_WIDTH),
         .OUT_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
-        .signed_mant(exp_out_mant),
-        .signed_exp(exp_out_exp),
+        .signed_mant(p2_exp_out_mant),
+        .signed_exp(p2_exp_out_exp),
         .fp_out(normalized_data)
     );
 
