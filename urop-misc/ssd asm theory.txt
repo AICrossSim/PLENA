@@ -1,0 +1,197 @@
+asm implementation
+;// Parameter initialisation (using FIX[1] as base for FIX_MEM)
+// FIX[x0] stores 0 for convenience
+S_ADDI_FIX x7, x0, 1;		    // x7 = 1
+S_ST_FIX x1, 0, x7;			    // store batch = 1 in FIX_MEM[x1 + 0]
+S_ADDI_FIX x7, x0, 512;		
+S_ST_FIX x1, 1, x7;			    // store length = 512 in FIX_MEM[x1 + 1]
+S_ADDI_FIX x7, x0, 2;		
+S_ST_FIX x1, 2, x7;			    // store n_heads = 2 in FIX_MEM[x1 + 2]
+S_ADDI_FIX x7, x0, 4;		
+S_ST_FIX x1, 3, x7;			    // store d_head = 4 in FIX_MEM[x1 + 3]
+S_ADDI_FIX x7, x0, 8;		
+S_ST_FIX x1, 4, x7;			    // store d_state = 8 in FIX_MEM[x1 + 4]
+S_ADDI_FIX x7, x0, 64;		
+S_ST_FIX x1, 5, x7;			    // store block_len = 64 in FIX_MEM[x1 + 5]
+S_ADDI_FIX x7, x0, 8;		
+S_ST_FIX x1, 6, x7;			    // store num_chunks = length // block_len = 8 in FIX_MEM[x1 + 6]
+S_ADDI_FIX x7, x0, 9;		
+S_ST_FIX x1, 7, x7;			    // store num_chunks + 1 = 9 in FIX_MEM[x1 + 7]
+
+;// Initialise tensor dimension indices for loops (continued from FIX[1]'s range)
+S_ST_FIX x1, 8, x0;			    // store b (batch index) = 0 in FIX_MEM[x1 + 8]
+S_ST_FIX x1, 9, x0;			    // store h (head index) = 0 in FIX_MEM[x1 + 9]
+S_ST_FIX x1, 10, x0;			// store c (chunk index) = 0 in FIX_MEM[x1 + 10]
+S_ST_FIX x1, 11, x0;			// store l (block_len index) = 0 in FIX_MEM[x1 + 11]
+S_ST_FIX x1, 12, x0;			// store s (block_len index) = 0 in FIX_MEM[x1 + 12]
+S_ST_FIX x1, 13, x0;			// store p (d_head index) = 0 in FIX_MEM[x1 + 13]
+S_ST_FIX x1, 14, x0;			// store z (inter-chunk scan index) = 0 in FIX_MEM[x1 + 14]
+S_ST_FIX x1, 15, x0;			// store n (d_state index) = 0 in FIX_MEM[x1 + 15]
+
+
+;// Initialise offsets for VSRAM regions (using FIX[2] as base for FIX_MEM)
+// Note: VSRAM_OFFSET_XXX are symbolic constants representing the actual memory offsets within VSRAM.
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_M;
+S_ST_FIX x2, 0, x7;			    // store VSRAM_OFFSET_M in FIX_MEM[x2 + 0]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_W;
+S_ST_FIX x2, 1, x7;			    // store VSRAM_OFFSET_W in FIX_MEM[x2 + 1]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_A_CUR;
+S_ST_FIX x2, 2, x7;			    // store VSRAM_OFFSET_A_CUR in FIX_MEM[x2 + 2]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_A_CS;
+S_ST_FIX x2, 3, x7;			    // store VSRAM_OFFSET_A_CS in FIX_MEM[x2 + 3]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_DECAY_STATE;
+S_ST_FIX x2, 4, x7;			    // store VSRAM_OFFSET_DECAY_STATE in FIX_MEM[x2 + 4]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_STATE_DECAY_OUT;
+S_ST_FIX x2, 5, x7;			    // store VSRAM_OFFSET_STATE_DECAY_OUT in FIX_MEM[x2 + 5]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_SCALE_FACTOR;
+S_ST_FIX x2, 6, x7;			    // store VSRAM_OFFSET_SCALE_FACTOR in FIX_MEM[x2 + 6]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_Y_DIAG_VEC;
+S_ST_FIX x2, 7, x7;			    // store VSRAM_OFFSET_Y_DIAG_VEC in FIX_MEM[x2 + 7]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_Y_OFF_VEC;
+S_ST_FIX x2, 8, x7;			    // store VSRAM_OFFSET_Y_OFF_VEC in FIX_MEM[x2 + 8]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_A_CS_LAST_CS;
+S_ST_FIX x2, 9, x7;			    // store VSRAM_OFFSET_A_CS_LAST_CS in FIX_MEM[x2 + 9]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_ACC;
+S_ST_FIX x2, 10, x7;			// store VSRAM_OFFSET_ACC in FIX_MEM[x2 + 10]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_B_VAL;
+S_ST_FIX x2, 11, x7;			// store VSRAM_OFFSET_B_VAL in FIX_MEM[x2 + 11]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_X_VAL;
+S_ST_FIX x2, 12, x7;			// store VSRAM_OFFSET_X_VAL in FIX_MEM[x2 + 12]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_DECAY;
+S_ST_FIX x2, 13, x7;			// store VSRAM_OFFSET_DECAY in FIX_MEM[x2 + 13]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_MATRIX_ELEMENT;
+S_ST_FIX x2, 14, x7;			// store VSRAM_OFFSET_MATRIX_ELEMENT in FIX_MEM[x2 + 14]
+S_ADDI_FIX x7, x0, VSRAM_OFFSET_VECTOR_ELEMENT;
+S_ST_FIX x2, 15, x7;			// store VSRAM_OFFSET_VECTOR_ELEMENT in FIX_MEM[x2 + 15]
+
+
+;// Initialise offsets for MSRAM regions (using FIX[3] as base for FIX_MEM)
+
+S_ADDI_FIX x7, x0, MSRAM_OFFSET_B_CUR;
+S_ST_FIX x3, 0, x7;			    // store MSRAM_OFFSET_B_CUR in FIX_MEM[x3 + 0]
+S_ADDI_FIX x7, x0, MSRAM_OFFSET_C_CUR;
+S_ST_FIX x3, 1, x7;			    // store MSRAM_OFFSET_C_CUR in FIX_MEM[x3 + 1]
+S_ADDI_FIX x7, x0, MSRAM_OFFSET_X_CUR;
+S_ST_FIX x3, 2, x7;			    // store MSRAM_OFFSET_X_CUR in FIX_MEM[x3 + 2]
+S_ADDI_FIX x7, x0, MSRAM_OFFSET_L;
+S_ST_FIX x3, 3, x7;			    // store MSRAM_OFFSET_L in FIX_MEM[x3 + 3]
+S_ADDI_FIX x7, x0, MSRAM_OFFSET_DECAY_CHUNK_MATRIX_INTER;
+S_ST_FIX x3, 4, x7;			    // store MSRAM_OFFSET_DECAY_CHUNK_MATRIX_INTER in FIX_MEM[x3 + 4]
+
+
+;// Initialise offsets for HBM regions (using FIX[4] as base for FIX_MEM)
+// Assume A, B, C, X chunked tensors are stored in HBM already, they have been loaded
+S_ADDI_FIX x7, x0, HBM_ADDR_A_CHUNKS;
+S_ST_FIX x4, 0, x7;			    // store HBM_ADDR_A_CHUNKS in FIX_MEM[x4 + 0]
+S_ADDI_FIX x7, x0, HBM_ADDR_B_CHUNKS;
+S_ST_FIX x4, 1, x7;			    // store HBM_ADDR_B_CHUNKS in FIX_MEM[x4 + 1]
+S_ADDI_FIX x7, x0, HBM_ADDR_C_CHUNKS;
+S_ST_FIX x4, 2, x7;			    // store HBM_ADDR_C_CHUNKS in FIX_MEM[x4 + 2]
+S_ADDI_FIX x7, x0, HBM_ADDR_X_CHUNKS;
+S_ST_FIX x4, 3, x7;			    // store HBM_ADDR_X_CHUNKS in FIX_MEM[x4 + 3]
+S_ADDI_FIX x7, x0, HBM_ADDR_Y_DIAG;
+S_ST_FIX x4, 4, x7;			    // store HBM_ADDR_Y_DIAG in FIX_MEM[x4 + 4]
+S_ADDI_FIX x7, x0, HBM_ADDR_Y_OFF;
+S_ST_FIX x4, 5, x7;			    // store HBM_ADDR_Y_OFF in FIX_MEM[x4 + 5]
+S_ADDI_FIX x7, x0, HBM_ADDR_STATES;
+S_ST_FIX x4, 6, x7;			    // store HBM_ADDR_STATES in FIX_MEM[x4 + 6]
+S_ADDI_FIX x7, x0, HBM_ADDR_A_CS_LAST;
+S_ST_FIX x4, 7, x7;			    // store HBM_ADDR_A_CS_LAST in FIX_MEM[x4 + 7]
+S_ADDI_FIX x7, x0, HBM_ADDR_DECAY_CHUNK;
+S_ST_FIX x4, 8, x7;			    // store HBM_ADDR_DECAY_CHUNK in FIX_MEM[x4 + 8]
+S_ADDI_FIX x7, x0, HBM_ADDR_NEW_STATES;
+S_ST_FIX x4, 9, x7;			    // store HBM_ADDR_NEW_STATES in FIX_MEM[x4 + 9]
+S_ADDI_FIX x7, x0, HBM_ADDR_STATES_OUT;
+S_ST_FIX x4, 10, x7;			// store HBM_ADDR_STATES_OUT in FIX_MEM[x4 + 10]
+
+//DO NOT USE FIX x0, x1, x2, x3, x4 , these are needed for offsets. So x5, x6, x7 could be used for intermediate steps
+// just an idea with the pointers for loop indices
+S_LD_FIX x1, 8, x5; 		//x5 = b
+S_ADDI_FIX x5, x5, 1;				// x5+=1
+S_ST_FIX x1, 8, x5;			// b = x5
+
+
+S_ST_FIX x1, 8, x0;			    		    
+; Loop batches i.e. FIX_MEM[ FIX [x1] ] , FIX_MEM[x1 + 8] is the index
+	S_ST_FIX x1, 9, x0;	
+	;Loop n_heads i.e. FIX_MEM[ FIX[x1] + 2],  FIX_MEM[x1 + 9] is the index
+		S_ST_FIX x1, 10, x0;
+		;Loop num_chunks i.e. FIX[ x1 + 6], FIX_MEM[x1 + 10] is the index
+
+			;calculate address of A_cur , base + ((b * num_chunks + c) * block_len + l) * n_heads + h
+			S_LD_FIX  x1, 8, x5; //load b into x5
+			S_LD_FIX  x1, 6, x6; //load num_chunks into x6
+			S_MUL_FIX x5, x5, x6; // x5 = x5 * x6 = b * num_chunks
+			S_LD_FIX  x1, 10, x6; // load c into x6
+			S_ADD_FIX x5, x5, x6; // x5 = b * num_chunks + c 
+			S_LD_FIX x1, 5, x6;   // load block_len into x6
+			S_MUL_FIX x5, x5, x6; // x5 = (b * num_chunks + c ) * block_len
+			S_LD_FIX x1, 11, x6;  // load l into x6
+			S_ADD_FIX x5, x5, x6; // x5 = (b * num_chunks + c ) * block_len + l
+			S_LD_FIX x1, 2, x6;   // load n_heads into x6
+			S_MUL_FIX x5, x5, x6; // x5 = ((b * num_chunks + c) * block_len + l) * n_heads
+			S_LD_FIX  x4, 0, x6;  // load base into x6
+			S_ADD_FIX x5, x5, x6; // x5 = base + ((b * num_chunks + c) * block_len + l) * n_heads
+			S_LD_FIX  x1, 9, x6;  // load h into x6
+			S_ADD_FIX x5, x5, x6; // x5 = base + ((b * num_chunks + c) * block_len + l) * n_heads + h , the correct address of A_cur
+
+			;set stride size and fetch into VSRAM
+			S_LD_FIX x1, 2, x6;   // load n_heads into x6
+			C_SET_STRIDE_REG x6; //set stride size to n_heads
+			S_LD_FIX x2, 2, x6; //x6 = A_cur VSRAM address
+			H_PREFETCH_V_S x5, x6, 0; Vector SRAM [x6] = HBM[x5]
+
+			;calculate address of B_cur , base + (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state
+			;x5 already stores base + ((b * num_chunks + c) * block_len + l) * n_heads + h
+			S_LD_FIX x4, 0, x6; //load A_cur base into x6
+			S_SUB_FIX x5, x5, x6; // x5 = ((b * num_chunks + c) * block_len + l) * n_heads + h
+			S_LD_FIX x1, 4, x6; // x6 = d_state
+			S_MUL_FIX x5, x5, x6; // x5 = (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state
+			S_LD_FIX x4, 1, x6; // x6 =  B_cur base
+			S_ADD_FIX x5, x5, x6; // x5 = base + (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state , the correct address of B_cur
+
+			;//find B_cur stride size & fetch into MSRAM
+			S_LD_FIX x1, 2, x6; //x6 = n_heads
+			S_LD_FIX x1, 4, x7; //x7 = d_states
+			S_MUL_FIX x6, x6, x7; //x6 = n_heads * d_state
+			C_SET_STRIDE_REG x6;  //stride size = n_heads * d_state
+			S_LD_FIX x3, 0, x6; //x6 = x3 = B_cur MSRAM address
+			H_PREFETCH_M_S x5, x6, 0; //Matrix SRAM [x6] = HBM[x5]
+
+			;calculate address of C_cur , base + (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state
+			S_LD_FIX x4, 1, x6; //x6 = B_cur base
+			S_SUB_FIX x5, x5, x6; // x5 = (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state
+			S_LD_FIX x4, 2, x6; //x6 = C_cur base
+			S_ADD_FIX x5, x5, x6;// x5 = base + (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state , correct address for C_cur
+
+			;C_cur has the same stride size as B_cur
+			S_LD_FIX x3, 1, x6; //x6 = C_cur MSRAM address
+			H_PREFETCH_M_S x5, x6, 0; //Matrix SRAM [x6] = HBM[x5] 
+
+			;calculate address of X_cur 
+			S_LD_FIX x4, 2, x6; // x6 = C_cur base
+			S_SUB_FIX x5, x5, x6; // x5 = (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_state
+			S_LD_FIX x1, 4, x6; // x6 = d_state
+			S_DIV_FIX x5, x5, x6; //x5 = x5 / x6 = (((b * num_chunks + c) * block_len + l) * n_heads + h)
+			S_LD_FIX x1, 3, x6; // x6 = d_head
+			S_MUL_FIX x5, x5, x6; //x5 = (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_head
+			S_LD_FIX x4, 3, x6; // x6 = X_cur base
+			S_ADD_FIX x5, x5, x6;// x5 = base + (((b * num_chunks + c) * block_len + l) * n_heads + h) * d_head , correct address for X_cur
+
+			;find X_cur stride size & fetch into MSRAM
+			S_LD_FIX x1, 3, x6; //x6 = d_head
+			S_LD_FIX x1, 2, x7; //x7 = n_heads
+			S_MUL_FIX x6, x6, x7; //x6 = d_head * n_heads
+			C_SET_STRIDE_REG x6;  //stride size = d_head * n_heads
+			S_LD_FIX x3, 2, x6; // x6 = X_cur MSRAM address
+			H_PREFETCH_M_S x5, x6, 0; //Matrix SRAM [x6] = HBM[x5] 
+
+
+
+
+
+
+
+		
+
+
