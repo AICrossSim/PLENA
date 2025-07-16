@@ -19,8 +19,10 @@ module fp_cp_exp #(
     input  logic rst,
     input  logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
     input  logic data_in_valid,
+    output logic data_in_ready,
     output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] data_out,
-    output logic data_out_valid
+    output logic data_out_valid,
+    input  logic data_out_ready
 );
 
     localparam int EXTEND_WIDTH = 5;
@@ -41,19 +43,44 @@ module fp_cp_exp #(
     logic [NORM_DATA_WIDTH - 1:0] normalized_data;
     
     // Signal declarations for connecting the modules
-    logic signed [IN_EXP_WIDTH - 1:0] signed_exp_in;
-    logic signed [IN_MANT_WIDTH + 2 - 1:0] signed_mant_in;
-    logic signed [EXP_OUT_EXP_WIDTH - 1:0] exp_out_exp;
-    logic signed [EXP_OUT_FIXED_WIDTH - 1:0] exp_out_mant;
+    logic signed [IN_EXP_WIDTH - 1:0]       signed_exp_in;
+    logic signed [IN_MANT_WIDTH + 2 - 1:0]  signed_mant_in;
+
+    logic signed [IN_EXP_WIDTH - 1:0]       p1_signed_exp_in;
+    logic signed [IN_MANT_WIDTH + 2 - 1:0]  p1_signed_mant_in;
+    logic p1_partition_valid, p1_partition_ready;
+
+    logic signed [EXP_OUT_EXP_WIDTH - 1:0]      exp_out_exp;
+    logic signed [EXP_OUT_FIXED_WIDTH - 1:0]    exp_out_mant;
+
+    logic signed [EXP_OUT_EXP_WIDTH - 1:0]      p2_exp_out_exp;
+    logic signed [EXP_OUT_FIXED_WIDTH - 1:0]    p2_exp_out_mant;
+    logic p2_exp_out_valid, p2_exp_out_ready;
+
+    logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] casted_data;
     
     fp_ieee_partition #(
         .EXP_WIDTH(IN_EXP_WIDTH),
         .MANT_WIDTH(IN_MANT_WIDTH)
     ) partition_a (
-        .data_in(data_in),
-        .signed_exp(signed_exp_in),
-        .signed_mant(signed_mant_in)
+        .data_in        (data_in),
+        .signed_exp     (signed_exp_in),
+        .signed_mant    (signed_mant_in)
     );
+
+    skid_buffer #(
+        .DATA_WIDTH(IN_EXP_WIDTH + IN_MANT_WIDTH + 2)
+    ) buffer_partition_a (
+        .clk(clk),
+        .rst(rst),
+        .data_in({signed_exp_in, signed_mant_in}),
+        .data_in_valid(data_in_valid),
+        .data_in_ready(data_in_ready),
+        .data_out({p1_signed_exp_a, p1_signed_mant_a}),
+        .data_out_valid(p1_partition_valid),
+        .data_out_ready(p1_partition_ready)
+    );
+
 
     fp_exp #(
         .IN_EXP_WIDTH(EXP_IN_EXP_WIDTH),
@@ -68,6 +95,19 @@ module fp_cp_exp #(
         .signed_mant_in(signed_mant_in),
         .signed_exp_out(exp_out_exp),
         .signed_mant_out(exp_out_mant)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(EXP_OUT_EXP_WIDTH + EXP_OUT_FIXED_WIDTH)
+    ) buffer_exp (
+        .clk(clk),
+        .rst(rst),
+        .data_in        ({exp_out_exp, exp_out_mant}),
+        .data_in_valid  (p1_partition_valid),
+        .data_in_ready  (p1_partition_ready),
+        .data_out       ({p2_signed_exp_out, p2_signed_mant_out}),
+        .data_out_valid (p2_exp_out_valid),
+        .data_out_ready (p2_exp_out_ready)
     );
 
     fp_ieee_normalize #(
@@ -88,7 +128,20 @@ module fp_cp_exp #(
         .OUT_MANT_WIDTH(OUT_MANT_WIDTH)
     ) fp_casting (
         .data_in(normalized_data),
-        .data_out(data_out)
+        .data_out(casted_data)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(OUT_EXP_WIDTH + OUT_MANT_WIDTH + 1)
+    ) buffer_normalise_cast (
+        .clk(clk),
+        .rst(rst),
+        .data_in(casted_data),
+        .data_in_valid(p2_exp_out_valid),
+        .data_in_ready(p2_exp_out_ready),
+        .data_out(data_out),
+        .data_out_valid(data_out_valid),
+        .data_out_ready(data_out_ready)
     );
 endmodule
 

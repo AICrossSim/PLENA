@@ -24,7 +24,7 @@ from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from quant.quant_operations.exp import fp_exp_hardware
 
 logger = logging.getLogger("testbench")
-logger_level = logging.INFO
+logger_level = logging.DEBUG
 logger.setLevel(logger_level)
 
 src_path = Path(__file__).parent.parent.parent
@@ -40,7 +40,7 @@ class FPExpTB(CombinationalTestbench):
             "in_exp_width": self.dut.IN_EXP_WIDTH.value,
             "in_fix_width": self.dut.IN_FIX_WIDTH.value,
             "in_fix_frac_width": self.dut.IN_FIX_FRAC_WIDTH.value,
-            "extend_exp_width": self.dut.EXTEND_WIDTH.value,
+            "extend_width": self.dut.EXTEND_WIDTH.value,
             "out_exp_width": self.dut.OUT_EXP_WIDTH.value,
             "out_fix_width": self.dut.OUT_FIX_WIDTH.value,
             "out_fix_frac_width": self.dut.OUT_FIX_FRAC_WIDTH.value,
@@ -67,10 +67,10 @@ class FPExpTB(CombinationalTestbench):
         }
     
     def check_output(self, expected_output, hardware_output):
-        self.log.debug(f"----------------{self.dut}---------")
+        self.log.debug(f"----------{self.dut}---------")
         from cfl_tools.debugger import get_dut_attributes
-        # get_dut_attributes(self.dut, self.log, 'signed_integer')
-        get_dut_attributes(self.dut, self.log)
+        get_dut_attributes(self.dut, self.log, 'signed_integer')
+        # get_dut_attributes(self.dut, self.log)
         self.log.debug(f"expected_output: {expected_output}, hardware_output: {int(hardware_output.signed_integer)}")
         get_dut_attributes(self.dut.taylor_series_expansion_inst, self.log, 'integer')
         

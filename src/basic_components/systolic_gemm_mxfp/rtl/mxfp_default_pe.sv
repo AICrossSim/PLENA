@@ -117,28 +117,22 @@ module mxfp_default_pe #(
         .EXP_WIDTH_B    (MXFP_L_EXP_WIDTH),
         .MANT_WIDTH_B   (MXFP_L_MANT_WIDTH)
     ) element_mult (
-        .data_a (reg_top_element),
-        .data_b (reg_left_element),
-        .data_out(block_mult_result)
-    );
-
-    assign scale_sum_result = reg_top_scale + reg_left_scale - SCALE_BIAS;
-
-    skid_buffer #(
-        .DATA_WIDTH(MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1)
-    ) buffer_block_mult (
         .clk(clk),
         .rst(rst),
-        .data_in        (block_mult_result),
         .data_in_valid  (block_mult_in_valid),
         .data_in_ready  (block_mult_in_ready),
-        .data_out       (reg_block_mul),
+        .data_a         (reg_top_element),
+        .data_b         (reg_left_element),
+        .data_out       (block_mult_result),
         .data_out_valid (block_mult_out_valid),
         .data_out_ready (block_mult_out_ready)
     );
 
-    skid_buffer #(
-        .DATA_WIDTH(MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1)
+    assign scale_sum_result = reg_top_scale + reg_left_scale - SCALE_BIAS;
+
+    fifo #(
+        .DATA_WIDTH(MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1),
+        .DEPTH(3)
     ) buffer_scale_sum (
         .clk(clk),
         .rst(rst),
@@ -197,7 +191,7 @@ module mxfp_default_pe #(
 
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result;
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
-    logic acc_valid;
+    logic acc_result_valid, acc_result_ready;
 
     fp_cp_adder_v2 #(
         .MANT_WIDTH(ACC_FP_MANT_WIDTH),
@@ -205,18 +199,24 @@ module mxfp_default_pe #(
         .EXT_MANT_WIDTH(0),
         .EXT_EXP_WIDTH(0)
     ) acc_adder (
-        .data_a     (stored_result),
-        .data_b     (rescaled_result),
-        .data_out   (acc_result)
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (shifted_result_valid),
+        .data_in_ready  (shifted_result_ready),
+        .data_a         (stored_result),
+        .data_b         (rescaled_result),
+        .data_out       (acc_result),
+        .data_out_valid (acc_result_valid),
+        .data_out_ready (acc_result_ready)
     );
 
-    assign shifted_result_ready = 1'b1; // Always ready to accept shifted result / TODO: Might need to change this
+    assign acc_result_ready = 1'b1; // Always ready to accept acc result / TODO: Might need to change this
 
     always_ff @(posedge clk) begin
         if (rst) begin
             stored_result <= 'b0;
         end else begin
-            if (shifted_result_valid) begin
+            if (acc_result_valid) begin
                 stored_result <= acc_result;
             end
             if (out_result_ready) begin 

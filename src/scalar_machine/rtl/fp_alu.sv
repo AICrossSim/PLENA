@@ -48,7 +48,7 @@ always_ff @(posedge clk) begin
         end
 
         default: begin
-            data_out    <= {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
+            data_out    <= {(EXP_WIDTH + MANT_WIDTH + 1){1'b0}}; // Default case to avoid latches
         end
     endcase
 

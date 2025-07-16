@@ -304,6 +304,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     logic recorded_prefetch_precision; // 0 for high precision, 1 for low precision
     
     assign continuous_write_to_v_sram_port_b = continuous_v_prefetch_en;
+    assign v_sram_mask_b = {VLEN{1'b1}};
     always_comb begin
         // Port A Addr Mangement
          if (continuous_load_v_for_matrix_en) begin
@@ -323,7 +324,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         end
 
         // Port B Addr Mangement
-        v_sram_mask_b = {VLEN{1'b1}};
+        
         if (continuous_v_prefetch_en) begin
             v_sram_addr_b = recorded_v_prefetch_addr + v_sram_prefetch_counter * VSRAM_BYTES_PER_ROW;
         end else if (continuous_write_to_hbm) begin

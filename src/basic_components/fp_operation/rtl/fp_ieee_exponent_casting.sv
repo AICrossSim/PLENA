@@ -32,17 +32,49 @@ module fp_ieee_exponent_casting #(
     // lower bound = 1 - OUT_BIAS + IN_BIAS
     // upper bound = 2**(OUT_EXP_WIDTH) - 1 - OUT_BIAS + IN_BIAS
     localparam EXP_UPPER_BOUND = 2**(OUT_EXP_WIDTH) - 2 - OUT_BIAS + IN_BIAS;
-    localparam EXP_LOWER_BOUND = 1 - OUT_BIAS + IN_BIAS;
+    localparam EXP_LOWER_BOUND = 0 - OUT_BIAS + IN_BIAS;
 
     logic [IN_EXP_WIDTH - 1:0] in_exp;
     logic [OUT_EXP_WIDTH - 1:0] out_exp;
 
+    logic [IN_EXP_WIDTH - 1:0] exp_difference;
+    logic [MANT_WIDTH+2:0] mantissa;
+    logic [MANT_WIDTH+2:0] mantissa_shifted;
+    logic [MANT_WIDTH-1:0] mantissa_rounded;
+    logic round_up;
+
     assign in_exp = data_in[IN_EXP_WIDTH + MANT_WIDTH - 1:MANT_WIDTH];
     assign out_exp = in_exp - SHIFT_EXP;
 
+    assign exp_difference = EXP_LOWER_BOUND - in_exp;
+    assign mantissa = in_exp != 0 ? {1'b1, data_in[MANT_WIDTH - 1:0], 2'd0} : {1'b0, data_in[MANT_WIDTH - 1:0], 2'd0};
+
+    bit_width_aware_right_shift #(
+        .IN_WIDTH(MANT_WIDTH + 3),
+        .OUT_WIDTH(MANT_WIDTH + 3),
+        .SHIFT_WIDTH(IN_EXP_WIDTH)
+    ) bit_width_aware_right_shift_inst (
+        .in_data(mantissa),
+        .shift_amt(exp_difference),
+        .out_data(mantissa_shifted)
+    );
+
+    round_to_nearest_even #(
+        .IN_WIDTH(MANT_WIDTH + 2),
+        .OUT_WIDTH(MANT_WIDTH)
+    ) round_to_nearest_even_inst (
+        .data_in(mantissa_shifted[MANT_WIDTH+1:0]),
+        .data_out(mantissa_rounded)
+    );
+
+    assign round_up = mantissa[MANT_WIDTH+1] && (|mantissa_rounded[MANT_WIDTH:0]);
+
     always_comb begin
         if (in_exp < EXP_LOWER_BOUND) begin
-            data_out = {1'b0, {OUT_EXP_WIDTH{1'b0}}, {MANT_WIDTH{1'b0}}};
+            data_out = {1'b0, {OUT_EXP_WIDTH{1'b0}}, mantissa_rounded};
+        end
+        else if (in_exp == EXP_LOWER_BOUND) begin
+            data_out = round_up ? {1'b0, {OUT_EXP_WIDTH-1{1'b0}}, 1'b1, {MANT_WIDTH{1'b0}}} : {1'b0, {OUT_EXP_WIDTH{1'b0}}, {MANT_WIDTH{1'b1}}};
         end
         else if (in_exp > EXP_UPPER_BOUND) begin
             data_out = {data_in[IN_EXP_WIDTH + MANT_WIDTH], {(OUT_EXP_WIDTH-1){1'b1}}, 1'b0, {MANT_WIDTH{1'b1}}};

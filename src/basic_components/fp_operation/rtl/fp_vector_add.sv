@@ -3,7 +3,7 @@
 Module      : Floating Point Configurable Precision Adder (With Sign)
 Timing      : Combinatorial Logic
 Description : Add two FP numbers with different exponents and signs.
-Status      : Not tested yet
+Status      : Not used
 */
 module fp_vector_add #(
     parameter   VEC_DIM     = 8,

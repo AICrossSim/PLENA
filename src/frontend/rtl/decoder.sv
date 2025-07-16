@@ -523,6 +523,7 @@ always_ff @(posedge clk) begin
         endcase
     end else begin
         assigned_fixed_op <= STALL_S_FIXED;
+        decode_stage_op   <= decode_stage_op;
     end 
 end
 
