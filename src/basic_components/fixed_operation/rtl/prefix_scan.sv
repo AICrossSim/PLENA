@@ -4,12 +4,13 @@ module prefix_scan#(
 )
 (
 	input  logic clk,
-	input  logic [WIDTH-1:0] in [N-1:0],
-	output logic [WIDTH-1:0] out [N-1:0],
+	input  logic [WIDTH-1:0] vin [N-1:0],
+	output logic [WIDTH-1:0] vout [N-1:0],
 	input  logic in_ready,
 	output logic out_ready
 );
 	localparam LOGN = $clog2(N);
+	//more memory needed for intermediate storage than naive implementation
 	logic [WIDTH-1:0] temp [LOGN:0][N-1:0];
 	logic [$clog2(LOGN+1):0] stage;
 	logic processing;
@@ -18,7 +19,7 @@ module prefix_scan#(
 	always_ff @(posedge clk) begin
 		if (in_ready && !processing) begin
 			for (int i = 0; i < N; i++) begin
-				temp[0][i] <= in[i];
+				temp[0][i] <= vin[i];
 			end
 			stage <= 1;
 			processing <= 1;
@@ -40,7 +41,7 @@ module prefix_scan#(
 
 		if (done) begin
 			for (int i = 0; i < N; i++) begin
-				out[i] <= temp[LOGN][i];
+				vout[i] <= temp[LOGN][i];
 			end
 			out_ready <= 1;
 			processing <= 0;
