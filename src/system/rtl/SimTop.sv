@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
-`include "global_define.vh"
 `include "configuration.svh"
 `include "tl_pkg.svh"
+`define SIMULATION
 
 /*
 Module      : Sim Top Module

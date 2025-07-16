@@ -1,11 +1,13 @@
 from assembler.parser import load_isa_definitions, load_isa_settings, parse_asm_file
+
+from utils.load_config import load_svh_settings
 import torch
 from cfl_tools import PROJECT_PATH
 from pathlib import Path
 import argparse
 
 class AssemblyToBinary:
-    def __init__(self, isa_definition_file: str ):
+    def __init__(self, isa_definition_file: str, config_file: str):
         """
         Initialize the Assembler with the ISA file.
 
@@ -13,7 +15,7 @@ class AssemblyToBinary:
         """
         self.isa_definitions = load_isa_definitions(isa_definition_file)
         self.isa_definition_file = isa_definition_file
-        config_settings = load_isa_settings(isa_definition_file)
+        config_settings = load_svh_settings(config_file)
         self.opcode_width = config_settings.get("OPCODE_WIDTH", 0)
         self.operands_width = config_settings.get("OPERAND_WIDTH", 0)
         self.imm_width = config_settings.get("IMM_WIDTH", 0)
@@ -72,7 +74,7 @@ class AssemblyToBinary:
             for instruction in binary_instructions:
                 file.write(f"0x{instruction:04X}\n")
     
-    def generate_binary(self, asm_file: str, output_file: str | Path):
+    def generate_binary(self, asm_file: str, output_file: str):
         """
         Generate binary instructions from the assembled instructions.
         """
@@ -86,3 +88,4 @@ class AssemblyToBinary:
         self.write_binary_to_file(binary_instructions, output_file)
         return binary_instructions
     
+

@@ -48,7 +48,6 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
         with open(os.path.join(directory, "hbm_scale.mem"), "w") as f:
             f.write("")
 
-
     with open(os.path.join(directory, "hbm_ele.mem"), "a") as f:
         insert_block_row = ""
         combined_blk = ""
@@ -64,6 +63,11 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
                 f.write("0x" + insert_block_row + "\n")
                 insert_block_row = ""
                 index_in_row = 0
+        if 0 < index_in_row < num_blocks_per_row:
+            # If the last row is not full, pad it with zeros
+            insert_block_row = "0" * (num_blocks_per_row - index_in_row) * (element_width // 4) + insert_block_row
+            f.write("0x" + insert_block_row + "\n")
+
     # Save Bias to HBM file            
     with open(os.path.join(directory, "hbm_scale.mem"), "a") as f:
         insert_bias_row = ""

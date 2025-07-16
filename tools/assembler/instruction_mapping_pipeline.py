@@ -13,10 +13,11 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def instruction_mapping_pipeline(blocks, bias, test_path: str, quant_config):
+def instruction_mapping_pipeline(blocks, bias, test_path: str, data_config, quant_config):
 
     torch.manual_seed(52)
     isa_file_path = PROJECT_PATH / 'src' / 'definitions' / 'operation.svh'
+    config_file_path = PROJECT_PATH / 'src' / 'definitions' / 'configuration.svh'
     asm_file_path = test_path
 
     build_folder = PROJECT_PATH/ 'test' /Path(asm_file_path).parent.stem / 'build'
@@ -24,7 +25,7 @@ def instruction_mapping_pipeline(blocks, bias, test_path: str, quant_config):
     build_folder = build_folder / f'{test_file_name}'
     build_folder.mkdir(parents=True, exist_ok=True)
 
-    assembler = AssemblyToBinary(str(isa_file_path))
+    assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
     assembler.generate_binary(asm_file_path, build_folder / f'{test_file_name}.mem')
 
     filename = "test_projection_data.pt"
@@ -32,10 +33,10 @@ def instruction_mapping_pipeline(blocks, bias, test_path: str, quant_config):
     
     map_data_to_fake_hbm(   blocks=blocks,
                             element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
-                            block_width=(quant_config["exp_width"] + quant_config["man_width"] + 1) * 4,
+                            block_width=data_config["block_size"][1],
                             bias=bias,
                             bias_width=quant_config["exp_bias_width"],
-                            combined_blk_dim = 2,
+                            combined_blk_dim = data_config["tensor_size"][1]//data_config["block_size"][1],
                             directory=build_folder,
                             append=False,
                             hbm_row_width=256)
