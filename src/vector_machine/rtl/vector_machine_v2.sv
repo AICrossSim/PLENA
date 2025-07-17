@@ -311,17 +311,19 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         TODO: add other non linear function result selection here.
     */
 
-
     assign element_v_out_ready = v_out_ready;
     always_comb begin
         if (
-            pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == ADD_V_ELEMENT ||
-            pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == SUB_V_ELEMENT ||
-            pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == MUL_V_ELEMENT
+            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
+            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == SUB_V_ELEMENT
         ) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
-            stored_result_waddr     = pipeline_compute_track[VECTOR_BASIC_CYCLES-1].waddr;
+            stored_result_waddr     = pipeline_compute_track[VECTOR_ADD_CYCLES-1].waddr;
+        end else if (pipeline_compute_track[VECTOR_MUL_CYCLES - 1].ele_op  == MUL_V_ELEMENT) begin
+            result_v_out            = element_v_out;
+            compute_result_valid    = element_v_out_valid;
+            stored_result_waddr     = pipeline_compute_track[VECTOR_MUL_CYCLES-1].waddr;
         end else if (pipeline_compute_track[0].ele_op == LD_V_ELEMENT) begin
             result_v_out            = prepared_v_b;
             compute_result_valid    = v_port_b_valid;
@@ -331,16 +333,13 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             compute_result_valid    = 1'b0;
             stored_result_waddr     = 'b0;
         end
-        if (rst) begin
-            v_wreq      = 1'b0;
+
+        if (compute_result_valid)begin
+            v_wreq  = 1'b1;
+            v_waddr = stored_result_waddr;
         end else begin
-            if (compute_result_valid)begin
-                v_wreq  = 1'b1;
-                v_waddr = stored_result_waddr;
-            end else begin
-                v_wreq  = 1'b0;
-                v_waddr = 'b0;
-            end
+            v_wreq  = 1'b0;
+            v_waddr = 'b0;
         end
     end
 
