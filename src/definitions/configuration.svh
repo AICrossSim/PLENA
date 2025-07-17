@@ -7,10 +7,10 @@ import precision_pkg::*;
 
 package configuration_pkg;
     // Compute Unit Related 
-    parameter   BLEN = 4;
-    parameter   MLEN = 8;
+    parameter   BLEN = 16;
+    parameter   MLEN = 32;
     parameter   Matrix_Parallel_Rd_Dim = 1;
-    parameter   VLEN = 8;
+    parameter   VLEN = MLEN;
     parameter   INST_BUFF_DEPTH = 8;
     parameter   ON_CHIP_ADDR_WIDTH = 32;
     parameter   HBM_ADDR_WIDTH = 64;

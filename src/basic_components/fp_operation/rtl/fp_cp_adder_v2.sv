@@ -129,19 +129,20 @@ module fp_cp_adder_v2 #(
         .OUT_FIX_WIDTH      (ADDER_OUT_FIXED_WIDTH),
         .OUT_FIX_FRAC_WIDTH (ADDER_OUT_FIXED_FRAC_WIDTH)
     ) fp_adder_inst (
+        .clk(clk),
+        .rst(rst),
+        .a_in_valid(p1_partition_a_valid),
+        .a_in_ready(p1_partition_a_ready),
         .exp_a      (p1_signed_exp_a),
         .mant_a     (p1_signed_mant_a),
+        .b_in_valid(p1_partition_b_valid),
+        .b_in_ready(p1_partition_b_ready),
         .exp_b      (p1_signed_exp_b),
         .mant_b     (p1_signed_mant_b),
+        .out_valid  (p1_add_valid),
+        .out_ready  (p1_add_ready),
         .exp_out    (signed_exp_out),
         .mant_out   (signed_mant_out)
-    );
-
-    join2 #() join_mult_result (
-        .data_in_valid({p1_partition_a_valid, p1_partition_b_valid}),
-        .data_in_ready({p1_partition_a_ready, p1_partition_b_ready}),
-        .data_out_valid(p1_add_valid),
-        .data_out_ready(p1_add_ready)
     );
     
     skid_buffer #(
