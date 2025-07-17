@@ -7,32 +7,32 @@ import precision_pkg::*;
 
 package configuration_pkg;
     // Compute Unit Related 
-    parameter   BLEN = 16;
-    parameter   MLEN = 32;
+    parameter   BLEN = 32;
+    parameter   MLEN = 128;
     parameter   Matrix_Parallel_Rd_Dim = 1;
     parameter   VLEN = MLEN;
-    parameter   INST_BUFF_DEPTH = 8;
+    parameter   INST_BUFF_DEPTH = 16;
     parameter   ON_CHIP_ADDR_WIDTH = 32;
-    parameter   HBM_ADDR_WIDTH = 64;
+    parameter   HBM_ADDR_WIDTH = 128;
     parameter   SourceWidth = 1;
     parameter   SinkWidth = 1;
-    parameter   MATRIX_ACC_ADR_DEPTH = 8; // Not suggested to change this parameter.
+    parameter   MATRIX_ACC_ADR_DEPTH = 8;
     // Memory Related
     parameter   MATRIX_SRAM_WIDTH = (precision_pkg::WT_MXFP_MANT_WIDTH + precision_pkg::WT_MXFP_EXP_WIDTH + 1 + precision_pkg::MXFP_SCALE_WIDTH) * MLEN;
-    parameter   MATRIX_SRAM_DEPTH = 128;
+    parameter   MATRIX_SRAM_DEPTH = 256;
     parameter   VECTOR_SRAM_WIDTH = (precision_pkg::V_FP_MANT_WIDTH + precision_pkg::V_FP_EXP_WIDTH + 1) * VLEN;
-    parameter   VECTOR_SRAM_DEPTH = 128;
+    parameter   VECTOR_SRAM_DEPTH = 256;
     parameter   VECTOR_RESET_AMOUNT = 8;            // Need to be the same as Head_Dim for assembly code.
     parameter   INT_SRAM_WIDTH  = precision_pkg::INT_DATA_WIDTH;
     parameter   INT_SRAM_DEPTH = 32;
     parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
     parameter   FP_SRAM_DEPTH = 32;
     // HBM Related
-    parameter   HBM_M_Prefetch_Amount = 8;
-    parameter   HBM_V_Prefetch_Amount = 8;
-    parameter   HBM_V_Writeback_Amount = 8;
-    parameter   HBM_ELE_WIDTH = 256;
-    parameter   HBM_SCALE_WIDTH = 256;
+    parameter   HBM_M_Prefetch_Amount = 16;
+    parameter   HBM_V_Prefetch_Amount = 16;
+    parameter   HBM_V_Writeback_Amount = 16;
+    parameter   HBM_ELE_WIDTH = 512;
+    parameter   HBM_SCALE_WIDTH = 512;
 endpackage
 
 package instruction_pkg;
