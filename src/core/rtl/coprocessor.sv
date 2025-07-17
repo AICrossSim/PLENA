@@ -113,8 +113,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [INT_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
-    logic [VLEN-1:0]                [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]                    v_high_element_port_b_out;
-    logic [VLEN-1:0]                [WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH:0]                      v_low_element_port_b_out;
+    logic [VLEN-1:0]                [WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH:0]                      v_high_element_port_b_out;
+    logic [VLEN-1:0]                [KV_MXFP_MANT_WIDTH + KV_MXFP_EXP_WIDTH:0]                      v_low_element_port_b_out;
     logic [V_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                          v_scale_port_b_out;
     logic [MLEN-1:0]                [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]                    v_element_port_a_out;
     logic [M_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                          v_scale_port_a_out;
@@ -378,10 +378,12 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Vector SRAM
     fp_vector_sram #(
-        .ACT_MXFP_EXP_WIDTH    (ACT_MXFP_EXP_WIDTH),
-        .ACT_MXFP_MANT_WIDTH   (ACT_MXFP_MANT_WIDTH),
-        .WT_MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
-        .WT_MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
+        .ACT_MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
+        .ACT_MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
+        .WT_MXFP_EXP_WIDTH      (WT_MXFP_EXP_WIDTH),
+        .WT_MXFP_MANT_WIDTH     (WT_MXFP_MANT_WIDTH),
+        .KV_MXFP_EXP_WIDTH      (KV_MXFP_EXP_WIDTH),
+        .KV_MXFP_MANT_WIDTH     (KV_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
         .EXP_WIDTH              (V_FP_EXP_WIDTH),
         .MANT_WIDTH             (V_FP_MANT_WIDTH),

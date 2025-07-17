@@ -7,8 +7,8 @@ import precision_pkg::*;
 
 package configuration_pkg;
     // Compute Unit Related 
-    parameter   BLEN = 32;
-    parameter   MLEN = 128;
+    parameter   BLEN = 4;
+    parameter   MLEN = 8;
     parameter   Matrix_Parallel_Rd_Dim = 1;
     parameter   VLEN = MLEN;
     parameter   INST_BUFF_DEPTH = 16;
@@ -31,7 +31,7 @@ package configuration_pkg;
     parameter   HBM_M_Prefetch_Amount = 16;
     parameter   HBM_V_Prefetch_Amount = 16;
     parameter   HBM_V_Writeback_Amount = 16;
-    parameter   HBM_ELE_WIDTH = 512;
+    parameter   HBM_ELE_WIDTH   = 512;
     parameter   HBM_SCALE_WIDTH = 512;
 endpackage
 

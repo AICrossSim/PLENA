@@ -174,7 +174,7 @@ module double_precision_hbm_controller #(
     );
 
     tl_adapter #(
-        .HostDataWidth      (HIGH_ELE_WIDTH),
+        .HostDataWidth      (LOW_ELE_WIDTH),
         .DeviceDataWidth    (HBM_ELE_WIDTH),
         .AddrWidth          (HBM_ADDR_WIDTH),
         .SourceWidth        (SourceWidth),

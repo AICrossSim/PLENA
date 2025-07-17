@@ -11,10 +11,10 @@ Description :
 package precision_pkg;
     parameter   ACT_MXFP_MANT_WIDTH = 7;
     parameter   ACT_MXFP_EXP_WIDTH = 8;
-    parameter   KV_MXFP_MANT_WIDTH = 8;
-    parameter   KV_MXFP_EXP_WIDTH = 4;
-    parameter   WT_MXFP_MANT_WIDTH = 1;
-    parameter   WT_MXFP_EXP_WIDTH = 2;
+    parameter   KV_MXFP_MANT_WIDTH = 1;
+    parameter   KV_MXFP_EXP_WIDTH = 2;
+    parameter   WT_MXFP_MANT_WIDTH = 3;
+    parameter   WT_MXFP_EXP_WIDTH = 4;
     parameter   MXFP_SCALE_WIDTH = 8;
     parameter   BLOCK_DIM = 4;
     parameter   V_FP_EXP_WIDTH = 7;
