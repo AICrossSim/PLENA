@@ -26,9 +26,13 @@ from pathlib import Path
 from cfl_cocotb.fp_generation import FpGenerator
 from cfl_cocotb import SRC_PATH
 
-# parser = argparse.ArgumentParser(description="Greet someone.")
-# parser.add_argument("--benchmark", type=str, default="general")
-# args = parser.parse_args()
+from assembler.instruction_mapping_pipeline import instruction_mapping_pipeline, parse_args
+from cfl_tools import PROJECT_PATH
+from pathlib import Path
+from assembler.memory_mapping.rand_gen import RandomTensorGenerator
+from utils.load_config import load_svh_settings
+from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+from quant.quantizer.hardware_quantizer.minifloat import _minifloat_ieee_quantize_hardware
 
 import torch
 logger = logging.getLogger("testbench")
@@ -36,8 +40,6 @@ logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
 testcase_name = "matrix"
-
-
 INSTRUCTION_LENGTH = 16
 
 class SimTOP(Testbench):
@@ -59,6 +61,49 @@ class SimTOP(Testbench):
         )
 
     def generate_inputs(self):
+        precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
+        asm_file_name = os.environ["ASM_FILE"]
+        asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{asm_file_name}.asm")
+        data_config = {
+            "tensor_size": [1, 8],
+            "block_size": [1, 4],
+        }
+
+        quant_config = {
+                "exp_width": precision_settings["ACT_MXFP_EXP_WIDTH"],
+                "man_width": precision_settings["ACT_MXFP_MANT_WIDTH"],
+                "exp_bias_width": precision_settings["MXFP_SCALE_WIDTH"],
+                "block_size": data_config["block_size"],
+                "skip_first_dim": False,
+            }
+
+        rand_gen_high = RandomTensorGenerator(
+            shape=tuple(data_config["tensor_size"]),
+            directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
+            filename="test_projection_data.pt",
+            quant_config=quant_config
+        )
+        
+        # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
+        rand_gen_high.tensor_gen()
+        data = rand_gen_high.tensor_load()
+        qdata, _, _, _ = _mx_fp_quantize_hardware(
+            data, 
+            width=precision_settings["ACT_MXFP_EXP_WIDTH"] + precision_settings["ACT_MXFP_MANT_WIDTH"] + 1, 
+            exponent_width=precision_settings["ACT_MXFP_EXP_WIDTH"], 
+            exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
+            block_size=data_config["block_size"])
+
+        self.qdata, _, _ = _minifloat_ieee_quantize_hardware(
+            qdata, 
+            width=precision_settings["V_FP_EXP_WIDTH"] + precision_settings["V_FP_MANT_WIDTH"] + 1, 
+            exponent_width=precision_settings["V_FP_EXP_WIDTH"])
+
+
+        blocks, bias = rand_gen_high.quantize_tensor(data)
+        
+        instruction_mapping_pipeline(
+            blocks, bias, asm_file, data_config, quant_config)
         inputs = []
         with open(self.instr_file, 'r') as file:
             for line in file:
@@ -86,27 +131,23 @@ class SimTOP(Testbench):
                 logger.info(f"Instruction ready: {self.dut.instruction.value}")
 
 
+
     async def check_vector_sram(self):
-        def log_fp_data_with_handshake(valid, ready, data, exp_width, mant_width, log, name):
-            if valid == 1 and ready == 1:
-                _list = []
-                self.log.debug(f"{name}: {data}")
-                # Convert string of 128 values into 8 16-bit elements
-                if (len(data) == 128):
-                    for i in range(0, 128, 16):
-                        chunk = data[i:i+15]
-                        _list.append(chunk.integer)
-                else:
-                    raise ValueError(f"Data length is not 128 bits: {len(data)}")
-                from cfl_cocotb.torch_fp_conversion import bin_2_fp
-                torch_list = []
-                for item in _list:
-                    torch_fp = bin_2_fp(item, exp_width, mant_width)
-                    torch_list.append(torch_fp)
-                log.debug(f"Vector SRAM fp_out: {torch_list}")
-                return torch_list
+        def log_fp_data_with_handshake(data, exp_width, mant_width):
+            _list = []
+            # Convert string of 128 values into 8 16-bit elements
+            if (len(data) == 128):
+                for i in range(0, 128, 16):
+                    chunk = data[i:i+15]
+                    _list.append(chunk.integer)
             else:
-                return torch.tensor([])
+                raise ValueError(f"Data length is not 128 bits: {len(data)}")
+            from cfl_cocotb.torch_fp_conversion import bin_2_fp
+            torch_list = []
+            for item in _list:
+                torch_fp = bin_2_fp(item, exp_width, mant_width)
+                torch_list.append(torch_fp)
+            return torch_list
 
         while True:
             await RisingEdge(self.dut.clk)
@@ -131,21 +172,24 @@ class SimTOP(Testbench):
                 isa = isa_definitions_reverse[int(instruction)]
                 self.log.debug(f"Instruction: {instruction} {isa}")
                 
-
             element_v_control = self.dut.dut.vector_machine_init.element_v_control.value
             self.log.debug(f"element_v_control: {element_v_control}")
             
             # if self.dut.dut.v_sram_req_b.value == 1 and self.dut.dut.v_sram_wen_b.value == 1:
             #     self.log.debug(f"Vector SRAM write: {vector_out_data}")
 
-            lut_list = log_fp_data_with_handshake(
-                vector_out_valid, vector_out_ready, vector_out_data, 7, 8, self.log, "Vector Out")
-
-            a_list = log_fp_data_with_handshake(
-                vector_a_valid, vector_a_ready, vector_a_data, 7, 8, self.log, "Vector A")
-
-            b_list = log_fp_data_with_handshake(
-                vector_b_valid, vector_b_ready, vector_b_data, 7, 8, self.log, "Vector B")
+            if vector_out_valid == 1 and vector_out_ready == 1:
+                lut_list = log_fp_data_with_handshake(vector_out_data, 7, 8)
+                self.log.debug(f"Vector Core fp_out: {lut_list}")
+            
+            if vector_a_valid == 1 and vector_a_ready == 1:
+                a_list = log_fp_data_with_handshake(vector_a_data, 7, 8)
+                self.log.debug(f"Vector Core fp_a: {a_list}")
+                breakpoint()
+            
+            if vector_b_valid == 1 and vector_b_ready == 1:
+                b_list = log_fp_data_with_handshake(vector_b_data, 7, 8)
+                self.log.debug(f"Vector SRAM fp_b: {b_list}")
 
 @cocotb.test()
 async def test(dut):
@@ -203,46 +247,13 @@ def SimToP_test():
             }
         ],
         trace = True,
-        skip_build = False,
+        skip_build = True,
     )
 
 def init_mem():
-    global hbm_element_file, hbm_scale_file, instr_file
-    
-    from assembler.instruction_mapping_pipeline import instruction_mapping_pipeline, parse_args
-    from cfl_tools import PROJECT_PATH
-    from pathlib import Path
-    from assembler.memory_mapping.rand_gen import RandomTensorGenerator
-    from utils.load_config import load_svh_settings
-    precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
-    
     args = parse_args()
-    data_config = {
-        "tensor_size": [8, 8],
-        "block_size": [1, 4],
-    }
+    asm_file = Path(args.path).stem
 
-    quant_config = {
-            "exp_width": precision_settings["ACT_MXFP_EXP_WIDTH"],
-            "man_width": precision_settings["ACT_MXFP_MANT_WIDTH"],
-            "exp_bias_width": precision_settings["MXFP_SCALE_WIDTH"],
-            "block_size": data_config["block_size"],
-            "skip_first_dim": False,
-        }
-
-    rand_gen_high = RandomTensorGenerator(
-        shape=tuple(data_config["tensor_size"]),
-        directory=PROJECT_PATH / "test" / Path(args.path).parent.stem / "build",
-        filename="test_projection_data.pt",
-        quant_config=quant_config
-    )
-    
-    # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
-    rand_gen_high.tensor_gen()
-    data = rand_gen_high.tensor_load()
-    blocks, bias = rand_gen_high.quantize_tensor(data)
-    
-    instruction_mapping_pipeline(blocks, bias, args.path, data_config, quant_config)
     build_path = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem
     hbm_element_file = build_path / "hbm_ele.mem"
     hbm_scale_file = build_path / "hbm_scale.mem"
@@ -280,6 +291,7 @@ def init_mem():
     os.environ["FAKE_HBM_ELEMENT_WRITE_V_FILE"] = str(hbm_write_element_v_file)
     os.environ["FAKE_HBM_SCALE_WRITE_M_FILE"] = str(hbm_write_scale_m_file)
     os.environ["FAKE_HBM_SCALE_WRITE_V_FILE"] = str(hbm_write_scale_v_file)
+    os.environ["ASM_FILE"] = str(asm_file)
 
 if __name__ == "__main__":
     init_mem()

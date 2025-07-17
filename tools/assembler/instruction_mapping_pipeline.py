@@ -28,7 +28,6 @@ def instruction_mapping_pipeline(blocks, bias, test_path: str, data_config, quan
     assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
     assembler.generate_binary(asm_file_path, build_folder / f'{test_file_name}.mem')
 
-    filename = "test_projection_data.pt"
     torch.manual_seed(52)
     
     map_data_to_fake_hbm(   blocks=blocks,
