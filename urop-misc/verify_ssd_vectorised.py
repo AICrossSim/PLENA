@@ -1,6 +1,9 @@
 import torch
 from einops import rearrange # <--- Add this line!
 import torch.nn.functional as F
+
+# test commit
+
 def check_tensor(tensor, name, step_info=""):
     if torch.isnan(tensor).any():
         print(f"!!! NaN detected in {name} {step_info}!!!")
