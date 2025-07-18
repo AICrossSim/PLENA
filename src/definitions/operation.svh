@@ -18,7 +18,6 @@ typedef struct {
     logic [1:0] w_from_m; // 2'b00: No write, 2'b01: write for M_MM_WO (MLEN, MLEN), 2'b10: write for M_MV_WO (MLEN, 1)
 } MEM_WEN_INFO;
 
-
 typedef struct {
     logic wreq_m_sram;
     logic wreq_s_sram_port_a;
@@ -95,16 +94,18 @@ typedef enum logic [2:0] {
 
 typedef enum logic [3:0] {
     STALL_H         = 4'h0,
-    PREFETCH_M_C    = 4'h1,
-    PREFETCH_M_S    = 4'h2,
-    PREFETCH_V_H_C  = 4'h3,
-    PREFETCH_V_H_S  = 4'h4,
-    PREFETCH_V_L_C  = 4'h5,
-    PREFETCH_V_L_S  = 4'h6,
-    STORE_V_H_C     = 4'h7,
-    STORE_V_H_S     = 4'h8,
-    STORE_V_L_C     = 4'h9,
-    STORE_V_L_S     = 4'hA
+    PREFETCH_M_H_C  = 4'h1,
+    PREFETCH_M_H_S  = 4'h2,
+    PREFETCH_M_L_C  = 4'h3,
+    PREFETCH_M_L_S  = 4'h4,
+    PREFETCH_V_H_C  = 4'h5,
+    PREFETCH_V_H_S  = 4'h6,
+    PREFETCH_V_L_C  = 4'h7,
+    PREFETCH_V_L_S  = 4'h8,
+    STORE_V_H_C     = 4'h9,
+    STORE_V_H_S     = 4'hA,
+    STORE_V_L_C     = 4'hB,
+    STORE_V_L_S     = 4'hC
 } H_OP;
 
 function automatic int max(input int a, input int b);
@@ -114,72 +115,74 @@ endfunction
 
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Invalid
-    INVALID_OPCODE        = 6'h00,
+    INVALID_OPCODE         = 6'h00,
 
     // Matrix Operations
-    M_MM_IC               = 6'h01,
-    M_MM_PS               = 6'h02,
-    M_MM_WO               = 6'h03,
-    M_TMM_IC              = 6'h04,
-    M_TMM_PS              = 6'h05,
-    M_MV_IC               = 6'h06,
-    M_MV_WO               = 6'h07,
-    M_TMV_IC              = 6'h08,
+    M_MM_IC                = 6'h01,
+    M_MM_PS                = 6'h02,
+    M_MM_WO                = 6'h03,
+    M_TMM_IC               = 6'h04,
+    M_TMM_PS               = 6'h05,
+    M_MV_IC                = 6'h06,
+    M_MV_WO                = 6'h07,
+    M_TMV_IC               = 6'h08,
 
     // Vector Operations
-    V_ADD_VV              = 6'h09,
-    V_ADD_VF              = 6'h0A,
-    V_SUB_VV              = 6'h0B,
-    V_SUB_VF              = 6'h0C,
-    V_MUL_VV              = 6'h0D,
-    V_MUL_VF              = 6'h0E,
-    V_EXP_VV              = 6'h0F,
-    V_LD_F                = 6'h10,
-    V_RED_SUM             = 6'h11,
-    V_RED_MAX             = 6'h12,
-    V_RESET_SRAM          = 6'h13,
+    V_ADD_VV               = 6'h09,
+    V_ADD_VF               = 6'h0A,
+    V_SUB_VV               = 6'h0B,
+    V_SUB_VF               = 6'h0C,
+    V_MUL_VV               = 6'h0D,
+    V_MUL_VF               = 6'h0E,
+    V_EXP_VV               = 6'h0F,
+    V_LD_F                 = 6'h10,
+    V_RED_SUM              = 6'h11,
+    V_RED_MAX              = 6'h12,
+    V_RESET_SRAM           = 6'h13,
 
     // Scalar Operations (Floating-Point)
-    S_ADD_FP              = 6'h14,
-    S_SUB_FP              = 6'h15,
-    S_MAX_FP              = 6'h16,
-    S_MUL_FP              = 6'h17,
-    S_EXP_FP              = 6'h18,
-    S_RECI_FP             = 6'h19,
-    S_SQRT_FP             = 6'h1A,
-    S_MV_FP               = 6'h1B,
-    S_LD_FP               = 6'h1C,
-    S_ST_FP               = 6'h1D,
-    S_MAP_V_FP            = 6'h1E,
+    S_ADD_FP               = 6'h14,
+    S_SUB_FP               = 6'h15,
+    S_MAX_FP               = 6'h16,
+    S_MUL_FP               = 6'h17,
+    S_EXP_FP               = 6'h18,
+    S_RECI_FP              = 6'h19,
+    S_SQRT_FP              = 6'h1A,
+    S_MV_FP                = 6'h1B,
+    S_LD_FP                = 6'h1C,
+    S_ST_FP                = 6'h1D,
+    S_MAP_V_FP             = 6'h1E,
 
     // Scalar Operations (Fixed-Point)
-    S_ADD_FIX             = 6'h1F,
-    S_ADDI_FIX            = 6'h20,
-    S_SUB_FIX             = 6'h21,
-    S_MUL_FIX             = 6'h22,
-    S_LUI_FIX             = 6'h23,
-    S_MV_FIX              = 6'h24,
-    S_ACC_MULI            = 6'h25,
-    S_LD_FIX              = 6'h26,
-    S_ST_FIX              = 6'h27,
+    S_ADD_FIX              = 6'h1F,
+    S_ADDI_FIX             = 6'h20,
+    S_SUB_FIX              = 6'h21,
+    S_MUL_FIX              = 6'h22,
+    S_LUI_FIX              = 6'h23,
+    S_MV_FIX               = 6'h24,
+    S_ACC_MULI             = 6'h25,
+    S_LD_FIX               = 6'h26,
+    S_ST_FIX               = 6'h27,
 
     // Memory Operations
-    H_PREFETCH_M_C        = 6'h28,
-    H_PREFETCH_M_S        = 6'h29,
-    H_PREFETCH_V_H_C      = 6'h2A,
-    H_PREFETCH_V_H_S      = 6'h2B,
-    H_PREFETCH_V_L_C      = 6'h2C,
-    H_PREFETCH_V_L_S      = 6'h2D,
-    H_STORE_V_H_C         = 6'h2E,
-    H_STORE_V_H_S         = 6'h2F,
-    H_STORE_V_L_C         = 6'h30,
-    H_STORE_V_L_S         = 6'h31,
+    H_PREFETCH_M_H_C       = 6'h28,
+    H_PREFETCH_M_H_S       = 6'h29,
+    H_PREFETCH_M_L_C       = 6'h2A,
+    H_PREFETCH_M_L_S       = 6'h2B,
+    H_PREFETCH_V_H_C       = 6'h2C,
+    H_PREFETCH_V_H_S       = 6'h2D,
+    H_PREFETCH_V_L_C       = 6'h2E,
+    H_PREFETCH_V_L_S       = 6'h2F,
+    H_STORE_V_H_C          = 6'h30,
+    H_STORE_V_H_S          = 6'h31,
+    H_STORE_V_L_C          = 6'h32,
+    H_STORE_V_L_S          = 6'h33,
 
     // CSR Setting
-    C_SET_ADDR_REG        = 6'h32,
-    C_SET_LUT             = 6'h33,
-    C_SET_STRIDE_REG      = 6'h34,
-    C_SET_SCALE_REG       = 6'h35
+    C_SET_ADDR_REG         = 6'h34,
+    C_SET_LUT              = 6'h35,
+    C_SET_STRIDE_REG       = 6'h36,
+    C_SET_SCALE_REG        = 6'h37
 } CUSTOM_ISA_OPCODE;
 
 

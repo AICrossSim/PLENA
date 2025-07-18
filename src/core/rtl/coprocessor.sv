@@ -73,7 +73,7 @@ module coprocessor import configuration_pkg::*; #(
     // HBM Control
     logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
     logic hbm_v_prefetch_valid, hbm_v_prefetch_en;
-    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]        prefetch_m_element;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]          prefetch_m_element;
     logic [M_BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                         prefetch_m_scale;
     logic hbm_ready_to_write;
     logic hbm_m_prefetch_in_progress, hbm_v_prefetch_in_progress;
@@ -87,7 +87,6 @@ module coprocessor import configuration_pkg::*; #(
     // Scalar Machine Control
     logic [IMM_WIDTH - 1 : 0] s_imm;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
-
     logic v_write_request;
     logic [1:0] m_write_request;
 
@@ -133,7 +132,6 @@ module coprocessor import configuration_pkg::*; #(
     logic s_map_v_valid, s_map_v_ready;
 
     
-
     // -----------------------------
     // Dataflow & Execution Control
     // -----------------------------
@@ -370,7 +368,7 @@ module coprocessor import configuration_pkg::*; #(
         .element_in         (prefetch_m_element),
         .scale_in           (prefetch_m_scale),
         .prefetch_addr      (exe_stage_op.addr_2),
-        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M_C),
+        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M_H_C),
         .data_not_ready     (m_prefetch_data_not_ready)
     );
 
@@ -455,25 +453,25 @@ module coprocessor import configuration_pkg::*; #(
         .exe_stage_op                           (exe_stage_op),
         .prefetch_m_ready                       (hbm_m_req_prefetch_data),
         .prefetch_m_valid                       (hbm_m_prefetch_valid),
-        .prefetch_m_element                     (prefetch_m_element),
+        .prefetch_m_element                     (prefetch_m_high_precision_element),
         .prefetch_m_scale                       (prefetch_m_scale),
         .prefetch_v_ready                       (hbm_v_req_prefetch_data),
         .prefetch_v_valid                       (hbm_v_prefetch_valid),
         .prefetch_v_high_precision_element      (v_high_precision_element_port_b_in),
         .prefetch_v_low_precision_element       (v_low_precision_element_port_b_in),
-        .prefetch_v_scale       (v_scale_port_b_in),
-        .hbm_write_high_valid   (v_port_b_high_out_valid),
-        .hbm_write_low_valid    (v_port_b_low_out_valid),
-        .hbm_write_ready        (hbm_ready_to_write),
-        .hbm_write_high_element (v_high_element_port_b_out),
-        .hbm_write_low_element  (v_low_element_port_b_out),
-        .hbm_write_scale        (v_scale_port_b_out),
-        .prefetch_m_in_progress (hbm_m_prefetch_in_progress),
-        .prefetch_v_in_progress (hbm_v_prefetch_in_progress),
-        `TL_CONNECT_HOST_PORT   (host_m_element, m_element),
-        `TL_CONNECT_HOST_PORT   (host_m_scale, m_scale),
-        `TL_CONNECT_HOST_PORT   (host_v_element, v_element),
-        `TL_CONNECT_HOST_PORT   (host_v_scale, v_scale)
+        .prefetch_v_scale                       (v_scale_port_b_in),
+        .hbm_write_high_valid                   (v_port_b_high_out_valid),
+        .hbm_write_low_valid                    (v_port_b_low_out_valid),
+        .hbm_write_ready                        (hbm_ready_to_write),
+        .hbm_write_high_element                 (v_high_element_port_b_out),
+        .hbm_write_low_element                  (v_low_element_port_b_out),
+        .hbm_write_scale                        (v_scale_port_b_out),
+        .prefetch_m_in_progress                 (hbm_m_prefetch_in_progress),
+        .prefetch_v_in_progress                 (hbm_v_prefetch_in_progress),
+        `TL_CONNECT_HOST_PORT                   (host_m_element, m_element),
+        `TL_CONNECT_HOST_PORT                   (host_m_scale, m_scale),
+        `TL_CONNECT_HOST_PORT                   (host_v_element, v_element),
+        `TL_CONNECT_HOST_PORT                   (host_v_scale, v_scale)
     );
 
 endmodule

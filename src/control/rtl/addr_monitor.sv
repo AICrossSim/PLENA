@@ -143,7 +143,7 @@ module addr_monitor#(
     // Decide which source is providing the address this cycle
     always_comb begin
         if (exe_stage_op.h_op == PREFETCH_V_H_C) begin
-            // Note, PREFETCH_M_C does not need to be monitored as it cannot be directly written.
+            // Note, PREFETCH_M_H_C does not need to be monitored as it cannot be directly written.
             insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else if (exe_stage_op.update_m_waddr) begin

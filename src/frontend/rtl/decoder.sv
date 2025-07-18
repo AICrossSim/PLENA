@@ -43,7 +43,8 @@ module decoder #(
 logic   stall_for_read_rd;
 logic   [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic   read_instr_from_fifo, decode_instr_valid;
-assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & decode_instr_valid & !fixed_op_stall_flag;
+assign  read_instr_from_fifo = !pipeline_stall & !stall_for_read_rd & !fixed_op_stall_flag;
+
 logic   p1_pipeline_stall, recover_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_FIXED_OP      exe_fixed_op;
@@ -107,7 +108,7 @@ always_comb begin
         end
 
         // Memory Operations
-        H_PREFETCH_M_C, H_PREFETCH_M_S, H_PREFETCH_V_H_C, H_PREFETCH_V_H_S, H_STORE_V_H_C, H_STORE_V_H_S: begin
+        H_PREFETCH_M_H_C, H_PREFETCH_M_H_S, H_PREFETCH_M_L_C, H_PREFETCH_M_L_S, H_PREFETCH_V_H_C, H_PREFETCH_V_H_S, H_STORE_V_H_C, H_STORE_V_H_S: begin
             decode_instruction_type = H;
         end
 
@@ -123,7 +124,7 @@ always_comb begin
     endcase
 end
 
-assign decode_instr_info = read_instr_from_fifo ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
+assign decode_instr_info = (read_instr_from_fifo & decode_instr_valid) ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rd: loaded_rd, imm: loaded_imm, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rd: '0, imm: '0, instruction_type: INVALID_TYPE};
 
 
 // Decoding
@@ -469,12 +470,18 @@ always_ff @(posedge clk) begin
                 decode_stage_op.s_fp_op         <= STALL_S_FP;
                 assigned_fixed_op               <= PASS_ADDR_2;
                 decode_stage_op.c_op            <= STALL_C;
-                decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_C)      ? PREFETCH_M_C    :
-                                            (decode_instr_info.opcode == H_PREFETCH_M_S)      ? PREFETCH_M_S    :
+                decode_stage_op.h_op <=     (decode_instr_info.opcode == H_PREFETCH_M_H_C)      ? PREFETCH_M_H_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_M_H_S)      ? PREFETCH_M_H_S    :
+                                            (decode_instr_info.opcode == H_PREFETCH_M_L_C)      ? PREFETCH_M_L_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_M_L_S)      ? PREFETCH_M_L_S    :
                                             (decode_instr_info.opcode == H_PREFETCH_V_H_C)      ? PREFETCH_V_H_C    :
                                             (decode_instr_info.opcode == H_PREFETCH_V_H_S)      ? PREFETCH_V_H_S    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_L_C)      ? PREFETCH_V_L_C    :
+                                            (decode_instr_info.opcode == H_PREFETCH_V_L_S)      ? PREFETCH_V_L_S    :
                                             (decode_instr_info.opcode == H_STORE_V_H_C)         ? STORE_V_H_C       : 
-                                            (decode_instr_info.opcode == H_STORE_V_H_S)         ? STORE_V_H_S       : STALL_H;
+                                            (decode_instr_info.opcode == H_STORE_V_H_S)         ? STORE_V_H_S       : 
+                                            (decode_instr_info.opcode == H_STORE_V_L_C)         ? STORE_V_L_C       :
+                                            (decode_instr_info.opcode == H_STORE_V_L_S)         ? STORE_V_L_S       : STALL_H;
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;
