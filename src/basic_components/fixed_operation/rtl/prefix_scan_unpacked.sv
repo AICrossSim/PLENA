@@ -1,11 +1,11 @@
-module prefix_scan#(
+module prefix_scan_unpacked#(
 	parameter N = 8, //N must be a power of 2
 	parameter WIDTH = 32
 )
 (
 	input  logic clk,
-	input  logic  vin [WIDTH-1:0] [N-1:0],
-	output logic  vout [WIDTH-1:0] [N-1:0],
+	input  logic vin [WIDTH-1:0][N-1:0],
+	output logic vout [WIDTH-1:0][N-1:0],
 	input  logic in_ready,
 	output logic out_ready
 );
@@ -19,8 +19,9 @@ module prefix_scan#(
 	always_ff @(posedge clk) begin
 		if (in_ready && !processing) begin
 			for (int i = 0; i < N; i++) begin
-				for (int j = 0; j <WIDTH; j++) begin
-					temp[0][i][j] <= vin[j][i];
+				// Access each bit of each element separately
+				for (int w = 0; w < WIDTH; w++) begin
+					temp[0][i][w] <= vin[w][i];
 				end
 			end
 			stage <= 1;
@@ -43,8 +44,9 @@ module prefix_scan#(
 
 		if (done) begin
 			for (int i = 0; i < N; i++) begin
-				for(int j = 0; j <WIDTH; j++) begin
-					vout[j][i] <= temp[LOGN][i][j];
+				// Copy each bit to output array
+				for (int w = 0; w < WIDTH; w++) begin
+					vout[w][i] <= temp[LOGN][i][w];
 				end
 			end
 			out_ready <= 1;
@@ -54,3 +56,4 @@ module prefix_scan#(
 		end
 	end
 endmodule
+
