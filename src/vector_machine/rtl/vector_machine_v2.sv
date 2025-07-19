@@ -316,7 +316,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     always_comb begin
         if (
             pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
-            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == SUB_V_ELEMENT ||
+            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == SUB_V_ELEMENT
         ) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
