@@ -7,8 +7,8 @@ import precision_pkg::*;
 
 package configuration_pkg;
     // Compute Unit Related 
-    parameter   BLEN = 8;
-    parameter   MLEN = 16;
+    parameter   BLEN = 4;
+    parameter   MLEN = 8;
     parameter   Matrix_Parallel_Rd_Dim = 1;
     parameter   VLEN = MLEN;
     parameter   INST_BUFF_DEPTH = 8;

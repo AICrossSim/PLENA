@@ -101,7 +101,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Vector
     logic v_v_a_valid,      v_v_a_ready;
     logic v_v_b_valid,      v_v_b_ready;
-    logic v_v_out_valid,    v_v_out_ready;
+    logic v_v_out_ready;
     logic v_s_in_valid,     v_s_in_ready;
     logic v_s_out_valid,    v_s_out_ready;
 
@@ -223,7 +223,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .v_v_a_ready                (v_v_a_ready),
         .v_v_b_valid                (v_v_b_valid),
         .v_v_b_ready                (v_v_b_ready),
-        .v_v_out_valid              (v_v_out_valid),
         .v_v_out_ready              (v_v_out_ready),
         .v_s_in_valid               (v_s_in_valid),
         .v_s_in_ready               (v_s_in_ready),
@@ -300,7 +299,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .result_waddr           (exe_stage_op.addr_2),
             .result_waddr_update    (exe_stage_op.update_v_waddr),
             .v_out                  (v_out_fp),
-            .v_out_valid            (v_v_out_valid),
             .v_out_ready            (v_v_out_ready),
             .v_waddr                (v_waddr),
             .v_wreq                 (v_write_request),

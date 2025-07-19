@@ -47,7 +47,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     input   logic result_waddr_update,
 
     output  logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]                 v_out,
-    output  logic                                                                   v_out_valid,
     input   logic                                                                   v_out_ready,
 
     output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
