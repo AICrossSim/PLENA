@@ -402,7 +402,6 @@ module taylor_series_expansion #(
   // Sum all terms
   logic [OUT_WIDTH - 1:0] sum_result;
   assign sum_result = TERM_0 + p3_element_1 + p3_element_2 + p3_element_3;
-  assign data_out = sum_result;
 
   skid_buffer #(
     .DATA_WIDTH(OUT_WIDTH)

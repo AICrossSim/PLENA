@@ -58,7 +58,7 @@ package pipeline_pkg;
     parameter   MATRIX_W_OFFSET_CYCLES         = 8;
     parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
     parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 10;
-    parameter   VECTOR_ADD_CYCLES              = 4;
+    parameter   VECTOR_ADD_CYCLES              = 5;
     parameter   VECTOR_MUL_CYCLES              = 5;
     parameter   VECTOR_EXP_CYCLES              = 5;
     parameter   VECTOR_RECI_CYCLES             = 4;

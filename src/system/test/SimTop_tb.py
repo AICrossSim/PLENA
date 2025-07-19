@@ -156,7 +156,6 @@ class SimTOP(Testbench):
 
         while True:
             await RisingEdge(self.dut.clk)
-            vector_out_valid = self.dut.dut.vector_machine_init.v_out_valid.value
             vector_out_ready = self.dut.dut.vector_machine_init.v_out_ready.value
             vector_out_data = self.dut.dut.vector_machine_init.v_out.value
 
@@ -182,9 +181,9 @@ class SimTOP(Testbench):
             if element_v_control.value == 1:
                 data = log_fp_data_with_handshake(self.dut.dut.v_high_precision_element_port_b_in.value, 7, 8)
             
-            if vector_out_valid == 1 and vector_out_ready == 1:
-                lut_list = log_fp_data_with_handshake(vector_out_data, 7, 8)
-                self.log.debug(f"Vector Core fp_out: {lut_list}")
+            # if vector_out_valid == 1 and vector_out_ready == 1:
+            #     lut_list = log_fp_data_with_handshake(vector_out_data, 7, 8)
+            #     self.log.debug(f"Vector Core fp_out: {lut_list}")
             
             if vector_a_valid == 1 and vector_a_ready == 1:
                 a_list = log_fp_data_with_handshake(vector_a_data, 7, 8)
