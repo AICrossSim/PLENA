@@ -87,12 +87,12 @@ def bin_2_fp(bits: Union[int, BitArray, torch.Tensor, list], exp_width: int, man
         results = []
         for bit_val in bits:
             exp_val, mant_val = split_bin(bit_val, exp_width, mant_width)
-            results.append(mant_val)
+            results.append(mant_val * 2**exp_val)
         return results
     else:
         # Handle single int or BitArray
         exp_val, mant_val = split_bin(bits, exp_width, mant_width)
-        return mant_val
+        return mant_val * 2**exp_val
 
 def fp_2_bin(fp: Union[torch.Tensor, float, list], exp_width: int, mant_width: int):
     fp = torch.tensor(fp)
