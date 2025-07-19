@@ -104,7 +104,7 @@ always_comb begin
         end
 
         // Vector Operations
-        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_VV, V_LD_F, V_RED_SUM, V_RED_MAX, V_RESET_SRAM : begin
+        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_LD_F, V_RED_SUM, V_RED_MAX, V_RESET_SRAM : begin
             decode_instruction_type = V;
         end
 
@@ -268,7 +268,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op <=     (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
                                                 (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
                                                 (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_EXP_VV)                                         ? EXP_V_ELEMENT : 
+                                                (decode_instr_info.opcode == V_EXP_V)                                         ? EXP_V_ELEMENT : 
                                                 (decode_instr_info.opcode == V_LD_F)                                           ? LD_V_ELEMENT  : 
                                                 (decode_instr_info.opcode == V_RESET_SRAM)                                     ? RESET_V       : STALL_V_ELEMENT;
 

@@ -52,7 +52,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
+        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
                 (rd << opw) +

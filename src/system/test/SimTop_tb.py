@@ -37,13 +37,14 @@ from cfl_cocotb.torch_fp_conversion import bin_2_fp
 
 import torch
 from cfl_tools.logger import get_logger
+from cfl_tools.debugger import set_excepthook
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
 testcase_name = "matrix"
 INSTRUCTION_LENGTH = 16
-
+set_excepthook()
 class SimTOP(Testbench):
     def __init__(self, dut, element_file, scale_file, instr_file) -> None:
         super().__init__(dut, dut.clk, dut.rst)

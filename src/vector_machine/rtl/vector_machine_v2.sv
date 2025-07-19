@@ -316,7 +316,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     always_comb begin
         if (
             pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
-            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == SUB_V_ELEMENT
+            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == SUB_V_ELEMENT ||
         ) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
@@ -325,6 +325,10 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_MUL_CYCLES-1].waddr;
+        and else if (pipeline_compute_track[VECTOR_EXP_CYCLES - 1].ele_op == EXP_V_ELEMENT) begin
+            result_v_out            = element_v_out;
+            compute_result_valid    = element_v_out_valid;
+            stored_result_waddr     = pipeline_compute_track[VECTOR_EXP_CYCLES-1].waddr;
         end else if (pipeline_compute_track[0].ele_op == LD_V_ELEMENT) begin
             result_v_out            = prepared_v_b;
             compute_result_valid    = v_port_b_valid;
