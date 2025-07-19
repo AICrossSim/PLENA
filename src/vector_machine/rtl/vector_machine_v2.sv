@@ -47,7 +47,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     input   logic result_waddr_update,
 
     output  logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]                 v_out,
-    output  logic                                                                   v_out_valid,
     input   logic                                                                   v_out_ready,
 
     output  logic [ADDR_WIDTH - 1: 0]                                               v_waddr,   
@@ -325,10 +324,14 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_MUL_CYCLES-1].waddr;
-        and else if (pipeline_compute_track[VECTOR_EXP_CYCLES - 1].ele_op == EXP_V_ELEMENT) begin
+        end else if (pipeline_compute_track[VECTOR_EXP_CYCLES - 1].ele_op == EXP_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_EXP_CYCLES-1].waddr;
+        end else if (pipeline_compute_track[VECTOR_RECI_CYCLES - 1].ele_op == RECI_V_ELEMENT) begin
+            result_v_out            = element_v_out;
+            compute_result_valid    = element_v_out_valid;
+            stored_result_waddr     = pipeline_compute_track[VECTOR_RECI_CYCLES-1].waddr;
         end else if (pipeline_compute_track[0].ele_op == LD_V_ELEMENT) begin
             result_v_out            = prepared_v_b;
             compute_result_valid    = v_port_b_valid;

@@ -45,7 +45,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     input   logic                                 hbm_write_low_valid,
     output  logic                                 hbm_write_ready,
 
-    input   logic   [VLEN-1:0] [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]         hbm_write_high_element,
+    input   logic   [VLEN-1:0] [WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH:0]           hbm_write_high_element,
     input   logic   [VLEN-1:0] [KV_MXFP_MANT_WIDTH + KV_MXFP_EXP_WIDTH:0]           hbm_write_low_element,
     input   logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                         hbm_write_scale,
 
@@ -254,6 +254,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .BLOCK_DIM                  (BLOCK_DIM),
         .DATA_DIM                   (MLEN),
         .HBM_ADDR_WIDTH             (HBM_ADDR_WIDTH),
+        .ON_CHIP_ADDR_WIDTH         (ON_CHIP_ADDR_WIDTH),
         .HBM_ELE_WIDTH              (HBM_ELE_WIDTH),
         .HBM_SCALE_WIDTH            (HBM_SCALE_WIDTH),
         .SourceWidth                (SourceWidth),
@@ -274,6 +275,12 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .prefetch_scale_data_ready          (prefetch_m_scale_ready),
         .hbm_prefetch_en                    (m_hbm_prefetch_en),
         .hbm_raddr                          (hbm_addr_out),
+        .hbm_write_en                       (hbm_write_high_valid),
+        .hbm_write_ready                    (hbm_write_high_ready),
+        .write_high_precision_element       (hbm_write_high_element),
+        .write_low_precision_element        (hbm_write_low_element),
+        .write_scale                        (hbm_write_scale),
+        .hbm_waddr                          (recorded_hbm_waddr_out),
         `TL_CONNECT_HOST_PORT(host_element, m_tl_element),
         `TL_CONNECT_HOST_PORT(host_scale, m_tl_scale)
     );
@@ -350,6 +357,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .BLOCK_DIM                  (BLOCK_DIM),
         .DATA_DIM                   (VLEN),
         .HBM_ADDR_WIDTH             (HBM_ADDR_WIDTH),
+        .ON_CHIP_ADDR_WIDTH         (ON_CHIP_ADDR_WIDTH),
         .HBM_ELE_WIDTH              (HBM_ELE_WIDTH),
         .HBM_SCALE_WIDTH            (HBM_SCALE_WIDTH),
         .SourceWidth                (SourceWidth),
@@ -371,12 +379,6 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .prefetch_scale_data_ready          (prefetch_v_scale_ready),
         .hbm_prefetch_en                    (v_hbm_prefetch_en),
         .hbm_raddr                          (hbm_addr_out),
-        .hbm_write_en                       (hbm_write_high_valid),
-        .hbm_write_ready                    (hbm_write_high_ready),
-        .write_high_precision_element       (hbm_write_high_element),
-        .write_low_precision_element        (hbm_write_low_element),
-        .write_scale                        (hbm_write_scale),
-        .hbm_waddr                          (recorded_hbm_waddr_out),
         `TL_CONNECT_HOST_PORT(host_element, v_tl_element),
         `TL_CONNECT_HOST_PORT(host_scale,   v_tl_scale)
     );

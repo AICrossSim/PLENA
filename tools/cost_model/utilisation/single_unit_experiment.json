@@ -21,10 +21,10 @@
     },
     "Testcase 2": {
         "Config" : {
-            "MLEN" : 32,
+            "MLEN" : 16,
             "BLEN" : 16,
-            "WT_MXFP_MANT_WIDTH": 1,
-            "WT_MXFP_EXP_WIDTH": 2,
+            "WT_MXFP_MANT_WIDTH": 3,
+            "WT_MXFP_EXP_WIDTH": 4,
             "ACT_MXFP_MANT_WIDTH": 7,
             "ACT_MXFP_EXP_WIDTH": 8,
             "MXFP_SCALE_WIDTH": 8,
@@ -40,8 +40,8 @@
     },
     "Testcase 3": {
         "Config" : {
-            "MLEN" : 128,
-            "BLEN" : 32,
+            "MLEN" : 32,
+            "BLEN" : 8,
             "WT_MXFP_MANT_WIDTH": 1,
             "WT_MXFP_EXP_WIDTH": 2,
             "ACT_MXFP_MANT_WIDTH": 7,
@@ -59,10 +59,10 @@
     },
     "Testcase 4": {
         "Config" : {
-            "MLEN" : 256,
-            "BLEN" : 64,
-            "WT_MXFP_MANT_WIDTH": 3,
-            "WT_MXFP_EXP_WIDTH": 4,
+            "MLEN" : 128,
+            "BLEN" : 32,
+            "WT_MXFP_MANT_WIDTH": 1,
+            "WT_MXFP_EXP_WIDTH": 2,
             "ACT_MXFP_MANT_WIDTH": 1,
             "ACT_MXFP_EXP_WIDTH": 2,
             "MXFP_SCALE_WIDTH": 16,
@@ -120,8 +120,8 @@
 "ScalarMachine": {
     "Testcase 1": {
         "Config" : {
-            "S_FP_EXP_WIDTH" : 7,
-            "S_FP_MANT_WIDTH" : 8,
+            "V_FP_EXP_WIDTH" : 7,
+            "V_FP_MANT_WIDTH" : 8,
             "INT_DATA_WIDTH" : 32
             },
         "ExperimentResults": {
@@ -130,8 +130,8 @@
     },
     "Testcase 2": {
         "Config" : {
-            "S_FP_EXP_WIDTH" : 3,
-            "S_FP_MANT_WIDTH" : 4,
+            "V_FP_EXP_WIDTH" : 3,
+            "V_FP_MANT_WIDTH" : 4,
             "INT_DATA_WIDTH" : 16
             },
         "ExperimentResults": {
@@ -140,8 +140,8 @@
     },
     "Testcase 3": {
         "Config" : {
-            "S_FP_EXP_WIDTH" : 6,
-            "S_FP_MANT_WIDTH" : 5,
+            "V_FP_EXP_WIDTH" : 6,
+            "V_FP_MANT_WIDTH" : 5,
             "INT_DATA_WIDTH" : 8
             },
         "ExperimentResults": {

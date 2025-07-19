@@ -67,10 +67,10 @@ module fp_cp_adder_v2 #(
     split_n #(
         .N(2)
     ) split_mult_signal (
-        .data_in_valid(data_in_valid),
-        .data_in_ready(data_in_ready),
-        .data_out_valid({partition_a_valid, partition_b_valid}),
-        .data_out_ready({partition_a_ready, partition_b_ready})
+        .data_in_valid  (data_in_valid),
+        .data_in_ready  (data_in_ready),
+        .data_out_valid ({partition_a_valid, partition_b_valid}),
+        .data_out_ready ({partition_a_ready, partition_b_ready})
     );
 
     // Instantiate fp_ieee_partition for data_a
@@ -78,9 +78,9 @@ module fp_cp_adder_v2 #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
     ) partition_a (
-        .data_in(data_a),
-        .signed_exp(signed_exp_a),
-        .signed_mant(signed_mant_a)
+        .data_in        (data_a),
+        .signed_exp     (signed_exp_a),
+        .signed_mant    (signed_mant_a)
     );
 
     skid_buffer #(
@@ -88,12 +88,12 @@ module fp_cp_adder_v2 #(
     ) buffer_partition_a (
         .clk(clk),
         .rst(rst),
-        .data_in({signed_exp_a, signed_mant_a}),
-        .data_in_valid(partition_a_valid),
-        .data_in_ready(partition_a_ready),
-        .data_out({p1_signed_exp_a, p1_signed_mant_a}),
-        .data_out_valid(p1_partition_a_valid),
-        .data_out_ready(p1_partition_a_ready)
+        .data_in        ({signed_exp_a, signed_mant_a}),
+        .data_in_valid  (partition_a_valid),
+        .data_in_ready  (partition_a_ready),
+        .data_out       ({p1_signed_exp_a, p1_signed_mant_a}),
+        .data_out_valid (p1_partition_a_valid),
+        .data_out_ready (p1_partition_a_ready)
     );
 
 
@@ -102,9 +102,9 @@ module fp_cp_adder_v2 #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
     ) partition_b (
-        .data_in(data_b),
-        .signed_exp(signed_exp_b),
-        .signed_mant(signed_mant_b)
+        .data_in        (data_b),
+        .signed_exp     (signed_exp_b),
+        .signed_mant    (signed_mant_b)
     );
 
     skid_buffer #(
@@ -112,12 +112,12 @@ module fp_cp_adder_v2 #(
     ) buffer_partition_b (
         .clk(clk),
         .rst(rst),
-        .data_in({signed_exp_b, signed_mant_b}),
-        .data_in_valid(partition_b_valid),
-        .data_in_ready(partition_b_ready),
-        .data_out({p1_signed_exp_b, p1_signed_mant_b}),
-        .data_out_valid(p1_partition_b_valid),
-        .data_out_ready(p1_partition_b_ready)
+        .data_in        ({signed_exp_b, signed_mant_b}),
+        .data_in_valid  (partition_b_valid),
+        .data_in_ready  (partition_b_ready),
+        .data_out       ({p1_signed_exp_b, p1_signed_mant_b}),
+        .data_out_valid (p1_partition_b_valid),
+        .data_out_ready (p1_partition_b_ready)
     );
 
     // Instantiate fp_adder
@@ -129,19 +129,20 @@ module fp_cp_adder_v2 #(
         .OUT_FIX_WIDTH      (ADDER_OUT_FIXED_WIDTH),
         .OUT_FIX_FRAC_WIDTH (ADDER_OUT_FIXED_FRAC_WIDTH)
     ) fp_adder_inst (
+        .clk(clk),
+        .rst(rst),
+        .a_in_valid (p1_partition_a_valid),
+        .a_in_ready (p1_partition_a_ready),
         .exp_a      (p1_signed_exp_a),
         .mant_a     (p1_signed_mant_a),
+        .b_in_valid (p1_partition_b_valid),
+        .b_in_ready (p1_partition_b_ready),
         .exp_b      (p1_signed_exp_b),
         .mant_b     (p1_signed_mant_b),
+        .out_valid  (p1_add_valid),
+        .out_ready  (p1_add_ready),
         .exp_out    (signed_exp_out),
         .mant_out   (signed_mant_out)
-    );
-
-    join2 #() join_mult_result (
-        .data_in_valid({p1_partition_a_valid, p1_partition_b_valid}),
-        .data_in_ready({p1_partition_a_ready, p1_partition_b_ready}),
-        .data_out_valid(p1_add_valid),
-        .data_out_ready(p1_add_ready)
     );
     
     skid_buffer #(

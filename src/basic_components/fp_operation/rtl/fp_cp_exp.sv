@@ -49,6 +49,7 @@ module fp_cp_exp #(
     logic signed [IN_EXP_WIDTH - 1:0]       p1_signed_exp_in;
     logic signed [IN_MANT_WIDTH + 2 - 1:0]  p1_signed_mant_in;
     logic p1_partition_valid, p1_partition_ready;
+    logic p1_exp_valid, p1_exp_ready;
 
     logic signed [EXP_OUT_EXP_WIDTH - 1:0]      exp_out_exp;
     logic signed [EXP_OUT_FIXED_WIDTH - 1:0]    exp_out_mant;
@@ -91,8 +92,14 @@ module fp_cp_exp #(
         .OUT_FIX_WIDTH(EXP_OUT_FIXED_WIDTH),
         .OUT_FIX_FRAC_WIDTH(EXP_OUT_FIXED_FRAC_WIDTH)
     ) fp_exp_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid(p1_partition_valid),
+        .data_in_ready(p1_partition_ready),
         .signed_exp_in(p1_signed_exp_in),
         .signed_mant_in(p1_signed_mant_in),
+        .data_out_valid(p1_exp_valid),
+        .data_out_ready(p1_exp_ready),
         .signed_exp_out(exp_out_exp),
         .signed_mant_out(exp_out_mant)
     );
@@ -103,8 +110,8 @@ module fp_cp_exp #(
         .clk(clk),
         .rst(rst),
         .data_in        ({exp_out_exp, exp_out_mant}),
-        .data_in_valid  (p1_partition_valid),
-        .data_in_ready  (p1_partition_ready),
+        .data_in_valid  (p1_exp_valid),
+        .data_in_ready  (p1_exp_ready),
         .data_out       ({p2_exp_out_exp, p2_exp_out_mant}),
         .data_out_valid (p2_exp_out_valid),
         .data_out_ready (p2_exp_out_ready)

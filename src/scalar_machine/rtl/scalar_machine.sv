@@ -269,7 +269,7 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     //----------------------------//
-    // INt Unit
+    // INT Unit
     //----------------------------//
 
     logic [INT_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;

@@ -131,7 +131,7 @@ module mxfp_default_pe #(
     assign scale_sum_result = reg_top_scale + reg_left_scale - SCALE_BIAS;
 
     fifo #(
-        .DATA_WIDTH(MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1),
+        .DATA_WIDTH(MXFP_SCALE_WIDTH),
         .DEPTH(3)
     ) buffer_scale_sum (
         .clk(clk),
