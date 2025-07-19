@@ -18,6 +18,12 @@ module mx_fp_2_fp_unary #(
     input   logic [MXFP_SCALE_WIDTH - 1 : 0] scale_data_in,
     output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out
 );
+    assert (MXFP_SCALE_WIDTH >= FP_EXP_WIDTH)
+    else $error("MXFP_SCALE_WIDTH must be greater than or equal to FP_EXP_WIDTH");
+
+    assert (MXFP_MANT_WIDTH <= FP_MANT_WIDTH)
+    else $error("MXFP_MANT_WIDTH must be less than or equal to FP_MANT_WIDTH");
+
     localparam MXFP_FIX_WIDTH = MXFP_MANT_WIDTH + 2;
     localparam MXFP_FIX_FRAC_WIDTH = MXFP_MANT_WIDTH;
     localparam SCALE_BIAS = 2**(MXFP_SCALE_WIDTH - 1) - 1;

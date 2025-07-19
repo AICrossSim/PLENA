@@ -9,7 +9,7 @@ import os
 from cocotb.triggers import Timer, RisingEdge
 from cocotb.clock import Clock
 
-from cfl_cocotb import veri_runner, MXBlockFPConverter
+from cfl_cocotb import veri_runner, MXBlockFPConverter, SRC_PATH
 
 element_exp_width = 4
 element_mant_width = 3
@@ -71,17 +71,28 @@ async def simple_random_mxfp_test(dut):
 def test_simple_pe():
     # Run tests with different params
     veri_runner(
-        group = "systolic_gemm",
-        module = "default_pe",
+        group = "systolic_gemm_mxfp",
+        module = "mxfp_default_pe",
         additional_include_paths = [
-            "../../../../src/basic_components/fp_operation",    
-            "../../../../src/basic_components/common",
-            "../../../../src/basic_components/mx_fp_operation",
-            "../../../../src/basic_components/conversion",
-            "../../../../src/basic_components/buffer"                            
+            str(SRC_PATH / "basic_components/mx_fp_operation"),
+            str(SRC_PATH / "basic_components/buffer"),
+            str(SRC_PATH / "basic_components/fp_operation"),
+            str(SRC_PATH / "basic_components/conversion"),
+            str(SRC_PATH / "basic_components/common"),
+            str(SRC_PATH / "basic_components/int_operation")
         ],
+        definitions_path = [],
         module_param_list=[
-            {"MXFP_EXP_WIDTH" : element_exp_width, "MXFP_MANT_WIDTH" : element_mant_width, "MXFP_SCALE_WIDTH" : scale_width, "ACC_FP_MANT_WIDTH" : fp_mant_width, "ACC_FP_EXP_WIDTH" : fp_exp_width},
+            {
+                "MXFP_T_EXP_WIDTH" : element_exp_width, 
+                "MXFP_T_MANT_WIDTH" : element_mant_width, 
+                "MXFP_L_EXP_WIDTH" : element_exp_width, 
+                "MXFP_L_MANT_WIDTH" : element_mant_width, 
+                "MXFP_SCALE_WIDTH" : scale_width, 
+                "ACC_FP_EXP_WIDTH" : fp_exp_width, 
+                "ACC_FP_MANT_WIDTH" : fp_mant_width, 
+                "PROD_EXT_EXP_WIDTH" : 0, 
+                "PROD_EXT_MANT_WIDTH" : 0},
         ],
         trace = True,
     )

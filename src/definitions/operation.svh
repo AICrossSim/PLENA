@@ -1,6 +1,7 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
+`include "configuration.svh"
 import configuration_pkg::*;
 import instruction_pkg::*;
 
