@@ -5,6 +5,6 @@ H_PREFETCH_V_H_C i1, i1, a1;
 
 S_LD_FP f1, i1, 0; 
 V_ADD_VF i1, i1, f1; 
-V_EXP_V i1, i1, x;
+V_EXP_V i1, i1, 0;
 S_LUI_FIX i2, 1; 
 H_STORE_V_H_C i1, i2, a2; 
