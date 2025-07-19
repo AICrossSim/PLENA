@@ -67,28 +67,25 @@ split_n #(
 
 generate;
     for (genvar i = 0; i < VLEN; i = i + 1) begin : parallel_vec_alu
-        
         fp_vector_element_alu #(
             .EXP_WIDTH(EXP_WIDTH),
             .MANT_WIDTH(MANT_WIDTH)
         ) vec_alu_inst (
             .clk(clk),
             .rst(rst),
-            .data_a_valid(split_v_in_a_valid[i]),
-            .data_a_ready(split_v_in_a_ready[i]),
-            .data_a(v_in_a[i]),
-            .data_b_valid(split_v_in_b_valid[i]),
-            .data_b_ready(split_v_in_b_ready[i]),
-            .data_b(v_in_b[i]),
-            .operation(operation),
-            .data_out(v_alu_out[i]),
-            .data_out_valid(split_result_valid[i]),
-            .data_out_ready(split_result_ready[i])
+            .data_a_valid       (split_v_in_a_valid[i]),
+            .data_a_ready       (split_v_in_a_ready[i]),
+            .data_a             (v_in_a[i]),
+            .data_b_valid       (split_v_in_b_valid[i]),
+            .data_b_ready       (split_v_in_b_ready[i]),
+            .data_b             (v_in_b[i]),
+            .operation          (operation),
+            .data_out           (v_alu_out[i]),
+            .data_out_valid     (split_result_valid[i]),
+            .data_out_ready     (split_result_ready[i])
         );
-
     end
 endgenerate
-
 
 join_n #(
     .NUM_HANDSHAKES (VLEN)
