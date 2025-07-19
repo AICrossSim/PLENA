@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 from utils import load_json
 from pathlib import Path
@@ -74,7 +75,7 @@ def hbm_capacity_requirement(
 def plot_roofline(ax, roofline_model):
     operation_intensity = np.linspace(0.1, 1000, 1000)  # Avoid log(0)
     performance = roofline_model.get_attainable_performance(operation_intensity)
-    ax.plot(operation_intensity, performance, label='Roofline', linewidth=2, color = colors[0])
+    ax.plot(operation_intensity, performance, label='Roofline', linewidth=2, linestyle='--', color = colors[0])
 
 def fc_square_performance(roofline_model, seq_len, model_config, DataWidth):
     max_batch = 0
@@ -92,7 +93,7 @@ def fc_square_performance(roofline_model, seq_len, model_config, DataWidth):
     for batch_size in range(1, roofline_model.K + 1):
         operation_intensity.append(roofline_model.K * roofline_model.operate_freq * batch_size / (roofline_model.K * 2 * 1e9))
         achieved_performance.append(min(roofline_model.K * roofline_model.operate_freq * batch_size / 1e9, operation_intensity[batch_size-1] * roofline_model.hbm_bandwidth / 1e9, hbm_capacity_bound))  # FLOPs/Byte
-    return achieved_performance, operation_intensity
+    return achieved_performance, operation_intensity, hbm_capacity_bound
 
 
 def fc_rect_sa_performance(roofline_model, seq_len, model_config, DataWidth):
@@ -109,14 +110,13 @@ def fc_rect_sa_performance(roofline_model, seq_len, model_config, DataWidth):
     for batch_size in range(1, MLEN):
         operation_intensity.append(roofline_model.K * roofline_model.operate_freq * batch_size / (roofline_model.K * 2 * 1e9))  # FLOPs/Byte
         achieved_performance.append(min(roofline_model.K * roofline_model.operate_freq * batch_size / 1e9, operation_intensity[batch_size-1] * roofline_model.hbm_bandwidth / 1e9, hbm_capacity_bound))  # GFLOPs
-    return achieved_performance, operation_intensity
+    return achieved_performance, operation_intensity, hbm_capacity_bound
     
 
 
 if __name__ == "__main__":
-
-
-
+    # matplotlib.rcParams['font.family'] = 'Times New Roman'
+    matplotlib.rcParams['font.size'] = 9
     config_parent_path  = Path(__file__).resolve().parents[2]
     print(f"Config parent path: {config_parent_path}")
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
@@ -126,20 +126,23 @@ if __name__ == "__main__":
     rect_roofline_model = RooflineMoel(operate_freq=Operate_Freq, M=BLEN, K=MLEN_RECT, data_width=DataWidth, hbm_bandwidth=HBM_Bandwidth, hbm_capacity=HBM_Capacity)
 
     # Create side-by-side subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 3), sharey=True)
 
     # --- Left subplot: Square Systolic Array ---
     ax1.set_xscale('log')
     ax1.set_yscale('log')
-    ax1.set_xlabel('Operation Intensity (FLOPs/Byte)')
+    ax1.set_xlabel('Real Operation Intensity (FLOPs/Byte)')
     ax1.set_ylabel('Performance (GFLOPs/s)')
-    ax1.set_title('Normal Systolic Array')
+    ax1.set_title('Normal Systolic Array (FP16)')
     plot_roofline(ax1, roofline_model)
-    achieved_performance, operation_intensity = fc_square_performance(roofline_model, SEQ_LENGTH_NORM, model_config, DataWidth)
-    ax1.plot(operation_intensity, achieved_performance, marker='o',  markersize=4, label='Normal Inference', linestyle='--', color = colors[1])
-    achieved_performance, operation_intensity = fc_square_performance(roofline_model, SEQ_LENGTH_REASONING, model_config, DataWidth)
-    ax1.plot(operation_intensity, achieved_performance, marker='o',  markersize=4, label='Reasoning Inference', linestyle='--', color = colors[2])
-    ax1.legend()
+    achieved_performance, operation_intensity, hbm_capacity_bound = fc_square_performance(roofline_model, SEQ_LENGTH_NORM, model_config, DataWidth)
+    ax1.plot(operation_intensity, achieved_performance, label='Normal', color = colors[1])
+    ax1.axhline(y=hbm_capacity_bound, color='grey', linestyle='--', linewidth=0.8, alpha=0.5, label='HBM Capacity Bound')
+    achieved_performance, operation_intensity, hbm_capacity_bound = fc_square_performance(roofline_model, SEQ_LENGTH_REASONING, model_config, DataWidth)
+    ax1.plot(operation_intensity, achieved_performance, label='Reasoning', color = colors[2])
+    ax1.axhline(y=hbm_capacity_bound, color='grey', linestyle='--', linewidth=0.8, alpha=0.5)
+
+    # ax1.legend()
 
     # --- Right subplot: Rectangular Systolic Array ---
     ax2.set_xscale('log')
@@ -149,14 +152,16 @@ if __name__ == "__main__":
     ax2.get_xaxis().set_minor_formatter(plt.NullFormatter())
     ax2.set_xlabel('Real Operation Intensity (FLOPs/Byte)')
     ax2.set_ylabel('Performance (GFLOPs/s)')
-    ax2.set_title('Flattened Systolic Array')
+    ax2.set_title('Flattened Systolic Array (FP16)')
     ax2.yaxis.set_tick_params(labelleft=True)
     plot_roofline(ax2, roofline_model)
-    achieved_performance, operation_intensity= fc_rect_sa_performance(rect_roofline_model, SEQ_LENGTH_NORM, model_config, DataWidth)
-    ax2.plot(operation_intensity, achieved_performance, marker='o', markersize=4, label='Normal Inference', linestyle='--', color = colors[1])
-    achieved_performance, operation_intensity= fc_rect_sa_performance(rect_roofline_model, SEQ_LENGTH_REASONING, model_config, DataWidth)
-    ax2.plot(operation_intensity, achieved_performance, marker='o', markersize=4, label='Reasoning Inference', linestyle='--', color = colors[2])
-    ax2.legend()
+    achieved_performance, operation_intensity, hbm_capacity_bound= fc_rect_sa_performance(rect_roofline_model, SEQ_LENGTH_NORM, model_config, DataWidth)
+    ax2.plot(operation_intensity, achieved_performance, label='Normal', color = colors[1])
+    ax2.axhline(y=hbm_capacity_bound, color='grey', linestyle='--', linewidth=0.8, alpha=0.5, label='HBM Capacity Bound')
+    achieved_performance, operation_intensity, hbm_capacity_bound= fc_rect_sa_performance(rect_roofline_model, SEQ_LENGTH_REASONING, model_config, DataWidth)
+    ax2.plot(operation_intensity, achieved_performance, label='Reasoning', color = colors[2])
+    ax2.axhline(y=hbm_capacity_bound, color='grey', linestyle='--', linewidth=0.8, alpha=0.5)
+
 
     plt.tight_layout()
     plt.savefig('flattened_systolic_roofline.png')
