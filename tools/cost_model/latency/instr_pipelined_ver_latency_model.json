@@ -41,7 +41,7 @@
     "V_MUL_VF": {
         "pipelined": 1
     },
-    "V_EXP_VV": {
+    "V_EXP_V": {
         "pipelined": 7
     },
     "V_LD_F": {

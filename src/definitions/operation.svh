@@ -130,7 +130,7 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_SUB_VF               = 6'h0C,
     V_MUL_VV               = 6'h0D,
     V_MUL_VF               = 6'h0E,
-    V_EXP_VV               = 6'h0F,
+    V_EXP_V                = 6'h0F,
     V_LD_F                 = 6'h10,
     V_RED_SUM              = 6'h11,
     V_RED_MAX              = 6'h12,

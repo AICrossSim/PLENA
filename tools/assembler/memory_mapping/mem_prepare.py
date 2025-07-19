@@ -38,6 +38,27 @@ class fix_sram_pre_loader:
 
 
 
+class MemPrepare:
+    '''
+    This class is used to prepare data to the target shape before running the program.
+    '''
+    def __init__(self,):
+        self.architecture_feature = architecture_feature
+        self.ml_feature = ml_feature
+        self.precision_feature = precision_feature
+        self.directory = directory
+
+    def quantize(self):
+        pass
+
+    def reshape(self):
+        pass
+
+    def reshape(self):
+        pass
+        
+        
+
 class fp_sram_pre_loader:
     pass
 
