@@ -100,6 +100,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     logic element_v_out_valid, element_v_out_ready;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]   result_v_out;
+    logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   p1_result_v_out;
     
     logic [ADDR_WIDTH-1:0] stored_result_waddr;
     logic compute_result_valid;
@@ -346,13 +347,15 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            v_out <= 'b0;
+            p1_result_v_out <= 'b0;
+            v_out           <= 'b0;
         end else begin
             if (compute_result_valid & v_out_ready) begin
-                v_out <= result_v_out;
+                p1_result_v_out <= result_v_out;
             end else begin
-                v_out <= 'b0; // Reset output when not valid
+                p1_result_v_out <= 'b0; // Reset output when not valid
             end
+            v_out <= p1_result_v_out;
         end
     end
 
