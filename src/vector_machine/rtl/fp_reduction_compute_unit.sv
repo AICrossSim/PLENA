@@ -50,9 +50,9 @@ module fp_reduction_compute_unit #(
     input   V_REDUCT_OP operation,
 
     // Output Vector
-    output  logic [OUT_WIDTH - 1 : 0] v_out,
-    output  logic v_out_valid,
-    input   logic v_out_ready
+    output  logic [OUT_WIDTH - 1 : 0] s_out,
+    output  logic s_out_valid,
+    input   logic s_out_ready
 );
 
   generate
@@ -76,22 +76,22 @@ module fp_reduction_compute_unit #(
         localparam LEVEL_OUT_WIDTH = LEVEL_OUT_MAN_WIDTH + LEVEL_OUT_EXP_WIDTH + 1;
 
         fp_vector_reduce_layer #(
-            .OVERALL_INPUT_WIDTH  (OUT_WIDTH*VEC_DIM),
-            .LAYER_DIM(LEVEL_IN_DIM),
-            .IN_MAN_WIDTH(LEVEL_IN_MAN_WIDTH),
-            .IN_EXP_WIDTH(LEVEL_IN_EXP_WIDTH),
-            .EXT_MANT_WIDTH(ACC_EXT_MANT_WIDTH),
-            .EXT_EXP_WIDTH(ACC_EXT_EXP_WIDTH)
+            .OVERALL_INPUT_WIDTH    (OUT_WIDTH*VEC_DIM),
+            .LAYER_DIM              (LEVEL_IN_DIM),
+            .IN_MAN_WIDTH           (LEVEL_IN_MAN_WIDTH),
+            .IN_EXP_WIDTH           (LEVEL_IN_EXP_WIDTH),
+            .EXT_MANT_WIDTH         (ACC_EXT_MANT_WIDTH),
+            .EXT_EXP_WIDTH          (ACC_EXT_EXP_WIDTH)
         ) vector_layer (
             .clk(clk),
             .rst(rst),
-            .operation(operation),
-            .data_in_valid(valid[i]),
-            .data_in_ready(ready[i]),
-            .data_in(data_storage[i]),
-            .data_out(sum[i]),
-            .data_out_valid(compute_valid[i]),
-            .data_out_ready(compute_ready[i])
+            .operation      (operation),
+            .data_in_valid  (valid[i]),
+            .data_in_ready  (ready[i]),
+            .data_in        (data_storage[i]),
+            .data_out       (sum[i]),
+            .data_out_valid (compute_valid[i]),
+            .data_out_ready (compute_ready[i])
         );
 
         skid_buffer #(
@@ -112,9 +112,9 @@ module fp_reduction_compute_unit #(
       assign valid[0] = v_in_valid;
       assign v_in_ready = ready[0];
 
-      assign v_out = data_storage[LEVELS][OUT_WIDTH-1:0];
-      assign v_out_valid = valid[LEVELS];
-      assign ready[LEVELS] = v_out_ready;
+      assign s_out = data_storage[LEVELS][OUT_WIDTH-1:0];
+      assign s_out_valid = valid[LEVELS];
+      assign ready[LEVELS] = s_out_ready;
 
   endgenerate
 endmodule
