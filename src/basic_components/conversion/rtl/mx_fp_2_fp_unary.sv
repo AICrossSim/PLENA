@@ -18,11 +18,13 @@ module mx_fp_2_fp_unary #(
     input   logic [MXFP_SCALE_WIDTH - 1 : 0] scale_data_in,
     output  logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] fp_out
 );
-    assert (MXFP_SCALE_WIDTH >= FP_EXP_WIDTH)
-    else $error("MXFP_SCALE_WIDTH must be greater than or equal to FP_EXP_WIDTH");
+    initial begin
+        assert (MXFP_SCALE_WIDTH >= FP_EXP_WIDTH)
+        else $error("MXFP_SCALE_WIDTH must be greater than or equal to FP_EXP_WIDTH");
 
-    assert (MXFP_MANT_WIDTH <= FP_MANT_WIDTH)
-    else $error("MXFP_MANT_WIDTH must be less than or equal to FP_MANT_WIDTH");
+        assert (MXFP_MANT_WIDTH <= FP_MANT_WIDTH)
+        else $error("MXFP_MANT_WIDTH must be less than or equal to FP_MANT_WIDTH");
+    end
 
     localparam MXFP_FIX_WIDTH = MXFP_MANT_WIDTH + 2;
     localparam MXFP_FIX_FRAC_WIDTH = MXFP_MANT_WIDTH;
@@ -59,6 +61,8 @@ module mx_fp_2_fp_unary #(
         .signed_exp     (signed_out_exp_element),
         .fp_out         (normalized_data)
     );
+
+
 
     fp_ieee_exponent_casting #(
         .IN_EXP_WIDTH       (NORMALIZE_OUT_EXP_WIDTH),

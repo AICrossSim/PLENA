@@ -11,7 +11,8 @@ from cocotb.clock import Clock
 
 from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
-from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.testbench import Testbench
+from cfl_cocotb.streaming import StreamDriver, StreamMonitor, MultiSignalStreamDriver, MultiSignalStreamMonitor
 from cfl_cocotb.fp_generation import TorchFpGenerator
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
@@ -36,8 +37,25 @@ def fp_asym_mult_hardware(
     return exp_out, mant_out
 
 
-## questions, why 
-class FPAsymMultTB(CombinationalTestbench):
+class FPAsymMultTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut)
+        self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.a_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_a, dut.mant_a), dut.a_in_valid, dut.a_in_ready
+        )
+        self.b_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_b, dut.mant_b), dut.b_in_valid, dut.b_in_ready)
+
+        self.out_monitor = MultiSignalStreamMonitor(
+            dut.clk,
+            (dut.exp_out, dut.mant_out),
+            dut.out_valid,
+            dut.out_ready,
+            check=False,
+        )
     def generate_inputs(self, num):
         config = {
             "IN_EXP_WIDTH_A" : self.dut.IN_EXP_WIDTH_A.value,
