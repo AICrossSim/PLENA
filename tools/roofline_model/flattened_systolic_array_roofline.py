@@ -116,7 +116,7 @@ def fc_rect_sa_performance(roofline_model, seq_len, model_config, DataWidth):
 
 if __name__ == "__main__":
     # matplotlib.rcParams['font.family'] = 'Times New Roman'
-    matplotlib.rcParams['font.size'] = 9
+    matplotlib.rcParams['font.size'] = 8
     config_parent_path  = Path(__file__).resolve().parents[2]
     print(f"Config parent path: {config_parent_path}")
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
@@ -131,6 +131,7 @@ if __name__ == "__main__":
     # --- Left subplot: Square Systolic Array ---
     ax1.set_xscale('log')
     ax1.set_yscale('log')
+    ax1.set_xticks([1e1, 1e2, 1e3, 1e4, 1e5])
     ax1.set_xlabel('Real Operation Intensity (FLOPs/Byte)')
     ax1.set_ylabel('Performance (GFLOPs/s)')
     ax1.set_title('Normal Systolic Array (FP16)')
@@ -142,8 +143,6 @@ if __name__ == "__main__":
     ax1.plot(operation_intensity, achieved_performance, label='Reasoning', color = colors[2])
     ax1.axhline(y=hbm_capacity_bound, color='grey', linestyle='--', linewidth=0.8, alpha=0.5)
 
-    # ax1.legend()
-
     # --- Right subplot: Rectangular Systolic Array ---
     ax2.set_xscale('log')
     ax2.set_yscale('log')
@@ -151,7 +150,7 @@ if __name__ == "__main__":
     ax2.get_xaxis().set_major_formatter(plt.ScalarFormatter())
     ax2.get_xaxis().set_minor_formatter(plt.NullFormatter())
     ax2.set_xlabel('Real Operation Intensity (FLOPs/Byte)')
-    ax2.set_ylabel('Performance (GFLOPs/s)')
+    # ax2.set_ylabel('Performance (GFLOPs/s)')
     ax2.set_title('Flattened Systolic Array (FP16)')
     ax2.yaxis.set_tick_params(labelleft=True)
     plot_roofline(ax2, roofline_model)
