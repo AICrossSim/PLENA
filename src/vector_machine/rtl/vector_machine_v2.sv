@@ -90,13 +90,11 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     logic s_acc_in_valid, s_acc_in_ready;
     logic red_v_in_a_valid, red_v_in_a_ready;
     logic red_v_in_valid, red_v_in_ready;
-    logic red_v_out_valid, red_v_out_ready;
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0] s_acc_in;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] red_v_out;
 
     logic element_v_in_a_valid, element_v_in_a_ready;
     logic element_v_in_b_valid, element_v_in_b_ready;
-    logic element_v_out_valid, element_v_out_ready;
+    logic element_v_out_valid,  element_v_out_ready;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]   result_v_out;
     logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   p1_result_v_out;
@@ -280,7 +278,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Elementwise Compute Unit
     //----------------------------//
 
-
     fp_elementwise_compute_unit #(
         .EXP_WIDTH(V_FP_EXP_WIDTH),
         .MANT_WIDTH(V_FP_MANT_WIDTH),
@@ -313,8 +310,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     assign element_v_out_ready = v_out_ready;
     always_comb begin
-        if (
-            pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
+        if (pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
             pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == SUB_V_ELEMENT
         ) begin
             result_v_out            = element_v_out;
@@ -351,7 +347,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         end
     end
 
-
     always_ff @(posedge clk) begin
         if (rst) begin
             p1_result_v_out <= 'b0;
@@ -373,28 +368,29 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     join_n #(
         .NUM_HANDSHAKES (2)
     ) join_reduction (
-        .data_in_valid({red_v_in_a_valid, s_acc_in_valid}),
-        .data_in_ready({red_v_in_a_ready, s_acc_in_ready}),
-        .data_out_valid(red_v_in_valid),
-        .data_out_ready(red_v_in_ready)
+        .data_in_valid  ({red_v_in_a_valid, s_acc_in_valid}),
+        .data_in_ready  ({red_v_in_a_ready, s_acc_in_ready}),
+        .data_out_valid (red_v_in_valid),
+        .data_out_ready (red_v_in_ready)
     );
 
     fp_reduction_compute_unit #(
-        .EXP_WIDTH(V_FP_EXP_WIDTH),
-        .MANT_WIDTH(V_FP_MANT_WIDTH),
-        .VLEN(VLEN)
+        .EXP_WIDTH  (V_FP_EXP_WIDTH),
+        .MANT_WIDTH (V_FP_MANT_WIDTH),
+        .VLEN       (VLEN)
     ) reduction_unit (
         .clk(clk),
         .rst(rst),
-        .v_in({prepared_v_a, s_acc_in}),
-        .v_in_valid(red_v_in_valid),
-        .v_in_ready(red_v_in_ready),
-        .operation(recorded_reduct_v_control),
-        .v_out(s_out),
-        .v_out_valid(s_out_valid),
-        .v_out_ready(s_out_ready)
+        .v_in           ({prepared_v_a, s_acc_in}),
+        .v_in_valid     (red_v_in_valid),
+        .v_in_ready     (red_v_in_ready),
+        .operation      (recorded_reduct_v_control),
+        .s_out          (s_out),
+        .s_out_valid    (s_out_valid),
+        .s_out_ready    (s_out_ready)
     );
 
-    assign s_out_rd = pipeline_compute_track[VECTOR_REDUCT_CYCLES-1].red_op != STALL_V_REDUCT ? pipeline_compute_track[VECTOR_REDUCT_CYCLES-1].waddr[FP_OPERAND_WIDTH -1:0] : 'b0;
+    assign s_out_rd = pipeline_compute_track[VECTOR_SUM_CYCLES-1].red_op == SUM_V_REDUCT ? pipeline_compute_track[VECTOR_SUM_CYCLES-1].waddr[FP_OPERAND_WIDTH -1:0] : 
+                      pipeline_compute_track[VECTOR_MAX_CYCLES-1].red_op == MAX_V_REDUCT ? pipeline_compute_track[VECTOR_MAX_CYCLES-1].waddr[FP_OPERAND_WIDTH -1:0] : 'b0;
 
 endmodule

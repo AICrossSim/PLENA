@@ -368,13 +368,13 @@ logic [ADDR_WIDTH-1:0] stored_result_waddr;
 assign element_v_out_ready = compute_result_ready;
 always_comb begin
     if (
-        pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == ADD_V_ELEMENT ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == SUB_V_ELEMENT ||
-        pipeline_compute_track[VECTOR_BASIC_CYCLES - 1].ele_op == MUL_V_ELEMENT
+        pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op == ADD_V_ELEMENT ||
+        pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op == SUB_V_ELEMENT ||
+        pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op == MUL_V_ELEMENT
     ) begin
         result_v_out            = element_v_out;
         compute_result_valid    = element_v_out_valid;
-        stored_result_waddr     = pipeline_compute_track[VECTOR_BASIC_CYCLES-1].waddr;
+        stored_result_waddr     = pipeline_compute_track[VECTOR_ADD_CYCLES-1].waddr;
     end else if (pipeline_compute_track[0].ele_op == LD_V_ELEMENT) begin
         result_v_out            = prepared_v_b;
         compute_result_valid    = v_port_b_valid;
