@@ -9,12 +9,10 @@ test-hw:
 	python3 src/basic_components/fp_operation/test/fp_cp_mult_tb.py
 	python3 src/basic_components/fp_operation/test/fp_cp_asym_mult_tb.py
 
-	# python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_sqrt_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_sqrt_tb.py
+	python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
+	python3 src/basic_components/fp_operation/test/fp_exp_tb.py
+	python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
+	python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
 
 test-sw:
 	python3 tools/quant/quant_operations/sqrt.py

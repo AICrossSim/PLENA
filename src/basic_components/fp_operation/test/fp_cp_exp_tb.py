@@ -56,10 +56,6 @@ class FPCPExpTB(Testbench):
             "out_exp_width" : self.dut.OUT_EXP_WIDTH.value,
             "out_mant_width" : self.dut.OUT_MANT_WIDTH.value,
         }
-        in_exp_width = q_config["in_exp_width"]
-        in_mant_width = q_config["in_mant_width"]
-        out_exp_width = q_config["out_exp_width"]
-        out_mant_width = q_config["out_mant_width"]
 
         # Generate random inputs, avoiding values too close to zero to prevent overflow
         torch_x = torch.randn(num) * 2.5
@@ -142,7 +138,7 @@ def test_simple_fp_exp():
             str(SRC_PATH / "basic_components/int_operation")
         ],
         module_param_list=[
-            {"IN_EXP_WIDTH" : 4, "IN_MANT_WIDTH" : 3, "OUT_EXP_WIDTH" : 4, "OUT_MANT_WIDTH" : 3},
+            {"IN_EXP_WIDTH" : 6, "IN_MANT_WIDTH" : 5, "OUT_EXP_WIDTH" : 6, "OUT_MANT_WIDTH" : 5},
             # {"IN_EXP_WIDTH" : 5, "IN_MANT_WIDTH" : 10, "OUT_EXP_WIDTH" : 5, "OUT_MANT_WIDTH" : 10},
         ],
         trace = True,

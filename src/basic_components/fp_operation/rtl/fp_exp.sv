@@ -125,32 +125,7 @@ module fp_exp #(
   assign signed_mant_out = taylor_output >> EXTEND_WIDTH;
 endmodule
 
-module data_reg #(
-  parameter DATA_WIDTH = 8, 
-  parameter REG_N = 1
-)(
-  input logic clk,
-  input logic rst,
-  input logic stall,
-  input logic [DATA_WIDTH - 1:0] data_in,
-  output logic [DATA_WIDTH - 1:0] data_out
-);
-  logic [DATA_WIDTH - 1:0] data_reg[REG_N-1:0];
-  for (genvar i = 0; i < REG_N; i++) begin
-    always_ff @(posedge clk) begin
-      if (rst) begin
-        data_reg[i] <= 0;
-      end else if (stall) begin
-        data_reg[i] <= data_reg[i];
-      end else if (i == 0) begin
-        data_reg[i] <= data_in;
-      end else begin
-        data_reg[i] <= data_reg[i-1];
-      end
-    end
-  end
-  assign data_out = data_reg[REG_N-1];
-endmodule
+
 
 module taylor_series_expansion #(
     // The input is assumed to be in the range of [0, 1]

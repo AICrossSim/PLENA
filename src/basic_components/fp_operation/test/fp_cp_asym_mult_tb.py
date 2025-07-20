@@ -98,7 +98,6 @@ class FPCPAsymMultTB(Testbench):
             out_exp, out_mant, 
             out_exponent_width, 
             out_mantissa_width)
-        breakpoint()
         
         self.inputs = [(int(inputs_a[i]), int(inputs_b[i])) for i in range(num)]
         self.outputs = [int(outputs_out[i]) for i in range(num)]
