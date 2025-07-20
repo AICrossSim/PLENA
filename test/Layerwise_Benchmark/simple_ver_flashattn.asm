@@ -42,14 +42,15 @@ H_PREFETCH_M_L_S i0, i0, i0;
 ; i1: Address for Q
 ; i2: Address for K
 ; i3: Loop Counter
-; i4: MLEN * BLEN * (Weight Precision)
-; i5: MLEN * BLEN * (K Precision)
-; i6: Counter for head_dim // MLEN iteration
-S_LD_FIX i6, i0, 0;
+; i4: MLEN * BLEN * (Weight Precision)          : Q block address size
+; i5: MLEN * BLEN * (K Precision)               : KT block address size
+; i6: Counter for head_dim // MLEN iteration    
+S_ADDI_FIX i6, i0, 0;
 S_LD_FIX i4, i0, 10;
 S_LD_FIX i5, i0, 11;
 
 ;<---------------- LOOP Internal QKT (MLEN/BLEN) Iteration 0 ---------------->
+;<--- LOOP Internal QKT (HEAD/MLEN) Iteration 0 ----->
 S_ADDI_FIX i1, i0, 0;
 S_ADDI_FIX i2, i0, 0;
 S_ADDI_FIX i3, i0, 0;
@@ -59,14 +60,5 @@ S_MUL_FIX i1, i3, i4;
 S_MUL_FIX i2, i3, i5;
 M_TMM_PS i6, i1, i2;
 S_ADDI_FIX i6, i0, 1;
-
-;<--------LOOP Internal QKT (head_dim // MLEN) Iteration 1 -------->   
-S_ADDI_FIX i1, i0, 0;
-S_ADDI_FIX i2, i0, 0;
-S_ADDI_FIX i3, i0, 0;
-M_TMM_IC 0, i1, i2;
-S_ADDI_FIX i3, i0, 1;
-S_MUL_FIX i1, i3, i4;
-S_MUL_FIX i2, i3, i5;
-M_TMM_PS i6, i1, i2;
-S_ADDI_FIX i6, i0, 1;
+;<--- LOOP Internal QKT (HEAD/MLEN) Iteration END ----->
+;Buffer is full
