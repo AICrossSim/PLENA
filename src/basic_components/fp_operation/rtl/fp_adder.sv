@@ -89,19 +89,45 @@ module fp_adder #(
       .data_out_valid(p1_data_in_valid),
       .data_out_ready(p1_data_in_ready)
     );
+    assign p1_data_in_ready = 1'b1;
+    // skid_buffer #(
+    //     .DATA_WIDTH(IN_EXP_WIDTH * 3 + DATA_FIX_WIDTH * 2)
+    // ) skid_p1 (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .data_in_valid  (p1_data_in_valid),
+    //     .data_in_ready  (p1_data_in_ready),
+    //     .data_in        ({exp_a, exp_b, exp_diff, mant_a_shifted, mant_b_shifted}),
+    //     .data_out_valid (p2_data_in_valid),
+    //     .data_out_ready (p2_data_in_ready),
+    //     .data_out       ({p1_exp_a, p1_exp_b, p1_exp_diff, p1_mant_a_shifted, p1_mant_b_shifted})
+    // );
 
-    skid_buffer #(
-        .DATA_WIDTH(IN_EXP_WIDTH * 3 + DATA_FIX_WIDTH * 2)
-    ) skid_p1 (
-        .clk(clk),
-        .rst(rst),
-        .data_in_valid  (p1_data_in_valid),
-        .data_in_ready  (p1_data_in_ready),
-        .data_in        ({exp_a, exp_b, exp_diff, mant_a_shifted, mant_b_shifted}),
-        .data_out_valid (p2_data_in_valid),
-        .data_out_ready (p2_data_in_ready),
-        .data_out       ({p1_exp_a, p1_exp_b, p1_exp_diff, p1_mant_a_shifted, p1_mant_b_shifted})
-    );
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            p1_exp_a            <= 'b0;
+            p1_exp_b            <= 'b0;
+            p1_exp_diff         <= 'b0;
+            p1_mant_a_shifted   <= 'b0;
+            p1_mant_b_shifted   <= 'b0;
+            p2_data_in_valid    <= 1'b0;
+        end else if (p1_data_in_valid) begin
+            p1_exp_a            <= exp_a;
+            p1_exp_b            <= exp_b;
+            p1_exp_diff         <= exp_diff;
+            p1_mant_a_shifted   <= mant_a_shifted;
+            p1_mant_b_shifted   <= mant_b_shifted;
+            p2_data_in_valid    <= p1_data_in_valid;
+        end else begin
+            p1_exp_a            <= 'b0;
+            p1_exp_b            <= 'b0;
+            p1_exp_diff         <= 'b0;
+            p1_mant_a_shifted   <= 'b0;
+            p1_mant_b_shifted   <= 'b0;
+            p2_data_in_valid    <= p1_data_in_valid;
+        end
+    end
+
 
 
     skid_buffer #(
