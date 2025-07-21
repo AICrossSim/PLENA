@@ -80,7 +80,7 @@ module fp_vector_sram #(
     input   logic [1:0] port_b_mxfp_req , // 0 for STALL, 1 for High Precision MXFP Load, 2 for Low Precision MXFP Load
     output  logic port_b_mxfp_high_out_valid,
     output  logic port_b_mxfp_low_out_valid,
-    output  logic [VLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_b_high_element_out,
+    output  logic [VLEN - 1 : 0]            [WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]        port_b_high_element_out,
     output  logic [VLEN - 1 : 0]            [KV_MXFP_EXP_WIDTH + KV_MXFP_MANT_WIDTH : 0]        port_b_low_element_out,
     output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_out,
 
@@ -320,8 +320,8 @@ module fp_vector_sram #(
             .BLOCK_DIM          (BLOCK_DIM),
             .FP_MANT_WIDTH      (MANT_WIDTH),
             .FP_EXP_WIDTH       (EXP_WIDTH),
-            .MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
-            .MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
+            .MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
             .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
         ) fp_2_mx_high_port_b_convert_init(
             .clk(clk),

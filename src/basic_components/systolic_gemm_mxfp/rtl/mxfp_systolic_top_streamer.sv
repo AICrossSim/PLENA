@@ -63,42 +63,38 @@ module mxfp_systolic_top_streamer #(
 
     stream_state_t p1_state, state, next_state; 
 
-    always_comb begin
-        for (int i = 0; i < COMPUTE_DIM; i++) begin
-            stream_elem_out[i]  = data_elem_array_queue[i][0];
+    generate;
+        for (genvar i = 0; i < COMPUTE_DIM; i++) begin : gen_data_elem_array_queue
+            assign stream_elem_out[i]  = data_elem_array_queue [i][0];
+            assign stream_scale_out[i] = data_scale_array_queue[i][0];
         end
-        for (int j = 0; j < BLOCK_NUM; j++) begin
-            stream_scale_out[j] = data_scale_array_queue[j][0];
+    endgenerate
+
+    always_comb begin
+
+        if (data_in_valid & stream_in_ready) begin
+            for (int i = 0; i < COMPUTE_DIM; i++) begin
+                next_data_elem_array_queue[i]       = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                next_data_elem_array_queue[i][i]    = data_elem_in[i];
+                next_data_scale_array_queue[i]      = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                next_data_scale_array_queue[i][i]   = data_scale_in[i];
+            end
+        end else if (stream_in_ready) begin
+            for (int i = 0; i < COMPUTE_DIM; i++) begin
+                next_data_elem_array_queue[i]       = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                next_data_scale_array_queue[i]      = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+            end
         end
 
         case (state)
             IDLE: begin
                 if (data_in_valid & stream_in_ready) begin
                     next_state = FILLING;
-                    for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                        next_data_elem_array_queue[i][i] = data_elem_in[i];
-                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
-                        next_data_scale_array_queue[i][i] = data_scale_in[i];
-                    end
                 end else begin
                     next_state = IDLE;
                 end
             end
             FILLING: begin
-                if (data_in_valid & stream_in_ready) begin
-                    for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                        next_data_elem_array_queue[i][i] = data_elem_in[i];
-                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
-                        next_data_scale_array_queue[i][i] = data_scale_in[i];
-                    end
-                end else if (stream_in_ready) begin
-                    for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i]  = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
-                    end
-                end
                 if (store_counter == COMPUTE_DIM & stream_in_ready & !data_in_valid) begin 
                     next_state = CLEARING;
                 end else begin
@@ -106,19 +102,6 @@ module mxfp_systolic_top_streamer #(
                 end
             end
             CLEARING: begin
-                if (data_in_valid & stream_in_ready) begin
-                    for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i] = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                        next_data_elem_array_queue[i][i] = data_elem_in[i];
-                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
-                        next_data_scale_array_queue[i][i] = data_scale_in[i];
-                    end
-                end else if (stream_in_ready) begin
-                    for (int i = 0; i < COMPUTE_DIM; i++) begin
-                        next_data_elem_array_queue[i]  = (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                        next_data_scale_array_queue[i] = (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
-                    end
-                end
                 if (data_in_valid & stream_in_ready) begin 
                     next_state = FILLING;
                 end else if (clear_counter == COMPUTE_DIM - 2) begin
@@ -140,7 +123,7 @@ module mxfp_systolic_top_streamer #(
     end
 
 
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             data_elem_array_queue <= '0;
             data_scale_array_queue <= '0;

@@ -65,7 +65,6 @@ foreach dir $dir_list {
 # Define files to skip (add Non-synthesisable files here)
 set skip_list [list \
     "fp_rounding.sv" \
-    "bit_width_aware_right_shift.sv" \
     "bram.sv" \
     "fake_hbm.sv" \
     "peripheral_system.sv" \

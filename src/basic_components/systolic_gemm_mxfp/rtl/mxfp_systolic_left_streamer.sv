@@ -43,8 +43,8 @@ module mxfp_systolic_left_streamer #(
     logic [COUNTER_BIT_WIDTH : 0] clear_ele_counter;
     logic [COUNTER_BIT_WIDTH : 0] clear_scale_counter;
 
-    logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_array_queue  [COMPUTE_DIM - 1 : 0];
-    logic [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue [BLOCK_NUM - 1 : 0];
+    logic [COMPUTE_DIM - 1 : 0][COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   data_elem_array_queue;
+    logic [BLOCK_NUM - 1 : 0]  [COMPUTE_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]               data_scale_array_queue;
     logic [COMPUTE_DIM - 1 : 0][MXFP_EXP_WIDTH + MXFP_MANT_WIDTH : 0]   stream_elem_out;
     logic [BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                 stream_scale_out;
     logic stream_elem_in_ready,     stream_elem_in_valid;
@@ -66,10 +66,8 @@ module mxfp_systolic_left_streamer #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (int i = 0; i < COMPUTE_DIM; i++) begin
-                data_elem_array_queue   [i] <= '0;
-                data_scale_array_queue  [i] <= '0;
-            end
+            data_elem_array_queue  <= '0;
+            data_scale_array_queue <= '0;
             store_ele_counter   <= '0;
             clear_ele_counter   <= '0;
             stream_in_valid <= 1'b0;
@@ -88,7 +86,6 @@ module mxfp_systolic_left_streamer #(
                                 store_ele_counter                       <= store_ele_counter + 'b1;
                             end else begin
                                 data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
-                                data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
                             end
                         end
                         for (int i = 0; i < BLOCK_NUM; i++) begin

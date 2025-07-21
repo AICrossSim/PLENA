@@ -1,4 +1,5 @@
-from quant.quantizer.hardware_quantizer import pack_fp_to_bin, _mx_fp_quantize_hardware, _minifloat_ieee_quantize_hardware
+from quant.quantizer.hardware_quantizer import _mx_fp_quantize_hardware, _minifloat_ieee_quantize_hardware
+from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 import torch
 import os
 from cfl_tools.debugger import set_excepthook
@@ -82,6 +83,39 @@ class RandomTensorGenerator:
         return block_list, scaling_list
 
 
+class RandomFloatGenerator:
+    def __init__(self, shape, quant_config, directory=None, filename=None):
+        """
+        Initialize the random tensor generator with a given shape.
+        If directory and filename are provided, the tensor will be saved to a file.
+        """
+        self.shape          = shape
+        self.directory      = directory
+        self.filename       = filename
+        self.quant_config   = quant_config
+
+    def tensor_gen(self):
+        tensor = torch.randn(self.shape)
+        if self.directory and self.filename:
+            if not os.path.exists(self.directory):
+                os.makedirs(self.directory)
+            file_path = os.path.join(self.directory, self.filename)
+            torch.save(tensor, file_path)
+            logger.debug(f"Tensor saved to {file_path}")
+    
+    def tensor_load(self):
+        if self.directory and self.filename:
+            file_path = os.path.join(self.directory, self.filename)
+            if os.path.exists(file_path):
+                tensor = torch.load(file_path)
+                logger.debug(f"Tensor loaded from {file_path}")
+                return tensor
+            else:
+                logger.error(f"File {file_path} does not exist.")
+                return None
+        else:
+            logger.error("Directory and filename must be specified to load the tensor.")
+            return None
 
 
 if __name__ == "__main__":

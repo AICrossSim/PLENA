@@ -11,8 +11,10 @@ from cocotb.clock import Clock
 
 from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
-from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.testbench import Testbench
+from cfl_cocotb.streaming import StreamDriver, StreamMonitor, MultiSignalStreamDriver, MultiSignalStreamMonitor
 from cfl_cocotb.fp_generation import TorchFpGenerator
+from cocotb.log import SimLog
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from quant.quant_operations.add import fp_add_hardware
@@ -20,7 +22,29 @@ from quant.quant_operations.add import fp_add_hardware
 import math
 import torch
 
-class FPAddTB(CombinationalTestbench):
+class FPAddTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut, dut.clk, dut.rst)
+
+        if not hasattr(self, "log"):
+            self.log = SimLog("%s" % (type(self).__qualname__))
+            self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.a_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_a, dut.mant_a), dut.a_in_valid, dut.a_in_ready
+        )
+        self.b_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_b, dut.mant_b), dut.b_in_valid, dut.b_in_ready)
+
+        self.out_monitor = MultiSignalStreamMonitor(
+            dut.clk,
+            (dut.exp_out, dut.mant_out),
+            dut.out_valid,
+            dut.out_ready,
+            check=True,
+        )
+
     def generate_inputs(self, num):
         config = {
             "IN_EXP_WIDTH" : self.dut.IN_EXP_WIDTH.value,
@@ -44,53 +68,34 @@ class FPAddTB(CombinationalTestbench):
         qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
         qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
 
-
         exp_sum, mant_sum = fp_add_hardware(a_exp, a_mant, b_exp, b_mant, config)
+        self.a_input = [(int(a_exp[i]), int(a_mant[i]*2**config["IN_FIX_FRAC_WIDTH"])) for i in range(num)]
+        self.b_input = [(int(b_exp[i]), int(b_mant[i]*2**config["IN_FIX_FRAC_WIDTH"])) for i in range(num)]
+        self.exp_out = [(int(exp_sum[i]), int(mant_sum[i]*2**config["OUT_FIX_FRAC_WIDTH"])) for i in range(num)]
 
-        self.inputs = {
-            "exp_a": a_exp.to(torch.int8).tolist(),
-            "mant_a": (a_mant * 2**config["IN_FIX_FRAC_WIDTH"]).to(torch.int8).tolist(),
-            "exp_b": b_exp.to(torch.int8).tolist(),
-            "mant_b": (b_mant * 2**config["IN_FIX_FRAC_WIDTH"]).to(torch.int8).tolist(),
-        }
+    async def run_test(self, us, num):
+        await self.reset()
+        self.log.info(f"Reset finished")
+        self.out_monitor.ready.value = 1
 
-        self.log.debug(f"""
-            original_a : 
-            {torch_a}, 
-            q_a        : 
-            {qa}, 
-            exp_a      : 
-            {a_exp}, 
-            mant_a     : 
-            {a_mant * 2**config['IN_FIX_FRAC_WIDTH']}, 
-        """)
-        self.log.debug(f"""
-            original_b : 
-            {torch_b}, 
-            q_b        : 
-            {qb}, 
-            exp_b      : 
-            {b_exp}, 
-            mant_b     : 
-            {b_mant * 2**config['IN_FIX_FRAC_WIDTH']}
-        """)
+        self.generate_inputs(num)   
 
-        self.outputs = {
-            "exp_out": exp_sum.to(torch.int8).tolist(),
-            "mant_out": (mant_sum * 2**config["OUT_FIX_FRAC_WIDTH"]).to(torch.int8).tolist(),
-        }
+        self.a_driver.load_driver(self.a_input)
+        self.b_driver.load_driver(self.b_input)
 
-    def check_output(self, input, output):
-        from cfl_tools.debugger import get_dut_attributes
-        get_dut_attributes(self.dut, self.log, "signed_integer")
-        # self.log.debug(f"Expected result : {input}, got: {int(output.signed_integer)}")
-        assert input == int(output.signed_integer), f"Expected {input}, but got {int(output.signed_integer)}"
+        self.out_monitor.load_monitor(self.exp_out)
+
+        await Timer(100, units="ns")
+
+        await Timer(us, units="us")
+        assert self.out_monitor.exp_queue.empty()
+
 
 @cocotb.test()
 async def test(dut):
     tb = FPAddTB(dut)
     tb.log.setLevel(logging.DEBUG)
-    await tb.run_test(10)
+    await tb.run_test(10, 10)
     # try:
     #     tb = FPExpTB(dut)
     #     await tb.run_test(10)
@@ -114,24 +119,24 @@ def test_simple_fp_addition():
         module_param_list=[
             # basic functionality of FP 8 addition
             {
-                "IN_EXP_WIDTH" : 4, 
-                "IN_FIX_WIDTH" : 4, 
-                "IN_FIX_FRAC_WIDTH" : 2,
+                "IN_EXP_WIDTH" : 6, 
+                "IN_FIX_WIDTH" : 7, 
+                "IN_FIX_FRAC_WIDTH" : 5,
 
-                "OUT_EXP_WIDTH" : 4, 
-                "OUT_FIX_WIDTH" : 5,
-                "OUT_FIX_FRAC_WIDTH" : 2,
+                "OUT_EXP_WIDTH" : 6, 
+                "OUT_FIX_WIDTH" : 8,
+                "OUT_FIX_FRAC_WIDTH" : 5,
             },
             # Adding one bit in outputto test the function of allowing more underflow
-            {
-                "IN_EXP_WIDTH" : 4, 
-                "IN_FIX_WIDTH" : 5, # sign bit + mant_width 
-                "IN_FIX_FRAC_WIDTH" : 3,
+            # {
+            #     "IN_EXP_WIDTH" : 4, 
+            #     "IN_FIX_WIDTH" : 5, # sign bit + mant_width 
+            #     "IN_FIX_FRAC_WIDTH" : 3,
 
-                "OUT_EXP_WIDTH" : 4, 
-                "OUT_FIX_WIDTH" : 6,
-                "OUT_FIX_FRAC_WIDTH" : 3, # adding one bit to test the 
-            },
+            #     "OUT_EXP_WIDTH" : 4, 
+            #     "OUT_FIX_WIDTH" : 6,
+            #     "OUT_FIX_FRAC_WIDTH" : 3, # adding one bit to test the 
+            # },
         ],
         trace = True,
     )

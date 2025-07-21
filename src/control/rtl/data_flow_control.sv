@@ -53,7 +53,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     output      logic v_v_b_valid,
     input       logic v_v_b_ready,
 
-    input       logic v_v_out_valid,
     output      logic v_v_out_ready,
 
     output      logic v_s_in_valid,

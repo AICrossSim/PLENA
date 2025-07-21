@@ -11,10 +11,12 @@ from cocotb.clock import Clock
 
 from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
-from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.testbench import Testbench
+from cfl_cocotb.streaming import StreamDriver, StreamMonitor, MultiSignalStreamDriver, MultiSignalStreamMonitor
 from cfl_cocotb.fp_generation import TorchFpGenerator
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from cocotb.log import SimLog
 
 import math
 import torch
@@ -35,9 +37,100 @@ def fp_asym_mult_hardware(
 
     return exp_out, mant_out
 
+class FPAddTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut, dut.clk, dut.rst)
 
-## questions, why 
-class FPAsymMultTB(CombinationalTestbench):
+        if not hasattr(self, "log"):
+            self.log = SimLog("%s" % (type(self).__qualname__))
+            self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.a_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_a, dut.mant_a), dut.a_in_valid, dut.a_in_ready
+        )
+        self.b_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_b, dut.mant_b), dut.b_in_valid, dut.b_in_ready)
+
+        self.out_monitor = MultiSignalStreamMonitor(
+            dut.clk,
+            (dut.exp_out, dut.mant_out),
+            dut.out_valid,
+            dut.out_ready,
+            check=True,
+        )
+
+    def generate_inputs(self, num):
+        config = {
+            "IN_EXP_WIDTH_A" : self.dut.IN_EXP_WIDTH_A.value,
+            "IN_FIX_WIDTH_A" : self.dut.IN_FIX_WIDTH_A.value,
+            "IN_FIX_FRAC_WIDTH_A" : self.dut.IN_FIX_FRAC_WIDTH_A.value,
+
+            "IN_EXP_WIDTH_B" : self.dut.IN_EXP_WIDTH_B.value,
+            "IN_FIX_WIDTH_B" : self.dut.IN_FIX_WIDTH_B.value,
+            "IN_FIX_FRAC_WIDTH_B" : self.dut.IN_FIX_FRAC_WIDTH_B.value,
+
+            "OUT_EXP_WIDTH" : self.dut.OUT_EXP_WIDTH.value,
+            "OUT_FIX_WIDTH" : self.dut.OUT_FIX_WIDTH.value,
+            "OUT_FIX_FRAC_WIDTH" : self.dut.OUT_FIX_FRAC_WIDTH.value,
+
+            "FLOOR" : True,
+        }
+
+        torch.manual_seed(0)
+        torch_a = torch.randn(num)
+        torch_b = torch.randn(num)
+
+        width_a = config["IN_FIX_FRAC_WIDTH_A"] + config["IN_EXP_WIDTH_A"] + 1
+        exponent_width_a = config["IN_EXP_WIDTH_A"]
+
+        width_b = config["IN_FIX_FRAC_WIDTH_B"] + config["IN_EXP_WIDTH_B"] + 1
+        exponent_width_b = config["IN_EXP_WIDTH_B"]
+
+        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width_a, exponent_width_a)
+        qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width_b, exponent_width_b)
+
+        exp_out, mant_out = fp_asym_mult_hardware(a_exp, a_mant, b_exp, b_mant, config["OUT_FIX_FRAC_WIDTH"], self.log)
+        self.a_input = [(int(qa[i]), int(a_mant[i]*2**config["IN_FIX_FRAC_WIDTH_A"])) for i in range(num)]
+        self.b_input = [(int(qb[i]), int(b_mant[i]*2**config["IN_FIX_FRAC_WIDTH_B"])) for i in range(num)]
+        self.exp_out = [(int(exp_out[i]), int(mant_out[i]*2**config["OUT_FIX_FRAC_WIDTH"])) for i in range(num)]
+
+    async def run_test(self, us, num):
+        await self.reset()
+        self.log.info(f"Reset finished")
+        self.out_monitor.ready.value = 1
+
+        self.generate_inputs(num)   
+
+        self.a_driver.load_driver(self.a_input)
+        self.b_driver.load_driver(self.b_input)
+
+        self.out_monitor.load_monitor(self.exp_out)
+
+        await Timer(100, units="ns")
+
+        await Timer(us, units="us")
+        assert self.out_monitor.exp_queue.empty()
+
+class FPAsymMultTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut)
+        self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.a_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_a, dut.mant_a), dut.a_in_valid, dut.a_in_ready
+        )
+        self.b_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_b, dut.mant_b), dut.b_in_valid, dut.b_in_ready)
+
+        self.out_monitor = MultiSignalStreamMonitor(
+            dut.clk,
+            (dut.exp_out, dut.mant_out),
+            dut.out_valid,
+            dut.out_ready,
+            check=False,
+        )
     def generate_inputs(self, num):
         config = {
             "IN_EXP_WIDTH_A" : self.dut.IN_EXP_WIDTH_A.value,

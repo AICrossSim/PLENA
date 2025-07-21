@@ -69,7 +69,7 @@
         "pipelined" : "VECTOR_BASIC_CYCLES"
     },
 
-    "V_EXP_VV" : {
+    "V_EXP_V" : {
         "alone" : "6 + 3 + VECTOR_EXP_CYCLES + 1",
         "pipelined" : "1 + VECTOR_EXP_CYCLES"
     },
