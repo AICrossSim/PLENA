@@ -41,7 +41,7 @@
     "V_MUL_VF": {
         "alone": 11
     },
-    "V_EXP_VV": {
+    "V_EXP_V": {
         "alone": 16
     },
     "V_LD_F": {

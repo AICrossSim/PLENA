@@ -46,7 +46,7 @@ logic           system_stall;
 logic           stall_for_read_rd;
 logic           [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic           read_instr_from_fifo, decode_instr_valid;
-logic           p1_pipeline_stall, recover_from_stall;
+logic           p1_pipeline_stall, recover_from_stall, start_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_FIXED_OP      exe_fixed_op;
 
@@ -104,7 +104,7 @@ always_comb begin
         end
 
         // Vector Operations
-        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_VV, V_LD_F, V_RED_SUM, V_RED_MAX, V_RESET_SRAM : begin
+        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_LD_F, V_RED_SUM, V_RED_MAX, V_RESET_SRAM : begin
             decode_instruction_type = V;
         end
 
@@ -160,18 +160,19 @@ always_ff @(posedge clk) begin
     end
 end
 
-assign recover_from_stall = !pipeline_stall & p1_pipeline_stall;
+assign recover_from_stall   = !pipeline_stall & p1_pipeline_stall;
+assign start_from_stall     = pipeline_stall & !p1_pipeline_stall;
 
 always_comb begin
     // Instructions that requires three operands. Insert additionally operation to load the third operand, the insertion takes place only when the pipeline is not stalled.
-    if (pipeline_stall & recorded_stall_for_read_rd_flag) begin
+    if (!start_from_stall & pipeline_stall & recorded_stall_for_read_rd_flag) begin
         stall_for_read_rd   = 1'b1;
     end else if (rd_operand_ready == 1'b0 & (decode_stage_op.m_op == MM_PS)) begin
         m_update_waddr          = 1'b1;
         v_update_waddr          = 1'b0;
         stall_for_read_rd_flag  = 1'b1;
         rd_to_load              = rd;
-    end else if (rd_operand_ready == 1'b0 & (decode_stage_op.v_ele_op != STALL_V_ELEMENT)) begin
+    end else if (rd_operand_ready == 1'b0 & ((decode_stage_op.v_ele_op != STALL_V_ELEMENT) & (decode_stage_op.v_ele_op != RESET_V ))) begin
         m_update_waddr          = 1'b0;
         v_update_waddr          = 1'b1;
         stall_for_read_rd_flag  = 1'b1;
@@ -264,12 +265,13 @@ always_ff @(posedge clk) begin
 
             V: begin
                 decode_stage_op.m_op <= STALL_M;
-                decode_stage_op.v_ele_op <=     (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_EXP_VV)                                         ? EXP_V_ELEMENT : 
-                                                (decode_instr_info.opcode == V_LD_F)                                           ? LD_V_ELEMENT  : 
-                                                (decode_instr_info.opcode == V_RESET_SRAM)                                     ? RESET_V       : STALL_V_ELEMENT;
+                decode_stage_op.v_ele_op <=     (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT  :
+                                                (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT  :
+                                                (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT  :
+                                                (decode_instr_info.opcode == V_EXP_V)                                          ? EXP_V_ELEMENT  : 
+                                                (decode_instr_info.opcode == V_RECI_V)                                         ? RECI_V_ELEMENT :
+                                                (decode_instr_info.opcode == V_LD_F)                                           ? LD_V_ELEMENT   : 
+                                                (decode_instr_info.opcode == V_RESET_SRAM)                                     ? RESET_V        : STALL_V_ELEMENT;
 
                 decode_stage_op.v_reduct_op <=      (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                                     (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;

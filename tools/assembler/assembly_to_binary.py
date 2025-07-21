@@ -1,8 +1,12 @@
-from parser import load_isa_definitions, load_isa_settings, parse_asm_file
-import argparse
-from utils import load_svh_settings
+from assembler.parser import load_isa_definitions, load_isa_settings, parse_asm_file
 
-class Assembler:
+from utils.load_config import load_svh_settings
+import torch
+from cfl_tools import PROJECT_PATH
+from pathlib import Path
+import argparse
+
+class AssemblyToBinary:
     def __init__(self, isa_definition_file: str, config_file: str):
         """
         Initialize the Assembler with the ISA file.
@@ -35,7 +39,7 @@ class Assembler:
         print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_ACC_MULI", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM"]:
+        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_ACC_MULI", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
@@ -48,7 +52,7 @@ class Assembler:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP"]:
+        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
@@ -85,19 +89,3 @@ class Assembler:
         return binary_instructions
     
 
-    
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--layer', type=str, required=True, help='Input file name')
-    parser.add_argument('--test_type', type=str, default='Layerwise_Benchmark', help='Input file name (default: basic)')
-    args = parser.parse_args()
-
-    isa_file_path = '../../src/definitions/operation.svh'
-    config_file_path = '../../src/definitions/configuration.svh'
-    asm_file_path = f'../../test/{args.test_type}/{args.layer}.asm'
-    print(f'Assembling {asm_file_path} to {args.layer}.mem')
-    output_file_path = f'../../test/{args.test_type}/{args.layer}.mem'
-    assembler = Assembler(isa_file_path, config_file_path)
-    assembler.generate_binary(asm_file_path, output_file_path)

@@ -16,6 +16,8 @@ from cfl_cocotb.streaming import (
 from cfl_cocotb.runner import veri_runner, SRC_PATH
 from cfl_cocotb.torch_fp_conversion import fp_2_bin, bin_2_fp, pack_fp_to_bin
 from quant.quant_operations.reciprocal import fp_reciprocal
+from cfl_cocotb.streaming import MultiSignalStreamDriver, MultiSignalStreamMonitor
+
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from cfl_tools.debugger import get_dut_attributes
@@ -26,9 +28,30 @@ logger.setLevel(logging.DEBUG)
 src_path = Path(__file__).parent.parent.parent
 
 torch.manual_seed(10)
+class FPReciprocalTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut, dut.clk, dut.rst)
 
-class FPReciprocalTB(CombinationalTestbench):
+        if not hasattr(self, "log"):
+            self.log = SimLog("%s" % (type(self).__qualname__))
+            self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.in_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.signed_exp_in, dut.signed_mant_in), dut.data_in_valid, dut.data_in_ready
+        )
+
+        self.out_monitor = MultiSignalStreamMonitor(
+            dut.clk,
+            (dut.signed_exp_out, dut.signed_mant_out),
+            dut.data_out_valid,
+            dut.data_out_ready,
+            check=True,
+        )
+        self.out_monitor.log.setLevel(logging.DEBUG)
+
     def generate_inputs(self, num):
+        torch.manual_seed(0)
         q_config = {
             "in_exp_width": self.dut.IN_EXP_WIDTH.value,
             "in_fix_width": self.dut.IN_FIX_WIDTH.value,
@@ -45,7 +68,6 @@ class FPReciprocalTB(CombinationalTestbench):
         qx, exp_x, mant_x = _minifloat_ieee_quantize_hardware(
             x, q_config["in_fix_frac_width"] + q_config["in_exp_width"] + 1, q_config["in_exp_width"])
         # Convert inputs to binary format
-        inputs = pack_fp_to_bin(exp_x, mant_x, q_config["in_exp_width"], q_config["in_fix_width"]).tolist()
         
         self.log.debug(f"input : {exp_x}, {mant_x}")
         # Compute expected outputs
@@ -54,26 +76,30 @@ class FPReciprocalTB(CombinationalTestbench):
 
         expected_outputs = pack_fp_to_bin(expected_exp, expected_mant, q_config["out_exp_width"], q_config["out_fix_width"]).tolist()
         
-        self.inputs = {
-            "signed_mant_in": (mant_x * 2**(q_config["in_fix_frac_width"])).int().tolist(),
-            "signed_exp_in": exp_x.int().tolist(),
-        }
-        self.outputs = {
-            "signed_exp_out": expected_exp.int().tolist(),
-            "signed_mant_out": (expected_mant * 2**(q_config["out_fix_frac_width"])).int().tolist(),
-        }
-    def check_output(self, expected_output,hardware_output):
-        self.log.debug(f"----------------{self.dut}---------")
-        get_dut_attributes(self.dut, self.log, None)
-        self.log.debug(f"Expected result : {expected_output}, got: {int(hardware_output.signed_integer)}")
-        assert expected_output == hardware_output.signed_integer, f"Expected {expected_output}, but got {int(hardware_output.signed_integer)}"
+        self.inputs = [(int(exp_x[i]), int(mant_x[i]*2**q_config["in_fix_frac_width"])) for i in range(num)]
+        self.outputs = [(int(expected_exp[i]), int(expected_mant[i]*2**q_config["out_fix_frac_width"])) for i in range(num)]
+
+    async def run_test(self, us, num):
+        await self.reset()
+        self.log.info(f"Reset finished")
+        self.out_monitor.ready.value = 1
+
+        self.generate_inputs(num)   
+
+        self.in_driver.load_driver(self.inputs)
+
+        self.out_monitor.load_monitor(self.outputs)
+
+        await Timer(us, units="us")
+        assert self.out_monitor.exp_queue.empty()
+
 
 @cocotb.test()
 async def test(dut):
     tb = FPReciprocalTB(dut)
     tb.log.setLevel(logging.DEBUG)
     tb.range = 1
-    await tb.run_test(10)
+    await tb.run_test(10,10)
 
 if __name__ == "__main__":
     veri_runner(

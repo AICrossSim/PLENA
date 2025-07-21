@@ -7,8 +7,8 @@ import precision_pkg::*;
 
 package configuration_pkg;
     // Compute Unit Related 
-    parameter   BLEN = 8;
-    parameter   MLEN = 16;
+    parameter   BLEN = 4;
+    parameter   MLEN = 8;
     parameter   Matrix_Parallel_Rd_Dim = 1;
     parameter   VLEN = MLEN;
     parameter   INST_BUFF_DEPTH = 8;
@@ -57,10 +57,13 @@ package pipeline_pkg;
     parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
     parameter   MATRIX_W_OFFSET_CYCLES         = 8;
     parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
-    parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 6;
-    parameter   VECTOR_BASIC_CYCLES            = 1;
-    parameter   VECTOR_EXP_CYCLES              = 6;
-    parameter   VECTOR_REDUCT_CYCLES           = 4;
+    parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 20;
+    parameter   VECTOR_ADD_CYCLES              = 6;
+    parameter   VECTOR_MUL_CYCLES              = 4;
+    parameter   VECTOR_EXP_CYCLES              = 5;
+    parameter   VECTOR_RECI_CYCLES             = 7;
+    parameter   VECTOR_MAX_CYCLES              = 4;
+    parameter   VECTOR_SUM_CYCLES              = 20;
     parameter   SCALAR_FP_LONGEST_OPERATE_CYCLES = 4;
     parameter   SCALAR_FP_BASIC_CYCLES         = 1;
     parameter   SCALAR_FP_EXP_CYCLES           = 2;

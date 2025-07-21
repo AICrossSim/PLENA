@@ -24,7 +24,7 @@ import random
 import argparse
 from pathlib import Path
 
-from cfl_cocotb import veri_runner, MXBlockFPConverter
+from cfl_cocotb import veri_runner, MXBlockFPConverter, SRC_PATH
 
 
 # Parameters Definition
@@ -86,19 +86,29 @@ async def random_mcu_test(dut):
 def mcu_test():
     # Run tests with different params
     veri_runner(
-        group = "systolic_gemm",
-        module = "systolic_mcu",
+        group = "systolic_gemm_mxfp",
+        module = "mxfp_systolic_mcu",
         additional_include_paths = [
-            "../../../../src/basic_components/mx_fp_operation",
-            "../../../../src/basic_components/buffer",
-            "../../../../src/basic_components/fp_operation",
-            "../../../../src/basic_components/conversion",
-            "../../../../src/basic_components/common"
+            str(SRC_PATH / "basic_components/mx_fp_operation"),
+            str(SRC_PATH / "basic_components/buffer"),
+            str(SRC_PATH / "basic_components/fp_operation"),
+            str(SRC_PATH / "basic_components/conversion"),
+            str(SRC_PATH / "basic_components/common")
         ],       
+        definitions_path = [
+            str(SRC_PATH / "definitions"), 
+            str(SRC_PATH / "memory/HBM/TileLink_Lib")],
         module_param_list=[
-            {"MXFP_MANT_WIDTH" : mxfp_mant_width, "MXFP_EXP_WIDTH" : mxfp_exp_width, "MXFP_SCALE_WIDTH" : mxfp_scale_width, 
-             "BLOCK_DIM" : block_dim, "ACC_FP_MANT_WIDTH" : fp_mant_width, "ACC_FP_EXP_WIDTH" : fp_exp_width,
-             "N" : N, "M" : M, "K" : K }
+            {
+                "MXFP_MANT_WIDTH" : mxfp_mant_width, 
+                "MXFP_EXP_WIDTH" : mxfp_exp_width, 
+                "MXFP_SCALE_WIDTH" : mxfp_scale_width, 
+                "BLOCK_DIM" : block_dim, 
+                "ACC_FP_MANT_WIDTH" : fp_mant_width, 
+                "ACC_FP_EXP_WIDTH" : fp_exp_width,
+                "N" : N, 
+                "M" : M, 
+                "K" : K }
         ],
         trace = True,
     )

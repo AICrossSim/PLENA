@@ -14,32 +14,48 @@ import torch
 
 from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
-from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.testbench import Testbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
+from cfl_cocotb.streaming import StreamMonitor, StreamDriver
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
 from cfl_tools.logger import get_logger
+from cocotb.log import SimLog
+from quant.quant_operations.cast import fp_cast_hardware
 
 logger = get_logger(__name__)
 logger.setLevel(logging.DEBUG)
-class FPCPExpTB(CombinationalTestbench):
+
+class FPCPExpTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut, dut.clk, dut.rst)
+
+        if not hasattr(self, "log"):
+            self.log = SimLog("%s" % (type(self).__qualname__))
+            self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.in_driver = StreamDriver(
+            dut.clk, dut.data_in, dut.data_in_valid, dut.data_in_ready
+        )
+
+        self.out_monitor = StreamMonitor(
+            dut.clk,
+            dut.data_out,
+            dut.data_out_valid,
+            dut.data_out_ready,
+            check=True,
+            unsigned=True,
+        )
     def generate_inputs(self, num):
-        # seed = torch.randint(0, 1000000, (1,)).item()
-        torch.manual_seed(0)
-        # self.log.info("seed : {}".format(seed))
         q_config = {
             "in_exp_width" : self.dut.IN_EXP_WIDTH.value,
             "in_mant_width" : self.dut.IN_MANT_WIDTH.value,
             "out_exp_width" : self.dut.OUT_EXP_WIDTH.value,
             "out_mant_width" : self.dut.OUT_MANT_WIDTH.value,
         }
-
-        in_exp_width = q_config["in_exp_width"]
-        in_mant_width = q_config["in_mant_width"]
-        out_exp_width = q_config["out_exp_width"]
-        out_mant_width = q_config["out_mant_width"]
 
         # Generate random inputs, avoiding values too close to zero to prevent overflow
         torch_x = torch.randn(num) * 2.5
@@ -65,9 +81,6 @@ class FPCPExpTB(CombinationalTestbench):
         }
         exp_out_exp, exp_out_mant = fp_exp_hardware(x_exp, x_mant, exp_harware_config)
         hardware_result = exp_out_mant * 2**(exp_out_exp)
-        logger.debug(f"exp_out_mant: {exp_out_mant}")
-        logger.debug(f"exp_out_exp: {exp_out_exp}")
-        logger.debug(f"hardware_result: {hardware_result}")
         
         # Quantize output
         out_width = q_config["out_mant_width"] + q_config["out_exp_width"] + 1
@@ -75,44 +88,40 @@ class FPCPExpTB(CombinationalTestbench):
 
         # Pack inputs and outputs to binary format
         inputs_x = pack_fp_to_bin(x_exp, x_mant, q_config["in_exp_width"], q_config["in_mant_width"])
-        from quant.quant_operations.cast import fp_cast_hardware
         q_out = fp_cast_hardware(hardware_result, q_config)
         q_out, q_out_exp, q_out_mant = _minifloat_ieee_quantize_hardware(q_out, out_width, out_exponent_width)
         outputs_out = pack_fp_to_bin(q_out_exp, q_out_mant, q_config["out_exp_width"], q_config["out_mant_width"])
 
-        self.inputs = {
-            "data_in": inputs_x.int().tolist(),
-        }
+        self.inputs = [(int(inputs_x[i])) for i in range(num)]
 
-        self.log.debug("input : {}, {}, {}".format(qx, x_exp, x_mant))
-        self.log.debug("output : {}, {}, {}".format(q_out, q_out_exp, q_out_mant))
-        self.outputs = {
-            "data_out": outputs_out.int().tolist(),
-        }
-    def check_output(self, expected_output, hardware_output):
-        self.log.debug(f"----------------{self.dut}---------")
-        from cfl_tools.debugger import get_dut_attributes
-        # get_dut_attributes(self.dut, self.log, 'signed_integer')
-        get_dut_attributes(self.dut, self.log)
-        self.log.debug(f"expected_output: {expected_output}, hardware_output: {int(hardware_output.signed_integer)}")
+        self.outputs = [int(outputs_out[i]) for i in range(num)]
 
-        self.log.debug(f"exp_out_mant: {self.dut.exp_out_mant.value.signed_integer}")
-        self.log.debug(f"exp_out_exp: {self.dut.exp_out_exp.value.signed_integer}")
-        result = self.dut.exp_out_mant.value.signed_integer * 2**(self.dut.exp_out_exp.value.signed_integer)
-        self.log.debug(f"result: {result}")
-        # breakpoint()
-        # get_dut_attributes(self.dut.fp_exp_inst.taylor_series_expansion_inst, self.log, "integer")
-        get_dut_attributes(self.dut.fp_normalize, self.log, "signed_integer")
-        get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log)
-        # get_dut_attributes(self.dut.taylor_series_expansion_inst, self.log, 'integer')
-        
-        assert expected_output == hardware_output.signed_integer, f"Expected {expected_output}, but got {int(hardware_output.signed_integer)}"
+    async def run_test(self, us, num):
+        await self.reset()
+        self.log.info(f"Reset finished")
+        self.out_monitor.ready.value = 1
+
+        self.generate_inputs(num)   
+
+        self.in_driver.load_driver(self.inputs)
+
+        self.out_monitor.load_monitor(self.outputs)
+
+        await Timer(us, units="us")
+        assert self.out_monitor.exp_queue.empty()
 
 @cocotb.test()
 async def test_fp_cp_exp(dut):
     tb = FPCPExpTB(dut)
+    # cocotb.start_soon(check(dut))
     tb.log.setLevel(logging.DEBUG)
-    await tb.run_test(10)
+    await tb.run_test(20, 10)
+
+async def check(dut):
+    while True:
+        await RisingEdge(dut.clk)
+        if dut.p1_partition_valid.value == 1 and dut.p1_partition_ready.value == 1:
+            breakpoint()
 
 @pytest.mark.dev
 def test_simple_fp_exp():
@@ -129,10 +138,10 @@ def test_simple_fp_exp():
             str(SRC_PATH / "basic_components/int_operation")
         ],
         module_param_list=[
-            {"IN_EXP_WIDTH" : 4, "IN_MANT_WIDTH" : 3, "OUT_EXP_WIDTH" : 4, "OUT_MANT_WIDTH" : 3},
+            {"IN_EXP_WIDTH" : 6, "IN_MANT_WIDTH" : 5, "OUT_EXP_WIDTH" : 6, "OUT_MANT_WIDTH" : 5},
             # {"IN_EXP_WIDTH" : 5, "IN_MANT_WIDTH" : 10, "OUT_EXP_WIDTH" : 5, "OUT_MANT_WIDTH" : 10},
         ],
-        trace = False,
+        trace = True,
     )
 
 if __name__ == "__main__":
