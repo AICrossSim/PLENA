@@ -41,7 +41,7 @@ from transformers.models.llama.modeling_llama import (
 from accelerate import dispatch_model
 
 
-def mxfp_lm_eval(
+def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
     model_name: str = "meta-llama/Meta-Llama-3-8B",
     tasks: Union[str, list[str]] = "wikitext",
@@ -51,7 +51,7 @@ def mxfp_lm_eval(
     preset_mxfp_Kv: Union[str, None] = None,
     preset_minifloat_NL: Union[str, None] = None,
     model_parallel: bool = True,
-    log_dir: Union[str, None] = "logs",
+    log_dir: Union[str, None] = None,
     enable_eval_harness: bool = False
 ):
     """
@@ -73,6 +73,7 @@ def mxfp_lm_eval(
         log_dir: Directory to save logs and results.
         enable_eval_harness: Whether to run evaluation via EleutherAI lm-eval-harness.
     """
+    start_time = time.time()
     preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
         preset,
         preset_mxfp_X,
@@ -91,8 +92,8 @@ def mxfp_lm_eval(
 
     if preset != "original":
         print(f"Using preset {preset}, which sets the following parameters:\n")
-        for k, v in quant_args.items():
-            print(f"{k}:\n{pformat(v)}")
+        # for k, v in quant_args.items():
+        #     print(f"{k}:\n{pformat(v)}")
     else:
         print("Using original parameters, no quantization applied.")
 
@@ -180,11 +181,15 @@ def mxfp_lm_eval(
     if log_dir:
         save_results(log_dir, results)
 
+    total_time = time.time() - start_time
+    print(f"\n[INFO] Total workload time: {total_time:.2f} seconds")
+    return results
+
 if __name__ == "__main__":
     import time
     from jsonargparse import CLI
 
     start_time = time.time()
-    CLI(mxfp_lm_eval)
+    CLI(llama_eval)
     total_time = time.time() - start_time
     print(f"\n[INFO] Total workload time: {total_time:.2f} seconds")

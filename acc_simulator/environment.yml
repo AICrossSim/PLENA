@@ -26,3 +26,8 @@ dependencies:
       - tqdm
       - sentencepiece
       - protobuf
+      # dse related, temporary placement for now
+      - botorch==0.9.5
+      - optuna-integration==4.4.0
+      - optuna==4.4.0
+      - plotly==6.2.0

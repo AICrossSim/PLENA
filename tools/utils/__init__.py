@@ -1,1 +1,1 @@
-from .load_config import load_svh_settings, load_json, load_toml_config
+from .load_config import load_svh_settings, load_json, load_toml_config, patch_config_svh_from_toml
