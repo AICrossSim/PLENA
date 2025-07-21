@@ -39,7 +39,7 @@ def patch_config_svh_from_toml(
         for param, values in toml_config.items()
         if mode in values
     } 
-
+    print("svh_path:", svh_path)
     with open(svh_path, "r") as f:
         lines = f.readlines()
 
@@ -81,7 +81,7 @@ def parse_config_string(config_str):
 
 
 def modify_toml_file(
-    mode: str,
+    mode: str = None,
     toml_path: str = "config.toml",
     section: str = "CONFIG",
     config_params: dict = None
@@ -113,14 +113,41 @@ def modify_toml_file(
             for param, value in config_params.items():
                 if param in toml_config:
                     toml_config[param]['active'] = value
-                else:
-                    raise ValueError(f"Parameter '{param}' not found in TOML.")
         
         # Write back the modified toml
         data[section] = toml_config
         with open(toml_path, "w") as f:
             toml.dump(data, f)
         print(f"Updated 'active' values in {toml_path} with mode '{mode}'.")
+
+def auto_config (
+    config_svh_path: str = "default",
+    precision_svh_path: str = "default",
+    toml_path: str = "config/config.toml",
+    settings: dict = None
+):
+    modify_toml_file(
+        toml_path=toml_path,
+        section="CONFIG",
+        config_params=settings
+    )
+    patch_config_svh_from_toml(
+        toml_path=toml_path,
+        section="CONFIG",
+        svh_path=config_svh_path
+    )
+    
+    modify_toml_file(
+        toml_path=toml_path,
+        section="PRECISION",
+        config_params=settings
+    )
+    patch_config_svh_from_toml(
+        toml_path=toml_path,
+        section="PRECISION",
+        svh_path=precision_svh_path
+    )
+
 
 
 def main():

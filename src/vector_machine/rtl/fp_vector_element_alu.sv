@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "configuration.svh"
 `include "operation.svh"
 
 /*
@@ -13,40 +15,93 @@ module fp_vector_element_alu #(
     parameter   EXP_WIDTH = 5,
     parameter   MANT_WIDTH = 10
 )(
-    input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,  // {sign, exp, mant}
+    input  logic clk,
+    input  logic rst,
+    input  V_ELEMENT_OP operation,
+
+    input  logic data_a_valid,
+    output logic data_a_ready,
+    input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,
+
+    input  logic data_b_valid,
+    output logic data_b_ready,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
-    input  V_ELEMENT_OP operation,       // 0: add, 1: sub, 2: mul, 3: exp
-    output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out
+
+
+    output logic [EXP_WIDTH + MANT_WIDTH : 0] data_out,
+    output logic data_out_valid,
+    input  logic data_out_ready
 );
 
-    logic [EXP_WIDTH + MANT_WIDTH : 0] data_out_add, 
-                                          data_out_mul,
-                                          data_out_exp;
+    V_ELEMENT_OP recorded_operation;
+    logic [EXP_WIDTH + MANT_WIDTH : 0] data_out_add, data_out_mul, data_out_exp;
     logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
     logic negated_en;
+
+
+    logic data_in_valid, data_in_ready;
+    logic mult_data_in_valid, mult_data_in_ready;
+    logic mult_data_out_valid, mult_data_out_ready;
+    logic add_data_in_valid, add_data_in_ready;
+    logic add_data_out_valid, add_data_out_ready;
+    logic exp_data_in_valid, exp_data_in_ready;
+    logic exp_data_out_valid, exp_data_out_ready;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            recorded_operation <= STALL_V_ELEMENT;
+        end else begin
+            if ( operation != STALL_V_ELEMENT) begin
+                recorded_operation <= operation;
+            end 
+        end
+    end
+
+    join2 #() join_data_in (
+        .data_in_valid({data_a_valid, data_b_valid}),
+        .data_in_ready({data_a_ready, data_b_ready}),
+        .data_out_valid(data_in_valid),
+        .data_out_ready(data_in_ready)
+    );
 
     always_comb begin
         // Combinational module to flip the sign bit for FP subtraction
         negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
-        case (operation)
+        case (recorded_operation)
             ADD_V_ELEMENT: begin
                 negated_en = 1'b0;
+                add_data_in_valid = data_in_valid;
+                data_in_ready = add_data_in_ready;
                 data_out = data_out_add;
+                data_out_valid = add_data_out_valid;
+                add_data_out_ready = data_out_ready;
             end
 
             SUB_V_ELEMENT: begin
                 negated_en = 1'b1;
+                add_data_in_valid = data_in_valid;
+                data_in_ready = add_data_in_ready;
                 data_out = data_out_add;
+                data_out_valid = add_data_out_valid;
+                add_data_out_ready = data_out_ready;
             end
 
             MUL_V_ELEMENT: begin
                 negated_en = 1'b0;
+                mult_data_in_valid = data_in_valid;
+                data_in_ready = mult_data_in_ready;
                 data_out = data_out_mul;
+                data_out_valid = mult_data_out_valid;
+                mult_data_out_ready = data_out_ready;
             end
 
             EXP_V_ELEMENT: begin
                 negated_en = 1'b0;
+                exp_data_in_valid = data_in_valid;
+                data_in_ready = exp_data_in_ready;
                 data_out = data_out_exp;
+                data_out_valid = exp_data_out_valid;
+                exp_data_out_ready = data_out_ready;
             end
 
             default: begin
@@ -64,11 +119,16 @@ fp_cp_adder_v2 #(
     .EXT_EXP_WIDTH(0),
     .EXT_MANT_WIDTH(0)
 ) adder (
+    .clk(clk),
+    .rst(rst),
+    .data_in_valid(add_data_in_valid),
+    .data_in_ready(add_data_in_ready),
     .data_a(data_a),
     .data_b(negated_en ? negated_data_b : data_b),
-    .data_out(data_out_add)
+    .data_out(data_out_add),
+    .data_out_valid(add_data_out_valid),
+    .data_out_ready(add_data_out_ready)
 );
-
 
 fp_cp_mult #(
     .EXP_WIDTH(EXP_WIDTH),
@@ -76,9 +136,31 @@ fp_cp_mult #(
     .EXT_EXP_WIDTH(0),
     .EXT_MANT_WIDTH(0)
 ) multiplier (
+    .clk(clk),
+    .rst(rst),
+    .data_in_valid(mult_data_in_valid),
+    .data_in_ready(mult_data_in_ready),
     .data_a(data_a),
     .data_b(data_b),
-    .data_out(data_out_mul)
+    .data_out(data_out_mul),
+    .data_out_valid(mult_data_out_valid),
+    .data_out_ready(mult_data_out_ready)
+);
+
+fp_cp_exp #(
+    .IN_EXP_WIDTH(EXP_WIDTH),
+    .IN_MANT_WIDTH(MANT_WIDTH),
+    .OUT_EXP_WIDTH(EXP_WIDTH),
+    .OUT_MANT_WIDTH(MANT_WIDTH)
+) exp_unit (
+    .clk(clk),
+    .rst(rst),
+    .data_in_valid      (exp_data_in_valid),
+    .data_in_ready      (exp_data_in_ready),
+    .data_in            (data_a),
+    .data_out           (data_out_exp),
+    .data_out_valid     (exp_data_out_valid),
+    .data_out_ready     (exp_data_out_ready)
 );
 
 

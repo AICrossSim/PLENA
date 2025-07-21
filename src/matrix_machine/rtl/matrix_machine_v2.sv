@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
-`include "configuration.svh"
+
 `include "precision.svh"
+`include "configuration.svh"
+`include "operation.svh"
 
 /*
 Module      : Matrix Machine Module V2
@@ -24,13 +25,13 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output logic        stall_for_addr,
 
     // Matix - row-major order
-    input  logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]          m_element,
+    input  logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]            m_element,
     input  logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                                  m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
     // Vector - row-major order
-    input  logic [MLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]        v_element,
+    input  logic [MLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]          v_element,
     input  logic [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                             v_scale,
     input  logic                   v_valid,
     output logic                   v_ready,
@@ -47,25 +48,24 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Declarations
     // -----------------------------
     import pipeline_pkg::*;
-    logic [ADDR_WIDTH-1:0] recorded_m_waddr;
     localparam ACC_ADDR_WIDTH = $clog2(MLEN / BLEN);
     M_OP    matrix_opcode; 
-    logic    [ADDR_WIDTH-1:0]  addr_in;
-    logic    result_waddr_update;
-    logic    wait_for_output;
-    logic    [1:0] recorded_wr_mode; // 2'b01: M_MM_WO, 2'b10: M_MV_WO
-    logic [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   result_v;
-    logic result_in_valid, result_in_ready;
-    logic [ACC_ADDR_WIDTH-1:0] acc_addr;
-    logic acc_addr_valid, acc_addr_ready;
-    logic [VLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]     stored_v_element;
-    logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]         stored_v_scale;
-    logic stored_v_in_ele_ready, stored_v_in_scale_ready;
-    logic stored_v_in_ele_valid, stored_v_in_scale_valid;
-    logic stored_v_ele_ready, stored_v_scale_ready;
-    logic stored_v_ele_valid, stored_v_scale_valid;
-    
 
+    logic   [ADDR_WIDTH-1:0] recorded_m_waddr;
+    logic   [ADDR_WIDTH-1:0]  addr_in;
+    logic   result_waddr_update;
+    logic   wait_for_output;
+    logic   [1:0] recorded_wr_mode; // 2'b01: M_MM_WO, 2'b10: M_MV_WO
+    logic   [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   result_v;
+    logic   result_in_valid, result_in_ready;
+    logic   [ACC_ADDR_WIDTH-1:0] acc_addr;
+    logic   acc_addr_valid, acc_addr_ready;
+    logic   [VLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]   stored_v_element;
+    logic   [BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                      stored_v_scale;
+    logic   stored_v_in_ele_ready, stored_v_in_scale_ready;
+    logic   stored_v_in_ele_valid, stored_v_in_scale_valid;
+    logic   stored_v_ele_ready, stored_v_scale_ready;
+    logic   stored_v_ele_valid, stored_v_scale_valid;
 
     // -----------------------------
     // Control Signals
@@ -123,7 +123,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
 
     // Data from Matrix SRAM Buffering
-    logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]     stored_m_element;
+    logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]       stored_m_element;
     logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                             stored_m_scale;
     logic stored_m_in_ele_ready, stored_m_in_scale_ready;
     logic stored_m_in_ele_valid, stored_m_in_scale_valid;
@@ -186,7 +186,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     skid_buffer #(
-        .DATA_WIDTH(MLEN * (ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH + 1))
+        .DATA_WIDTH(VLEN * (ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH + 1))
     ) vector_element_buffer (
         .clk(clk),
         .rst(rst),

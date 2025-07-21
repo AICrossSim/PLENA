@@ -16,10 +16,18 @@ module fp_adder #(
     parameter int OUT_FIX_WIDTH = -1,
     parameter int OUT_FIX_FRAC_WIDTH = -1
 )(
+    input  logic clk,
+    input  logic rst,
+    input  logic a_in_valid,
+    output logic a_in_ready,
     input  logic signed [IN_EXP_WIDTH - 1:0] exp_a,
     input  logic signed [IN_FIX_WIDTH - 1:0] mant_a,
+    input  logic b_in_valid,
+    output logic b_in_ready,
     input  logic signed [IN_EXP_WIDTH - 1:0] exp_b,
     input  logic signed [IN_FIX_WIDTH - 1:0] mant_b,
+    output logic out_valid,
+    input  logic out_ready,
     output logic signed [OUT_EXP_WIDTH - 1:0] exp_out,
     output logic signed [OUT_FIX_WIDTH - 1:0] mant_out
 );
@@ -33,9 +41,16 @@ module fp_adder #(
 
     localparam signed FRAC_DIFF = DATA_FIX_FRAC_WIDTH - IN_FIX_FRAC_WIDTH;
 
-
-    logic signed [IN_EXP_WIDTH - 1:0] exp_diff;
+    logic signed [IN_EXP_WIDTH - 1:0]   exp_diff;
     logic signed [DATA_FIX_WIDTH - 1:0] mant_a_shifted, mant_b_shifted;
+
+    logic signed [OUT_EXP_WIDTH - 1:0]  p1_exp_out;
+    logic signed [DATA_FIX_WIDTH - 1:0] p1_mant_a_shifted;
+    logic signed [DATA_FIX_WIDTH - 1:0] p1_mant_b_shifted;
+    
+    logic data_in_valid;
+    logic data_in_ready;
+
 
     always_comb begin
         if (exp_a > exp_b) begin
@@ -50,7 +65,29 @@ module fp_adder #(
             mant_b_shifted = mant_b << FRAC_DIFF;
             exp_out = exp_b;
         end
-        mant_out = mant_a_shifted + mant_b_shifted;
+        mant_out = p1_mant_a_shifted + p1_mant_b_shifted;
+        exp_out  = p1_exp_out;
     end
+
+    join2 #() join_inst (
+      .data_in_ready ({a_in_valid, b_in_valid}),
+      .data_in_valid ({a_in_ready, b_in_ready}),
+      .data_out_valid(data_in_valid),
+      .data_out_ready(data_in_ready)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(IN_EXP_WIDTH + DATA_FIX_WIDTH + DATA_FIX_WIDTH)
+    ) skid_p1 (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (a_in_valid),
+        .data_in_ready  (a_in_ready),
+        .data_in        ({exp_out, mant_a_shifted, mant_b_shifted}),
+        .data_out_valid (out_valid),
+        .data_out_ready (out_ready),
+        .data_out       ({p1_exp_out, p1_mant_a_shifted, p1_mant_b_shifted})
+    );
+
 
 endmodule

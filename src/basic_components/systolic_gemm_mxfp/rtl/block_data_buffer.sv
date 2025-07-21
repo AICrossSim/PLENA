@@ -1,7 +1,9 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
-`include "configuration.svh"
+
 `include "precision.svh"
+`include "configuration.svh"
+`include "operation.svh"
+
 
 /*
 Module      : Partial Result Buffer for Matrix Machine V2

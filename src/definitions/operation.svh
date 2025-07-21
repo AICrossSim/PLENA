@@ -1,15 +1,8 @@
 `ifndef OPERATION_SVH
 `define OPERATION_SVH
 
-
-parameter FIXED_OPERAND_WIDTH = 3;
-parameter FP_OPERAND_WIDTH = 3;
-parameter OPERAND_WIDTH = 3;
-parameter OPCODE_WIDTH = 6;
-parameter IMM_WIDTH = 7;
-parameter IMM_2_WIDTH = 4;
-parameter INSTRUCTION_LENGTH = 16;
-parameter ON_CHIP_ADDR_WIDTH = 32;
+import configuration_pkg::*;
+import instruction_pkg::*;
 
 typedef struct {
     logic w_m_sram_en;
@@ -85,11 +78,14 @@ typedef enum logic [3:0] {
 } S_FIXED_OP;
 
 typedef enum logic [2:0] {
-    STALL_C         = 3'h0,
-    SET_ADDR_REG    = 3'h1,
-    SET_STRIDE_SIZE = 3'h2,
-    SET_LUT         = 3'h3,
-    SET_SCALE_REG   = 3'h4
+    STALL_C             = 3'h0,
+    SET_ADDR_REG        = 3'h1,
+    SET_V_STRIDE_SIZE   = 3'h2,
+    SET_M_STRIDE_SIZE   = 3'h3,
+    SET_LUT             = 3'h4,
+    SET_V_SCALE_REG     = 3'h5,
+    SET_M_SCALE_REG     = 3'h6,
+    BREAK               = 3'h7
 } C_OP;
 
 typedef enum logic [3:0] {
@@ -182,9 +178,9 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     C_SET_ADDR_REG         = 6'h34,
     C_SET_LUT              = 6'h35,
     C_SET_STRIDE_REG       = 6'h36,
-    C_SET_SCALE_REG        = 6'h37
+    C_SET_SCALE_REG        = 6'h37,
+    C_BREAK                = 6'h38
 } CUSTOM_ISA_OPCODE;
-
 
 
 typedef enum logic [2:0] {
@@ -198,11 +194,11 @@ typedef enum logic [2:0] {
 } CUSTOM_ISA_TYPE;
 
 typedef struct {
-    logic [OPCODE_WIDTH - 1:0]  opcode;
-    logic [OPERAND_WIDTH:0]     rs1;
-    logic [OPERAND_WIDTH:0]     rs2;
-    logic [OPERAND_WIDTH:0]     rd;
-    logic [IMM_WIDTH - 1:0]     imm;
+    logic [instruction_pkg::OPCODE_WIDTH  - 1 : 0]  opcode;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]     rs1;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]     rs2;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]     rd;
+    logic [instruction_pkg::IMM_WIDTH - 1 : 0]     imm;
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
@@ -215,14 +211,14 @@ typedef struct {
     H_OP            h_op;
     logic           m_transposed_read;
     logic           v_broadcast_en;
-    logic [FP_OPERAND_WIDTH - 1:0]      fps1;
-    logic [FP_OPERAND_WIDTH - 1:0]      fps2;
-    logic [FP_OPERAND_WIDTH - 1:0]      fpd;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs1;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rs2;
-    logic [FIXED_OPERAND_WIDTH - 1:0]   fixed_rd;
-    logic [ON_CHIP_ADDR_WIDTH - 1:0]    addr_1;
-    logic [ON_CHIP_ADDR_WIDTH - 1:0]    addr_2;
+    logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]      fps1;
+    logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]      fps2;
+    logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]      fpd;
+    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]   fixed_rs1;
+    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]   fixed_rs2;
+    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]   fixed_rd;
+    logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]    addr_1;
+    logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]    addr_2;
     logic update_m_waddr;
     logic update_v_waddr;
 } OP_BUNDLE;

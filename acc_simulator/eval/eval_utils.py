@@ -3,9 +3,13 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo 
 from pathlib import Path
+import re
 
 import torch
 from torch import nn
+
+from ..quantize.quantizer.mxfp import MXFPMeta
+from ..quantize.quantizer.minifloat import MinifloatMeta
 
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
@@ -80,6 +84,27 @@ def print_all_layers(model: nn.Module):
         print(f"{name}: {type(layer).__name__} | device: {device}")
     print("====================")
 
+def validate_preset_format(preset: str) -> None:
+    """
+    Ensures that the preset string:
+    - Contains exactly all 5 components (X, W, B, KV, NL)
+    - Appears in fixed order
+    - Each followed optionally by 'q' (e.g., X or Xq)
+
+    Raises:
+        ValueError if format is invalid.
+    """
+    if preset == "original":
+        return
+
+    pattern = r"^(Xq|X)(Wq|W)(Bq|B)(KVq|KV)(NLq|NL)$"
+    match = re.fullmatch(pattern, preset)
+    if not match:
+        raise ValueError(
+            f"Invalid preset format: '{preset}'. Must include X, W, B, KV, and NL "
+            f"in order, each optionally suffixed with 'q'."
+        )
+
 
 def validate_and_sanitize_quant_args(
     preset: str,
@@ -97,24 +122,23 @@ def validate_and_sanitize_quant_args(
     - If not specified in the preset, any provided format is ignored with a warning.
 
     Raises:
-        AssertionError: If the preset is not one of the allowed values.
-        ValueError: If a required quantization format is missing.
+        ValueError: If a required preset and quantization format is missing or invalid.
 
     Returns:
         A tuple of (preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL),
         with unused arguments set to None.
     """
-    allowed_presets = [
-        "XqWqBqKVqNLq", "XWqBqKVNL", "XWBKVNLq",
-        "XWqBqKVq", "XWqBqKV", "XWqBqKVq", "original"
-    ]
-
-    assert preset in allowed_presets, f"Unsupported preset: '{preset}'"
+    validate_preset_format(preset)
 
     def check_and_clear(flag: str, arg_value: str | None, arg_name: str) -> str | None:
         if flag in preset:
             if arg_value is None:
                 raise ValueError(f"Preset includes '{flag}' but '{arg_name}' is not specified.")
+            # Early input Str format validation, will rasie ValueError from ../meta.py if format invalid
+            if "MXFP" in arg_value:
+                _ = MXFPMeta.from_string(arg_value)
+            elif "FP" in arg_value:
+                _ = MinifloatMeta.from_string(arg_value)
             return arg_value
         else:
             if arg_value is not None:

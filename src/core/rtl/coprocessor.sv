@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
 
-`include "operation.svh"
+`include "global_define.vh"
 `include "precision.svh"
 `include "configuration.svh"
+`include "operation.svh"
 `include "tl_util.svh"
-`include "global_define.vh"
+
 
 /*
 Module      : Coprocessor Top Module
@@ -14,7 +15,7 @@ Description : This module serves as the top level of the coprocessor,
               It currently only supports single batch execution.
 */
 
-module coprocessor import configuration_pkg::*; #(
+module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
         parameter string FIXED_MEM_INIT_FILE    = "",
@@ -28,13 +29,14 @@ module coprocessor import configuration_pkg::*; #(
     input   logic [INSTRUCTION_LENGTH - 1 : 0] instruction,
     input   logic instruction_valid,
     output  logic instruction_ready,
+    output  logic system_break,
 
     // HBM Interface 1 for Matrix
-    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_element),
-    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale),
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,    HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, m_out_scale),
     // HBM Interface 2 for Vector
-    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_element),
-    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_scale)
+    `TL_DECLARE_HOST_PORT(HBM_ELE_WIDTH,    HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_element),
+    `TL_DECLARE_HOST_PORT(HBM_SCALE_WIDTH,  HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_out_scale)
 );
     // Import Packages
     import precision_pkg::*;
@@ -63,12 +65,13 @@ module coprocessor import configuration_pkg::*; #(
     MEM_WREQ_INFO mem_write_req;
 
     // Matrix SRAM
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
-    logic [FIXED_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
+    logic [INT_DATA_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
+    logic [INT_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
     logic m_out_valid,  m_out_ready;
     logic m_sram_wen, m_sram_req, m_sram_transposed_read;
+    logic m_prefetch_en;
 
     // HBM Control
     logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
@@ -107,11 +110,11 @@ module coprocessor import configuration_pkg::*; #(
     logic v_sram_req_a, v_sram_req_b;
     logic [1:0] v_sram_mxfp_req_b;
     logic v_sram_wen_a, v_sram_wen_b;
-    logic [FIXED_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
+    logic [INT_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
-    logic [VLEN-1:0]                [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]                    v_high_element_port_b_out;
-    logic [VLEN-1:0]                [WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH:0]                      v_low_element_port_b_out;
+    logic [VLEN-1:0]                [WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH:0]                      v_high_element_port_b_out;
+    logic [VLEN-1:0]                [KV_MXFP_MANT_WIDTH + KV_MXFP_EXP_WIDTH:0]                      v_low_element_port_b_out;
     logic [V_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                          v_scale_port_b_out;
     logic [MLEN-1:0]                [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]                    v_element_port_a_out;
     logic [M_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                          v_scale_port_a_out;
@@ -126,8 +129,8 @@ module coprocessor import configuration_pkg::*; #(
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_in;
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_out;
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                fp_s_vector_out;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_1;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_out_2;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_out_1;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_out_2;
     logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
     logic s_map_v_valid, s_map_v_ready;
 
@@ -135,7 +138,8 @@ module coprocessor import configuration_pkg::*; #(
     // -----------------------------
     // Dataflow & Execution Control
     // -----------------------------
-    
+    assign system_break = (exe_stage_op.c_op == C_BREAK);
+
     // Frontend
     decoder #(
         .INSTRUCTION_LENGTH         (INSTRUCTION_LENGTH),
@@ -146,6 +150,7 @@ module coprocessor import configuration_pkg::*; #(
     ) decoder_init (
         .clk(clk),
         .rst(rst),
+        .system_stall_flag      (system_break),
         .pipeline_stall         (pipeline_stall),
         .instruction            (instruction),
         .instruction_valid      (instruction_valid),
@@ -159,10 +164,9 @@ module coprocessor import configuration_pkg::*; #(
     );
 
     pipeline_control #(
-        .OPERAND_WIDTH          (OPERAND_WIDTH),
         .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
         .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
-        .FIXED_DATA_WIDTH       (FIXED_DATA_WIDTH),
+        .INT_DATA_WIDTH       (INT_DATA_WIDTH),
         .IMM_WIDTH              (IMM_WIDTH)
     ) pipeline_control_init (
         .clk(clk),
@@ -251,8 +255,6 @@ module coprocessor import configuration_pkg::*; #(
     // Computation Units
     // -----------------------------
  
-
-                
     generate;
         // Matrix Compute Unit
         matrix_machine_v2 #(
@@ -345,11 +347,13 @@ module coprocessor import configuration_pkg::*; #(
     // -----------------------------
 
     // Matrix SRAM 
+    assign m_prefetch_en = (exe_stage_op.h_op == PREFETCH_M_H_C || exe_stage_op.h_op == PREFETCH_M_H_S || 
+                            exe_stage_op.h_op == PREFETCH_M_L_C || exe_stage_op.h_op == PREFETCH_M_L_S);
     matrix_sram_without_rounding #(
-        .MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
+        .WT_MXFP_EXP_WIDTH  (WT_MXFP_EXP_WIDTH),
+        .WT_MXFP_MANT_WIDTH (WT_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
-        .FIXED_DATA_WIDTH   (ON_CHIP_ADDR_WIDTH),
+        .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
         .MLEN               (MLEN),
         .BLOCK_DIM          (BLOCK_DIM),
         .SRAM_DEPTH         (MATRIX_SRAM_DEPTH),
@@ -368,16 +372,18 @@ module coprocessor import configuration_pkg::*; #(
         .element_in         (prefetch_m_element),
         .scale_in           (prefetch_m_scale),
         .prefetch_addr      (exe_stage_op.addr_2),
-        .prefetch_en        (exe_stage_op.h_op == PREFETCH_M_H_C),
+        .prefetch_en        (m_prefetch_en),                // For address Tag.
         .data_not_ready     (m_prefetch_data_not_ready)
     );
 
     // Vector SRAM
     fp_vector_sram #(
-        .ACT_MXFP_EXP_WIDTH    (ACT_MXFP_EXP_WIDTH),
-        .ACT_MXFP_MANT_WIDTH   (ACT_MXFP_MANT_WIDTH),
-        .WT_MXFP_EXP_WIDTH     (WT_MXFP_EXP_WIDTH),
-        .WT_MXFP_MANT_WIDTH    (WT_MXFP_MANT_WIDTH),
+        .ACT_MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
+        .ACT_MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
+        .WT_MXFP_EXP_WIDTH      (WT_MXFP_EXP_WIDTH),
+        .WT_MXFP_MANT_WIDTH     (WT_MXFP_MANT_WIDTH),
+        .KV_MXFP_EXP_WIDTH      (KV_MXFP_EXP_WIDTH),
+        .KV_MXFP_MANT_WIDTH     (KV_MXFP_MANT_WIDTH),
         .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
         .EXP_WIDTH              (V_FP_EXP_WIDTH),
         .MANT_WIDTH             (V_FP_MANT_WIDTH),
@@ -453,7 +459,7 @@ module coprocessor import configuration_pkg::*; #(
         .exe_stage_op                           (exe_stage_op),
         .prefetch_m_ready                       (hbm_m_req_prefetch_data),
         .prefetch_m_valid                       (hbm_m_prefetch_valid),
-        .prefetch_m_element                     (prefetch_m_high_precision_element),
+        .prefetch_m_element                     (prefetch_m_element),
         .prefetch_m_scale                       (prefetch_m_scale),
         .prefetch_v_ready                       (hbm_v_req_prefetch_data),
         .prefetch_v_valid                       (hbm_v_prefetch_valid),

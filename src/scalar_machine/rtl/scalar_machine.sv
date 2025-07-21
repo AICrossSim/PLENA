@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
-`include "operation.svh"
-`include "configuration.svh"
+
 `include "precision.svh"
+`include "configuration.svh"
+`include "operation.svh"
 
 /*
 Module      : Scalar Machine Module
@@ -33,8 +34,8 @@ module scalar_machine import precision_pkg::*;  #(
 
     // Fixed Value input
     input   logic [IMM_WIDTH - 1 : 0]           imm_in,
-    output  logic [FIXED_DATA_WIDTH - 1 : 0]    fixed_out_1,
-    output  logic [FIXED_DATA_WIDTH - 1 : 0]    fixed_out_2,
+    output  logic [INT_DATA_WIDTH - 1 : 0]    fixed_out_1,
+    output  logic [INT_DATA_WIDTH - 1 : 0]    fixed_out_2,
 
     // FP Value input
     input   logic [S_FP_EXP_WIDTH + S_FP_MANT_WIDTH : 0] external_fp_in,
@@ -55,7 +56,7 @@ module scalar_machine import precision_pkg::*;  #(
     import pipeline_pkg::*;
     import configuration_pkg::*;
     localparam FP_SRAM_ADDR_WIDTH       = $clog2(FP_SRAM_DEPTH);
-    localparam FIXED_SRAM_ADDR_WIDTH    = $clog2(FIXED_SRAM_DEPTH);
+    localparam FIXED_SRAM_ADDR_WIDTH    = $clog2(INT_SRAM_DEPTH);
     localparam VLEN_COUNTER_WIDTH       = $clog2(VLEN);
 
     //----------------------------//
@@ -92,7 +93,6 @@ module scalar_machine import precision_pkg::*;  #(
         if (rst) begin
             exe_fp_control          <= STALL_S_FP;
             load_fp_sram_valid      <= 1'b0;
-            recorded_fp_waddr_alu   <= 'b0;
             recorded_fp_waddr_sram  <= 'b0;
             p1_fp_rd                <= 'b0;
             fp_stall_req            <= 1'b0;
@@ -111,7 +111,6 @@ module scalar_machine import precision_pkg::*;  #(
             exe_fp_control          <= fp_control;
             load_fp_sram_valid      <= (exe_fp_control == LD_REG_FP) ? 1'b1 : 1'b0;
             recorded_fp_waddr_sram  <= p1_fp_rd;
-            recorded_fp_waddr_alu   <= p1_fp_rd;
 
             if (fp_control == RECI_FP || fp_control == EXP_FP) begin
                 fp_stall_req <= 1'b1; // SFU is busy
@@ -168,8 +167,6 @@ module scalar_machine import precision_pkg::*;  #(
     /*
     Note: There is a case that fp_reg might be written from fp_alu and fp_sram at the same time, need to implement stall logic to prevent this.
     */
-    // Delay a clk due to fp_alu takes one clk to compute the result
-    assign  fp_alu_valid = (exe_fp_control == ADD_FP || exe_fp_control == SUB_FP || exe_fp_control == MAX_FP || exe_fp_control == MUL_FP || exe_fp_control == MV_FP);
 
     always_comb begin
         if (fp_alu_valid) begin
@@ -215,10 +212,14 @@ module scalar_machine import precision_pkg::*;  #(
         .MANT_WIDTH(S_FP_MANT_WIDTH)
     ) fp_alu_init (
         .clk        (clk),
+        .rst        (rst),
+        .operation  (exe_fp_control),
+        .reg_waddr  (p1_fp_rd),
+        .stored_reg_waddr (recorded_fp_waddr_alu),
         .data_a     (fp_reg_1),
         .data_b     (fp_reg_2),
-        .operation  (exe_fp_control),
-        .data_out   (fp_alu_out)
+        .data_out   (fp_alu_out),
+        .data_out_valid(fp_alu_valid)
     );
 
     fp_sfu #(
@@ -232,8 +233,7 @@ module scalar_machine import precision_pkg::*;  #(
         .operation          (fp_control),
         .data_out           (fp_sfu_out),
         .stored_reg_waddr   (recorded_fp_waddr_sfu),
-        .data_out_valid     (sfu_out_valid),
-        .data_out_ready     (sfu_out_ready)
+        .data_out_valid     (sfu_out_valid)
     );
 
     regfile_2p1w #(
@@ -269,11 +269,11 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     //----------------------------//
-    // Fixed Unit
+    // INT Unit
     //----------------------------//
 
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;
-    logic [FIXED_DATA_WIDTH - 1 : 0] fixed_loaded_reg_1, fixed_loaded_reg_2;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;
+    logic [INT_DATA_WIDTH - 1 : 0] fixed_loaded_reg_1, fixed_loaded_reg_2;
     logic fixed_reg_wen, fixed_write_from_sram_req, p1_fixed_write_from_sram_req, fixed_alu_valid;
     logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_waddr, recorded_fixed_reg_exe_waddr, p1_recorded_fixed_reg_exe_waddr;
     S_FIXED_OP exe_fixed_op;
@@ -353,14 +353,14 @@ module scalar_machine import precision_pkg::*;  #(
     assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX) || (assigned_fixed_op == MAP_V_FP)) ? rd : rs2;
 
 
-    fixed_alu #(
-        .BITWIDTH(FIXED_DATA_WIDTH)
-    ) fixed_alu (
+    int_alu #(
+        .BITWIDTH(INT_DATA_WIDTH)
+    ) int_alu_init (
         .clk            (clk),
         .rst            (rst),
         .operand_a      (fixed_reg_1),
         .operand_b      (fixed_reg_2),
-        .imm_value      ({{(FIXED_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
+        .imm_value      ({{(INT_DATA_WIDTH - IMM_WIDTH){1'b0}}, recorded_imm_in}),
         .operation      (exe_fixed_op),
         .result_valid   (fixed_alu_valid),
         .computed_address(computed_address),
@@ -368,9 +368,9 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     regfile_2p1w #(
-        .BITWIDTH(FIXED_DATA_WIDTH),
+        .BITWIDTH(INT_DATA_WIDTH),
         .DEPTH(1 << FIXED_OPERAND_WIDTH)
-    ) fixed_reg_file (
+    ) int_reg_file (
         .clk        (clk),
         .we         (fixed_reg_wen),
         .waddr      (fixed_reg_waddr),
@@ -382,13 +382,13 @@ module scalar_machine import precision_pkg::*;  #(
     );
 
     scalar_sram #(
-        .DATA_WIDTH(FIXED_SRAM_WIDTH),
-        .DEPTH(FIXED_SRAM_DEPTH)
+        .DATA_WIDTH     (INT_SRAM_WIDTH),
+        .DEPTH          (INT_SRAM_DEPTH)
         `ifdef SIMULATION
             ,
             .MemInitFile(FIXED_MEM_INIT_FILE)
         `endif
-    ) fixed_scalar_sram (
+    ) int_scalar_sram (
         .clk(clk),
         .rst(rst),
         .req            ((exe_fixed_op == LD_FIX) || (exe_fixed_op == ST_FIX)),

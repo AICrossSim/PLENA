@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 from math import log2
 import re
+import toml
 
-
-def load_architecture_settings(file_path):
+def load_svh_settings(file_path):
     """
     Parse SystemVerilog `parameter` definitions in an .svh/.sv file
     """
@@ -28,7 +28,7 @@ def load_architecture_settings(file_path):
 
 
 
-def load_ml_model_config(file_path):
+def load_json(file_path):
     """
     Load machine learning model configuration from a JSON file.
     """
@@ -36,3 +36,21 @@ def load_ml_model_config(file_path):
     with open(file_path, "r") as f:
         ml_config = json.load(f)
     return ml_config
+
+
+def load_toml_config(file_path, mode=None):
+    section_to_load = ["CONFIG", "PRECISION", "INSTR"]
+    config = {}
+
+    with open(file_path, "r") as f:
+        full_toml = toml.load(f)
+    for section in section_to_load:
+        toml_config = full_toml.get(section, {})
+        if toml_config:
+            hardware_settings = {
+                param: values.get(mode)
+                for param, values in toml_config.items()
+                if mode in values
+            }
+            config.update(hardware_settings)
+    return config

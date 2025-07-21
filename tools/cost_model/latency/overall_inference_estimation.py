@@ -59,7 +59,7 @@ class model_config:
         self.hbm_bandwidth = hbm_bandwidth        # GigaByte per second
         self.theoratical_frequency = 10**9 # 1 GHz
         self.batch_size = 1
-        self.seq_len = 50
+        self.seq_len = 100
 
 
     def rms_layer(self, TileSize):
