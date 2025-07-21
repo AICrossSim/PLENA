@@ -70,8 +70,8 @@ module fp_adder #(
     end
 
     join2 #() join_inst (
-      .data_in_ready ({a_in_valid, b_in_valid}),
-      .data_in_valid ({a_in_ready, b_in_ready}),
+      .data_in_ready ({a_in_ready, b_in_ready}),
+      .data_in_valid ({a_in_valid, b_in_valid}),
       .data_out_valid(data_in_valid),
       .data_out_ready(data_in_ready)
     );
