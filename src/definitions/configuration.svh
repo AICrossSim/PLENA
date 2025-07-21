@@ -60,7 +60,7 @@ package pipeline_pkg;
     parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 20;
     parameter   VECTOR_ADD_CYCLES              = 6;
     parameter   VECTOR_MUL_CYCLES              = 4;
-    parameter   VECTOR_EXP_CYCLES              = 5;
+    parameter   VECTOR_EXP_CYCLES              = 6;
     parameter   VECTOR_RECI_CYCLES             = 7;
     parameter   VECTOR_MAX_CYCLES              = 4;
     parameter   VECTOR_SUM_CYCLES              = 20;
