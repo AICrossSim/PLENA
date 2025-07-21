@@ -181,7 +181,7 @@ module mxfp_systolic_mcu #(
     end
 
     always_ff @(posedge clk) begin
-        if (rst) begin
+        if (systolic_array_reset) begin
             control_in_exe          <= STALL_M; 
         end else begin
             if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO)) begin
@@ -191,8 +191,8 @@ module mxfp_systolic_mcu #(
             end
         end
     end
-    
-    assign  sa_control = (control_in_exe == MV_IC); // 0 for GEMM, 1 for GEMV
+
+    assign  sa_control = (control_in_exe == MV_IC) || (control_in_exe == MV_WO); // 0 for GEMM, 1 for GEMV
 
     // -----------------------------
     // GEMV Data Path

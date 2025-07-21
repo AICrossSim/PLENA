@@ -185,12 +185,12 @@ module fp_cp_adder_v2 #(
     ) buffer_normalise_cast (
         .clk(clk),
         .rst(rst),
-        .data_in(casted_data),
-        .data_in_valid(p2_add_valid),
-        .data_in_ready(p2_add_ready),
-        .data_out(data_out),
-        .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready)
+        .data_in        (casted_data),
+        .data_in_valid  (p2_add_valid),
+        .data_in_ready  (p2_add_ready),
+        .data_out       (data_out),
+        .data_out_valid (data_out_valid),
+        .data_out_ready (data_out_ready)
     );
 
 
