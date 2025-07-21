@@ -114,7 +114,7 @@ module mxfp_systolic_mcu #(
     logic   complete_loading;
     M_OP    control_in_exe;
     logic   sa_control;
-    logic   output_reset, systolic_array_reset;
+    logic   output_reset;
 
     
     localparam COUNTER_BIT_WIDTH = $clog2(K);
@@ -168,8 +168,6 @@ module mxfp_systolic_mcu #(
         end
     end
 
-    assign systolic_array_reset = rst | output_reset;
-
     always_comb begin
         if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
             complete_loading = 1'b1;
@@ -181,7 +179,7 @@ module mxfp_systolic_mcu #(
     end
 
     always_ff @(posedge clk) begin
-        if (systolic_array_reset) begin
+        if (rst | output_reset) begin
             control_in_exe          <= STALL_M; 
         end else begin
             if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO)) begin
@@ -367,7 +365,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
-                .rst(systolic_array_reset),
+                .rst(rst),
                 .data_elem_in   (v1_element[i * M +: M]),
                 .data_scale_in  (v1_scale[i * M +: M]),
                 .data_in_valid  (v1_data_for_mm_in_valid[i]),
@@ -388,7 +386,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) left_streamer (
                 .clk(clk),
-                .rst(systolic_array_reset),
+                .rst(rst),
                 .data_elem_in   (v2_element[i * M +: M]),
                 .data_scale_in  (v2_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
@@ -411,7 +409,8 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) systolic_array_inst (
                 .clk(clk),
-                .rst(systolic_array_reset),
+                .rst                (rst),
+                .clear_accumulator  (output_reset),
                 .control            (sa_control),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),

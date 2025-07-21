@@ -20,8 +20,9 @@ module mxfp_first_row_pe #(
 
     input logic clk,
     input logic rst,
-
+    input logic clear_accumulator,
     input logic control, // 0 for GEMV, 1 for GEMM
+    
 
     // Input from Top
     input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
@@ -118,6 +119,7 @@ module mxfp_first_row_pe #(
     ) default_pe_inst (
         .clk(clk),
         .rst(rst),
+        .clear_accumulator      (clear_accumulator),
         .in_top_element         (pe_in_top_element),
         .in_top_scale           (pe_in_top_scale),
         .system_top_valid       (system_top_valid),

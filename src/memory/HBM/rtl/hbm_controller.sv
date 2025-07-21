@@ -60,14 +60,16 @@ module hbm_controller #(
     localparam int SCALE_MASK_WIDTH = SCALE_WIDTH / 8;
     localparam int ELE_SCALE_ADR_RATIO = $clog2(ELE_WIDTH / SCALE_WIDTH);
 
-    logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask      = {ELE_MASK_WIDTH{1'b1}};
-    logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask    = {SCALE_MASK_WIDTH{1'b1}};
+    logic [ELE_MASK_WIDTH - 1 : 0]      hbm_ele_write_mask;      
+    logic [SCALE_MASK_WIDTH - 1 : 0]    hbm_scale_write_mask;
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_ele;
     logic [HBM_ADDR_WIDTH - 1 : 0]      hbm_raddr_for_scale;
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  stride_offset_for_ele, stride_offset_for_scale;
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0]  offset_addr;
     logic ele_ready_to_write, scale_ready_to_write;
 
+    assign hbm_ele_write_mask = {ELE_MASK_WIDTH{1'b1}};
+    assign hbm_scale_write_mask = {SCALE_MASK_WIDTH{1'b1}};
 
     // Address for element and scale
     always_comb begin

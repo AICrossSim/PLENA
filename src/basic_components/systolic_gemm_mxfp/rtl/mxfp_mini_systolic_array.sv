@@ -25,6 +25,7 @@ module mxfp_mini_systolic_array #(
 
     input logic clk,
     input logic rst,
+    input logic clear_accumulator,
 
     // Input from Top
     input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
@@ -105,6 +106,7 @@ generate;
             ) pe (
                 .clk(clk),
                 .rst(rst),
+                .clear_accumulator      (clear_accumulator),
                 .in_top_element         (vert_transfer_elem[i][j]),
                 .in_top_scale           (vert_transfer_scale[i][j]),
                 .system_top_valid       (system_top_valid),

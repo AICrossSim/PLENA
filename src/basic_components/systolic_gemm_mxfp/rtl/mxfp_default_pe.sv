@@ -24,6 +24,7 @@ module mxfp_default_pe #(
 
     input logic clk,
     input logic rst,
+    input logic clear_accumulator,
 
     // Input from Top
     input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
@@ -213,7 +214,7 @@ module mxfp_default_pe #(
     assign acc_result_ready = 1'b1; // Always ready to accept acc result / TODO: Might need to change this
 
     always_ff @(posedge clk) begin
-        if (rst) begin
+        if (rst || clear_accumulator) begin
             stored_result <= 'b0;
         end else begin
             if (acc_result_valid) begin
