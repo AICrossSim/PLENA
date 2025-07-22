@@ -39,8 +39,8 @@ if __name__ == "__main__":
     
     # Example usage
     experiment_module_auto_config(
-        module_name = "ScalarMachine",
-        testcase    = "Testcase 2",
+        module_name = "MatrixMachine",
+        testcase    = "Testcase 3",
         toml_path   = toml_path,
         config_svh_path    = config_svh_path,
         precision_svh_path = precision_svh_path,

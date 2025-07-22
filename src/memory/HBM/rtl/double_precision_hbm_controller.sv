@@ -250,7 +250,8 @@ module double_precision_hbm_controller #(
         .SourceWidth    (SourceWidth),
         .SinkWidth      (SinkWidth),
         .LOAD_AMOUNT    (LOAD_AMOUNT),
-        .WRITE_AMOUNT   (WRITE_AMOUNT)
+        .WRITE_AMOUNT   (WRITE_AMOUNT),
+        .ONCHIP_ADDR    (ON_CHIP_ADDR_WIDTH)
     ) scale_master (
         .clk(clk),
         .rst(rst),
