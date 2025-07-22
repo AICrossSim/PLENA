@@ -60,8 +60,10 @@ module fp_cp_adder_v2 #(
 
     logic p1_add_ready, p1_add_valid;
     logic p2_add_ready, p2_add_valid;
+    logic p3_add_ready, p3_add_valid;
 
-    logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] normalized_data;
+    logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] p2_normalized_data;
+    logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] p3_normalized_data;
     logic [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH : 0] casted_data;
 
     split_n #(
@@ -167,7 +169,20 @@ module fp_cp_adder_v2 #(
     ) fp_normalize (
         .signed_mant    (p2_signed_mant_out),
         .signed_exp     (p2_signed_exp_out),
-        .fp_out         (normalized_data)
+        .fp_out         (p2_normalized_data)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH + 1)
+    ) buffer_normalise (
+        .clk(clk),
+        .rst(rst),
+        .data_in        (p2_normalized_data),
+        .data_in_valid  (p2_add_valid),
+        .data_in_ready  (p2_add_ready),
+        .data_out       (p3_normalized_data),
+        .data_out_valid (p3_add_valid),
+        .data_out_ready (p3_add_ready)
     );
 
     fp_ieee_casting #(
@@ -176,21 +191,21 @@ module fp_cp_adder_v2 #(
         .OUT_EXP_WIDTH      (EXP_WIDTH + EXT_EXP_WIDTH),
         .OUT_MANT_WIDTH     (MANT_WIDTH + EXT_MANT_WIDTH)
     ) fp_casting (
-        .data_in    (normalized_data),
+        .data_in    (p3_normalized_data),
         .data_out   (casted_data)
     );
 
     skid_buffer #(
         .DATA_WIDTH(EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH + 1)
-    ) buffer_normalise_cast (
+    ) buffer_cast (
         .clk(clk),
         .rst(rst),
-        .data_in(casted_data),
-        .data_in_valid(p2_add_valid),
-        .data_in_ready(p2_add_ready),
-        .data_out(data_out),
-        .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready)
+        .data_in        (casted_data),
+        .data_in_valid  (p3_add_valid),
+        .data_in_ready  (p3_add_ready),
+        .data_out       (data_out),
+        .data_out_valid (data_out_valid),
+        .data_out_ready (data_out_ready)
     );
 
 

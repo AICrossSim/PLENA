@@ -24,12 +24,10 @@ module optimized_right_shift #(
 
   logic [SHIFT_WIDTH - 1:0] abs_shift_value, real_shift_value;
   logic shift_sign;
-
   logic [SHIFT_DATA_WIDTH - 1:0] shift_data_list[BLOCK_SIZE - 1:0][SHIFT_DATA_WIDTH -1 : 0];
-
   logic [OUT_WIDTH - 1:0] clamped_out[BLOCK_SIZE - 1:0];
 
-  enum {
+  enum [1:0] {
     SHIFT_OUT_RANGE,
     SHIFT_IN_RANGE
   } mode;

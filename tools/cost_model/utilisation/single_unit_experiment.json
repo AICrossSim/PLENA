@@ -22,7 +22,7 @@
     "Testcase 2": {
         "Config" : {
             "MLEN" : 16,
-            "BLEN" : 16,
+            "BLEN" : 8,
             "WT_MXFP_MANT_WIDTH": 3,
             "WT_MXFP_EXP_WIDTH": 4,
             "ACT_MXFP_MANT_WIDTH": 7,
@@ -40,10 +40,10 @@
     },
     "Testcase 3": {
         "Config" : {
-            "MLEN" : 32,
+            "MLEN" : 16,
             "BLEN" : 8,
-            "WT_MXFP_MANT_WIDTH": 1,
-            "WT_MXFP_EXP_WIDTH": 2,
+            "WT_MXFP_MANT_WIDTH": 3,
+            "WT_MXFP_EXP_WIDTH": 4,
             "ACT_MXFP_MANT_WIDTH": 7,
             "ACT_MXFP_EXP_WIDTH": 8,
             "MXFP_SCALE_WIDTH": 8,

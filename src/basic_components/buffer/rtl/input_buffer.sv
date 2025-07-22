@@ -41,7 +41,7 @@ module input_buffer #(
 
   // clarify a logic to convert 2d to 1d
   logic [DATA_WIDTH - 1:0] buffer_out[IN_NUM - 1:0];
-  enum {
+  enum [1:0] {
     STRAIGHT,
     BO
   } mode;

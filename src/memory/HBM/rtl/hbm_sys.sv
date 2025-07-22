@@ -18,8 +18,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         parameter string MemInitFile = "",
     `endif
     localparam int V_BLOCKNUM       = VLEN / BLOCK_DIM,
-    localparam int M_BLOCKNUM       = MLEN / BLOCK_DIM,
-    localparam int ADDR_WIDTH       = ON_CHIP_ADDR_WIDTH
+    localparam int M_BLOCKNUM       = MLEN / BLOCK_DIM
 ) (
     input   logic clk,
     input   logic rst,
@@ -99,7 +98,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic [MLEN - 1 : 0] [WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]       m_hbm_upcasted_element_out;
     logic [M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
 
-    logic [ADDR_WIDTH - 1 : 0] stored_m_stride_size, stored_v_stride_size, stored_m_scale_offset, stored_v_scale_offset;
+    logic [ON_CHIP_ADDR_WIDTH - 1 : 0] stored_m_stride_size, stored_v_stride_size, stored_m_scale_offset, stored_v_scale_offset;
     logic [VLEN * (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) - 1 : 0]   v_hbm_high_precision_element_out;
     logic [VLEN * (KV_MXFP_EXP_WIDTH + KV_MXFP_MANT_WIDTH + 1) - 1 : 0]     v_hbm_low_precision_element_out;
     logic [V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
@@ -193,7 +192,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // -----------------------------
 
     address_mapper #(
-        .ADDR_WIDTH             (ADDR_WIDTH),
+        .ADDR_WIDTH             (ON_CHIP_ADDR_WIDTH),
         .HBM_ADR_OPERAND_WIDTH  (HBM_ADR_OPERAND_WIDTH),
         .HBM_ADDR_WIDTH         (HBM_ADDR_WIDTH)
         `ifdef SIMULATION

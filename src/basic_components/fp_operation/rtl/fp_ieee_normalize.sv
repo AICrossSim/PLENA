@@ -75,11 +75,13 @@ module fp_ieee_normalize #(
         full_exp = (adjusted_exp + BIAS);
         exp_bits = signed_mant != 0 ? full_exp[OUT_EXP_WIDTH-1:0] : 0;
     end
-
+    
+`ifdef SIMULATION
     always_comb begin
         assert (full_exp >= 0)
         else $error("exponent is negative");
     end
+`endif
     
     // Assemble final IEEE 754 format
     assign fp_out = {sign_bit, exp_bits, mant_bits};

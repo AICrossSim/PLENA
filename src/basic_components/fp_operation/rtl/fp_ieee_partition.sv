@@ -28,12 +28,13 @@ module fp_ieee_partition #(
     assign mant_bit = data_in[MANT_WIDTH - 1:0];
     localparam EXP_HIGH = EXP_WIDTH - 1;
 
+`ifdef SIMULATION
     always @(*) begin
         assert (exp_bit != {(EXP_WIDTH){1'b1}}) else $warning("we cannot handle inf or nan of bits: %b in our current design", data_in);
     end
+`endif
 
     assign signed_exp = signed'(exp_bit) - BIAS;
-    
     assign unsigned_mant = (exp_bit == 0) ? 
                                {2'b00, mant_bit} : 
                                {2'b01, mant_bit};

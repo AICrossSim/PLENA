@@ -24,6 +24,7 @@ module mxfp_default_pe #(
 
     input logic clk,
     input logic rst,
+    input logic clear_accumulator,
 
     // Input from Top
     input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
@@ -189,8 +190,38 @@ module mxfp_default_pe #(
     // STAGE 4: Accumulation
     // ==============================================================================================
     
-    fp
+    fp_cp_adder_v2 #(
+        .MANT_WIDTH(ACC_FP_MANT_WIDTH),
+        .EXP_WIDTH(ACC_FP_EXP_WIDTH),
+        .EXT_MANT_WIDTH(0),
+        .EXT_EXP_WIDTH(0)
+    ) acc_adder (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (shifted_result_valid),
+        .data_in_ready  (shifted_result_ready),
+        .data_a         (stored_result),
+        .data_b         (rescaled_result),
+        .data_out       (acc_result),
+        .data_out_valid (acc_result_valid),
+        .data_out_ready (acc_result_ready)
+    );
 
+    assign acc_result_ready = 1'b1; // Always ready to accept acc result / TODO: Might need to change this
 
+    always_ff @(posedge clk) begin
+        if (rst || clear_accumulator) begin
+            stored_result <= 'b0;
+        end else begin
+            if (acc_result_valid) begin
+                stored_result <= acc_result;
+            end
+            if (out_result_ready) begin 
+                out_fp <= stored_result;
+            end else begin
+                out_fp <= {(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1){1'b0}};
+            end
+        end
+    end
 
 endmodule

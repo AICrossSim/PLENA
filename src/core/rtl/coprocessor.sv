@@ -65,8 +65,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     MEM_WREQ_INFO mem_write_req;
 
     // Matrix SRAM
-    logic [INT_DATA_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
-    logic [INT_DATA_WIDTH - 1 : 0] m_waddr, v_waddr;
+    logic [ON_CHIP_ADDR_WIDTH - 1 : 0] m_sram_raddr, m_sram_waddr;
+    logic [ON_CHIP_ADDR_WIDTH - 1 : 0] m_waddr, v_waddr;
     logic m_m_ready,    m_m_valid;
     logic m_v_valid,    m_v_ready;
     logic m_out_valid,  m_out_ready;

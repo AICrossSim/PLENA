@@ -110,7 +110,6 @@ function automatic int max(input int a, input int b);
     return (a > b) ? a : b;
 endfunction
 
-
 typedef enum logic [OPCODE_WIDTH - 1:0] {
     // Invalid
     INVALID_OPCODE         = 6'h00,
@@ -164,13 +163,13 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_ST_FIX               = 6'h28,
 
     // Memory Operations
-    H_PREFETCH_M_H_C       = 6'h29,
+    H_PREFETCH_M_H_C       = 6'h29, // WT_PRECISION
     H_PREFETCH_M_H_S       = 6'h2A,
-    H_PREFETCH_M_L_C       = 6'h2B,
+    H_PREFETCH_M_L_C       = 6'h2B, // KV_PRECISION
     H_PREFETCH_M_L_S       = 6'h2C,
-    H_PREFETCH_V_H_C       = 6'h2D,
+    H_PREFETCH_V_H_C       = 6'h2D, // ACT_PRECISION
     H_PREFETCH_V_H_S       = 6'h2E,
-    H_PREFETCH_V_L_C       = 6'h2F,
+    H_PREFETCH_V_L_C       = 6'h2F, // 
     H_PREFETCH_V_L_S       = 6'h30,
     H_STORE_V_H_C          = 6'h31,
     H_STORE_V_H_S          = 6'h32,
@@ -184,8 +183,6 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     C_SET_SCALE_REG        = 6'h38,
     C_BREAK                = 6'h39
 } CUSTOM_ISA_OPCODE;
-
-
 
 typedef enum logic [2:0] {
     INVALID_TYPE = 3'h0,

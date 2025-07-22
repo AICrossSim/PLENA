@@ -25,6 +25,7 @@ module mxfp_first_row_mini_systolic_array #(
 
     input logic clk,
     input logic rst,
+    input logic clear_accumulator,
     input logic control, // 0 for GEMM, 1 for GEMV
 
     // Input from Top
@@ -123,7 +124,8 @@ generate;
                 ) first_row_pe (
                     .clk(clk),
                     .rst(rst),
-                    .control(control),
+                    .clear_accumulator      (clear_accumulator),
+                    .control                (control),
                     .in_top_element         (vert_transfer_elem[i][j]),
                     .in_top_scale           (vert_transfer_scale[i][j]),
                     .in_top_v_element       (in_top_v_element[i]),
@@ -155,6 +157,7 @@ generate;
                 ) pe (
                     .clk(clk),
                     .rst(rst),
+                    .clear_accumulator      (clear_accumulator),
                     .in_top_element         (vert_transfer_elem[i][j]),
                     .in_top_scale           (vert_transfer_scale[i][j]),
                     .system_top_valid       (system_top_valid),
