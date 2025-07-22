@@ -24,6 +24,7 @@ Coprocessor_Vivado_Prj/
 tools/synopsys/outputs/
 tools/synopsys/analyzed/
 
+src/basic_components/synopsis/
 .Xil
 
 *.log
