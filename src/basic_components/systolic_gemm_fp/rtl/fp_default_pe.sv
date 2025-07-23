@@ -143,7 +143,7 @@ module fp_default_pe #(
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] stored_result;
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
 
-    fp_cp_adder_v2 #(
+    fp_cp_adder #(
         .MANT_WIDTH(ACC_FP_MANT_WIDTH),
         .EXP_WIDTH(ACC_FP_EXP_WIDTH),
         .EXT_MANT_WIDTH(0),

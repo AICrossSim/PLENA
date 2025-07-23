@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     ax1.set_xscale('log')
     ax1.set_yscale('log')
-    ax1.set_ylabel('Performance (GFLOPs/s)')
+    ax1.set_ylabel('Attainable GFLOPs/s')
     ax1.set_xlabel('Batch Size')
     ax1.set_ylim(1e2, 1e5)
     ax1.set_xlim(1, 256)
@@ -210,7 +210,7 @@ if __name__ == "__main__":
     # Plot Reasoninng
     ax2.set_xscale('log')
     ax2.set_yscale('log')
-    ax2.set_ylabel('Performance (GFLOPs/s)')
+    ax2.set_ylabel('Attainable GFLOPs/s')
     ax2.set_xlabel('Batch Size')
     ax2.set_ylim(1e2, 1e5)
     ax2.set_xlim(1, 256)

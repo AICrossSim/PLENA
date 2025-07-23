@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "fp_cp_adder_v2"
+set top_design "fp_cp_adder"
 
 #------------------------------
 # Setup DC logging paths
@@ -66,7 +66,7 @@ lappend search_path  ${src}
 #---------------------------------------
 set top_clk_name    "clk"
 set reset           "rst"
-set clk_period      "4.444"
+set clk_period      "1000"
 
 #--------------------------
 # Read RTL files
