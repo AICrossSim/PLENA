@@ -4,7 +4,8 @@ from torch import Tensor, nn
 
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
-from ..quantizer.minifloat import MinifloatMeta, minifloat_ieee_quantizer
+from mase_triton.minifloat.functional import quantize_dequantize as minifloat_quantizer_sim
+from ..quantizer.minifloat import MinifloatMeta
 
 
 class FPRMSNormPTQ(nn.Module):
@@ -25,7 +26,7 @@ class FPRMSNormPTQ(nn.Module):
         self.weight = None
 
         if "Wq" in layer_type:
-            self.weight = minifloat_ieee_quantizer(weight, self.w_minifp_meta)
+            self.weight = minifloat_quantizer_sim(weight, self.w_minifp_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 
@@ -34,7 +35,7 @@ class FPRMSNormPTQ(nn.Module):
         hidden_dtype = x.dtype
         if "Xq" in self.layer_type:
             assert self.x_minifp_meta is not None
-            x = minifloat_ieee_quantizer(x, self.x_minifp_meta)
+            x = minifloat_quantizer_sim(x, self.x_minifp_meta)
         x = x.to(torch.float32)
         variance = x.pow(2).mean(-1, keepdim=True)
         x = x * torch.rsqrt(variance + self.eps)

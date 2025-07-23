@@ -3,7 +3,8 @@ from typing import Literal
 import torch
 from torch import Tensor
 
-from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
+from mase_triton.minifloat.functional import quantize_dequantize as minifloat_quantizer_sim
+from ..quantizer.minifloat import MinifloatMeta
 
 
 def rotate_half(x: Tensor) -> Tensor:
@@ -24,8 +25,8 @@ def rope_minifloat(
 ) -> tuple[Tensor, Tensor]:
     if func_type == "Xq":
         assert x_minifp_meta is not None, "MinifloatMeta must be provided when quantizing input"
-        cos = minifloat_ieee_quantizer(cos, x_minifp_meta)
-        sin = minifloat_ieee_quantizer(sin, x_minifp_meta)
+        cos = minifloat_quantizer_sim(cos, x_minifp_meta)
+        sin = minifloat_quantizer_sim(sin, x_minifp_meta)
 
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)

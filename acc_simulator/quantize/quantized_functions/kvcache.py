@@ -2,7 +2,8 @@ from typing import Literal
 
 from torch import Tensor
 
-from ..quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
+from mase_triton.mxfp.functional import quantize_dequantize as mxfp_quantizer_sim
+from ..quantizer.mxfp import MXFPMeta
 
 
 def kv_cache_mxfp(

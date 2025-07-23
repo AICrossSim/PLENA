@@ -3,7 +3,8 @@ from typing import Literal
 import torch
 from torch import Tensor
 
-from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
+from mase_triton.minifloat.functional import quantize_dequantize as minifloat_quantizer_sim
+from ..quantizer.minifloat import MinifloatMeta
 
 
 def softmax_minifloat(
@@ -14,7 +15,7 @@ def softmax_minifloat(
 ) -> Tensor:
     if "Xq" in func_type:
         assert x_minifp_meta is not None
-        input = minifloat_ieee_quantizer(input, x_minifp_meta)
+        input = minifloat_quantizer_sim(input, x_minifp_meta)
 
     # Numerically stable softmax in float32, then cast back
     return torch.nn.functional.softmax(input.to(torch.float32), dim=dim).to(input.dtype)

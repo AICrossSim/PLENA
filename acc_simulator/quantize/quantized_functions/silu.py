@@ -3,7 +3,8 @@ from typing import Literal
 import torch
 from torch import Tensor
 
-from ..quantizer.minifloat import minifloat_ieee_quantizer, MinifloatMeta
+from mase_triton.minifloat.functional import quantize_dequantize as minifloat_quantizer_sim
+from ..quantizer.minifloat import MinifloatMeta
 
 
 def silu_minifloat(
@@ -13,6 +14,6 @@ def silu_minifloat(
 ) -> Tensor:
     if func_type =="Xq":
         assert x_minifp_meta is not None, "MinifloatMeta must be provided for 'Xq' input"
-        input = minifloat_ieee_quantizer(input, x_minifp_meta)
+        input = minifloat_quantizer_sim(input, x_minifp_meta)
 
     return torch.nn.functional.silu(input)
