@@ -124,7 +124,7 @@ module fp_vector_element_alu #(
     end
 
 
-fp_cp_adder_v2 #(
+fp_cp_adder #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH),
     .EXT_EXP_WIDTH(0),

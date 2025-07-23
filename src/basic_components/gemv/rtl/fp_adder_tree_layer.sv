@@ -40,7 +40,7 @@ module fp_adder_tree_layer #(
 
     generate;
         for (genvar i = 0; i < LAYER_DIM / 2; i++) begin : pair
-            fp_cp_adder_v2 #(
+            fp_cp_adder #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
                 .MANT_WIDTH(IN_MAN_WIDTH),
                 .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
