@@ -19,7 +19,7 @@ colors = [darkblue, orange, turq, dark_pink]
 # HBM Settings
 Operate_Freq = 1e9      # 1 GHz
 DataWidth = 2           # 1 byte per element
-HBM_Bandwidth = 800e9   # 512 GB/s
+HBM_Bandwidth = 800e9   # 800 GB/s
 HBM_Capacity = 128      # 128 GB
 SEQ_LENGTH_NORM =  512
 SEQ_LENGTH_REASONING = 2048
@@ -166,8 +166,16 @@ if __name__ == "__main__":
     ax1.set_xlim(1, 256)
     ax1.set_title('Normal Inference Performance')
 
-    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA Theoratical Performance Without Memory Bottleneck', color=colors[0], linewidth=2, linestyle='--')
+    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA Theoratical Performance Without Memory Bottleneck', color=colors[0], linewidth=1, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
+    ax1.plot(
+        list(tpu_roofline_performance.keys()),
+        [v for v in tpu_roofline_performance.values()],
+        label='TPU Theoratical Performance Without Memory Bottleneck',
+        linewidth=1, linestyle='--',
+        color='grey'
+    )
+    
     ax1.plot(
         list(tpu_actual_performance_normal.keys()),
         [v * 0.7 for v in tpu_actual_performance_normal.values()],
@@ -180,10 +188,9 @@ if __name__ == "__main__":
 
     ax1.vlines(soft_optimised_normal_batch_bound, 1e2, 1e5, color = 'grey', linestyle='--', linewidth=0.5)
 
-
     ax1.plot(
         list(plena_actual_performance_normal.keys()),
-        [v * 0.8 for v in plena_actual_performance_normal.values()],
+        [v for v in plena_actual_performance_normal.values()],
         label='PLENA Normal W/O Quantisation',
         marker='o',  markersize=4,
         color=colors[1],
@@ -211,7 +218,15 @@ if __name__ == "__main__":
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax2.vlines(soft_optimised_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 
-    ax2.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA Theoratical Performance Without Memory Bottleneck', color=colors[0], linewidth=2, linestyle='--')
+    ax2.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA Theoratical Performance Without Memory Bottleneck', color=colors[0], linewidth=1, linestyle='--')
+    
+    ax2.plot(
+        list(tpu_roofline_performance.keys()),
+        [v for v in tpu_roofline_performance.values()],
+        label='TPU Theoratical Performance Without Memory Bottleneck',
+        linewidth=1, linestyle='--',
+        color='grey'
+    )
     
     ax2.plot(
         list(tpu_actual_performance_reasoning.keys()),
@@ -224,7 +239,7 @@ if __name__ == "__main__":
     
     ax2.plot(
         list(plena_actual_performance_reasoning.keys()),
-        [v * 0.8 for v in plena_actual_performance_reasoning.values()],
+        [v for v in plena_actual_performance_reasoning.values()],
         label='PLENA Reasoning W/O Quantisation',
         marker='*',  markersize=8,
         color=colors[1],
@@ -233,7 +248,7 @@ if __name__ == "__main__":
 
     ax2.plot(
         list(soft_optimised_actual_performance_reasoning.keys()),
-        [v * 0.8 for v in soft_optimised_actual_performance_reasoning.values()],
+        [0.8 * v for v in soft_optimised_actual_performance_reasoning.values()],
         label='PLENA Reasoning W Quantisation',
         marker='*',  markersize=8,
         color=colors[3],
@@ -265,4 +280,4 @@ if __name__ == "__main__":
     # Adjust space so plots don't overlap with the legend
     fig.subplots_adjust(right=0.75)  # Leave space for legend
     plt.tight_layout()
-    plt.savefig('flattened_systolic_roofline.png', bbox_inches='tight', dpi=300)
+    plt.savefig('systolic_array_comparison.png', bbox_inches='tight', dpi=300)
