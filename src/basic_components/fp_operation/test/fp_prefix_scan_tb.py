@@ -48,12 +48,12 @@ async def simple_prefix_scan_test(dut):
     N = q_config["N"]
     
     # Use exactly the same inputs as the golden model
-    exp_in = np.array([0, 1, 0, 1, 0, 1, 2, 2])  # Smaller exponents
+    exp_in = np.array([0, 1, 0, -1, 0, 1, 2, 2])  # Smaller exponents
     # exp_in = np.array([1, 1, 1, 1, 1, 1, 1, 1])  # Smaller exponents
     mant_in = np.array([2, 2, 1, 1, 1, 1, 2, 1])      # Smaller mantissas
     
     # Create tensor from values just like golden model
-    fp_in = torch.tensor([mant_in[i] * 2**exp_in[i] for i in range(len(exp_in))], dtype=torch.float32)
+    fp_in = torch.tensor([mant_in[i] * 2.0**exp_in[i] for i in range(len(exp_in))], dtype=torch.float32)
     result = torch.cumsum(fp_in, dim=0)
     
     # Calculate expected output using golden model
@@ -134,7 +134,8 @@ async def simple_prefix_scan_test(dut):
         print(f"Index {i} final mantissa: {m}, as bits: {bin(m & ((1 << 32) - 1))}")
     
     # Convert hardware results to float using SAME method as golden model
-    hw_float_values = fp_to_float(actual_exp, actual_mant, 0, q_config)
+    hw_float_values = fp_to_float(actual_exp, actual_mant, frac_diff, q_config)
+    # hw_float_values = fp_to_float(actual_exp, actual_mant, 0, q_config)
     
     # Compare with golden model outputs
     golden_float_values = fp_to_float(golden_exp, golden_mant, frac_diff, q_config)
@@ -195,7 +196,7 @@ def test_simple_fp_prefix_scan():
                 "IN_FIX_FRAC_WIDTH": 4,
                 "OUT_EXP_WIDTH": 5,
                 "OUT_FIX_WIDTH": 12,
-                "OUT_FIX_FRAC_WIDTH": 8
+                "OUT_FIX_FRAC_WIDTH": 10
             },
         ],
         trace = True,

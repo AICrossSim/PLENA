@@ -113,7 +113,6 @@ def hw_prefix_scan(exp_in, mant_in,
 
 def fp_to_float(exponents, mantissas, frac_diff, q_config):
     """More accurate conversion from fixed-point to float, with factor correction"""
-    # Add 3 to the exponent to correct the 8x factor
     return np.array([
         # mantissa * (2.0 ** (-frac_width)) * (2.0 ** (exponent + q_config["IN_FIX_FRAC_WIDTH"]))
         mantissa * (2.0 ** (-frac_diff)) * (2.0 ** exponent)
@@ -130,9 +129,9 @@ q_config = {
     "OUT_FIX_FRAC_WIDTH": 8
 }
 
-exp_in = np.array([1, 0, 2, 1, 1, 0, 0, 2])
+exp_in = np.array([1, 0, -2, 1, 1, 0, 0, 2])
 mant_in = np.array([3, 4, 2, 4, 2, 3, 1, 3])
-fp_in = torch.tensor([mant_in[i] * 2**exp_in[i] for i in range(len(exp_in))], dtype=torch.float32)
+fp_in = torch.tensor([mant_in[i] * 2.0**exp_in[i] for i in range(len(exp_in))], dtype=torch.float32)
 result = torch.cumsum(fp_in, dim=0)
 hw_model_exp_out, hw_model_mant_out = hw_prefix_scan(
     exp_in.tolist(), mant_in.tolist(),
@@ -145,15 +144,16 @@ print("HW model exp:", hw_model_exp_out)
 print("HW model mant:", hw_model_mant_out)
 print("Expected result:", result.tolist())
 print("HW model converted:", 
-	  [hw_model_mant_out[i] * 2**hw_model_exp_out[i] for i in range(len(hw_model_exp_out))])
+	  [hw_model_mant_out[i] * 2.0**hw_model_exp_out[i] for i in range(len(hw_model_exp_out))])
 hw_exp, hw_mant = hw_model_exp_out, hw_model_mant_out
+
 corrected = [
-    (hw_mant[i] >> frac_diff) * (2 ** hw_exp[i])
+    (hw_mant[i] >> frac_diff) * (2.0 ** hw_exp[i])
     for i in range(len(hw_exp))
 ]
 print("Corrected HW model converted:", corrected)
 corrected = [
-    ((hw_mant[i] + (1 << (frac_diff-1))) >> frac_diff) * (2**hw_exp[i])
+    ((hw_mant[i] + (1 << (frac_diff-1))) >> frac_diff) * (2.0**hw_exp[i])
     for i in range(len(hw_exp))
 ]
 print("Corrected HW model converted, rounded:", corrected)

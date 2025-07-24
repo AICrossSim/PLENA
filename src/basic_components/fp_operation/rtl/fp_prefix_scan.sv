@@ -69,7 +69,6 @@ module fp_prefix_scan#(
     genvar i, s;
     generate
         for (s = 0; s < LOGN; s++) begin : stage_gen
-            // Adder outputs (combinational) - match the fp_adder output width
             logic signed [N-1:0][OUT_EXP_WIDTH-1:0] stage_exp;
             logic signed [N-1:0][OUT_FIX_WIDTH-1:0] stage_mant;
             
@@ -85,8 +84,8 @@ module fp_prefix_scan#(
                     ) fp_add_inst (
                         .exp_a(temp_exp[s][i]),
                         .mant_a(temp_mant[s][i]),
-                        .exp_b(i >= (1<<s) ? temp_exp[s][i-(1<<s)] : '0),
-                        .mant_b(i >= (1<<s) ? temp_mant[s][i-(1<<s)] : '0),
+                        .exp_b(temp_exp[s][i-(1<<s)]),
+                        .mant_b(temp_mant[s][i-(1<<s)]),
                         .exp_out(stage_exp[i]),
                         .mant_out(stage_mant[i])
                     );
@@ -143,7 +142,8 @@ module fp_prefix_scan#(
     generate
         for (k = 0; k < N; k++) begin : final_descaling
             // Use an arithmetic shift for proper sign handling
-            assign mant_out[k] = (temp_mant[LOGN][k] + (1 << (FRAC_DIFF - 1))) >>> FRAC_DIFF;
+            // assign mant_out[k] = (temp_mant[LOGN][k]) >>> FRAC_DIFF;
+            assign mant_out[k] = (temp_mant[LOGN][k]);
         end
     endgenerate
     assign out_ready = valid_pipe[LOGN];
