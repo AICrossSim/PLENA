@@ -1,9 +1,8 @@
 `timescale 1ns / 1ps
 
-module DW_fp_exp_inst #(
+module DW_fp_recip_inst #(
     parameter int EXP_WIDTH = 8,
-    parameter int MANT_WIDTH = 23,
-    parameter int IEEE_COMPLIANCE = 1
+    parameter int MANT_WIDTH = 23
 )(
     input logic clk,
     input logic rst,
@@ -15,15 +14,19 @@ module DW_fp_exp_inst #(
     input logic data_out_ready
 );
 
+    logic [MANT_WIDTH+EXP_WIDTH : 0] data_out_reg;
 
-logic [MANT_WIDTH+EXP_WIDTH : 0] data_out_reg;
-// Instance of DW_fp_add
-DW_fp_exp #(
-    .sig_width(MANT_WIDTH), 
-    .exp_width(EXP_WIDTH), 
-    .arch(2'd0), 
-    .ieee_compliance(IEEE_COMPLIANCE))
-    U1 ( .a(data_in), .z(data_out_reg), .status());
+    DW_fp_recip #(
+        .sig_width(MANT_WIDTH), 
+        .exp_width(EXP_WIDTH), 
+        .ieee_compliance(1),
+        .faithful_round(1)
+    ) dc_lib_fp_reciprocal ( 
+        .a      (data_in),
+        .rnd    (3'b000),
+        .z      (data_out_reg),
+        .status ()
+    );
 
 register_slice #(
     .DATA_WIDTH(MANT_WIDTH+EXP_WIDTH + 1)
@@ -37,5 +40,7 @@ register_slice #(
     .data_out_valid (data_out_valid),
     .data_out_ready (data_out_ready)
 );
+
+
 
 endmodule
