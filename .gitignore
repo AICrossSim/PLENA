@@ -21,8 +21,7 @@ default.svf
 
 Coprocessor_Vivado_Prj/
 
-tools/synopsys/outputs/
-tools/synopsys/analyzed/
+tools/synopsys/
 
 src/basic_components/synopsis/
 .Xil

@@ -10,10 +10,10 @@ Status      : Under Development
 */
 
 module fp_cp_exp #(
-    parameter   IN_EXP_WIDTH = 5,
-    parameter   IN_MANT_WIDTH = 10,
-    parameter   OUT_EXP_WIDTH = 5,
-    parameter   OUT_MANT_WIDTH = 10
+    parameter   IN_EXP_WIDTH = 6,
+    parameter   IN_MANT_WIDTH = 5,
+    parameter   OUT_EXP_WIDTH = 6,
+    parameter   OUT_MANT_WIDTH = 5
 )(
     input  logic clk,
     input  logic rst,

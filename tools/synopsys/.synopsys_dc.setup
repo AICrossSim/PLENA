@@ -4,24 +4,61 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 set techlib_path    ./lib/asap7
-set std_cell_path   ${techlib_path}/asap7sc7p5t_28
+set std_cell_path   ${techlib_path}/asap7sc7p5tnldm_28
 # Note: ASAP7 does not include I/O libraries (academic PDK for research)
 # This setup is optimized for IP core design (no IO pads required)
 
 # ASAP7 lib setting (RVT TT corner) - use the compilied .db files
-set target_library      "asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db \
-                         asap7sc7p5t_AO_RVT_TT_ccs_211120.db \
-                         asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db \
-                         asap7sc7p5t_INVBUF_RVT_TT_ccs_211120.db"
+#read_lib $std_cell_path/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.lib
+#read_lib $std_cell_path/asap7sc7p5t_AO_RVT_TT_ccs_211120.lib
+#read_lib $std_cell_path/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.lib
+#read_lib $std_cell_path/asap7sc7p5t_INVBUF_RVT_TT_ccs_220122.lib
+#read_lib 
+#                         asap7sc7p5t_AO_RVT_TT_ccs_211120.lib \
+#                         asap7sc7p5t_SEQ_RVT_TT_ccs_220123.lib \
+#                         asap7sc7p5t_INVBUF_RVT_TT_ccs_220122.lib"
+#/workspace/tools/synopsys/asap7sc7p5t_AO_LVT_TT_nldm_211120.lib
+#/workspace/tools/synopsys/asap7sc7p5t_INVBUF_LVT_TT_nldm_220122.lib
+#/workspace/tools/synopsys/asap7sc7p5t_OA_LVT_TT_nldm_211120.lib
+#/workspace/tools/synopsys/asap7sc7p5t_SEQ_LVT_TT_nldm_220123.lib
+#/workspace/tools/synopsys/asap7sc7p5t_SIMPLE_LVT_TT_nldm_211120.lib
 
-set link_library        "* \
-                         asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db \
-                         asap7sc7p5t_AO_RVT_TT_ccs_211120.db \
-                         asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db \
-                         asap7sc7p5t_INVBUF_RVT_TT_ccs_211120.db \
+set target_library      "asap7sc7p5t_AO_LVT_TT_nldm_211120.db \
+                         asap7sc7p5t_INVBUF_LVT_TT_nldm_211120.db \
+                         asap7sc7p5t_OA_LVT_TT_nldm_211120.db \
+                         asap7sc7p5t_SEQ_LVT_TT_nldm_220123.db \
+                         asap7sc7p5t_SIMPLE_LVT_TT_nldm_211120.db"
+
+set link_libray         "* \
+                         asap7sc7p5t_AO_LVT_TT_nldm_211120.db \
+                         asap7sc7p5t_INVBUF_LVT_TT_nldm_211120.db \
+                         asap7sc7p5t_OA_LVT_TT_nldm_211120.db \
+                         asap7sc7p5t_SEQ_LVT_TT_nldm_220123.db \
+                         asap7sc7p5t_SIMPLE_LVT_TT_nldm_211120 \
                          dw_foundation.sldb"
 
+#set target_library      "asap7sc7p5t_AO_RVT_TT_201020.v \
+#                        asap7sc7p5t_INVBUF_RVT_TT_201020.v \
+#                        asap7sc7p5t_SEQ_RVT_TT_220101.v \
+#                        asap7sc7p5t_SIMPLE_RVT_TT_201020.v"
+                
+#set link_library      " *\
+#                        asap7sc7p5t_AO_RVT_TT_201020.v \
+#                        asap7sc7p5t_INVBUF_RVT_TT_201020.v \
+#                        asap7sc7p5t_SEQ_RVT_TT_220101.v \
+#                        asap7sc7p5t_SIMPLE_RVT_TT_201020.v \
+#                        dw_foundation.sldb"
+
+#set link_library        "* \
+#                         asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.lib \
+#                         asap7sc7p5t_AO_RVT_TT_ccs_211120.lib \
+#                         asap7sc7p5t_SEQ_RVT_TT_ccs_220123.lib \
+#                         asap7sc7p5t_INVBUF_RVT_TT_ccs_220122.lib \
+#                         dw_foundation.sldb"
+
 set synthetic_library   "dw_foundation.sldb"
+
+# set_time_unit 1ps
 
 
 # search path set

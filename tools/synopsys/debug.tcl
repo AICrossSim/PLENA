@@ -12,7 +12,7 @@ puts "=========================================="
 # Set paths
 set src "../../src"
 set outputs "./outputs"
-set top_design "coprocessor"
+set top_design "DW_fp_exp_inst"
 
 set_message_info -id ELAB-405 -limit 10
 
@@ -53,6 +53,8 @@ set dir_list [list \
     "basic_components/buffer/rtl" \
     "basic_components/gemv/rtl" \
     "basic_components/systolic_gemm_mxfp/rtl" \
+    "basic_components/synopsis_ip_inst/rtl" \
+    "basic_components/synopsis/rtl" \
     "memory/matrix_sram/rtl" \
     "memory/vector_sram/rtl" \
     "memory/scalar_sram/rtl" \

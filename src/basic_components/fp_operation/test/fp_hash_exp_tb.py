@@ -16,7 +16,8 @@ from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
 from cfl_cocotb.testbench import CombinationalTestbench
 
-from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware, pack_fp_to_bin
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
 from lut_generation import GenerateSVLutFP
 
@@ -84,9 +85,9 @@ async def test_fp_hash_exp(dut):
 def test_simple_fp_hash_exp():
     # Run tests with different params
     in_exp_width = 6
-    in_mant_width = 4
+    in_mant_width = 5
     out_exp_width = 6
-    out_mant_width = 4
+    out_mant_width = 5
     gen_fp_lut = GenerateSVLutFP(
         function_name="exp",
         save=True,
