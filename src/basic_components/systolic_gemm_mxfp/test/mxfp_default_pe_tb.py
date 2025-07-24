@@ -68,7 +68,7 @@ async def simple_random_mxfp_test(dut):
         dut.in_top_element.value = 0
         dut.in_top_scale.value = 0
         dut.system_top_valid.value = 0
-        dut.out_result_ready.value = 0
+        dut.out_result_ready.value = 1
 
 
         while True:
@@ -76,7 +76,6 @@ async def simple_random_mxfp_test(dut):
             # cocotb.log.info(f"Result: {qresult}")
             cocotb.log.info(f"Result: {fp_2_bin(qresult, 7, 8)}")
             print("fp_out", bin_2_fp(int(dut.out_fp.value.integer), 7, 8))
-            breakpoint()
             if dut.out_fp.value.integer != 0:
                 cocotb.log.info(f"Result: {dut.out_fp.value}")
                 cocotb.log.info(f"Result: {bin_2_fp(int(dut.out_fp.value.integer), 7, 8)}")
@@ -126,7 +125,9 @@ def test_simple_pe():
             str(SRC_PATH / "basic_components/fp_operation"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/common"),
-            str(SRC_PATH / "basic_components/int_operation")
+            str(SRC_PATH / "basic_components/int_operation"),
+            str(SRC_PATH / "basic_components/synopsis"),
+            str(SRC_PATH / "basic_components/synopsis_ip_inst")
         ],
         definitions_path = [],
         module_param_list=[

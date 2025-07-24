@@ -14,6 +14,11 @@ test-hw:
 	python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
 	python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
 
+	python3 src/basic_components/fp_operation/test/fp_fix_reciprocal_tb.py	
+	python3 src/basic_components/fp_operation/test/fp_fix_exp_tb.py	
+	python3 src/basic_components/fp_operation/test/fp_fix_add_tb.py	
+	python3 src/basic_components/fp_operation/test/fp_fix_mult_tb.py	
+
 test-sw:
 	python3 tools/quant/quant_operations/sqrt.py
 	python3 tools/quant/quant_operations/reciprocal.py

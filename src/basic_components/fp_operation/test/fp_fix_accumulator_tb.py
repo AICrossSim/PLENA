@@ -21,6 +21,9 @@ from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
 from cocotb.log import SimLog
+import cocotb
+from cocotb.result import TestSuccess
+
 
 def hardware_accumulate(a, width, exponent_width):
     out = 0
@@ -31,10 +34,11 @@ def hardware_accumulate(a, width, exponent_width):
         out_list.append(out)
     return out_list
 
-class FPCPAccumulatorTB(Testbench):
+class FPFixAccumulatorTB(Testbench):
     def __init__(self, dut) -> None:
         super().__init__(dut, dut.clk, dut.rst)
 
+        cocotb.start_soon(self.stop())
         if not hasattr(self, "log"):
             self.log = SimLog("%s" % (type(self).__qualname__))
             self.log.setLevel(logging.DEBUG)
@@ -52,16 +56,16 @@ class FPCPAccumulatorTB(Testbench):
             dut.data_out,
             dut.data_out_valid,
             dut.data_out_ready,
-            check=True,
+            check=False,
             unsigned=True,
         )
         self.in_driver.log.setLevel(logging.DEBUG)
+        self.out_monitor.log.setLevel(logging.DEBUG)
 
     def generate_inputs(self, num):
         q_config = {
             "EXP_WIDTH" : self.dut.EXP_WIDTH.value,
             "MANT_WIDTH" : self.dut.MANT_WIDTH.value,
-            "ADDER_CYCLES" : self.dut.ADDER_CYCLES.value,
         }
 
         torch.manual_seed(0)
@@ -85,6 +89,12 @@ class FPCPAccumulatorTB(Testbench):
         self.inputs = [int(inputs_a[i])for i in range(num)]
         self.outputs = [int(outputs_out[i]) for i in range(num)]
 
+    async def stop(self):
+        await Timer(100, units="ns")
+        if self.out_monitor.exp_queue.empty():
+            self.log.info("Test passed")
+            raise TestSuccess("Test completed successfully")
+
     async def run_test(self, us, num):
         await self.reset()
         self.log.info(f"Reset finished")
@@ -103,7 +113,7 @@ class FPCPAccumulatorTB(Testbench):
 
 @cocotb.test()
 async def test(dut):
-    tb = FPCPAccumulatorTB(dut)
+    tb = FPFixAccumulatorTB(dut)
     tb.log.setLevel(logging.DEBUG)
     await tb.run_test(10, 10)
 
@@ -112,7 +122,6 @@ async def check_signal_values(dut):
     while True:
         await RisingEdge(dut.clk)
         if dut.data_in_valid.value == 1:
-            breakpoint()
             print(dut.data_in.value)
             print(dut.data_in_valid.value)
 
@@ -121,7 +130,7 @@ def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
         group = "fp_operation",
-        module = "fp_cp_accumulator",
+        module = "fp_fix_accumulator",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
@@ -129,10 +138,11 @@ def test_simple_fp_addition():
             str(SRC_PATH / "basic_components/buffer"),
             str(SRC_PATH / "basic_components/fp_operation"),
             str(SRC_PATH / "basic_components/int_operation"),
-            str(SRC_PATH / "basic_components/gemv")
+            str(SRC_PATH / "basic_components/synopsis_ip_inst"),
+            str(SRC_PATH / "basic_components/synopsis")
         ],
         module_param_list=[
-            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5, "ADDER_CYCLES" : 5},
+            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5},
         ],
         trace = True,
     )

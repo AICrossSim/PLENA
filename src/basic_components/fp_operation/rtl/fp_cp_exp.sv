@@ -148,7 +148,7 @@ module fp_cp_exp #(
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready)
     );
-`endif // DC_LIB_EN
+
 endmodule
 
 
