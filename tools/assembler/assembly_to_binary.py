@@ -39,7 +39,7 @@ class AssemblyToBinary:
         print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_ACC_MULI", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM", "V_RECI_V", "V_EXP_V"]:
+        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +

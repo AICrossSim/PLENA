@@ -1,11 +1,9 @@
-import toml
 import json
 import os
 from pathlib import Path
 from math import log2
-import re
-from utils import load_svh_settings
-from overall_inference_estimation import model_config
+from ...utils import load_svh_settings
+from .overall_inference_estimation import model_config
 
 
 def load_custom_isa_lib(

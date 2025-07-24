@@ -3,6 +3,7 @@
 
 __pycache__/
 build/
+dc_library/
 
 .DS_Store
 **/.DS_Store

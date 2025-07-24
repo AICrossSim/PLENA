@@ -31,6 +31,7 @@ puts "\n=== Analyze RTL Files ==="
 set dir_list [list \
     "definitions" \
     "basic_components/mx_fp_operation/rtl" \
+    "basic_components/int_operation/rtl" \
     "basic_components/fp_operation/rtl" \
     "basic_components/fixed_operation/rtl" \
     "basic_components/conversion/rtl" \

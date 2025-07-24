@@ -124,11 +124,9 @@ module fp_vector_element_alu #(
     end
 
 
-fp_cp_adder_v2 #(
+fp_fix_adder #(
     .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH),
-    .EXT_EXP_WIDTH(0),
-    .EXT_MANT_WIDTH(0)
+    .MANT_WIDTH(MANT_WIDTH)
 ) adder (
     .clk(clk),
     .rst(rst),
@@ -141,21 +139,19 @@ fp_cp_adder_v2 #(
     .data_out_ready(add_data_out_ready)
 );
 
-fp_cp_mult #(
+fp_fix_mult #(
     .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH),
-    .EXT_EXP_WIDTH(0),
-    .EXT_MANT_WIDTH(0)
+    .MANT_WIDTH(MANT_WIDTH)
 ) multiplier (
     .clk(clk),
     .rst(rst),
-    .data_in_valid(mult_data_in_valid),
-    .data_in_ready(mult_data_in_ready),
-    .data_a(data_a),
-    .data_b(data_b),
-    .data_out(data_out_mul),
-    .data_out_valid(mult_data_out_valid),
-    .data_out_ready(mult_data_out_ready)
+    .data_in_valid      (mult_data_in_valid),
+    .data_in_ready      (mult_data_in_ready),
+    .data_a             (data_a),
+    .data_b             (data_b),
+    .data_out           (data_out_mul),
+    .data_out_valid     (mult_data_out_valid),
+    .data_out_ready     (mult_data_out_ready)
 );
 
 fp_cp_exp #(

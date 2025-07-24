@@ -231,7 +231,8 @@ def SimToP_test():
         ],       
         definitions_path = [
             str(SRC_PATH / "definitions"), 
-            str(SRC_PATH / "memory/HBM/TileLink_Lib")
+            str(SRC_PATH / "memory/HBM/TileLink_Lib"),
+            str(SRC_PATH / "dc_library/")
         ],
         module_param_list=[
             {

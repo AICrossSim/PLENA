@@ -37,10 +37,6 @@ module int_alu #(
         end else begin
             p1_operation <= operation;
             p1_operand_b <= operand_b;
-            if (p1_operation == ACC_MULI) begin
-                result <= result + p1_operand_b;
-                result_valid <= 1'b1;
-            end else begin
                 case (operation)
                     ADD_FIX: begin
                         result <= operand_a + operand_b; // Addition
@@ -62,11 +58,6 @@ module int_alu #(
                         result_valid <= 1'b1;
                     end
 
-                    ACC_MULI: begin
-                        result <= operand_a * imm_value;
-                        result_valid <= 1'b0;
-                    end
-
                     ADDI_FIX: begin
                         result <= operand_a + imm_value; // Compute address with immediate
                         result_valid <= 1'b1;
@@ -84,6 +75,5 @@ module int_alu #(
                 endcase
             end
         end
-    end
     assign computed_address = ((operation == COMP_ADDR) || (operation == LD_FIX) || (operation == ST_FIX)) ? operand_a + imm_value : '0;
 endmodule
