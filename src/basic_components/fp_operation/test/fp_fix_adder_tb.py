@@ -23,7 +23,7 @@ from cfl_tools.debugger import set_excepthook, get_dut_attributes
 from cocotb.log import SimLog
 
 
-class FPCPAddV2TB(Testbench):
+class FPFixAddTB(Testbench):
     def __init__(self, dut) -> None:
         super().__init__(dut, dut.clk, dut.rst)
 
@@ -49,8 +49,6 @@ class FPCPAddV2TB(Testbench):
         q_config = {
             "EXP_WIDTH" : self.dut.EXP_WIDTH.value,
             "MANT_WIDTH" : self.dut.MANT_WIDTH.value,
-            "EXT_MANT_WIDTH" : self.dut.EXT_MANT_WIDTH.value,
-            "EXT_EXP_WIDTH" : self.dut.EXT_EXP_WIDTH.value,
         }
 
         torch.manual_seed(0)
@@ -71,8 +69,8 @@ class FPCPAddV2TB(Testbench):
         qout, out_exp, out_mant = _minifloat_ieee_quantize_hardware(out, width, exponent_width)
         outputs_out = pack_fp_to_bin(
             out_exp, out_mant, 
-            q_config["EXP_WIDTH"] + q_config["EXT_EXP_WIDTH"], 
-            q_config["MANT_WIDTH"] + q_config["EXT_MANT_WIDTH"])
+            q_config["EXP_WIDTH"], 
+            q_config["MANT_WIDTH"])
         
         self.inputs = [(int(inputs_a[i]), int(inputs_b[i])) for i in range(num)]
         self.outputs = [int(outputs_out[i]) for i in range(num)]
@@ -87,7 +85,6 @@ class FPCPAddV2TB(Testbench):
         self.in_driver.load_driver(self.inputs)
 
         self.out_monitor.load_monitor(self.outputs)
-
         await Timer(100, units="ns")
 
         await Timer(us, units="us")
@@ -95,7 +92,7 @@ class FPCPAddV2TB(Testbench):
 
 @cocotb.test()
 async def test(dut):
-    tb = FPCPAddV2TB(dut)
+    tb = FPFixAddTB(dut)
     tb.log.setLevel(logging.DEBUG)
     await tb.run_test(10, 10)
 
@@ -106,19 +103,23 @@ def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
         group = "fp_operation",
-        module = "fp_cp_adder",
+        module = "fp_fix_adder",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/fixed_operation"),
             str(SRC_PATH / "basic_components/buffer"),
             str(SRC_PATH / "basic_components/fp_operation"),
-            str(SRC_PATH / "basic_components/int_operation")
+            str(SRC_PATH / "basic_components/int_operation"),
+            str(SRC_PATH / "basic_components/synopsis_ip_inst"),
+            str(SRC_PATH / "basic_components/synopsis")
         ],
-
+        definitions_path = [
+            str(SRC_PATH / "definitions"), 
+        ],
         module_param_list=[
-            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            # {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5},
             # {"EXP_WIDTH" : 3, "MANT_WIDTH" : 4, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
             # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
         ],

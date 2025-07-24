@@ -173,18 +173,6 @@ module mxfp_default_pe #(
         .fp_out             (shifted_result)
     );
 
-    skid_buffer #(
-        .DATA_WIDTH         (ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1)
-    ) skid_buffer_dequantised (
-        .clk(clk),
-        .rst(rst),
-        .data_in            (shifted_result),
-        .data_in_valid      (mxfp_mult_valid),
-        .data_in_ready      (mxfp_mult_ready),
-        .data_out           (rescaled_result),
-        .data_out_valid     (shifted_result_valid),
-        .data_out_ready     (shifted_result_ready)
-    );
 
     // ==============================================================================================
     // STAGE 4: Accumulation
@@ -194,36 +182,19 @@ module mxfp_default_pe #(
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
     logic acc_result_valid, acc_result_ready;
 
-    fp_fix_adder #(
+    fp_fix_accumulator #(
         .MANT_WIDTH (ACC_FP_MANT_WIDTH),
         .EXP_WIDTH  (ACC_FP_EXP_WIDTH)
     ) acc_adder (
         .clk(clk),
         .rst(rst),
-        .data_in_valid  (shifted_result_valid),
-        .data_in_ready  (shifted_result_ready),
-        .data_a         (stored_result),
-        .data_b         (rescaled_result),
-        .data_out       (acc_result),
-        .data_out_valid (acc_result_valid),
-        .data_out_ready (acc_result_ready)
+        .clear_accumulator(clear_accumulator),
+        .data_in_valid  (mxfp_mult_valid),
+        .data_in_ready  (mxfp_mult_ready),
+        .data_in        (shifted_result),
+        .data_out       (out_fp),
+        .data_out_valid (),
+        .data_out_ready (out_result_ready)
     );
-
-    assign acc_result_ready = 1'b1; // Always ready to accept acc result / TODO: Might need to change this
-
-    always_ff @(posedge clk) begin
-        if (rst || clear_accumulator) begin
-            stored_result <= 'b0;
-        end else begin
-            if (acc_result_valid) begin
-                stored_result <= acc_result;
-            end
-            if (out_result_ready) begin 
-                out_fp <= stored_result;
-            end else begin
-                out_fp <= {(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1){1'b0}};
-            end
-        end
-    end
 
 endmodule

@@ -15,7 +15,7 @@ from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
 from cfl_cocotb.testbench import Testbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
-from cfl_cocotb.streaming import StreamMonitor, MultiSignalStreamDriver
+from cfl_cocotb.streaming import StreamMonitor, StreamDriver, ErrorThresholdStreamMonitor
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
@@ -23,7 +23,7 @@ from cfl_tools.debugger import set_excepthook, get_dut_attributes
 from cocotb.log import SimLog
 
 
-class FPCPAddV2TB(Testbench):
+class DWFpExpInstTB(Testbench):
     def __init__(self, dut) -> None:
         super().__init__(dut, dut.clk, dut.rst)
 
@@ -32,8 +32,8 @@ class FPCPAddV2TB(Testbench):
             self.log.setLevel(logging.DEBUG)
 
         # * QKV drivers
-        self.in_driver = MultiSignalStreamDriver(
-            dut.clk, (dut.data_a, dut.data_b), dut.data_in_valid, dut.data_in_ready
+        self.in_driver = StreamDriver(
+            dut.clk, dut.data_in, dut.data_in_valid, dut.data_in_ready
         )
 
         self.out_monitor = StreamMonitor(
@@ -41,40 +41,40 @@ class FPCPAddV2TB(Testbench):
             dut.data_out,
             dut.data_out_valid,
             dut.data_out_ready,
-            check=True,
-            unsigned=True,
+            check=False,
         )
+        self.out_monitor.log.setLevel(logging.DEBUG)
 
     def generate_inputs(self, num):
         q_config = {
-            "EXP_WIDTH" : self.dut.EXP_WIDTH.value,
-            "MANT_WIDTH" : self.dut.MANT_WIDTH.value,
-            "EXT_MANT_WIDTH" : self.dut.EXT_MANT_WIDTH.value,
-            "EXT_EXP_WIDTH" : self.dut.EXT_EXP_WIDTH.value,
+            "exp_width" : self.dut.EXP_WIDTH.value,
+            "mant_width" : self.dut.MANT_WIDTH.value,
         }
 
-        torch.manual_seed(0)
-        torch_a = torch.randn(num)
-        torch_b = torch.randn(num)
+        # Generate random inputs, avoiding values too close to zero to prevent overflow
+        torch_x = torch.randn(num) * 2.5
+        # Replace values too close to zero with reasonable values
+        torch_x[torch.abs(torch_x) < 0.1] = torch.sign(torch_x[torch.abs(torch_x) < 0.1]) * 0.5
 
-        width = q_config["MANT_WIDTH"] + q_config["EXP_WIDTH"] + 1
-        exponent_width = q_config["EXP_WIDTH"]
+        in_width = q_config["mant_width"] + q_config["exp_width"]
+        in_exponent_width = q_config["exp_width"]
 
-        qa, a_exp, a_mant = _minifloat_ieee_quantize_hardware(torch_a, width, exponent_width)
-        qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
+        # Quantize input
+        qx, x_exp, x_mant = _minifloat_ieee_quantize_hardware(torch_x, in_width, in_exponent_width)
 
-        inputs_a = pack_fp_to_bin(a_exp, a_mant, q_config["EXP_WIDTH"], q_config["MANT_WIDTH"])
-        inputs_b = pack_fp_to_bin(b_exp, b_mant, q_config["EXP_WIDTH"], q_config["MANT_WIDTH"])
+        # Calculate reciprocal: 1/x
+        # Quantize output
+        out_width = q_config["mant_width"] + q_config["exp_width"] + 1
+        out_exponent_width = q_config["exp_width"]
 
-        out = qa + qb
+        # Pack inputs and outputs to binary format
+        inputs_x = pack_fp_to_bin(x_exp, x_mant, q_config["exp_width"], q_config["mant_width"])
+        q_out = torch.exp(qx)
+        q_out, q_out_exp, q_out_mant = _minifloat_ieee_quantize_hardware(q_out, out_width, out_exponent_width)
+        outputs_out = pack_fp_to_bin(q_out_exp, q_out_mant, q_config["exp_width"], q_config["mant_width"])
 
-        qout, out_exp, out_mant = _minifloat_ieee_quantize_hardware(out, width, exponent_width)
-        outputs_out = pack_fp_to_bin(
-            out_exp, out_mant, 
-            q_config["EXP_WIDTH"] + q_config["EXT_EXP_WIDTH"], 
-            q_config["MANT_WIDTH"] + q_config["EXT_MANT_WIDTH"])
-        
-        self.inputs = [(int(inputs_a[i]), int(inputs_b[i])) for i in range(num)]
+        self.inputs = [(int(inputs_x[i])) for i in range(num)]
+
         self.outputs = [int(outputs_out[i]) for i in range(num)]
 
     async def run_test(self, us, num):
@@ -88,14 +88,12 @@ class FPCPAddV2TB(Testbench):
 
         self.out_monitor.load_monitor(self.outputs)
 
-        await Timer(100, units="ns")
-
         await Timer(us, units="us")
         assert self.out_monitor.exp_queue.empty()
 
 @cocotb.test()
 async def test(dut):
-    tb = FPCPAddV2TB(dut)
+    tb = DWFpExpInstTB(dut)
     tb.log.setLevel(logging.DEBUG)
     await tb.run_test(10, 10)
 
@@ -105,22 +103,20 @@ async def test(dut):
 def test_simple_fp_addition():
     # Run tests with different params
     veri_runner(
-        group = "fp_operation",
-        module = "fp_cp_adder",
+        group = "synopsis_ip_inst",
+        module = "DW_fp_exp_inst",
         additional_include_paths=[
             str(SRC_PATH / "basic_components/common"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/fixed_operation"),
             str(SRC_PATH / "basic_components/buffer"),
             str(SRC_PATH / "basic_components/fp_operation"),
-            str(SRC_PATH / "basic_components/int_operation")
+            str(SRC_PATH / "basic_components/int_operation"),
+            str(SRC_PATH / "basic_components/synopsis"),
+            str(SRC_PATH / "basic_components/synopsis_ip_inst"),
         ],
-
         module_param_list=[
-            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            # {"EXP_WIDTH" : 3, "MANT_WIDTH" : 4, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
+            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5},
         ],
         trace = False,
     )
