@@ -69,13 +69,12 @@ typedef enum logic [3:0] {
     MUL_FIX       = 4'h4,
     LUI_FIX       = 4'h5,
     MV_FIX        = 4'h6,
-    ACC_MULI      = 4'h7,
-    LD_FIX        = 4'h8,
-    ST_FIX        = 4'h9,
-    PASS_ADDR     = 4'hA,
-    PASS_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 adress.
-    COMP_ADDR     = 4'hC,
-    COMP_ADDR_2   = 4'hD, // addr_port_2: rd and addr_port_1: rs1 + imm
+    LD_FIX        = 4'h7,
+    ST_FIX        = 4'h8,
+    PASS_ADDR     = 4'h9,
+    PASS_ADDR_2   = 4'hA, // addr_port_2: rd and addr_port_1: rs1 adress.
+    COMP_ADDR     = 4'hB,
+    COMP_ADDR_2   = 4'hC, // addr_port_2: rd and addr_port_1: rs1 + imm
     STALL_S_FIXED = 4'h0
 } S_FIXED_OP;
 
@@ -158,30 +157,29 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_MUL_FIX              = 6'h23,
     S_LUI_FIX              = 6'h24,
     S_MV_FIX               = 6'h25,
-    S_ACC_MULI             = 6'h26,
-    S_LD_FIX               = 6'h27,
-    S_ST_FIX               = 6'h28,
+    S_LD_FIX               = 6'h26,
+    S_ST_FIX               = 6'h27,
 
     // Memory Operations
-    H_PREFETCH_M_H_C       = 6'h29, // WT_PRECISION
-    H_PREFETCH_M_H_S       = 6'h2A,
-    H_PREFETCH_M_L_C       = 6'h2B, // KV_PRECISION
-    H_PREFETCH_M_L_S       = 6'h2C,
-    H_PREFETCH_V_H_C       = 6'h2D, // ACT_PRECISION
-    H_PREFETCH_V_H_S       = 6'h2E,
-    H_PREFETCH_V_L_C       = 6'h2F, // 
-    H_PREFETCH_V_L_S       = 6'h30,
-    H_STORE_V_H_C          = 6'h31,
-    H_STORE_V_H_S          = 6'h32,
-    H_STORE_V_L_C          = 6'h33,
-    H_STORE_V_L_S          = 6'h34,
+    H_PREFETCH_M_H_C       = 6'h28, // WT_PRECISION
+    H_PREFETCH_M_H_S       = 6'h29,
+    H_PREFETCH_M_L_C       = 6'h2A, // KV_PRECISION
+    H_PREFETCH_M_L_S       = 6'h2B,
+    H_PREFETCH_V_H_C       = 6'h2C, // ACT_PRECISION
+    H_PREFETCH_V_H_S       = 6'h2D,
+    H_PREFETCH_V_L_C       = 6'h2E, // 
+    H_PREFETCH_V_L_S       = 6'h2F,
+    H_STORE_V_H_C          = 6'h30,
+    H_STORE_V_H_S          = 6'h31,
+    H_STORE_V_L_C          = 6'h32,
+    H_STORE_V_L_S          = 6'h33,
 
     // CSR Setting
-    C_SET_ADDR_REG         = 6'h35,
-    C_SET_LUT              = 6'h36,
-    C_SET_STRIDE_REG       = 6'h37,
-    C_SET_SCALE_REG        = 6'h38,
-    C_BREAK                = 6'h39
+    C_SET_ADDR_REG         = 6'h34,
+    C_SET_LUT              = 6'h35,
+    C_SET_STRIDE_REG       = 6'h36,
+    C_SET_SCALE_REG        = 6'h37,
+    C_BREAK                = 6'h38
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] {
