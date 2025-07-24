@@ -98,11 +98,26 @@ module fp_vector_reduce_layer #(
 
     generate;
         for (genvar i = 0; i < LAYER_DIM / 2; i++) begin : adder_pair
-            fp_cp_adder_v2 #(
+            // fp_cp_adder #(
+            //     .EXP_WIDTH(IN_EXP_WIDTH),
+            //     .MANT_WIDTH(IN_MAN_WIDTH),
+            //     .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
+            //     .EXT_EXP_WIDTH(EXT_EXP_WIDTH)
+            // )   layer_fp_add (
+            //     .clk(clk),
+            //     .rst(rst),
+            //     .data_in_valid      (adder_data_in_valid_array[i]),
+            //     .data_in_ready      (adder_data_in_ready_array[i]),
+            //     .data_a             (data_in[2*i*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
+            //     .data_b             (data_in[(2*i + 1)*INPUT_DATA_WIDTH +: INPUT_DATA_WIDTH]),
+            //     .data_out           (layer_add_out[i * OUTPUT_DATA_WIDTH +: OUTPUT_DATA_WIDTH]),
+            //     .data_out_valid     (adder_data_out_valid_array[i]),
+            //     .data_out_ready     (adder_data_out_ready_array[i])
+            // );
+
+            fp_fix_adder #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
-                .MANT_WIDTH(IN_MAN_WIDTH),
-                .EXT_MANT_WIDTH(EXT_MANT_WIDTH),
-                .EXT_EXP_WIDTH(EXT_EXP_WIDTH)
+                .MANT_WIDTH(IN_MAN_WIDTH)
             )   layer_fp_add (
                 .clk(clk),
                 .rst(rst),

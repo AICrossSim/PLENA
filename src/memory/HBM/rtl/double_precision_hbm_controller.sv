@@ -69,8 +69,8 @@ module double_precision_hbm_controller #(
     localparam int HIGH_PRECISION_ELE_SCALE_ADR_RATIO   = $clog2(HIGH_ELE_WIDTH / SCALE_WIDTH);
     localparam int LOW_PRECISION_ELE_SCALE_ADR_RATIO    = $clog2(LOW_ELE_WIDTH  / SCALE_WIDTH);
 
-    logic [HIGH_ELE_MASK_WIDTH - 1 : 0]     high_precision_hbm_ele_write_mask = {HIGH_ELE_MASK_WIDTH{1'b1}};
-    logic [LOW_ELE_MASK_WIDTH - 1 : 0]      low_precision_hbm_ele_write_mask = {LOW_ELE_MASK_WIDTH{1'b1}};
+    logic [HIGH_ELE_MASK_WIDTH - 1 : 0]     high_precision_hbm_ele_write_mask;
+    logic [LOW_ELE_MASK_WIDTH - 1 : 0]      low_precision_hbm_ele_write_mask;
     logic [SCALE_MASK_WIDTH - 1 : 0]        hbm_scale_write_mask;
     logic [HBM_ADDR_WIDTH - 1 : 0]          hbm_raddr_for_ele;
     logic [HBM_ADDR_WIDTH - 1 : 0]          hbm_raddr_for_scale;
@@ -81,6 +81,8 @@ module double_precision_hbm_controller #(
     logic hbm_high_precision_req_en, hbm_low_precision_req_en;
     logic high_precision_data_valid, low_precision_data_valid;
 
+    assign high_precision_hbm_ele_write_mask = {HIGH_ELE_MASK_WIDTH{1'b1}};
+    assign low_precision_hbm_ele_write_mask = {LOW_ELE_MASK_WIDTH{1'b1}};
 
     // Address for element and scale
     always_comb begin
@@ -248,7 +250,8 @@ module double_precision_hbm_controller #(
         .SourceWidth    (SourceWidth),
         .SinkWidth      (SinkWidth),
         .LOAD_AMOUNT    (LOAD_AMOUNT),
-        .WRITE_AMOUNT   (WRITE_AMOUNT)
+        .WRITE_AMOUNT   (WRITE_AMOUNT),
+        .ONCHIP_ADDR    (ON_CHIP_ADDR_WIDTH)
     ) scale_master (
         .clk(clk),
         .rst(rst),

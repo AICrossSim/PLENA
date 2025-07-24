@@ -8,7 +8,8 @@ def evaluate_perplexity(
         tokenizer, 
         dataset_name: str = "wikitext", 
         subset: str | None = None,
-        max_length: int = 2048
+        max_length: int = 2048,
+        verbose: bool = False
     ):
     if subset:
         test_data = load_dataset(dataset_name, subset, split="test")
@@ -29,7 +30,7 @@ def evaluate_perplexity(
     nsamples = input_ids.numel() // max_length
     nlls = []
 
-    for i in tqdm.tqdm(range(nsamples), desc="Evaluating PPL"):
+    for i in tqdm.tqdm(range(nsamples), desc="Evaluating PPL", disable=not verbose):
         batch = input_ids[:, i * max_length : (i + 1) * max_length]
         with torch.no_grad():
             logits = model(batch).logits

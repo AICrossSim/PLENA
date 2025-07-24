@@ -25,6 +25,7 @@ module mxfp_systolic_array #(
 
     input   logic clk,
     input   logic rst,
+    input   logic clear_accumulator,
     input   logic control,
 
     // Input from Top Array
@@ -141,7 +142,8 @@ module mxfp_systolic_array #(
                     ) first_row_mini_sys_init (
                         .clk(clk),
                         .rst(rst),
-                        .control(control),
+                        .clear_accumulator  (clear_accumulator),
+                        .control            (control),
                         .in_top_element     (ve_transfer_elem[i][j]),
                         .in_top_scale       (ve_transfer_scale[i][j]),
                         .system_top_valid   (system_down_shift_valid),
@@ -174,6 +176,7 @@ module mxfp_systolic_array #(
                     ) default_mini_sys_init (
                         .clk(clk),
                         .rst(rst),
+                        .clear_accumulator  (clear_accumulator),
                         .in_top_element     (ve_transfer_elem[i][j]),
                         .in_top_scale       (ve_transfer_scale[i][j]),
                         .system_top_valid   (system_down_shift_valid),

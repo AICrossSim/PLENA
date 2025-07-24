@@ -9,6 +9,8 @@ Description : It supports both for GEMM and GEMV operations.
             :  where M and N is the Batch_Size , K is the MLEN 
             : Every CLK, it will receive (K) vector as multiplicand and (K) vector as multiplier.
             : During the write process, output single row per clk.
+            : For GEMM, pass the v2_element and v1_element to the left and top streamers
+            : For GEMV, hold the v2_element and stream v1_element.
 Status      : Under Development
 */
 
@@ -112,7 +114,7 @@ module mxfp_systolic_mcu #(
     logic   complete_loading;
     M_OP    control_in_exe;
     logic   sa_control;
-    logic   output_reset, systolic_array_reset;
+    logic   output_reset;
 
     
     localparam COUNTER_BIT_WIDTH = $clog2(K);
@@ -166,8 +168,6 @@ module mxfp_systolic_mcu #(
         end
     end
 
-    assign systolic_array_reset = rst | output_reset;
-
     always_comb begin
         if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
             complete_loading = 1'b1;
@@ -179,18 +179,18 @@ module mxfp_systolic_mcu #(
     end
 
     always_ff @(posedge clk) begin
-        if (rst) begin
+        if (rst | output_reset) begin
             control_in_exe          <= STALL_M; 
         end else begin
-            if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
+            if ((control_in_exe == STALL_M) & (control != STALL_M & control != MM_WO)) begin
                 control_in_exe <= control;
-            end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO & control != MV_WO)) begin
+            end else if ((control_in_exe != STALL_M) & (control != STALL_M & control != MM_WO)) begin
                 control_in_exe <= control;
             end
         end
     end
-    
-    assign  sa_control = (control_in_exe == MV_IC); // 0 for GEMM, 1 for GEMV
+
+    assign  sa_control = (control_in_exe == MV_IC) || (control_in_exe == MV_WO); // 0 for GEMM, 1 for GEMV
 
     // -----------------------------
     // GEMV Data Path
@@ -292,7 +292,7 @@ module mxfp_systolic_mcu #(
             ready_to_load_output    <= 1'b0;
             empty_in_progress       <= 1'b0;
         end else begin
-            if (complete_loading & control_in_exe == MM_PS) begin
+            if (complete_loading & (control_in_exe == MM_PS)) begin
                 feed_counter        <= '0;
                 empty_in_progress   <= 1'b1;
             end else if (empty_in_progress) begin
@@ -308,7 +308,7 @@ module mxfp_systolic_mcu #(
                 empty_in_progress <= 1'b0;
                 ready_to_load_output <= 1'b0;
             end
-            gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_WO)) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
             gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
@@ -365,7 +365,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) top_streamer (
                 .clk(clk),
-                .rst(systolic_array_reset),
+                .rst(rst),
                 .data_elem_in   (v1_element[i * M +: M]),
                 .data_scale_in  (v1_scale[i * M +: M]),
                 .data_in_valid  (v1_data_for_mm_in_valid[i]),
@@ -386,7 +386,7 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) left_streamer (
                 .clk(clk),
-                .rst(systolic_array_reset),
+                .rst(rst),
                 .data_elem_in   (v2_element[i * M +: M]),
                 .data_scale_in  (v2_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
@@ -409,7 +409,8 @@ module mxfp_systolic_mcu #(
                 .COMPUTE_DIM        (COMPUTE_DIM)
             ) systolic_array_inst (
                 .clk(clk),
-                .rst(systolic_array_reset),
+                .rst                (rst),
+                .clear_accumulator  (output_reset),
                 .control            (sa_control),
                 .in_top_element     (array_top_in_element[i]),
                 .in_top_scale       (array_top_in_scale[i]),
@@ -486,7 +487,7 @@ module mxfp_systolic_mcu #(
         end else begin
             // GEMV
             quantise_data_in_valid  = gemv_result_valid;
-            gemv_result_w_ready     = quantise_data_in_ready;
+            gemv_result_w_ready     = (quantise_data_in_ready == 1'b1) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
             block_data_in_valid     = 1'b0;
             result_data             = stored_quantized_result[K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0];
             result_data_valid       = quantised_result_valid;

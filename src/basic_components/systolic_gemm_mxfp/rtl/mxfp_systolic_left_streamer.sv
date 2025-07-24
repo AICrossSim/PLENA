@@ -137,21 +137,38 @@ module mxfp_systolic_left_streamer #(
                     end
                 end
                 CLEARING: begin
-                    store_ele_counter <= '0;
+                    
                     if (stream_in_ready) begin
                         for (int i = 0; i < COMPUTE_DIM; i++) begin
-                            data_elem_array_queue [i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                            if (data_in_valid & (store_ele_counter == i)) begin
+                                data_elem_array_queue[store_ele_counter] <= data_elem_in;
+                            end else begin
+                                data_elem_array_queue[i] <= (data_elem_array_queue[i] >> (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1));
+                            end
                         end
                         for (int i = 0; i < BLOCK_NUM; i++) begin
-                            data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                            if (data_in_valid & (store_scale_counter == i)) begin
+                                for (int j = 0; j < COMPUTE_DIM; j++) begin
+                                    data_scale_array_queue[i][j] <= data_scale_in[j >> BLOCK_BITWIDTH];
+                                end
+                            end else begin
+                                data_scale_array_queue[i] <= (data_scale_array_queue[i] >> MXFP_SCALE_WIDTH);
+                            end
                         end
-                        clear_ele_counter <= clear_ele_counter + 'b1;   
+                          
                         stream_in_valid <= 1'b1;  
                         if (stream_in_valid_hold) begin
                             stream_in_valid_hold <= 1'b0;
                         end
-                        if (clear_ele_counter == COMPUTE_DIM) begin
+
+                        if (data_in_valid) begin
+                            store_ele_counter <= 'b1;
                             clear_ele_counter <= '0;
+                        end else if (clear_ele_counter == COMPUTE_DIM - 2) begin
+                            clear_ele_counter <= '0;
+                        end else begin
+                            clear_ele_counter <= clear_ele_counter + 'b1;
+                            store_ele_counter <= 'b0;
                         end
                     end else begin
                         if (stream_in_valid) begin

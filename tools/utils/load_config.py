@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-from math import log2
 import re
 import toml
 
@@ -25,7 +22,6 @@ def load_svh_settings(file_path):
                     continue
                 hardware_settings[name] = value
     return hardware_settings
-
 
 
 def load_json(file_path):

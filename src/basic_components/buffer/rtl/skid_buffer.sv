@@ -40,13 +40,12 @@ module skid_buffer #(
   // 1. Empty
   // 2. Busy, holding data in the main register, but not transferring to output
   // 3. Full, both two registers were hold
-
-  enum {
+ 
+  enum [1:0] {
     EMPTY,
     BUSY,
     FULL
-  }
-      state, state_next;
+  } state, state_next;
 
   always_ff @(posedge clk) begin : handshake
     if (rst) begin
