@@ -194,11 +194,9 @@ module mxfp_default_pe #(
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
     logic acc_result_valid, acc_result_ready;
 
-    fp_cp_adder #(
-        .MANT_WIDTH(ACC_FP_MANT_WIDTH),
-        .EXP_WIDTH(ACC_FP_EXP_WIDTH),
-        .EXT_MANT_WIDTH(0),
-        .EXT_EXP_WIDTH(0)
+    fp_fix_adder #(
+        .MANT_WIDTH (ACC_FP_MANT_WIDTH),
+        .EXP_WIDTH  (ACC_FP_EXP_WIDTH)
     ) acc_adder (
         .clk(clk),
         .rst(rst),

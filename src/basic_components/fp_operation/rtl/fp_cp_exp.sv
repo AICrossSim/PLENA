@@ -33,7 +33,6 @@ module fp_cp_exp #(
     logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_out_reg;
     DW_fp_exp #(IN_MANT_WIDTH, IN_EXP_WIDTH) dc_lib_fp_exp ( 
         .a      (data_in), 
-        .rnd    (3'b000), 
         .z      (data_out_reg), 
         .status ()
     );
