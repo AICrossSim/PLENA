@@ -387,6 +387,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .MANT_WIDTH             (V_FP_MANT_WIDTH),
         .VLEN                   (VLEN),
         .MLEN                   (MLEN),
+        .BLEN                   (BLEN),
         .BLOCK_DIM              (BLOCK_DIM),
         .SRAM_DEPTH             (VECTOR_SRAM_DEPTH),
         .ON_CHIP_ADDR_WIDTH     (ON_CHIP_ADDR_WIDTH),

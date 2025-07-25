@@ -29,6 +29,7 @@ module fp_vector_sram #(
     // Dimension
     parameter   VLEN                    = 8,   
     parameter   MLEN                    = 8, 
+    parameter   BLEN                    = 4,
     parameter   BLOCK_DIM               = 4,
     localparam  M_BLOCK_NUM             = MLEN / BLOCK_DIM,                                
     localparam  V_BLOCK_NUM             = VLEN / BLOCK_DIM,
@@ -146,8 +147,8 @@ module fp_vector_sram #(
         if (rst) begin
             data_not_ready <= 1'b0;
         end else begin
-            data_not_ready <=  (port_b_req & !(&mem_data_tag[translated_port_b_addr +: VLEN])) || 
-                               (port_a_req & !(&mem_data_tag[translated_port_a_addr +: VLEN]));
+            data_not_ready <=  (port_b_req & !(&mem_data_tag[translated_port_b_addr +: BLEN])) || 
+                               (port_a_req & !(&mem_data_tag[translated_port_a_addr +: BLEN]));
         end
     end
 
