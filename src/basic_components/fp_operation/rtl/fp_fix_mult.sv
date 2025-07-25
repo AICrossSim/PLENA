@@ -32,7 +32,7 @@ module fp_fix_mult #(
 `ifdef DC_LIB_EN
     DW_fp_mult_inst #(
         .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) dc_lib_fp_fix_mult (
         .clk(clk),  
         .rst(rst),
@@ -47,7 +47,7 @@ module fp_fix_mult #(
 `else
     fp_cp_mult #(
         .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) fp_cp_mult_inst (
         .clk(clk),  
         .rst(rst),
@@ -57,6 +57,8 @@ module fp_fix_mult #(
         .data_b(data_b),
         .data_out(data_out),
         .data_out_valid(data_out_valid),
+        .data_out_ready(data_out_ready)
+    );
 `endif // DC_LIB_EN
 
 endmodule

@@ -217,6 +217,7 @@ def SimToP_test():
             str(SRC_PATH / "basic_components/cast"),
             str(SRC_PATH / "basic_components/systolic_gemm_mxfp"),
             str(SRC_PATH / "basic_components/gemv"),
+            str(SRC_PATH / "basic_components/synopsis_ip_inst"),
             str(SRC_PATH / "frontend"),
             str(SRC_PATH / "control"),
             str(SRC_PATH / "matrix_machine"),
@@ -232,7 +233,7 @@ def SimToP_test():
         definitions_path = [
             str(SRC_PATH / "definitions"), 
             str(SRC_PATH / "memory/HBM/TileLink_Lib"),
-            str(SRC_PATH / "dc_library/")
+            str(SRC_PATH / "basic_components/synopsis")
         ],
         module_param_list=[
             {

@@ -30,7 +30,7 @@ module fp_fix_adder #(
 `ifdef DC_LIB_EN
     DW_fp_add_inst #(
         .MANT_WIDTH(MANT_WIDTH),
-        .EXP_WIDTH(EXP_WIDTH),
+        .EXP_WIDTH(EXP_WIDTH)
     ) dc_lib_fp_add ( 
         .clk(clk),
         .rst(rst),
