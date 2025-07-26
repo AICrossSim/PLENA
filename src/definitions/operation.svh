@@ -35,8 +35,7 @@ typedef enum logic [2:0] {
     MUL_V_ELEMENT   = 3'h3,
     EXP_V_ELEMENT   = 3'h4,
     RECI_V_ELEMENT  = 3'h5,
-    LD_V_ELEMENT    = 3'h6,
-    RESET_V         = 3'h7
+    RESET_V         = 3'h6
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
@@ -132,54 +131,53 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_MUL_VF               = 6'h0E,
     V_EXP_V                = 6'h0F,
     V_RECI_V               = 6'h10,
-    V_LD_F                 = 6'h11,
-    V_RED_SUM              = 6'h12,
-    V_RED_MAX              = 6'h13,
-    V_RESET_SRAM           = 6'h14,
+    V_RED_SUM              = 6'h11,
+    V_RED_MAX              = 6'h12,
+    V_RESET_SRAM           = 6'h13,
 
     // Scalar Operations (Floating-Point)
-    S_ADD_FP               = 6'h15,
-    S_SUB_FP               = 6'h16,
-    S_MAX_FP               = 6'h17,
-    S_MUL_FP               = 6'h18,
-    S_EXP_FP               = 6'h19,
-    S_RECI_FP              = 6'h1A,
-    S_SQRT_FP              = 6'h1B,
-    S_MV_FP                = 6'h1C,
-    S_LD_FP                = 6'h1D,
-    S_ST_FP                = 6'h1E,
-    S_MAP_V_FP             = 6'h1F,
+    S_ADD_FP               = 6'h14,
+    S_SUB_FP               = 6'h15,
+    S_MAX_FP               = 6'h16,
+    S_MUL_FP               = 6'h17,
+    S_EXP_FP               = 6'h18,
+    S_RECI_FP              = 6'h19,
+    S_SQRT_FP              = 6'h1A,
+    S_MV_FP                = 6'h1B,
+    S_LD_FP                = 6'h1C,
+    S_ST_FP                = 6'h1D,
+    S_MAP_V_FP             = 6'h1E,
 
     // Scalar Operations (Fixed-Point)
-    S_ADD_FIX              = 6'h20,
-    S_ADDI_FIX             = 6'h21,
-    S_SUB_FIX              = 6'h22,
-    S_MUL_FIX              = 6'h23,
-    S_LUI_FIX              = 6'h24,
-    S_MV_FIX               = 6'h25,
-    S_LD_FIX               = 6'h26,
-    S_ST_FIX               = 6'h27,
+    S_ADD_FIX              = 6'h1F,
+    S_ADDI_FIX             = 6'h20,
+    S_SUB_FIX              = 6'h21,
+    S_MUL_FIX              = 6'h22,
+    S_LUI_FIX              = 6'h23,
+    S_MV_FIX               = 6'h24,
+    S_LD_FIX               = 6'h25,
+    S_ST_FIX               = 6'h26,
 
     // Memory Operations
-    H_PREFETCH_M_H_C       = 6'h28, // WT_PRECISION
-    H_PREFETCH_M_H_S       = 6'h29,
-    H_PREFETCH_M_L_C       = 6'h2A, // KV_PRECISION
-    H_PREFETCH_M_L_S       = 6'h2B,
-    H_PREFETCH_V_H_C       = 6'h2C, // ACT_PRECISION
-    H_PREFETCH_V_H_S       = 6'h2D,
-    H_PREFETCH_V_L_C       = 6'h2E, // 
-    H_PREFETCH_V_L_S       = 6'h2F,
-    H_STORE_V_H_C          = 6'h30,
-    H_STORE_V_H_S          = 6'h31,
-    H_STORE_V_L_C          = 6'h32,
-    H_STORE_V_L_S          = 6'h33,
+    H_PREFETCH_M_H_C       = 6'h27, // WT_PRECISION
+    H_PREFETCH_M_H_S       = 6'h28,
+    H_PREFETCH_M_L_C       = 6'h29, // KV_PRECISION
+    H_PREFETCH_M_L_S       = 6'h2A,
+    H_PREFETCH_V_H_C       = 6'h2B, // ACT_PRECISION
+    H_PREFETCH_V_H_S       = 6'h2C,
+    H_PREFETCH_V_L_C       = 6'h2D, //
+    H_PREFETCH_V_L_S       = 6'h2E,
+    H_STORE_V_H_C          = 6'h2F,
+    H_STORE_V_H_S          = 6'h30,
+    H_STORE_V_L_C          = 6'h31,
+    H_STORE_V_L_S          = 6'h32,
 
     // CSR Setting
-    C_SET_ADDR_REG         = 6'h34,
-    C_SET_LUT              = 6'h35,
-    C_SET_STRIDE_REG       = 6'h36,
-    C_SET_SCALE_REG        = 6'h37,
-    C_BREAK                = 6'h38
+    C_SET_ADDR_REG         = 6'h33,
+    C_SET_LUT              = 6'h34,
+    C_SET_STRIDE_REG       = 6'h35,
+    C_SET_SCALE_REG        = 6'h36,
+    C_BREAK                = 6'h37
 } CUSTOM_ISA_OPCODE;
 
 typedef enum logic [2:0] {
