@@ -122,16 +122,16 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
 
   `include "prim_util_memload.svh"
   
-`ifdef SIMULATION
-    final begin
-        if (ResultFile != "") begin
-            string result_filename;
-            $sformat(result_filename, "%s", ResultFile);
-            $display("Writing result file from: %s", result_filename);
-            $writememh(result_filename, mem);
-        end
-    end
-`endif
+  `ifdef SIMULATION
+      final begin
+          if (ResultFile != "") begin
+              string result_filename;
+              $sformat(result_filename, "%s", ResultFile);
+              $display("Writing result file from: %s", result_filename);
+              $writememh(result_filename, mem);
+          end
+      end
+  `endif
 
 `endif
 endmodule

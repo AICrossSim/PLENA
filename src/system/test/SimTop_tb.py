@@ -266,7 +266,7 @@ def SimToP_test():
             }
         ],
         trace = True,
-        skip_build = True,
+        skip_build = False,
     )
 
 def init_mem():

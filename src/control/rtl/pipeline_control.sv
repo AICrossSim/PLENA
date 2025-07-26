@@ -97,7 +97,7 @@ module pipeline_control #(
         end else if ((m_load_in_process || m_empty_in_progress) & ((determine_stage_op.m_op != STALL_M) || (determine_stage_op.m_op != MM_WO))) begin
             // Condition 2: When prefetching instruction is in processed or matrix at the loading stage / writing back, another matrix-related instruction is not allowed.
             pipeline_stall  = 1'b1;            
-        end else if ((v_load_in_process || hbm_v_prefetch_in_progress || continuous_write_to_v_sram) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
+        end else if ((hbm_v_prefetch_in_progress || continuous_write_to_v_sram) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
             // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
             pipeline_stall  = 1'b1;            
         end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_a) & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin

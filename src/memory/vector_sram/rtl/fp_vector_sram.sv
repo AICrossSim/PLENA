@@ -158,7 +158,6 @@ module fp_vector_sram #(
 
     always_comb begin
         if (reset_in_progress) begin
-            // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal       = '0;
             port_a_v_fp_out             = '0;
             port_a_write_en_internal    = 1'b1;
@@ -379,7 +378,8 @@ module fp_vector_sram #(
 // -----------------------------
 // Storage 
 // -----------------------------
-
+    logic test_port_a_req;
+    assign test_port_a_req = 1'b1;
     prim_generic_ram_2p #(
         .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
         .Depth(SRAM_DEPTH),
@@ -390,7 +390,7 @@ module fp_vector_sram #(
         `endif
     ) vect_storage (
         .clk_i(clk),
-        .a_req_i        (port_a_req_internal),
+        .a_req_i        (test_port_a_req),
         .a_write_i      (port_a_write_en_internal),
         .a_addr_i       (translated_port_a_addr_internal),
         .a_wdata_i      (port_a_fp_in_internal),
