@@ -165,12 +165,12 @@ if __name__ == "__main__":
     ax1.set_xlim(1, 256)
     ax1.set_title('Normal Inference Performance')
     
-    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='4 *  Performance Without Memory Bottleneck', color="grey", linewidth=1, linestyle='--')
+    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='8 * 512 W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax1.plot(
         list(tpu_roofline_performance.keys()),
         [v for v in tpu_roofline_performance.values()],
-        label='128 * 128 Performance Without Memory Bottleneck',
+        label='128 * 128 W/O Memory Wall',
         linewidth=0.8, linestyle='--',
         color='grey'
     )
