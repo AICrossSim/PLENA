@@ -6,7 +6,7 @@
 
 
 /*
-Module      : Vector Machine Module V2
+Module      : Vector Machine Module
 Timing      : Sequential
 Description : This module is the second version of the vector machine based on FP data type.
             : It takes FP of different precision as input, output MX-FP data type.
