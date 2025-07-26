@@ -44,7 +44,6 @@ module pipeline_control #(
     input       logic           hbm_in_used,            
     input       logic           fp_stall_req,
     input       logic           fp_sram_stall_req,
-    input       logic           fixed_stall_req,
     input       logic           m_load_in_process,
     input       logic           m_empty_in_progress,
     input       logic           v_load_in_process,
@@ -115,9 +114,6 @@ module pipeline_control #(
             pipeline_stall  = 1'b1;
         end else if (vector_reduct_in_process & (determine_stage_op.s_fp_op != STALL_S_FP || determine_stage_op.c_op == C_BREAK)) begin
             // Condition 8: Temporary solution for the checking dependecy among vector reduction operation and the scalar fp operation.
-            pipeline_stall  = 1'b1;
-        end else if (fixed_stall_req) begin
-            // Condition 9: FIX Request
             pipeline_stall  = 1'b1;
         end else if (mem_vwrite_stall_req) begin
             // Unconditionally stall the overall pipeline due to the request from the memory monitor.

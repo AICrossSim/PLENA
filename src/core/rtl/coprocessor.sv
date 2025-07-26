@@ -278,7 +278,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         );
 
         // Vector Compute Unit
-        vector_machine_v2 #(
+        vector_machine #(
         ) vector_machine_init (
             .clk(clk),
             .rst(rst),

@@ -13,7 +13,7 @@ Description : This module is the second version of the vector machine based on F
 Status      : Passed Simple Tests
 */
 
-module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #(
+module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     localparam   ADDR_WIDTH     = ON_CHIP_ADDR_WIDTH    // Vector write address
 ) (
     input   logic clk,
