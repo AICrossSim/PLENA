@@ -152,7 +152,7 @@ module scalar_machine import precision_pkg::*;  #(
 
             // Loading fp reg data out.
             if (exe_fp_control == LD_OUT_FP) begin
-                if (fp_reg_addr_2 == fp_wtarget) begin
+                if ((fp_reg_addr_2 == fp_wtarget) & (fp_reg_addr_2 != 'b0)) begin
                     // Forwarding
                     fp_out <= fp_reg_wdata;
                 end else begin

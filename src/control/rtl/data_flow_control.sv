@@ -564,17 +564,19 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         end
 
     end
-
+    logic load_s_fp_valid;
     // Scalar Data Forwarding to Vector Machine
     always_ff @(posedge clk) begin
         if (rst) begin
             v_s_in_valid <= 1'b0;
+            load_s_fp_valid <= 1'b0;
         end else begin
-            if ((((exe_stage_op.v_broadcast_en == 1'b1)  & (exe_stage_op.v_ele_op != STALL_V_ELEMENT) & (exe_stage_op.v_ele_op != RESET_V)) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
-                v_s_in_valid <= 1'b1;
+            if ((((exe_stage_op.v_broadcast_en == 1'b1)) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
+                load_s_fp_valid <= 1'b1;
             end else begin
-                v_s_in_valid <= 1'b0;
+                load_s_fp_valid <= 1'b0;
             end
+            v_s_in_valid <= load_s_fp_valid;
         end
     end
 
