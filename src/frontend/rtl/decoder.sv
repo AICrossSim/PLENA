@@ -34,11 +34,11 @@ module decoder import instruction_pkg::*; #(
 
     // Decoded Instruction
     output      OP_BUNDLE       decode_stage_op,
-    output      S_FIXED_OP      assigned_fixed_op,
+    output      S_INT_OP        assigned_fixed_op,
 
-    output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
-    output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
-    output      logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
+    output      logic [INT_OPERAND_WIDTH - 1 : 0] rs1,
+    output      logic [INT_OPERAND_WIDTH - 1 : 0] rs2,
+    output      logic [INT_OPERAND_WIDTH - 1 : 0] rd,
     output      logic [IMM_WIDTH - 1 : 0] imm
 );
 
@@ -48,15 +48,15 @@ logic           [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic           read_instr_from_fifo, decode_instr_valid;
 logic           p1_pipeline_stall, recover_from_stall, start_from_stall;
 OP_BUNDLE       recorded_op_bundle;
-S_FIXED_OP      exe_fixed_op;
+S_INT_OP      exe_fixed_op;
 
 logic rd_operand_ready; // The stall is for loading the third operand from the register files.
 logic m_update_waddr, v_update_waddr;
 logic recorded_m_update_waddr, recorded_v_update_waddr;
 logic pass_m_update_waddr, pass_v_update_waddr;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] rd_to_load;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
-logic [FIXED_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
+logic [INT_OPERAND_WIDTH - 1 : 0] rd_to_load;
+logic [INT_OPERAND_WIDTH - 1 : 0] recorded_rd_to_load;
+logic [INT_OPERAND_WIDTH - 1 : 0] pass_rd_to_load;
 logic stall_for_read_rd_flag;
 logic recorded_stall_for_read_rd_flag;
 logic fixed_op_stall_flag;
@@ -84,8 +84,8 @@ logic [OPERAND_WIDTH:0]         loaded_rs2;
 logic [OPERAND_WIDTH:0]         loaded_rd;
 logic [IMM_WIDTH - 1 : 0]       loaded_imm;
 
-assign loaded_imm       = ((loaded_opcode == S_ADDI_FIX) || (loaded_opcode == S_LD_FP)  || (loaded_opcode == S_ST_FP)
-                                                         || (loaded_opcode == S_LD_FIX) || (loaded_opcode == S_ST_FIX) ) ? 
+assign loaded_imm       = ((loaded_opcode == S_ADDI_INT) || (loaded_opcode == S_LD_FP)  || (loaded_opcode == S_ST_FP)
+                                                         || (loaded_opcode == S_LD_INT) || (loaded_opcode == S_ST_INT) ) ? 
                                                          {{(IMM_WIDTH - IMM_2_WIDTH){1'b0}} , loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_2_WIDTH]} :
                                                          loaded_instr[INSTRUCTION_LENGTH - 1 -: IMM_WIDTH];
 assign loaded_rs2       = loaded_instr[INSTRUCTION_LENGTH - 2 -: OPERAND_WIDTH];
@@ -108,9 +108,9 @@ always_comb begin
             decode_instruction_type = V;
         end
 
-        // Scalar FIX Operations
-        S_ADD_FIX, S_ADDI_FIX, S_SUB_FIX, S_MUL_FIX, S_LUI_FIX, S_MV_FIX, S_LD_FIX, S_ST_FIX: begin
-            decode_instruction_type = S_FIX;
+        // Scalar INT Operations
+        S_ADD_INT, S_ADDI_INT, S_SUB_INT, S_MUL_INT, S_LUI_INT, S_MV_INT, S_LD_INT, S_ST_INT: begin
+            decode_instruction_type = S_INT;
         end
 
         // Scalar FP Operations
@@ -143,9 +143,9 @@ always_ff @(posedge clk) begin
         recorded_stall_for_read_rd_flag <= 1'b0;
         recorded_m_update_waddr <= 1'b0;
         recorded_v_update_waddr <= 1'b0;
-        recorded_rd_to_load <= {FIXED_OPERAND_WIDTH{1'b0}};
+        recorded_rd_to_load <= {INT_OPERAND_WIDTH{1'b0}};
         p1_pipeline_stall <= 1'b0;
-        exe_fixed_op <= STALL_S_FIXED;
+        exe_fixed_op <= STALL_S_INT;
         system_stall <= 1'b0;
     end else begin
         if (system_stall_flag) begin
@@ -181,7 +181,7 @@ always_comb begin
         m_update_waddr          = 1'b0;
         v_update_waddr          = 1'b0;
         stall_for_read_rd_flag  = 1'b0;
-        rd_to_load              = {FIXED_OPERAND_WIDTH{1'b0}};
+        rd_to_load              = {INT_OPERAND_WIDTH{1'b0}};
     end
 
     if (!pipeline_stall & !recorded_stall_for_read_rd_flag) begin
@@ -199,7 +199,7 @@ always_comb begin
         stall_for_read_rd   = 1'b0;
         pass_m_update_waddr = 1'b0;
         pass_v_update_waddr = 1'b0;
-        pass_rd_to_load     = {FIXED_OPERAND_WIDTH{1'b0}};
+        pass_rd_to_load     = {INT_OPERAND_WIDTH{1'b0}};
     end
 end
 
@@ -236,9 +236,9 @@ always_ff @(posedge clk) begin
         decode_stage_op.v_broadcast_en        <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
         decode_stage_op.update_m_waddr        <= 1'b0;
         decode_stage_op.update_v_waddr        <= 1'b0;
-        decode_stage_op.fixed_rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-        decode_stage_op.fixed_rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-        decode_stage_op.fixed_rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
+        decode_stage_op.fixed_rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+        decode_stage_op.fixed_rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
+        decode_stage_op.fixed_rd              <= decode_instr_info.rd [INT_OPERAND_WIDTH - 1 : 0];
 
         case(decode_instr_info.instruction_type)
             M: begin
@@ -256,9 +256,9 @@ always_ff @(posedge clk) begin
                 decode_stage_op.fps1          <= 'b0;
                 decode_stage_op.fps2          <= 'b0;
                 decode_stage_op.fpd           <= 'b0;
-                rs1                           <= decode_instr_info.rs1  [FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2                           <= decode_instr_info.rs2  [FIXED_OPERAND_WIDTH - 1 : 0];
-                rd                            <= decode_instr_info.rd   [FIXED_OPERAND_WIDTH - 1 : 0];
+                rs1                           <= decode_instr_info.rs1  [INT_OPERAND_WIDTH - 1 : 0];
+                rs2                           <= decode_instr_info.rs2  [INT_OPERAND_WIDTH - 1 : 0];
+                rd                            <= decode_instr_info.rd   [INT_OPERAND_WIDTH - 1 : 0];
                 imm     <= 'b0;
             end
 
@@ -282,17 +282,17 @@ always_ff @(posedge clk) begin
                     decode_stage_op.fps1                <= 'b0;
                     decode_stage_op.fps2                <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fpd                 <= 'b0;
-                    rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2                                 <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs1                                 <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                                  <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
                     imm                                 <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == V_RED_SUM || decode_instr_info.opcode == V_RED_MAX) begin
                     decode_stage_op.s_fp_op             <= LD_OUT_FP;
                     decode_stage_op.fps1                <= 'b0;
                     decode_stage_op.fps2                <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fpd                 <= 'b0;
-                    rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2                                 <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs1                                 <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
                     rd                                  <= {FP_OPERAND_WIDTH{1'b0}};
                     imm                                 <= {IMM_WIDTH{1'b0}};
                 end else begin
@@ -300,45 +300,45 @@ always_ff @(posedge clk) begin
                     decode_stage_op.fps1                <= 'b0;
                     decode_stage_op.fps2                <= 'b0;
                     decode_stage_op.fpd                 <= 'b0;
-                    rs1                                 <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2                                 <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd                                  <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs1                                 <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                                 <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
+                    rd                                  <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
                     imm                                 <= {IMM_WIDTH{1'b0}};
                 end
             end
 
-            S_FIX: begin
+            S_INT: begin
                 decode_stage_op.m_op                <= STALL_M;
                 decode_stage_op.v_ele_op            <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op         <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op             <= STALL_S_FP;
-                assigned_fixed_op                   <=  (decode_instr_info.opcode == S_ADD_FIX)   ? ADD_FIX   :
-                                                        (decode_instr_info.opcode == S_ADDI_FIX)  ? ADDI_FIX  :
-                                                        (decode_instr_info.opcode == S_SUB_FIX)   ? SUB_FIX   : 
-                                                        (decode_instr_info.opcode == S_MUL_FIX)   ? MUL_FIX   : 
-                                                        (decode_instr_info.opcode == S_LUI_FIX)   ? LUI_FIX   :
-                                                        (decode_instr_info.opcode == S_MV_FIX)    ? MV_FIX    : 
-                                                        (decode_instr_info.opcode == S_LD_FIX)    ? LD_FIX    :
-                                                        (decode_instr_info.opcode == S_ST_FIX)    ? ST_FIX    :  STALL_S_FIXED;
+                assigned_fixed_op                   <=  (decode_instr_info.opcode == S_ADD_INT)   ? ADD_INT   :
+                                                        (decode_instr_info.opcode == S_ADDI_INT)  ? ADDI_INT  :
+                                                        (decode_instr_info.opcode == S_SUB_INT)   ? SUB_INT   : 
+                                                        (decode_instr_info.opcode == S_MUL_INT)   ? MUL_INT   : 
+                                                        (decode_instr_info.opcode == S_LUI_INT)   ? LUI_INT   :
+                                                        (decode_instr_info.opcode == S_MV_INT)    ? MV_INT    : 
+                                                        (decode_instr_info.opcode == S_LD_INT)    ? LD_INT    :
+                                                        (decode_instr_info.opcode == S_ST_INT)    ? ST_INT    :  STALL_S_INT;
                 decode_stage_op.c_op                <= STALL_C;
                 decode_stage_op.h_op                <= STALL_H;
-                if (decode_instr_info.opcode == S_ADDI_FIX ) begin
-                    // S_ADDI_FIX
+                if (decode_instr_info.opcode == S_ADDI_INT ) begin
+                    // S_ADDI_INT
                     decode_stage_op.fps1            <= 'b0;
                     decode_stage_op.fps2            <= 'b0;
                     decode_stage_op.fpd             <= 'b0;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd              <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
                     imm             <= {{IMM_WIDTH - IMM_2_WIDTH {1'b0}}, decode_instr_info.imm[IMM_2_WIDTH:0]}; 
                 end else begin
-                    // Other FIXED Instructions
+                    // Other INT Instructions
                     decode_stage_op.fps1            <= 'b0;
                     decode_stage_op.fps2            <= 'b0;
                     decode_stage_op.fpd             <= 'b0;
-                    rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                    rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
+                    rd              <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
                     imm             <= decode_instr_info.imm; // Might require shifting
                 end
             end
@@ -363,52 +363,52 @@ always_ff @(posedge clk) begin
                 decode_stage_op.h_op              <= STALL_H;
                 if (decode_instr_info.opcode == S_ADD_FP || decode_instr_info.opcode == S_SUB_FP || decode_instr_info.opcode == S_MAX_FP || decode_instr_info.opcode == S_MUL_FP) begin
                     // Two FP source operands and one FP destination operand
-                    assigned_fixed_op               <= STALL_S_FIXED;
+                    assigned_fixed_op               <= STALL_S_INT;
                     decode_stage_op.fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fps2            <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    rs1                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd                              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rs1                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rs2                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                              <= {INT_OPERAND_WIDTH{1'b0}};
                     imm                             <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == S_EXP_FP || decode_instr_info.opcode == S_RECI_FP || decode_instr_info.opcode == S_SQRT_FP || decode_instr_info.opcode == S_MV_FP) begin
                     // Single FP source operand and single FP destination operand
-                    assigned_fixed_op               <= STALL_S_FIXED;
+                    assigned_fixed_op               <= STALL_S_INT;
                     decode_stage_op.fps1            <= decode_instr_info.rs1[FP_OPERAND_WIDTH - 1 : 0];
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    rs1                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd                              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rs1                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rs2                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                              <= {INT_OPERAND_WIDTH{1'b0}};
                     imm                             <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == S_LD_FP || decode_instr_info.opcode == S_ST_FP) begin
-                    // Single FIXED Source operand (Storing Addr) and one IMM and one FP destination operand
+                    // Single INT Source operand (Storing Addr) and one IMM and one FP destination operand
                     assigned_fixed_op               <= COMP_ADDR;
                     decode_stage_op.fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd                              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rs1                             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                              <= {INT_OPERAND_WIDTH{1'b0}};
                     imm                             <= decode_instr_info.imm; // Might require shifting
                 end else if (decode_instr_info.opcode == S_MAP_V_FP) begin
                     assigned_fixed_op               <= COMP_ADDR_2;
                     decode_stage_op.fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= {FP_OPERAND_WIDTH{1'b0}};
-                    rs1                             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rs1                             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                             <= {INT_OPERAND_WIDTH{1'b0}};
                     rd                              <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
                     imm                             <= decode_instr_info.imm; // Might require shifting
                 end else begin
                     // Not Defined 
-                    assigned_fixed_op               <= STALL_S_FIXED;
+                    assigned_fixed_op               <= STALL_S_INT;
                     decode_stage_op.fps1            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fps2            <= {FP_OPERAND_WIDTH{1'b0}};
                     decode_stage_op.fpd             <= decode_instr_info.rd[FP_OPERAND_WIDTH - 1 : 0];
-                    rs1                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rs2                             <= {FIXED_OPERAND_WIDTH{1'b0}};
-                    rd                              <= {FIXED_OPERAND_WIDTH{1'b0}};
+                    rs1                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rs2                             <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                              <= {INT_OPERAND_WIDTH{1'b0}};
                     imm                             <= {IMM_WIDTH{1'b0}};
                 end
             end
@@ -431,7 +431,7 @@ always_ff @(posedge clk) begin
                         decode_stage_op.c_op <= SET_M_STRIDE_SIZE;
                     end
                 end else if (decode_instr_info.opcode == C_SET_LUT) begin
-                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    assigned_fixed_op                   <= STALL_S_INT;
                     decode_stage_op.c_op                <= SET_LUT; // TODO: Left for Cano
                 end else if (decode_instr_info.opcode == C_SET_SCALE_REG) begin
                     assigned_fixed_op                   <= PASS_ADDR_2;
@@ -441,18 +441,18 @@ always_ff @(posedge clk) begin
                         decode_stage_op.c_op <= SET_M_SCALE_REG;
                     end
                 end else if (decode_instr_info.opcode == C_BREAK) begin
-                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    assigned_fixed_op                   <= STALL_S_INT;
                     decode_stage_op.c_op                <= SET_LUT;
                 end else begin
-                    assigned_fixed_op                   <= STALL_S_FIXED;
+                    assigned_fixed_op                   <= STALL_S_INT;
                     decode_stage_op.c_op                <= BREAK;
                 end
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;
-                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
+                rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
+                rd              <= decode_instr_info.rd [INT_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
             end
 
@@ -478,9 +478,9 @@ always_ff @(posedge clk) begin
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;
-                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd              <= decode_instr_info.rd [FIXED_OPERAND_WIDTH - 1 : 0];
+                rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
+                rd              <= decode_instr_info.rd [INT_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
             end
 
@@ -489,20 +489,20 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op          <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op       <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op           <= STALL_S_FP;
-                assigned_fixed_op                 <= STALL_S_FIXED;
+                assigned_fixed_op                 <= STALL_S_INT;
                 decode_stage_op.c_op              <= STALL_C;
                 decode_stage_op.h_op              <= STALL_H;
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
                 decode_stage_op.fpd               <= 'b0;
-                rs1             <= decode_instr_info.rs1[FIXED_OPERAND_WIDTH - 1 : 0];
-                rs2             <= decode_instr_info.rs2[FIXED_OPERAND_WIDTH - 1 : 0];
-                rd              <= decode_instr_info.rd[FIXED_OPERAND_WIDTH - 1 : 0];
+                rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
+                rd              <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
             end
         endcase
     end else begin
-        assigned_fixed_op <= STALL_S_FIXED;
+        assigned_fixed_op <= STALL_S_INT;
         decode_stage_op   <= decode_stage_op;
     end 
 end

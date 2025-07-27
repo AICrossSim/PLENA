@@ -18,7 +18,7 @@ Description : This module serves as the top level of the coprocessor,
 module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
-        parameter string FIXED_MEM_INIT_FILE    = "",
+        parameter string INT_MEM_INIT_FILE    = "",
         parameter string V_SRAM_RESULT_FILE     = "",
         parameter string HBM_ADDR_MAPPER_FILE   = ""
     `endif
@@ -49,7 +49,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     
     // Execution Control
     OP_BUNDLE   decode_stage_op, exe_stage_op;
-    S_FIXED_OP  assigned_fixed_op;
+    S_INT_OP  assigned_fixed_op;
     logic pipeline_stall;
     MEM_WEN_INFO mem_write_control;
 
@@ -89,7 +89,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     
     // Scalar Machine Control
     logic [IMM_WIDTH - 1 : 0] s_imm;
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
+    logic [INT_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
     logic v_write_request;
     logic [1:0] m_write_request;
 
@@ -164,7 +164,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     );
 
     pipeline_control #(
-        .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
+        .INT_OPERAND_WIDTH    (INT_OPERAND_WIDTH),
         .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
         .INT_DATA_WIDTH       (INT_DATA_WIDTH),
         .IMM_WIDTH              (IMM_WIDTH)
@@ -312,7 +312,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         scalar_machine #(
             `ifdef SIMULATION
                 .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-                .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+                .INT_MEM_INIT_FILE(INT_MEM_INIT_FILE)
             `endif            
         ) scalar_machine_init (
             .clk(clk),

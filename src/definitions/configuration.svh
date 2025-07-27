@@ -36,7 +36,7 @@ package configuration_pkg;
 endpackage
 
 package instruction_pkg;
-    parameter FIXED_OPERAND_WIDTH   = 3;
+    parameter INT_OPERAND_WIDTH   = 3;
     parameter FP_OPERAND_WIDTH      = 3;
     parameter HBM_ADR_OPERAND_WIDTH = 3;
     parameter OPERAND_WIDTH         = 3;
@@ -70,7 +70,7 @@ endpackage
         parameter   SCALAR_FP_EXP_CYCLES           = 2;
         parameter   SCALAR_FP_SQRT_CYCLES          = 2;
         parameter   SCALAR_FP_RECI_CYCLES          = 2;
-        parameter   SCALAR_FIX_BASIC_CYCLES        = 1;
+        parameter   SCALAR_INT_BASIC_CYCLES        = 1;
     endpackage
 
 `else
@@ -93,7 +93,7 @@ endpackage
         parameter   SCALAR_FP_EXP_CYCLES           = 2;
         parameter   SCALAR_FP_SQRT_CYCLES          = 2;
         parameter   SCALAR_FP_RECI_CYCLES          = 2;
-        parameter   SCALAR_FIX_BASIC_CYCLES        = 1;
+        parameter   SCALAR_INT_BASIC_CYCLES        = 1;
     endpackage
 
 `endif

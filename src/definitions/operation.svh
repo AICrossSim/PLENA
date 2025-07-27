@@ -62,20 +62,20 @@ typedef enum logic [3:0] {
 } S_FP_OP;
 
 typedef enum logic [3:0] {
-    ADD_FIX       = 4'h1,
-    ADDI_FIX      = 4'h2,
-    SUB_FIX       = 4'h3,
-    MUL_FIX       = 4'h4,
-    LUI_FIX       = 4'h5,
-    MV_FIX        = 4'h6,
-    LD_FIX        = 4'h7,
-    ST_FIX        = 4'h8,
+    ADD_INT       = 4'h1,
+    ADDI_INT      = 4'h2,
+    SUB_INT       = 4'h3,
+    MUL_INT       = 4'h4,
+    LUI_INT       = 4'h5,
+    MV_INT        = 4'h6,
+    LD_INT        = 4'h7,
+    ST_INT        = 4'h8,
     PASS_ADDR     = 4'h9,
     PASS_ADDR_2   = 4'hA, // addr_port_2: rd and addr_port_1: rs1 adress.
     COMP_ADDR     = 4'hB,
     COMP_ADDR_2   = 4'hC, // addr_port_2: rd and addr_port_1: rs1 + imm
-    STALL_S_FIXED = 4'h0
-} S_FIXED_OP;
+    STALL_S_INT   = 4'h0
+} S_INT_OP;
 
 typedef enum logic [2:0] {
     STALL_C             = 3'h0,
@@ -149,14 +149,14 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_MAP_V_FP             = 6'h1E,
 
     // Scalar Operations (Fixed-Point)
-    S_ADD_FIX              = 6'h1F,
-    S_ADDI_FIX             = 6'h20,
-    S_SUB_FIX              = 6'h21,
-    S_MUL_FIX              = 6'h22,
-    S_LUI_FIX              = 6'h23,
-    S_MV_FIX               = 6'h24,
-    S_LD_FIX               = 6'h25,
-    S_ST_FIX               = 6'h26,
+    S_ADD_INT              = 6'h1F,
+    S_ADDI_INT             = 6'h20,
+    S_SUB_INT              = 6'h21,
+    S_MUL_INT              = 6'h22,
+    S_LUI_INT              = 6'h23,
+    S_MV_INT               = 6'h24,
+    S_LD_INT               = 6'h25,
+    S_ST_INT               = 6'h26,
 
     // Memory Operations
     H_PREFETCH_M_H_C       = 6'h27, // WT_PRECISION
@@ -184,7 +184,7 @@ typedef enum logic [2:0] {
     INVALID_TYPE = 3'h0,
     M            = 3'h1,
     V            = 3'h2,
-    S_FIX        = 3'h3,
+    S_INT        = 3'h3,
     S_FP         = 3'h4,
     C            = 3'h5,
     H            = 3'h6
@@ -211,9 +211,9 @@ typedef struct {
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fps1;
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fps2;
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fpd;
-    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]      fixed_rs1;
-    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]      fixed_rs2;
-    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]      fixed_rd;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]      fixed_rs1;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]      fixed_rs2;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]      fixed_rd;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_1;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_2;
     logic update_m_waddr;

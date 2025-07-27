@@ -17,7 +17,7 @@ module scalar_machine import precision_pkg::*;  #(
     `ifdef SIMULATION
         // Simulation Purpose
         parameter string FP_MEM_INIT_FILE = "",
-        parameter string FIXED_MEM_INIT_FILE = ""
+        parameter string INT_MEM_INIT_FILE = ""
     `endif
 ) (
     input   logic clk,
@@ -25,12 +25,12 @@ module scalar_machine import precision_pkg::*;  #(
 
     // Control
     input   OP_BUNDLE  exe_stage_op,
-    input   S_FIXED_OP assigned_fixed_op,
+    input   S_INT_OP assigned_fixed_op,
 
     // Fixed Register Control
-    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rs1,
-    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rs2,
-    input   logic [FIXED_OPERAND_WIDTH - 1 : 0] rd,
+    input   logic [INT_OPERAND_WIDTH - 1 : 0] rs1,
+    input   logic [INT_OPERAND_WIDTH - 1 : 0] rs2,
+    input   logic [INT_OPERAND_WIDTH - 1 : 0] rd,
 
     // Fixed Value input
     input   logic [IMM_WIDTH - 1 : 0]           imm_in,
@@ -56,7 +56,7 @@ module scalar_machine import precision_pkg::*;  #(
     import pipeline_pkg::*;
     import configuration_pkg::*;
     localparam FP_SRAM_ADDR_WIDTH       = $clog2(FP_SRAM_DEPTH);
-    localparam FIXED_SRAM_ADDR_WIDTH    = $clog2(INT_SRAM_DEPTH);
+    localparam INT_SRAM_ADDR_WIDTH    = $clog2(INT_SRAM_DEPTH);
     localparam VLEN_COUNTER_WIDTH       = $clog2(VLEN);
 
     //----------------------------//
@@ -275,11 +275,11 @@ module scalar_machine import precision_pkg::*;  #(
     logic [INT_DATA_WIDTH - 1 : 0] fixed_reg_1, fixed_reg_2, fixed_alu_out, fixed_reg_wdata, fixed_ld_from_sram, recorded_alu_out, computed_address;
     logic [INT_DATA_WIDTH - 1 : 0] fixed_loaded_reg_1, fixed_loaded_reg_2;
     logic fixed_reg_wen, fixed_write_from_sram_req, p1_fixed_write_from_sram_req, fixed_alu_valid;
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_waddr, recorded_fixed_reg_exe_waddr, p1_recorded_fixed_reg_exe_waddr;
-    S_FIXED_OP exe_fixed_op;
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] p1_rd, p1_rs1, p1_rs2, p2_rd;
+    logic [INT_OPERAND_WIDTH - 1 : 0] fixed_reg_waddr, recorded_fixed_reg_exe_waddr, p1_recorded_fixed_reg_exe_waddr;
+    S_INT_OP exe_fixed_op;
+    logic [INT_OPERAND_WIDTH - 1 : 0] p1_rd, p1_rs1, p1_rs2, p2_rd;
     logic [IMM_WIDTH - 1 : 0] recorded_imm_in;
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
+    logic [INT_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     
     always_comb begin
         if (p1_fixed_write_from_sram_req) begin
@@ -303,7 +303,7 @@ module scalar_machine import precision_pkg::*;  #(
             fixed_write_from_sram_req       <= 1'b0;
             p1_fixed_write_from_sram_req    <= 1'b0;
             p1_recorded_fixed_reg_exe_waddr <= 'b0;
-            exe_fixed_op                    <= STALL_S_FIXED;
+            exe_fixed_op                    <= STALL_S_INT;
             p1_rd                           <= 'b0;
             p2_rd                           <= 'b0;
             p1_rs1                          <= 'b0;
@@ -316,7 +316,7 @@ module scalar_machine import precision_pkg::*;  #(
         end else begin
             exe_fixed_op                <= assigned_fixed_op;
             recorded_imm_in             <= imm_in;
-            if ((assigned_fixed_op != STALL_S_FIXED) & (assigned_fixed_op != PASS_ADDR) & (assigned_fixed_op != PASS_ADDR_2) & (assigned_fixed_op != COMP_ADDR)) begin
+            if ((assigned_fixed_op != STALL_S_INT) & (assigned_fixed_op != PASS_ADDR) & (assigned_fixed_op != PASS_ADDR_2) & (assigned_fixed_op != COMP_ADDR)) begin
                 p1_rd                   <= rd;
             end 
             p2_rd                       <= p1_rd;
@@ -325,7 +325,7 @@ module scalar_machine import precision_pkg::*;  #(
             p1_fixed_write_from_sram_req <= fixed_write_from_sram_req;
             p1_recorded_fixed_reg_exe_waddr <= recorded_fixed_reg_exe_waddr;
 
-            if (assigned_fixed_op == LD_FIX) begin
+            if (assigned_fixed_op == LD_INT) begin
                 recorded_fixed_reg_exe_waddr    <= rd;
                 fixed_write_from_sram_req       <= 1'b1;
             end else begin
@@ -350,7 +350,7 @@ module scalar_machine import precision_pkg::*;  #(
     end
 
     assign fixed_reg_addr_1 = rs1;
-    assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_FIX) || (assigned_fixed_op == MAP_V_FP)) ? rd : rs2;
+    assign fixed_reg_addr_2 = ((assigned_fixed_op == PASS_ADDR_2) || (assigned_fixed_op == ST_INT) || (assigned_fixed_op == MAP_V_FP)) ? rd : rs2;
 
 
     int_alu #(
@@ -369,7 +369,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     regfile_2p1w #(
         .BITWIDTH(INT_DATA_WIDTH),
-        .DEPTH(1 << FIXED_OPERAND_WIDTH)
+        .DEPTH(1 << INT_OPERAND_WIDTH)
     ) int_reg_file (
         .clk        (clk),
         .we         (fixed_reg_wen),
@@ -386,14 +386,14 @@ module scalar_machine import precision_pkg::*;  #(
         .DEPTH          (INT_SRAM_DEPTH)
         `ifdef SIMULATION
             ,
-            .MemInitFile(FIXED_MEM_INIT_FILE)
+            .MemInitFile(INT_MEM_INIT_FILE)
         `endif
     ) int_scalar_sram (
         .clk(clk),
         .rst(rst),
-        .req            ((exe_fixed_op == LD_FIX) || (exe_fixed_op == ST_FIX)),
-        .write_en       ((exe_fixed_op == ST_FIX)),
-        .sram_addr      (computed_address[FIXED_SRAM_ADDR_WIDTH - 1 : 0]),
+        .req            ((exe_fixed_op == LD_INT) || (exe_fixed_op == ST_INT)),
+        .write_en       ((exe_fixed_op == ST_INT)),
+        .sram_addr      (computed_address[INT_SRAM_ADDR_WIDTH - 1 : 0]),
         .sram_data_in   (fixed_loaded_reg_2),
         .sram_data_out  (fixed_ld_from_sram)
     );

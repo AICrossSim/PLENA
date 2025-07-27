@@ -15,7 +15,7 @@ Description : This module monitors the execution stages of each module and decid
 */
 
 module pipeline_control #(
-    parameter   FIXED_OPERAND_WIDTH     = 5,
+    parameter   INT_OPERAND_WIDTH     = 5,
     parameter   FP_OPERAND_WIDTH        = 5,
     parameter   INT_DATA_WIDTH        = 32,
     parameter   IMM_WIDTH               = 12

@@ -256,7 +256,7 @@ def SimToP_test():
                 "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{os.environ['HBM_ELEMENT_FILE']}\"",
                 "FAKE_HBM_SCALE_INIT_FILE": f"\"{os.environ['HBM_SCALE_FILE']}\"",
                 "FP_MEM_INIT_FILE": f"\"{os.environ['FP_MEM_INIT_FILE']}\"",
-                "FIXED_MEM_INIT_FILE": f"\"{os.environ['FIXED_MEM_INIT_FILE']}\"",
+                "INT_MEM_INIT_FILE": f"\"{os.environ['INT_MEM_INIT_FILE']}\"",
                 "VECTOR_MEM_RESULT_FILE": f"\"{os.environ['VECTOR_MEM_RESULT_FILE']}\"",
                 "HBM_ADDR_MAPPER_FILE": f"\"{os.environ['HBM_ADDR_MAPPER_FILE']}\"",
                 "FAKE_HBM_ELEMENT_WRITE_M_FILE": f"\"{os.environ['FAKE_HBM_ELEMENT_WRITE_M_FILE']}\"",
@@ -306,7 +306,7 @@ def init_mem():
     addr_mapper_file.touch()
 
     os.environ["FP_MEM_INIT_FILE"] = str(fp_mem_file)
-    os.environ["FIXED_MEM_INIT_FILE"] = str(fixed_mem_file)
+    os.environ["INT_MEM_INIT_FILE"] = str(fixed_mem_file)
     os.environ["VECTOR_MEM_RESULT_FILE"] = str(vector_mem_result_file)
     os.environ["HBM_ADDR_MAPPER_FILE"] = str(addr_mapper_file)
     os.environ["FAKE_HBM_ELEMENT_WRITE_M_FILE"] = str(hbm_write_element_m_file)
