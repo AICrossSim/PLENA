@@ -10,7 +10,7 @@ Description : This module is used to control the HBM memory and TileLink interfa
 Status      : Under Development
 */
 
-module double_precision_hbm_controller #(
+module double_precision_v_hbm_controller #(
     parameter int   HIGH_MXFP_EXP_WIDTH     = 4,
     parameter int   HIGH_MXFP_MANT_WIDTH    = 3,
     parameter int   LOW_MXFP_EXP_WIDTH      = 4,
@@ -43,9 +43,7 @@ module double_precision_hbm_controller #(
     output  logic   [LOW_ELE_WIDTH - 1 : 0]         prefetch_low_precision_element,
     output  logic   [SCALE_WIDTH - 1 : 0]           prefetch_scale,
     output  logic                                   prefetch_data_valid,
-
-    input   logic                                   prefetch_element_data_ready,
-    input   logic                                   prefetch_scale_data_ready,
+    input   logic                                   prefetch_data_ready,
     input   logic                                   hbm_prefetch_en,
     input   logic   [HBM_ADDR_WIDTH - 1 : 0]        hbm_raddr,
     
@@ -79,7 +77,17 @@ module double_precision_hbm_controller #(
     logic high_precision_element_ready_to_write, low_precision_element_ready_to_write, scale_ready_to_write;
     logic hbm_high_precision_write_en, hbm_low_precision_write_en;
     logic hbm_high_precision_req_en, hbm_low_precision_req_en;
-    logic high_precision_data_valid, low_precision_data_valid;
+    
+    logic prefetch_element_data_ready, prefetch_element_data_valid;
+    logic prefetch_high_precision_data_valid, prefetch_low_precision_data_valid;
+    logic loaded_high_precision_element_valid, loaded_low_precision_element_valid;
+    logic loaded_high_precision_element_ready, loaded_low_precision_element_ready;
+    logic loaded_scale_valid, loaded_scale_ready;
+    logic prefetch_scale_data_valid, prefetch_scale_data_ready;
+
+    logic   [HIGH_ELE_WIDTH - 1 : 0]        loaded_high_precision_element;
+    logic   [LOW_ELE_WIDTH - 1 : 0]         loaded_low_precision_element;
+    logic   [SCALE_WIDTH - 1 : 0]           loaded_scale;
 
     assign high_precision_hbm_ele_write_mask = {HIGH_ELE_MASK_WIDTH{1'b1}};
     assign low_precision_hbm_ele_write_mask = {LOW_ELE_MASK_WIDTH{1'b1}};
@@ -117,12 +125,20 @@ module double_precision_hbm_controller #(
         hbm_high_precision_req_en       = !precision_select & hbm_prefetch_en;
         hbm_low_precision_write_en      = precision_select  & hbm_write_en;
         hbm_low_precision_req_en        = precision_select  & hbm_prefetch_en;
-        prefetch_data_valid             = precision_select ? low_precision_data_valid : high_precision_data_valid;
+        prefetch_element_data_valid     = precision_select ? prefetch_low_precision_data_valid : prefetch_high_precision_data_valid;
 
     end
 
     // TODO: teporary solution for HBM write ready signal, if in the future need a buffer if the critical path happens here.
     assign hbm_write_ready = (precision_select ? low_precision_element_ready_to_write : high_precision_element_ready_to_write) && scale_ready_to_write;
+
+    join2 #(
+    ) join_prefetch_signal (
+        .data_in_ready({prefetch_element_data_ready, prefetch_scale_data_ready}),
+        .data_in_valid({prefetch_element_data_valid, prefetch_scale_data_valid}),
+        .data_out_valid(prefetch_data_valid),
+        .data_out_ready(prefetch_data_ready)
+    );
 
     // -----------------------------
     // Low Precision and High Precision Selection
@@ -166,12 +182,12 @@ module double_precision_hbm_controller #(
         .req_en                 (hbm_low_precision_req_en),
         .write_en               (hbm_low_precision_write_en),
         .addr                   (hbm_raddr_for_ele),
-        .fetch_data             (prefetch_low_precision_element),
-        .fetch_data_ready       (prefetch_element_data_ready),
+        .fetch_data             (loaded_low_precision_element),
+        .fetch_data_ready       (loaded_low_precision_element_ready),
         .write_data             (write_low_precision_element),
         .write_mask             (low_precision_hbm_ele_write_mask),
-        .fetch_data_valid       (low_precision_data_valid),
-        .ready_to_write         (low_precision_element_ready_to_write),
+        .fetch_data_valid       (loaded_low_precision_element_valid),
+        .ready_to_write         (loaded_low_precision_element_ready),
         `TL_CONNECT_HOST_PORT   (host, low_precision_tl_element)
     );
 
@@ -189,6 +205,19 @@ module double_precision_hbm_controller #(
         // TileLink Interface
         `TL_CONNECT_DEVICE_PORT     (host,      low_precision_tl_element),
         `TL_CONNECT_HOST_PORT       (device,    adapted_low_precision_tl_element)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(LOW_ELE_WIDTH)
+    ) low_precision_skid_buffer (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (loaded_low_precision_element_valid),
+        .data_in_ready  (loaded_low_precision_element_ready),
+        .data_in        (loaded_low_precision_element),
+        .data_out_valid (prefetch_low_precision_data_valid),
+        .data_out_ready (prefetch_element_data_ready),
+        .data_out       (prefetch_low_precision_element)
     );
 
     // -----------------------------
@@ -211,11 +240,11 @@ module double_precision_hbm_controller #(
         .req_en                 (hbm_high_precision_req_en),
         .write_en               (hbm_high_precision_write_en),
         .addr                   (hbm_raddr_for_ele),
-        .fetch_data             (prefetch_high_precision_element),
-        .fetch_data_ready       (prefetch_element_data_ready),
+        .fetch_data             (loaded_high_precision_element),
+        .fetch_data_ready       (loaded_high_precision_element_ready),
         .write_data             (write_high_precision_element),
         .write_mask             (high_precision_hbm_ele_write_mask),
-        .fetch_data_valid       (high_precision_data_valid),
+        .fetch_data_valid       (loaded_high_precision_element_valid),
         .ready_to_write         (high_precision_element_ready_to_write),
         `TL_CONNECT_HOST_PORT   (host, high_precision_tl_element)
     );
@@ -234,6 +263,19 @@ module double_precision_hbm_controller #(
         // TileLink Interface
         `TL_CONNECT_DEVICE_PORT     (host,      high_precision_tl_element),
         `TL_CONNECT_HOST_PORT       (device,    adapted_high_precision_tl_element)
+    );
+
+    skid_buffer #(
+        .DATA_WIDTH(HIGH_ELE_WIDTH)
+    ) high_precision_skid_buffer (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (loaded_high_precision_element_valid),
+        .data_in_ready  (loaded_high_precision_element_ready),
+        .data_in        (loaded_high_precision_element),
+        .data_out_valid (prefetch_high_precision_data_valid),
+        .data_out_ready (prefetch_element_data_ready),
+        .data_out       (prefetch_high_precision_element)
     );
 
 
@@ -260,8 +302,9 @@ module double_precision_hbm_controller #(
         .req_en             (hbm_prefetch_en),
         .write_en           (hbm_write_en),
         .addr               (hbm_raddr_for_scale),
-        .fetch_data         (prefetch_scale),
-        .fetch_data_ready   (prefetch_scale_data_ready),
+        .fetch_data         (loaded_scale),
+        .fetch_data_ready   (loaded_scale_ready),
+        .fetch_data_valid   (loaded_scale_valid),
         .ready_to_write     (scale_ready_to_write),
         .write_data         (write_scale),
         .write_mask         (hbm_scale_write_mask),
@@ -282,5 +325,19 @@ module double_precision_hbm_controller #(
         `TL_CONNECT_DEVICE_PORT     (host, tl_scale),
         `TL_CONNECT_HOST_PORT       (device, adapted_tl_scale)
     );
+
+    skid_buffer #(
+        .DATA_WIDTH(SCALE_WIDTH)
+    ) scale_skid_buffer (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (loaded_scale_valid),
+        .data_in_ready  (loaded_scale_ready),
+        .data_in        (loaded_scale),
+        .data_out_valid (prefetch_scale_data_valid),
+        .data_out_ready (prefetch_scale_data_ready),
+        .data_out       (prefetch_scale)
+    );
+
 
 endmodule

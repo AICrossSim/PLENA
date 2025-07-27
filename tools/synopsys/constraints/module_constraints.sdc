@@ -15,7 +15,6 @@ set ALL_INS_EX_CLK [remove_from_collection [all_inputs] [get_ports clk]]
 # set_load $max_cap [all_outputs]
 
 # Define design constraints
-set_max_area 0
 
 #set_input_delay $clk_q_plus_inv -clock $clk_name [all_inputs]
 set_input_delay 0.08 -clock $clk_name [all_inputs]
@@ -29,8 +28,3 @@ set max_delay $clk_period
 set_max_delay $max_delay -to [all_outputs]
 set_max_delay $max_delay -to [all_registers -data_pins]
 
-compile -map_effort medium
-
-# create_clock clk -period 0.5
-
-optimize_registers -sync_trans multiclass
