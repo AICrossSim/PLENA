@@ -119,14 +119,14 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
                 recorded_result_waddr <= result_waddr;
             end
 
-            if (!in_preparation_stage & (((element_v_control != STALL_V_ELEMENT) & (element_v_control != RESET_V)) || reduct_v_control != STALL_V_REDUCT)) begin
+            if (!in_preparation_stage & ((element_v_control != STALL_V_ELEMENT) || reduct_v_control != STALL_V_REDUCT)) begin
                 recorded_element_v_control  <= element_v_control;
                 recorded_reduct_v_control   <= reduct_v_control;
                 recorded_broadcast_en       <= broadcast_fp2;
                 recorded_s_wtarget          <= s_wtarget;
             end
 
-            if (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & complete_element_prepare) begin
+            if ((recorded_element_v_control != STALL_V_ELEMENT) & complete_element_prepare) begin
                 pipeline_compute_track[0] <= '{
                     waddr  : recorded_result_waddr,
                     ele_op : recorded_element_v_control,
@@ -162,7 +162,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             complete_element_prepare = 1'b0;
             complete_reduct_prepare = 1'b0;
         end else begin
-            if (!in_preparation_stage & (((element_v_control != STALL_V_ELEMENT) & (element_v_control != RESET_V)) || reduct_v_control != STALL_V_REDUCT)) begin
+            if (!in_preparation_stage & ((element_v_control != STALL_V_ELEMENT) || reduct_v_control != STALL_V_REDUCT)) begin
                 next_preparation_stage = 1'b1;
             end else if (complete_element_prepare || complete_reduct_prepare) begin
                 next_preparation_stage = 1'b0;
@@ -170,7 +170,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
                 next_preparation_stage = 1'b1;
             end
 
-            if ((((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & recorded_broadcast_en & v_port_a_valid)) begin
+            if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
             end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & s_acc_in_valid) begin
@@ -250,7 +250,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
 
     // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
     always_comb begin
-        if (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V))) begin
+        if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
             element_v_in_a_valid = v_port_a_valid;
             element_v_in_b_valid = v_port_b_valid;
             red_v_in_a_valid     = 1'b0;

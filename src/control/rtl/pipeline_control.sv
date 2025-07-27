@@ -47,7 +47,6 @@ module pipeline_control #(
     input       logic           m_load_in_process,
     input       logic           m_empty_in_progress,
     input       logic           v_load_in_process,
-    input       logic           v_sram_reset_in_progress,
     input       logic           s_received_v_reduct_result,
 
     // Current control operation
@@ -70,9 +69,10 @@ module pipeline_control #(
         fps1                : '0,
         fps2                : '0,
         fpd                 : '0,
-        gp_reg1           : '0,
-        gp_reg2           : '0,
-        gp_rd            : '0,
+        gp_reg1             : '0,
+        gp_reg2             : '0,
+        gp_reg3             : '0,
+        gp_rd               : '0,
         addr_1              : '0,
         addr_2              : '0,
         update_m_waddr      : 1'b0,
@@ -100,10 +100,10 @@ module pipeline_control #(
         end else if ((hbm_v_prefetch_in_progress || continuous_write_to_v_sram) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
             // Condition 3: When prefetching instruction is in processed or vector at the loading stage, another vector-related instruction is not allowed.
             pipeline_stall  = 1'b1;            
-        end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_a) & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
+        end else if ((mem_write_req.wreq_s_sram_port_a) & (determine_stage_op.v_ele_op != STALL_V_ELEMENT || determine_stage_op.v_reduct_op != STALL_V_REDUCT || determine_stage_op.m_op != STALL_M)) begin
             // Condition 4: Trying to access the vector sram port A while it is being written to.
             pipeline_stall  = 1'b1;            
-        end else if ((v_sram_reset_in_progress || mem_write_req.wreq_s_sram_port_b) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
+        end else if ((mem_write_req.wreq_s_sram_port_b) & ( determine_stage_op.v_ele_op != STALL_V_ELEMENT || (determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO & determine_stage_op.m_op != MV_WO))) begin
             // Condition 5: Trying to access the vector sram port B while it is being written to.
             pipeline_stall  = 1'b1;            
         end else if (fp_stall_req & ((determine_stage_op.s_fp_op == SQRT_FP) || (determine_stage_op.s_fp_op == RECI_FP) || (determine_stage_op.s_fp_op == EXP_FP))) begin
@@ -155,9 +155,9 @@ module pipeline_control #(
         check_stage_op.fps1            = delayed_reg_rd_stage_op.fps1;
         check_stage_op.fps2            = delayed_reg_rd_stage_op.fps2;
         check_stage_op.fpd             = delayed_reg_rd_stage_op.fpd;
-        check_stage_op.gp_reg1       = delayed_reg_rd_stage_op.gp_reg1;
-        check_stage_op.gp_reg2       = delayed_reg_rd_stage_op.gp_reg2;
-        check_stage_op.gp_rd        = delayed_reg_rd_stage_op.gp_rd;
+        check_stage_op.gp_reg1         = delayed_reg_rd_stage_op.gp_reg1;
+        check_stage_op.gp_reg2         = delayed_reg_rd_stage_op.gp_reg2;
+        check_stage_op.gp_reg3         = delayed_reg_rd_stage_op.gp_reg3;
         check_stage_op.addr_1          = fixed_addr_1;
         check_stage_op.addr_2          = fixed_addr_2; 
         check_stage_op.update_m_waddr  = delayed_reg_rd_stage_op.update_m_waddr;

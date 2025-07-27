@@ -37,8 +37,7 @@ module fp_vector_sram #(
     // SRAM
     parameter   SRAM_DEPTH              = 128,
     parameter   ON_CHIP_ADDR_WIDTH      = 32,
-    parameter   PREFETCH_AMOUNT         = 4,
-    parameter   VECTOR_RESET_AMOUNT     = 8
+    parameter   PREFETCH_AMOUNT         = 4
     // For Debugging
     `ifdef SIMULATION
         ,parameter string MEM_RESULT_FILE = ""
@@ -53,8 +52,6 @@ module fp_vector_sram #(
     input   logic port_a_write_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] port_a_addr,
     input   logic select_write_data_a, // 0 for Vector Machine, 1 for Matrix Machine
-    input   logic region_reset_a,
-    input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] reset_addr_a,
     // FP Data Connection
     input   logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_in,
     input   logic [MLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_m_fp_in,
@@ -88,7 +85,6 @@ module fp_vector_sram #(
     // Status Tracking for Prefetch
     input   logic prefetch_en,
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] prefetch_addr,
-    output  logic reset_in_progress,
     output  logic data_not_ready
 );
 
@@ -109,7 +105,6 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_low_fp_in;
     logic [V_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]   port_b_high_scale_out;
     logic [V_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]   port_b_low_scale_out;
-    logic [INTERNAL_ADDR_LEN - 1 : 0] reset_counter;
     logic port_a_write_en_internal;
     logic port_a_req_internal;
 
@@ -121,14 +116,12 @@ module fp_vector_sram #(
     // -----------------------------
 
     // Tag Matching, trackinng the prefetch status.
-    logic [INTERNAL_ADDR_LEN - 1 : 0]     translated_port_b_addr, translated_port_a_addr, translated_port_a_reset_addr, translated_prefetch_addr, translated_port_a_addr_internal;
-    logic [INTERNAL_ADDR_LEN - 1 : 0]     recorded_translated_port_a_reset_addr;
+    logic [INTERNAL_ADDR_LEN - 1 : 0]     translated_port_b_addr, translated_port_a_addr, translated_prefetch_addr, translated_port_a_addr_internal;
     logic [SRAM_DEPTH - 1 : 0]            mem_data_tag;
     
     localparam BITWIDTH_PER_ROW         = (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) * VLEN / 8;
     assign translated_port_a_addr       = port_a_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_port_b_addr       = port_b_addr >> $clog2(BITWIDTH_PER_ROW);
-    assign translated_port_a_reset_addr = reset_addr_a >> $clog2(BITWIDTH_PER_ROW);
     assign translated_prefetch_addr     = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);
 
     always_ff @(posedge clk) begin
@@ -157,13 +150,7 @@ module fp_vector_sram #(
     // -----------------------------
 
     always_comb begin
-        if (reset_in_progress) begin
-            port_a_fp_in_internal       = '0;
-            port_a_v_fp_out             = '0;
-            port_a_write_en_internal    = 1'b1;
-            translated_port_a_addr_internal  = recorded_translated_port_a_reset_addr + reset_counter;
-            port_a_req_internal         = 1'b1;
-        end else if (select_write_data_a == 1'b0) begin
+        if (select_write_data_a == 1'b0) begin
             // Vector Machine Mode, output as FP Data
             port_a_fp_in_internal       = port_a_v_fp_in;
             port_a_v_fp_out             = port_a_fp_out_internal;
@@ -191,25 +178,9 @@ module fp_vector_sram #(
         if (rst) begin
             mxfp_fp_convert_port_a_in_valid <= '0;
             mxfp_fp_convert_port_a_ready    <= 1'b0;
-            reset_in_progress               <= 1'b0;    
-            reset_counter                   <= '0;
-            recorded_translated_port_a_reset_addr <= '0;
         end else begin
             mxfp_fp_convert_port_a_in_valid <= (select_write_data_a == 1'b0 && port_a_req) ? {V_BLOCK_NUM{1'b1}} : '0;
             mxfp_fp_convert_port_a_ready <= 1'b1;
-            if (region_reset_a) begin
-                reset_in_progress   <= 1'b1;
-                reset_counter       <= '0;
-                recorded_translated_port_a_reset_addr <= translated_port_a_reset_addr;
-            end else if (reset_counter == VECTOR_RESET_AMOUNT - 1) begin
-                reset_in_progress   <= 1'b0;
-                reset_counter       <= '0;
-                recorded_translated_port_a_reset_addr <= '0;
-            end else if (reset_in_progress) begin
-                reset_counter <= reset_counter + 'b1;
-            end else begin
-                reset_counter <= '0;
-            end
         end
     end
 

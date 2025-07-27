@@ -12,14 +12,14 @@ Status      : Passed Simple Test
 
 module int_alu #(
     parameter int BITWIDTH = 32,
-    parameter int IMM_SHIFT_AMOUNT = 12
+    parameter int IMM_SHIFT_AMOUNT = 4
 )(
     input  logic                  clk,
     input  logic                  rst,
     input  logic [BITWIDTH-1:0]   operand_a,
     input  logic [BITWIDTH-1:0]   operand_b,
     input  logic [BITWIDTH-1:0]   imm_value,
-    input  S_INT_OP             operation,
+    input  S_INT_OP               operation,
     output logic                  result_valid,
     output logic [BITWIDTH-1:0]   computed_address,
     output logic [BITWIDTH-1:0]   result

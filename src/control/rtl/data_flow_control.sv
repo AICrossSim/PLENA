@@ -431,7 +431,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                         end
                     end 
                 end
-            end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) & (exe_stage_op.v_ele_op != RESET_V)) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
+            end else if ((exe_stage_op.v_ele_op != STALL_V_ELEMENT) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // TODO: Need to introduce v_prefetch_data_not_ready for vector machine, for safe data fetching.
                 m_v_load        <= 1'b0;
                 v_v_a_load      <= 1'b1;
@@ -476,7 +476,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end
 
             //Port B
-            if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && (exe_stage_op.v_ele_op != RESET_V) && !exe_stage_op.v_broadcast_en)) begin
+            if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en)) begin
                 // Read Port activated
                 v_v_b_load                  <= 1'b1;
             end else if ((exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_H_S) & hbm_ready_to_write) begin
@@ -523,7 +523,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 end else begin
                     select_write_data_b     <= 2'b10; // Low Precision
                 end
-            end else if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && ((exe_stage_op.v_ele_op != RESET_V)) && !exe_stage_op.v_broadcast_en)) begin
+            end else if ((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en) begin
                 v_sram_req_b            <= 1'b1;
                 v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
@@ -570,7 +570,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (rst) begin
             v_s_in_valid <= 1'b0;
         end else begin
-            if ((((exe_stage_op.v_broadcast_en == 1'b1)  & (exe_stage_op.v_ele_op != STALL_V_ELEMENT) & (exe_stage_op.v_ele_op != RESET_V)) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
+            if (((exe_stage_op.v_broadcast_en == 1'b1) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
                 v_s_in_valid <= 1'b1;
             end else begin
                 v_s_in_valid <= 1'b0;

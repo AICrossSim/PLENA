@@ -177,6 +177,7 @@ typedef struct {
     logic [instruction_pkg::OPCODE_WIDTH  - 1 : 0]      opcode;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs1;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs2;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs3;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rd;
     logic [instruction_pkg::IMM_WIDTH - 1 : 0]          imm;
     logic [instruction_pkg::FUNCT_WIDTH - 1 : 0]        funct1;
@@ -198,6 +199,7 @@ typedef struct {
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fpd;
     logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg1;
     logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg2;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg3;
     logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_rd;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_1;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_2;
