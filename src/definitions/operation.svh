@@ -113,72 +113,50 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     INVALID_OPCODE         = 6'h00,
 
     // Matrix Operations
-    M_MM_IC                = 6'h01,
-    M_MM_PS                = 6'h02,
+    M_MM                   = 6'h01,
+    M_TMM                  = 6'h02,
     M_MM_WO                = 6'h03,
-    M_TMM_IC               = 6'h04,
-    M_TMM_PS               = 6'h05,
-    M_MV_IC                = 6'h06,
-    M_MV_WO                = 6'h07,
-    M_TMV_IC               = 6'h08,
 
     // Vector Operations
-    V_ADD_VV               = 6'h09,
-    V_ADD_VF               = 6'h0A,
-    V_SUB_VV               = 6'h0B,
-    V_SUB_VF               = 6'h0C,
-    V_MUL_VV               = 6'h0D,
-    V_MUL_VF               = 6'h0E,
-    V_EXP_V                = 6'h0F,
-    V_RECI_V               = 6'h10,
-    V_RED_SUM              = 6'h11,
-    V_RED_MAX              = 6'h12,
-    V_RESET_SRAM           = 6'h13,
+    V_ADD_V                = 6'h04,
+    V_SUB_V                = 6'h05,
+    V_MUL_V                = 6'h06,
+    V_EXP_V                = 6'h07,
+    V_RECI_V               = 6'h08,
+    V_RED_SUM              = 6'h09,
+    V_RED_MAX              = 6'h0A,
 
     // Scalar Operations (Floating-Point)
-    S_ADD_FP               = 6'h14,
-    S_SUB_FP               = 6'h15,
-    S_MAX_FP               = 6'h16,
-    S_MUL_FP               = 6'h17,
-    S_EXP_FP               = 6'h18,
-    S_RECI_FP              = 6'h19,
-    S_SQRT_FP              = 6'h1A,
-    S_MV_FP                = 6'h1B,
-    S_LD_FP                = 6'h1C,
-    S_ST_FP                = 6'h1D,
-    S_MAP_V_FP             = 6'h1E,
+    S_ADD_FP               = 6'h0B,
+    S_SUB_FP               = 6'h0C,
+    S_MAX_FP               = 6'h0D,
+    S_MUL_FP               = 6'h0E,
+    S_EXP_FP               = 6'h0F,
+    S_RECI_FP              = 6'h10,
+    S_SQRT_FP              = 6'h11,
+    S_LD_FP                = 6'h12,
+    S_ST_FP                = 6'h13,
+    S_MAP_V_FP             = 6'h14,
 
     // Scalar Operations (Fixed-Point)
-    S_ADD_INT              = 6'h1F,
-    S_ADDI_INT             = 6'h20,
-    S_SUB_INT              = 6'h21,
-    S_MUL_INT              = 6'h22,
-    S_LUI_INT              = 6'h23,
-    S_MV_INT               = 6'h24,
-    S_LD_INT               = 6'h25,
-    S_ST_INT               = 6'h26,
+    S_ADD_INT              = 6'h15,
+    S_ADDI_INT             = 6'h16,
+    S_SUB_INT              = 6'h17,
+    S_MUL_INT              = 6'h18,
+    S_LUI_INT              = 6'h19,
+    S_MV_INT               = 6'h1A,
+    S_LD_INT               = 6'h1B,
+    S_ST_INT               = 6'h1C,
 
     // Memory Operations
-    H_PREFETCH_M_H_C       = 6'h27, // WT_PRECISION
-    H_PREFETCH_M_H_S       = 6'h28,
-    H_PREFETCH_M_L_C       = 6'h29, // KV_PRECISION
-    H_PREFETCH_M_L_S       = 6'h2A,
-    H_PREFETCH_V_H_C       = 6'h2B, // ACT_PRECISION
-    H_PREFETCH_V_H_S       = 6'h2C,
-    H_PREFETCH_V_L_C       = 6'h2D, //
-    H_PREFETCH_V_L_S       = 6'h2E,
-    H_STORE_V_H_C          = 6'h2F,
-    H_STORE_V_H_S          = 6'h30,
-    H_STORE_V_L_C          = 6'h31,
-    H_STORE_V_L_S          = 6'h32,
+    H_PREFETCH_M           = 6'h1D,
+    H_PREFETCH_V           = 6'h1E,
+    H_STORE_V              = 6'h1F,
 
     // CSR Setting
-    C_SET_ADDR_REG         = 6'h33,
-    C_SET_LUT              = 6'h34,
-    C_SET_STRIDE_REG       = 6'h35,
-    C_SET_SCALE_REG        = 6'h36,
-    C_BREAK                = 6'h37
+    C_SET_ADDR_REG         = 6'h20
 } CUSTOM_ISA_OPCODE;
+
 
 typedef enum logic [2:0] {
     INVALID_TYPE = 3'h0,

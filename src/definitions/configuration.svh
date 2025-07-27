@@ -24,7 +24,7 @@ package configuration_pkg;
     parameter   VECTOR_SRAM_DEPTH = 256;
     parameter   VECTOR_RESET_AMOUNT = 8;            // Need to be the same as Head_Dim for assembly code.
     parameter   INT_SRAM_WIDTH  = precision_pkg::INT_DATA_WIDTH;
-    parameter   INT_SRAM_DEPTH = 32;
+    parameter   INT_SRAM_DEPTH    = 32;
     parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
     parameter   FP_SRAM_DEPTH = 32;
     // HBM Related
@@ -36,14 +36,15 @@ package configuration_pkg;
 endpackage
 
 package instruction_pkg;
-    parameter INT_OPERAND_WIDTH   = 3;
-    parameter FP_OPERAND_WIDTH      = 3;
-    parameter HBM_ADR_OPERAND_WIDTH = 3;
-    parameter OPERAND_WIDTH         = 3;
+    parameter INT_OPERAND_WIDTH     = 4; // 16 INT Registers
+    parameter FP_OPERAND_WIDTH      = 3; // 8 FP Registers
+    parameter HBM_ADR_OPERAND_WIDTH = 3; // 8 HBM Addresses
+    parameter OPERAND_WIDTH         = 3; // 8 Operands
     parameter OPCODE_WIDTH          = 6;
-    parameter IMM_WIDTH             = 7;
-    parameter IMM_2_WIDTH           = 4;
-    parameter INSTRUCTION_LENGTH    = 16;
+    parameter IMM_WIDTH             = 22; // Long  Imm
+    parameter IMM_2_WIDTH           = 18;  // Short Imm
+    parameter FUNCT                 = 4;
+    parameter INSTRUCTION_LENGTH    = 32;
 endpackage
 
 package simulation_pkg;
