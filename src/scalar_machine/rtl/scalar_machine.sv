@@ -31,6 +31,9 @@ module scalar_machine import precision_pkg::*;  #(
     input   logic [INT_OPERAND_WIDTH - 1 : 0] rs1,
     input   logic [INT_OPERAND_WIDTH - 1 : 0] rs2,
     input   logic [INT_OPERAND_WIDTH - 1 : 0] rd,
+    input   logic [INT_OPERAND_WIDTH - 1 : 0] rs1,
+    input   logic [INT_OPERAND_WIDTH - 1 : 0] rs2,
+    input   logic [INT_OPERAND_WIDTH - 1 : 0] rd,
 
     // Fixed Value input
     input   logic [IMM_WIDTH - 1 : 0]           imm_in,
@@ -280,6 +283,7 @@ module scalar_machine import precision_pkg::*;  #(
     logic [INT_OPERAND_WIDTH - 1 : 0] p1_rd, p1_rs1, p1_rs2, p2_rd;
     logic [IMM_WIDTH - 1 : 0] recorded_imm_in;
     logic [INT_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
+    logic [INT_OPERAND_WIDTH - 1 : 0] fixed_reg_addr_1, fixed_reg_addr_2;
     
     always_comb begin
         if (p1_fixed_write_from_sram_req) begin
@@ -369,6 +373,7 @@ module scalar_machine import precision_pkg::*;  #(
 
     regfile_2p1w #(
         .BITWIDTH(INT_DATA_WIDTH),
+        .DEPTH(1 << INT_OPERAND_WIDTH)
         .DEPTH(1 << INT_OPERAND_WIDTH)
     ) int_reg_file (
         .clk        (clk),

@@ -17,7 +17,7 @@ Description : This module monitors the execution stages of each module and decid
 module pipeline_control #(
     parameter   INT_OPERAND_WIDTH     = 5,
     parameter   FP_OPERAND_WIDTH        = 5,
-    parameter   INT_DATA_WIDTH        = 32,
+    parameter   INT_DATA_WIDTH          = 32,
     parameter   IMM_WIDTH               = 12
 ) (
     input       logic clk,
@@ -70,9 +70,9 @@ module pipeline_control #(
         fps1                : '0,
         fps2                : '0,
         fpd                 : '0,
-        fixed_rs1           : '0,
-        fixed_rs2           : '0,
-        fixed_rd            : '0,
+        gp_reg1           : '0,
+        gp_reg2           : '0,
+        gp_rd            : '0,
         addr_1              : '0,
         addr_2              : '0,
         update_m_waddr      : 1'b0,
@@ -155,9 +155,9 @@ module pipeline_control #(
         check_stage_op.fps1            = delayed_reg_rd_stage_op.fps1;
         check_stage_op.fps2            = delayed_reg_rd_stage_op.fps2;
         check_stage_op.fpd             = delayed_reg_rd_stage_op.fpd;
-        check_stage_op.fixed_rs1       = delayed_reg_rd_stage_op.fixed_rs1;
-        check_stage_op.fixed_rs2       = delayed_reg_rd_stage_op.fixed_rs2;
-        check_stage_op.fixed_rd        = delayed_reg_rd_stage_op.fixed_rd;
+        check_stage_op.gp_reg1       = delayed_reg_rd_stage_op.gp_reg1;
+        check_stage_op.gp_reg2       = delayed_reg_rd_stage_op.gp_reg2;
+        check_stage_op.gp_rd        = delayed_reg_rd_stage_op.gp_rd;
         check_stage_op.addr_1          = fixed_addr_1;
         check_stage_op.addr_2          = fixed_addr_2; 
         check_stage_op.update_m_waddr  = delayed_reg_rd_stage_op.update_m_waddr;

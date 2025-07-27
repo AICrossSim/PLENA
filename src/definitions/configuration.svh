@@ -36,14 +36,14 @@ package configuration_pkg;
 endpackage
 
 package instruction_pkg;
-    parameter INT_OPERAND_WIDTH     = 4; // 16 INT Registers
-    parameter FP_OPERAND_WIDTH      = 3; // 8 FP Registers
-    parameter HBM_ADR_OPERAND_WIDTH = 3; // 8 HBM Addresses
-    parameter OPERAND_WIDTH         = 3; // 8 Operands
+    parameter INT_OPERAND_WIDTH     = 4;
+    parameter FP_OPERAND_WIDTH      = 3;
+    parameter HBM_ADR_OPERAND_WIDTH = 3;
+    parameter OPERAND_WIDTH         = 4;
+    parameter FUNCT_WIDTH           = 4;
     parameter OPCODE_WIDTH          = 6;
-    parameter IMM_WIDTH             = 22; // Long  Imm
-    parameter IMM_2_WIDTH           = 18;  // Short Imm
-    parameter FUNCT                 = 4;
+    parameter IMM_WIDTH             = 7;
+    parameter IMM_2_WIDTH           = 4;
     parameter INSTRUCTION_LENGTH    = 32;
 endpackage
 

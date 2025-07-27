@@ -212,8 +212,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .addr_in_a      (mem_stage_op.addr_1),
         .addr_in_b      (mem_stage_op.addr_2),
         .addr_offset    (mem_stage_op.addr_1),
-        .read_operand   (mem_stage_op.fixed_rs2),
-        .write_operand  (mem_stage_op.fixed_rd),
+        .read_operand   (mem_stage_op.gp_reg2),
+        .write_operand  (mem_stage_op.gp_rd),
         .hbm_addr_out   (hbm_addr_out)
     );
 
