@@ -28,6 +28,9 @@ module tl_selector #(
 );
 
     `TL_DECLARE(DataWidth, AddrWidth, SourceWidth, SinkWidth, determined_host_out);
+    `TL_DECLARE(DataWidth, AddrWidth, SourceWidth, SinkWidth, p1_determined_host_out);
+
+    `TL_BIND_HOST_PORT(host_out, p1_determined_host_out);
 
     // Out Select
     assign determined_host_out_a_valid_o = select ? device_2_a_valid_i : device_1_a_valid_i;
@@ -64,9 +67,9 @@ module tl_selector #(
         .DataWidth     (DataWidth)
     ) tl_fifo_sync_inst (
         .clk_i(clk),
-        .rst_ni(rst),
-        `TL_BIND_DEVICE_PORT(host, determined_host_out),
-        `TL_BIND_HOST_PORT  (device, host_out)
+        .rst_ni(!rst),
+        `TL_BIND_DEVICE_PORT(host,   determined_host_out),
+        `TL_BIND_HOST_PORT  (device, p1_determined_host_out)
     );
 
 endmodule
