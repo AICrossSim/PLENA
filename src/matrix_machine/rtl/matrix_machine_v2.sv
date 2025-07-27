@@ -140,7 +140,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready({stored_m_in_ele_ready, stored_m_in_scale_ready})
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(MLEN * (WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH + 1))
     ) matrix_element_buffer (
         .clk(clk),
@@ -153,7 +153,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready (stored_m_ele_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(MLEN * MXFP_SCALE_WIDTH)
     ) matrix_scale_buffer (
         .clk(clk),
@@ -185,7 +185,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(VLEN * (ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH + 1))
     ) vector_element_buffer (
         .clk(clk),
@@ -198,7 +198,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .data_out_ready (stored_v_ele_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
     ) vector_scale_buffer (
         .clk(clk),
@@ -273,7 +273,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         end
     end
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH (MLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
     ) result_buffer (
         .clk(clk),

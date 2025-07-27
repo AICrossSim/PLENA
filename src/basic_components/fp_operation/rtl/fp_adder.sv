@@ -90,7 +90,7 @@ module fp_adder #(
       .data_out_ready(p1_data_in_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH * 3 + DATA_FIX_WIDTH * 2)
     ) skid_p1 (
         .clk(clk),
@@ -132,7 +132,7 @@ module fp_adder #(
 
 
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH + DATA_FIX_WIDTH + DATA_FIX_WIDTH)
     ) skid_p2 (
         .clk(clk),

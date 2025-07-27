@@ -86,7 +86,7 @@ module fp_adder_tree #(
             .data_out             (sum[i])                                    // flattened LEVEL_OUT_DIM * LEVEL_OUT_WIDTH
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),

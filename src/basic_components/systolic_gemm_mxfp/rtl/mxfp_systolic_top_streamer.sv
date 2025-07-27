@@ -217,9 +217,9 @@ module mxfp_systolic_top_streamer #(
     logic data_element_out_valid, data_scale_out_valid;
     logic data_element_out_ready, data_scale_out_ready;
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(COMPUTE_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
-    ) skid_buffer_elem (
+    ) register_slice_elem (
         .clk(clk),
         .rst(rst),
         .data_in            (stream_elem_out),
@@ -230,9 +230,9 @@ module mxfp_systolic_top_streamer #(
         .data_out_ready     (data_element_out_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(COMPUTE_DIM * MXFP_SCALE_WIDTH)
-    ) skid_buffer_scale (
+    ) register_slice_scale (
         .clk(clk),
         .rst(rst),
         .data_in            (stream_scale_out),

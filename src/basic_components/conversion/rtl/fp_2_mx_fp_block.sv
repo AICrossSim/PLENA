@@ -105,7 +105,7 @@ module fp_2_mx_fp_block #(
                 .mant_out   (p2_elems[i][MXFP_MANT_WIDTH - 1 : 0])
             );
 
-            skid_buffer #(
+            register_slice #(
                 .DATA_WIDTH(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1)
             ) element_data (
                 .clk           (clk),

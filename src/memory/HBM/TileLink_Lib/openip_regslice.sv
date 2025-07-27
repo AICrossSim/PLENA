@@ -58,7 +58,7 @@ module openip_regslice #(
         // This is equivalent to a depth 2 FIFO.
         // We need two buffers to achieve 100% throughput.
         TYPE buffer;
-        TYPE skid_buffer;
+        TYPE register_slice;
         logic valid;
         logic skid_valid;
 
@@ -89,9 +89,9 @@ module openip_regslice #(
         assign r_data = buffer;
         always_ff @(posedge clk) begin
             // If buffer can be refilled, then fill from skid buffer if it has value.
-            if (!valid || r_ready) buffer <= skid_valid ? skid_buffer : w_data;
+            if (!valid || r_ready) buffer <= skid_valid ? register_slice : w_data;
             // Fill in skid buffer
-            if (w_valid && w_ready) skid_buffer <= w_data;
+            if (w_valid && w_ready) register_slice <= w_data;
         end
 
     end

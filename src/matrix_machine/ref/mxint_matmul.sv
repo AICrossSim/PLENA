@@ -249,7 +249,7 @@ module mxint_matmul #(
     end else begin : gen_a_reg_slice
 
       // Add a register stage to cut any combinatoral paths to simple matmul
-      unpacked_skid_buffer #(
+      unpacked_register_slice #(
           .DATA_WIDTH(A_MAN_WIDTH),
           .IN_NUM    (A_COMPUTE_DIM0 * A_COMPUTE_DIM1)
       ) ma_input_stream_reg_slice (
@@ -262,7 +262,7 @@ module mxint_matmul #(
           .data_out_valid(ma_buffer_out_valid),
           .data_out_ready(ma_buffer_out_ready)
       );
-      skid_buffer #(
+      register_slice #(
           .DATA_WIDTH(A_EXP_WIDTH)
       ) ea_input_stream_reg_slice (
           .clk           (clk),

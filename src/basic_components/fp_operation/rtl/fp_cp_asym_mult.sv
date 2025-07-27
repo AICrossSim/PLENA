@@ -96,7 +96,7 @@ module fp_cp_asym_mult #(
         .signed_mant(signed_mant_a)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH_A + IN_FIXED_WIDTH_A)
     ) buffer_partition_a (
         .clk(clk),
@@ -119,7 +119,7 @@ module fp_cp_asym_mult #(
         .signed_mant(signed_mant_b)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH_B + IN_FIXED_WIDTH_B)
     ) buffer_partition_b (
         .clk(clk),
@@ -157,7 +157,7 @@ module fp_cp_asym_mult #(
         .data_out_ready(p1_mult_ready)
     );
     
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(MULT_OUT_EXP_WIDTH + MULT_OUT_FIXED_WIDTH)
     ) buffer_mult (
         .clk(clk),
@@ -183,7 +183,7 @@ module fp_cp_asym_mult #(
         .fp_out         (p2_normalized_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH + 1)
     ) buffer_normalise (
         .clk(clk),
@@ -206,7 +206,7 @@ module fp_cp_asym_mult #(
         .data_out       (casted_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(OUT_EXP_WIDTH + EXT_EXP_WIDTH + OUT_MANT_WIDTH + EXT_MANT_WIDTH + 1)
     ) buffer_normalise_cast (
         .clk(clk),

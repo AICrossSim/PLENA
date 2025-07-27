@@ -64,7 +64,7 @@ module fp_vector_mult #(
       .data_out_ready(product_data_in_ready)
   );
 
-  skid_buffer #(
+  register_slice #(
       .DATA_WIDTH(VEC_DIM * (EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH + 1)) 
   ) register_slice (
       .clk           (clk),

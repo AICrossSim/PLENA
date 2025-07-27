@@ -194,7 +194,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     );
 
     // Vector Port A Storage
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(VLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
     ) v_a_buffer (
         .clk(clk),

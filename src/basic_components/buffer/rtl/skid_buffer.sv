@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module skid_buffer #(
+module register_slice #(
     parameter DATA_WIDTH = 32
 ) (
     input logic clk,

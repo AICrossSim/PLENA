@@ -99,11 +99,9 @@ always_comb begin
     endcase
 end
 
-    fp_cp_reciprocal #(
-        .IN_EXP_WIDTH(EXP_WIDTH),
-        .IN_MANT_WIDTH(MANT_WIDTH),
-        .OUT_EXP_WIDTH(EXP_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH)
+    fp_fix_reciprocal #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) scalar_fp_reciprocal_init (
         .clk(clk),
         .rst(rst),
@@ -115,11 +113,9 @@ end
         .data_out       (fp_reciprocal_out)
     );
 
-    fp_cp_exp #(
-        .IN_EXP_WIDTH(EXP_WIDTH),
-        .IN_MANT_WIDTH(MANT_WIDTH),
-        .OUT_EXP_WIDTH(EXP_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH)
+    fp_fix_exp #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) scalar_fp_exp_init (
         .clk(clk),
         .rst(rst),
@@ -131,7 +127,7 @@ end
         .data_out       (fp_exp_out)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(EXP_WIDTH + MANT_WIDTH + 1)
     ) register_slice (
         .clk           (clk),

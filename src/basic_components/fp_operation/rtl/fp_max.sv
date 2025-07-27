@@ -62,7 +62,7 @@ module fp_max #(
         end
     end
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(EXP_WIDTH + MANT_WIDTH + 1)
     ) buffer_max (
         .clk(clk),

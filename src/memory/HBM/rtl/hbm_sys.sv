@@ -304,7 +304,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     assign m_hbm_element_out = (m_controller_precision_select == 1'b0) ? m_hbm_high_precision_element_out : m_hbm_upcasted_element_out;
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(MLEN * (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1))
     ) matrix_sram_high_precision_prefetch_buffer (
         .clk(clk),
@@ -317,7 +317,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .data_out_ready     (stored_prefetch_m_element_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(M_BLOCKNUM * MXFP_SCALE_WIDTH)
     ) matrix_sram_prefetch_scale_buffer (
         .clk(clk),
@@ -385,7 +385,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     );
 
 
-    // skid_buffer #(
+    // register_slice #(
     //     .DATA_WIDTH(VLEN * (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1))
     // ) vector_sram_prefetch_high_precision_ele_buffer (
     //     .clk(clk),
@@ -398,7 +398,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     //     .data_out_ready     (stored_prefetch_high_precision_v_element_ready)
     // );
 
-    // skid_buffer #(
+    // register_slice #(
     //     .DATA_WIDTH(VLEN * (KV_MXFP_EXP_WIDTH + KV_MXFP_MANT_WIDTH + 1))
     // ) vector_sram_prefetch_low_precision_ele_buffer (
     //     .clk(clk),
@@ -412,7 +412,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     // );
 
 
-    // skid_buffer #(
+    // register_slice #(
     //     .DATA_WIDTH(V_BLOCKNUM * MXFP_SCALE_WIDTH)
     // ) vector_sram_prefetch_scale_buffer (
     //     .clk(clk),

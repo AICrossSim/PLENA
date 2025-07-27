@@ -219,7 +219,7 @@ split_n #(
     .data_out_ready({stored_v_in_ele_ready, stored_v_in_scale_ready})
 );
 
-skid_buffer #(
+register_slice #(
     .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH+1))
 ) multiplicand_vec_element_buffer (
     .clk(clk),
@@ -236,7 +236,7 @@ skid_buffer #(
     .data_out_ready(stored_v_ele_ready)
 );
 
-skid_buffer #(
+register_slice #(
     .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
 ) multiplicand_vec_scale_buffer (
     .clk(clk),
@@ -280,7 +280,7 @@ split_n #(
     .data_out_ready({stored_o_in_ele_ready, stored_o_in_scale_ready})
 );
 
-skid_buffer #(
+register_slice #(
     .DATA_WIDTH(MLEN * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
 ) offset_vec_element_buffer (
     .clk(clk),
@@ -297,7 +297,7 @@ skid_buffer #(
     .data_out_ready(stored_o_ele_ready)
 );
 
-skid_buffer #(
+register_slice #(
     .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
 ) offset_vec_scale_buffer (
     .clk(clk),

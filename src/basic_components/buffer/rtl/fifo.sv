@@ -29,11 +29,11 @@ module fifo #(
 );
 
   generate
-    if (DEPTH == 1) begin : gen_skid_buffer
+    if (DEPTH == 1) begin : gen_register_slice
 
-      skid_buffer #(
+      register_slice #(
           .DATA_WIDTH(DATA_WIDTH)
-      ) skid_buffer_inst (
+      ) register_slice_inst (
           .clk           (clk),
           .rst           (rst),
           .data_in       (data_in),

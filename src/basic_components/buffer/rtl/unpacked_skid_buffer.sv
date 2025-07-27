@@ -1,5 +1,5 @@
 `timescale 1 ns / 1 ps
-module unpacked_skid_buffer #(
+module unpacked_register_slice #(
     parameter DATA_WIDTH = 8,
     parameter IN_NUM = 512
 ) (
@@ -17,7 +17,7 @@ module unpacked_skid_buffer #(
   for (genvar i = 0; i < IN_NUM; i++) begin : reshape
     assign data_in_flatten[i*DATA_WIDTH+DATA_WIDTH-1:i*DATA_WIDTH] = data_in[i];
   end
-  skid_buffer #(
+  register_slice #(
       .DATA_WIDTH(DATA_WIDTH * IN_NUM)
   ) buffer_inst (
       .data_in (data_in_flatten),

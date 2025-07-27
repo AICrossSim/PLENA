@@ -97,7 +97,7 @@ module mx_fp_unit_adder_tree #(
                 .scale_data_out               (scale_sum[i])                        // flattened LEVEL_OUT_DIM * SCALE_WIDTH
             );
 
-            skid_buffer #(
+            register_slice #(
                 .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
             ) temp_store_element (
                 .clk           (clk),
@@ -110,7 +110,7 @@ module mx_fp_unit_adder_tree #(
                 .data_out_ready(element_ready[i+1])
             );
 
-            skid_buffer #(
+            register_slice #(
                 .DATA_WIDTH(LEVEL_OUT_DIM * MXFP_SCALE_WIDTH)
             ) temp_store_scale (
                 .clk           (clk),

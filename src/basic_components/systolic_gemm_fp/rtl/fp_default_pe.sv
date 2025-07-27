@@ -92,9 +92,9 @@ module fp_default_pe #(
     );
 
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(FP_MANT_WIDTH + FP_EXP_WIDTH + 1)
-    ) skid_buffer_mult (
+    ) register_slice_mult (
         .clk(clk),
         .rst(rst),
         .data_in        (mul_result),
@@ -123,9 +123,9 @@ module fp_default_pe #(
     );
 
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1)
-    ) skid_buffer_dequantised (
+    ) register_slice_dequantised (
         .clk(clk),
         .rst(rst),
         .data_in        (shifted_result),

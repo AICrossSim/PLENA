@@ -5,7 +5,7 @@ Description : This module does the same function as register slice
               But for datatype mxint.
 */
 
-module mxint_skid_buffer #(
+module mxint_register_slice #(
     // precision represent mantissa width
     // precision_1 represent exponent width
     // 
@@ -34,7 +34,7 @@ module mxint_skid_buffer #(
   end
   assign data_in_flatten[DATA_PRECISION_0*IN_NUM+DATA_PRECISION_1-1:DATA_PRECISION_0*IN_NUM] = edata_in;
 
-  skid_buffer #(
+  register_slice #(
       .DATA_WIDTH(DATA_PRECISION_0 * IN_NUM + DATA_PRECISION_1)
   ) register_slice_i (
       .clk           (clk),

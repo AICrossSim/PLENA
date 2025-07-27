@@ -94,7 +94,7 @@ module fp_reduction_compute_unit #(
             .data_out_ready (compute_ready[i])
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),

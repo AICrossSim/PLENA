@@ -103,7 +103,7 @@ module mxint_cast #(
 
 
 
-  skid_buffer #(
+  register_slice #(
       .DATA_WIDTH(LOG2_WIDTH)
   ) log2_reg_slice (
       .clk(clk),
@@ -166,11 +166,11 @@ module mxint_cast #(
     );
 
     // Add skid buffer at the end
-    mxint_skid_buffer #(
+    mxint_register_slice #(
         .DATA_PRECISION_0(OUT_MAN_WIDTH),
         .DATA_PRECISION_1(OUT_EXP_WIDTH),
         .IN_NUM(BLOCK_SIZE)
-    ) output_skid_buffer (
+    ) output_register_slice (
         .clk(clk),
         .rst(rst),
         .mdata_in(mdata_out_unreg),

@@ -67,7 +67,7 @@ module fp_cp_exp #(
         .signed_mant    (signed_mant_in)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH + IN_MANT_WIDTH + 2)
     ) buffer_partition_a (
         .clk(clk),
@@ -102,7 +102,7 @@ module fp_cp_exp #(
         .signed_mant_out(exp_out_mant)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(EXP_OUT_EXP_WIDTH + EXP_OUT_FIXED_WIDTH)
     ) buffer_exp (
         .clk(clk),
@@ -136,7 +136,7 @@ module fp_cp_exp #(
         .data_out(casted_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(OUT_EXP_WIDTH + OUT_MANT_WIDTH + 1)
     ) buffer_normalise_cast (
         .clk(clk),

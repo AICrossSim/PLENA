@@ -244,7 +244,7 @@ module mxfp_systolic_mcu #(
         .data_out_ready({v1_for_mv_ele_in_ready, v1_for_mv_scale_in_ready})
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1))
     ) v1_gemv_ele_streamer (
             .clk           (clk),
@@ -257,7 +257,7 @@ module mxfp_systolic_mcu #(
             .data_out_ready(v1_for_mv_ele_out_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * MXFP_SCALE_WIDTH)
     ) v1_gemv_scale_streamer (
             .clk           (clk),
@@ -542,7 +542,7 @@ module mxfp_systolic_mcu #(
                 );
             end
         end
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
         ) quantized_result_buffer (
             .clk(clk),
@@ -584,7 +584,7 @@ module mxfp_systolic_mcu #(
 
     assign v_result_write_req = result_data_valid & v_result_ready;
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
     ) result_buffer (
         .clk(clk),

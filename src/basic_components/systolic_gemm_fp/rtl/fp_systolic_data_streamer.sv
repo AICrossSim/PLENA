@@ -169,9 +169,9 @@ module fp_systolic_data_streamer #(
     logic data_element_out_valid, data_scale_out_valid;
     logic data_element_out_ready, data_scale_out_ready;
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(COMPUTE_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
-    ) skid_buffer_elem (
+    ) register_slice_elem (
         .clk(clk),
         .rst(rst),
         .data_in            (stream_data_out),

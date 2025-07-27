@@ -362,7 +362,7 @@ module fp_systolic_mcu #(
                 );
             end
 
-            skid_buffer #(
+            register_slice #(
                 .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
             ) quantized_result_buffer (
                 .clk(clk),
@@ -398,7 +398,7 @@ module fp_systolic_mcu #(
                 );
             end
 
-            skid_buffer #(
+            register_slice #(
                 .DATA_WIDTH(GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
             ) quantized_result_buffer (
                 .clk(clk),
@@ -460,7 +460,7 @@ module fp_systolic_mcu #(
         .unrolled_data_out_ready(unrolled_data_out_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
     ) result_buffer (
         .clk(clk),

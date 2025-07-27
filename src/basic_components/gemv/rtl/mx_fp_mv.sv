@@ -202,7 +202,7 @@ module mx_fp_mv #(
             .data_out_ready(converted_ready)
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(BLOCK_NUM * (MXFP_MANT_WIDTH + MXFP_EXP_WIDTH + 1))
         ) result_element_buffer (
             .clk(clk),
@@ -219,7 +219,7 @@ module mx_fp_mv #(
             .data_out_ready(result_element_ready)
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
         ) result_scale_buffer (
             .clk(clk),
