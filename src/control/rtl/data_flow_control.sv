@@ -126,7 +126,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
     //Request Asserted in single cycle
     always_comb begin
         write_req.wreq_m_sram        = ((prefetch_m_valid == 1'b1) & (previous_dma_m_ready == 1'b0))    ? 1'b1 : 1'b0;
-        write_req.wreq_s_sram_port_a = ((m_write_request  == 1'b1)  | (v_write_request == 1'b1))         ? 1'b1 : 1'b0;
+        write_req.wreq_s_sram_port_a = ((m_write_request  == 1'b1) | (v_write_request == 1'b1))         ? 1'b1 : 1'b0;
         write_req.wreq_s_sram_port_b = ((prefetch_v_valid == 1'b1) & (previous_dma_v_ready == 1'b0))    ? 1'b1 : 1'b0;
         write_req.wreq_from_m        = m_write_request;
     end
@@ -570,7 +570,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (rst) begin
             v_s_in_valid <= 1'b0;
         end else begin
-            if (((exe_stage_op.v_broadcast_en == 1'b1) || (exe_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
+            if (((mem_stage_op.v_broadcast_en == 1'b1) || (mem_stage_op.v_reduct_op != STALL_V_REDUCT)) & v_s_in_ready) begin
                 v_s_in_valid <= 1'b1;
             end else begin
                 v_s_in_valid <= 1'b0;

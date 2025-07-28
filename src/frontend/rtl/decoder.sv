@@ -45,7 +45,8 @@ module decoder import instruction_pkg::*; #(
 logic           system_stall;
 logic           stall_for_read_rd;
 logic           [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
-logic           read_instr_from_fifo, decode_instr_valid;
+logic           read_instr_from_fifo, load_instr_valid;
+logic           decode_instr_valid;
 logic           p1_pipeline_stall, recover_from_stall, start_from_stall;
 OP_BUNDLE       recorded_op_bundle;
 S_INT_OP        exe_int_op;
@@ -73,7 +74,7 @@ fifo #(
     .data_in_valid  (instruction_valid),
     .data_in_ready  (instruction_ready),
     .data_out       (loaded_instr),
-    .data_out_valid (decode_instr_valid),
+    .data_out_valid (load_instr_valid),
     .data_out_ready (read_instr_from_fifo)
 );
 
@@ -150,18 +151,20 @@ always_ff @(posedge clk) begin
         p1_pipeline_stall               <= 1'b0;
         exe_int_op                    <= STALL_S_INT;
         system_stall                    <= 1'b0;
+        decode_instr_valid              <= 1'b0;
         decode_instr_info               <= '{opcode: '0, rs1: '0, rs2: '0, rs3: '0, rd: '0, imm: '0, funct1: '0, funct2: '0, instruction_type: INVALID_TYPE};
     end else begin
         if (system_stall_flag) begin
             system_stall <= 1'b1;
         end
-        decode_instr_info <= (read_instr_from_fifo & decode_instr_valid) ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rs3: loaded_rs3, rd: loaded_rd, imm: loaded_imm, funct1: loaded_funct1, funct2: loaded_funct2, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rs3: '0, rd: '0, imm: '0, funct1: '0, funct2: '0, instruction_type: INVALID_TYPE};
+        decode_instr_valid              <= read_instr_from_fifo & load_instr_valid;
+        decode_instr_info <= (decode_instr_valid) ? '{opcode: loaded_opcode, rs1: loaded_rs1, rs2: loaded_rs2, rs3: loaded_rs3, rd: loaded_rd, imm: loaded_imm, funct1: loaded_funct1, funct2: loaded_funct2, instruction_type: decode_instruction_type} : '{opcode: '0, rs1: '0, rs2: '0, rs3: '0, rd: '0, imm: '0, funct1: '0, funct2: '0, instruction_type: INVALID_TYPE};
         recorded_stall_for_read_rd_flag <= stall_for_read_rd_flag;
         recorded_m_update_waddr         <= m_update_waddr;
         recorded_v_update_waddr         <= v_update_waddr;
         recorded_rd_to_load             <= rd_to_load;
         p1_pipeline_stall               <= pipeline_stall;
-        exe_int_op                    <= assigned_int_op;
+        exe_int_op                      <= assigned_int_op;
     end
 end
 
@@ -298,7 +301,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_reduct_op <=      (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                                     (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
                 
-                assigned_int_op                       <= PASS_ADDR;
+                assigned_int_op                         <= PASS_ADDR;
                 decode_stage_op.c_op                    <= STALL_C;
                 decode_stage_op.h_op                    <= STALL_H;
                 if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
@@ -336,7 +339,7 @@ always_ff @(posedge clk) begin
                 decode_stage_op.v_ele_op            <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op         <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op             <= STALL_S_FP;
-                assigned_int_op                   <=  (decode_instr_info.opcode == S_ADD_INT)   ? ADD_INT   :
+                assigned_int_op                   <=    (decode_instr_info.opcode == S_ADD_INT)   ? ADD_INT   :
                                                         (decode_instr_info.opcode == S_ADDI_INT)  ? ADDI_INT  :
                                                         (decode_instr_info.opcode == S_SUB_INT)   ? SUB_INT   : 
                                                         (decode_instr_info.opcode == S_MUL_INT)   ? MUL_INT   : 
