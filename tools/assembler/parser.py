@@ -62,14 +62,12 @@ def load_isa_settings(file_path: str) -> dict:
 
 
 class Instruction:
-    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rs3: Optional[str], funct1: Optional[int], funct2: Optional[int], imm: Optional[int] = None):
+    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], funct1: Optional[int], funct2: Optional[int], imm: Optional[int] = None):
 
         self.opcode = opcode
         self.rd = rd
         self.rs1 = rs1
         self.rs2 = rs2
-        self.rs3 = rs3
-
         self.funct1 = funct1
         self.funct2 = funct2
         self.imm = imm
@@ -83,7 +81,9 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
     Parse an ASM file into a list of Instruction objects.
 
     Supported formats:
+    - opcode rd, rs1, rs2, rs3, funct1, funct2;
     - opcode rd, rs1, rs2, funct1, funct2;
+    - opcode rd, rs1, rs2;
     - opcode rd, rs1, imm;
     - opcode rd, rs1;
     - opcode rd;
@@ -108,13 +108,14 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 continue  # Invalid line
             opcode = parts[0]
             operands = [part.strip() for part in ' '.join(parts[1:]).split(',')]
+            print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
             # Decode based on number of operands
             if len(operands) > 0:
                 operand_0 = operands[0]
                 if operand_0[-1] == ';':
                     operand_0 = operand_0[:-1]
                 if operand_0.startswith('gp'):
-                    rd = int(operand_0[1:], 16)
+                    rd = int(operand_0[2:], 16)
                 elif operand_0.startswith('f'):
                     rd = int(operand_0[1:], 16)
                 elif operand_0.startswith('a'):
@@ -128,7 +129,6 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 rd = None
             rs1 = None
             rs2 = None
-            rs3 = None
             imm = None
             funct1 = None
             funct2 = None
@@ -138,7 +138,7 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 if operand_1[-1] == ';':
                     operand_1 = operand_1[:-1]
                 if operand_1.startswith('gp'):
-                    rs1 = int(operand_1[1:], 16)
+                    rs1 = int(operand_1[2:], 16)
                 elif operand_1.startswith('f'):
                     rs1 = int(operand_1[1:], 16)
                 elif operand_0.startswith('a'):
@@ -149,12 +149,12 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                     except ValueError:
                         imm = None
 
-            if len(operands) >= 3:
+            if len(operands) > 2:
                 operand_2 = operands[2]
                 if operand_2[-1] == ';':
                     operand_2 = operand_2[:-1]
                 if operand_2.startswith('gp'):
-                    rs2 = int(operand_2[1:], 16)
+                    rs2 = int(operand_2[2:], 16)
                 elif operand_2.startswith('f'):
                     rs2 = int(operand_2[1:], 16)
                 elif operand_2.startswith('a'):
@@ -175,13 +175,11 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
             if len(operands) == 6:
                 funct2 = operands[6]
                 funct1 = int(operands[5])
-                rs3 = int(operands[4])
                 if (funct2[-1] == ';'):
                     funct2 = int(funct2[:-1])
                 else:
                     funct2 = int(funct2)
-
-            instructions.append(Instruction(opcode, rd, rs1, rs2, rs3, imm, funct1, funct2))
+            instructions.append(Instruction(opcode, rd, rs1, rs2, funct1, funct2, imm))
 
     return instructions
 

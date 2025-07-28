@@ -42,8 +42,8 @@ package instruction_pkg;
     parameter OPERAND_WIDTH         = 4;
     parameter FUNCT_WIDTH           = 4;
     parameter OPCODE_WIDTH          = 6;
-    parameter IMM_WIDTH             = 7;
-    parameter IMM_2_WIDTH           = 4;
+    parameter IMM_WIDTH             = 22;
+    parameter IMM_2_WIDTH           = 18;
     parameter INSTRUCTION_LENGTH    = 32;
 endpackage
 

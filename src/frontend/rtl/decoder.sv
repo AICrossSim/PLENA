@@ -48,7 +48,7 @@ logic           [INSTRUCTION_LENGTH - 1 : 0] loaded_instr;
 logic           read_instr_from_fifo, decode_instr_valid;
 logic           p1_pipeline_stall, recover_from_stall, start_from_stall;
 OP_BUNDLE       recorded_op_bundle;
-S_INT_OP        exe_fixed_op;
+S_INT_OP        exe_int_op;
 
 logic rd_operand_ready; // The stall is for loading the third operand from the register files.
 logic m_update_waddr, v_update_waddr;
@@ -129,7 +129,7 @@ always_comb begin
         end
 
         // CSR Setting
-        C_SET_ADDR_REG, C_BREAK: begin
+        C_SET_ADDR_REG, C_SET_STRIDE_REG, C_SET_SCALE_REG, C_BREAK: begin
             decode_instruction_type = C;
         end
 
@@ -148,7 +148,7 @@ always_ff @(posedge clk) begin
         recorded_v_update_waddr         <= 1'b0;
         recorded_rd_to_load             <= {INT_OPERAND_WIDTH{1'b0}};
         p1_pipeline_stall               <= 1'b0;
-        exe_fixed_op                    <= STALL_S_INT;
+        exe_int_op                    <= STALL_S_INT;
         system_stall                    <= 1'b0;
         decode_instr_info               <= '{opcode: '0, rs1: '0, rs2: '0, rs3: '0, rd: '0, imm: '0, funct1: '0, funct2: '0, instruction_type: INVALID_TYPE};
     end else begin
@@ -161,7 +161,7 @@ always_ff @(posedge clk) begin
         recorded_v_update_waddr         <= v_update_waddr;
         recorded_rd_to_load             <= rd_to_load;
         p1_pipeline_stall               <= pipeline_stall;
-        exe_fixed_op                    <= assigned_int_op;
+        exe_int_op                    <= assigned_int_op;
     end
 end
 
@@ -443,14 +443,28 @@ always_ff @(posedge clk) begin
                 decode_stage_op.h_op            <= STALL_H;
 
                 if(decode_instr_info.opcode == C_SET_ADDR_REG) begin
-                    assigned_int_op                     <= PASS_ADDR;
-                    decode_stage_op.c_op                <= SET_ADDR_REG;
+                    assigned_int_op                   <= PASS_ADDR;
+                    decode_stage_op.c_op              <= SET_ADDR_REG;
+                end else if (decode_instr_info.opcode == C_SET_STRIDE_REG) begin
+                    assigned_int_op                   <= PASS_ADDR_2;
+                    if (decode_instr_info.funct1 == '0) begin
+                        decode_stage_op.c_op <= SET_V_STRIDE_SIZE;
+                    end else begin
+                        decode_stage_op.c_op <= SET_M_STRIDE_SIZE;
+                    end
+                end else if (decode_instr_info.opcode == C_SET_SCALE_REG) begin
+                    assigned_int_op                   <= PASS_ADDR_2;
+                    if (decode_instr_info.funct1 == '0) begin
+                        decode_stage_op.c_op <= SET_V_SCALE_REG;
+                    end else begin
+                        decode_stage_op.c_op <= SET_M_SCALE_REG;
+                    end
                 end else if (decode_instr_info.opcode == C_BREAK) begin
                     assigned_int_op                     <= STALL_S_INT;
                     decode_stage_op.c_op                <= BREAK;
                 end else begin
                     assigned_int_op                     <= STALL_S_INT;
-                    decode_stage_op.c_op                <= STALL_C;
+                    decode_stage_op.c_op                <= BREAK;
                 end
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;

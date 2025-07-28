@@ -63,11 +63,6 @@ module int_alu #(
                         result_valid <= 1'b1;
                     end
 
-                    MV_INT: begin
-                        result <= operand_a; // Move
-                        result_valid <= 1'b1;
-                    end
-
                     default: begin
                         result <= '0;
                         result_valid <= 1'b0;

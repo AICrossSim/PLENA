@@ -235,15 +235,15 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
             stored_m_scale_offset <= 'b0;
             stored_v_scale_offset <= 'b0;
         end 
-        // else if (mem_stage_op.c_op == SET_M_STRIDE_SIZE) begin
-        //     stored_m_stride_size <= mem_stage_op.addr_2;
-        // end else if (mem_stage_op.c_op == SET_V_STRIDE_SIZE) begin
-        //     stored_v_stride_size <= mem_stage_op.addr_2;
-        // end else if (mem_stage_op.c_op == SET_M_SCALE_REG) begin
-        //     stored_m_scale_offset <= mem_stage_op.addr_2;
-        // end else if (mem_stage_op.c_op == SET_V_SCALE_REG) begin
-        //     stored_v_scale_offset <= mem_stage_op.addr_2;
-        // end
+        else if (mem_stage_op.c_op == SET_M_STRIDE_SIZE) begin
+            stored_m_stride_size <= mem_stage_op.addr_2;
+        end else if (mem_stage_op.c_op == SET_V_STRIDE_SIZE) begin
+            stored_v_stride_size <= mem_stage_op.addr_2;
+        end else if (mem_stage_op.c_op == SET_M_SCALE_REG) begin
+            stored_m_scale_offset <= mem_stage_op.addr_2;
+        end else if (mem_stage_op.c_op == SET_V_SCALE_REG) begin
+            stored_v_scale_offset <= mem_stage_op.addr_2;
+        end
     end
 
     // -----------------------------

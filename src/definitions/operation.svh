@@ -67,20 +67,23 @@ typedef enum logic [3:0] {
     SUB_INT       = 4'h3,
     MUL_INT       = 4'h4,
     LUI_INT       = 4'h5,
-    MV_INT        = 4'h6,
-    LD_INT        = 4'h7,
-    ST_INT        = 4'h8,
-    PASS_ADDR     = 4'h9,
-    PASS_ADDR_2   = 4'hA, // addr_port_2: rd and addr_port_1: rs1 adress.
-    COMP_ADDR     = 4'hB,
-    COMP_ADDR_2   = 4'hC, // addr_port_2: rd and addr_port_1: rs1 + imm
+    LD_INT        = 4'h6,
+    ST_INT        = 4'h7,
+    PASS_ADDR     = 4'h8,
+    PASS_ADDR_2   = 4'h9, // addr_port_2: rd and addr_port_1: rs1 adress.
+    COMP_ADDR     = 4'hA,
+    COMP_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 + imm
     STALL_S_INT   = 4'h0
 } S_INT_OP;
 
 typedef enum logic [2:0] {
     STALL_C             = 3'h0,
     SET_ADDR_REG        = 3'h1,
-    BREAK               = 3'h7
+    SET_V_STRIDE_SIZE   = 3'h2,
+    SET_M_STRIDE_SIZE   = 3'h3,
+    SET_V_SCALE_REG     = 3'h4,
+    SET_M_SCALE_REG     = 3'h5,
+    BREAK               = 3'h6
 } C_OP;
 
 typedef enum logic [3:0] {
@@ -137,7 +140,7 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     S_ST_FP                = 6'h17,
     S_MAP_V_FP             = 6'h18,
 
-    // Scalar Operations (Fixed-Point)
+    // Scalar Operations  (INT)
     S_ADD_INT              = 6'h19,
     S_ADDI_INT             = 6'h1A,
     S_SUB_INT              = 6'h1B,
@@ -153,7 +156,9 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
 
     // CSR Setting
     C_SET_ADDR_REG         = 6'h23,
-    C_BREAK                = 6'h24
+    C_SET_STRIDE_REG       = 6'h24,
+    C_SET_SCALE_REG        = 6'h25,
+    C_BREAK                = 6'h26
 } CUSTOM_ISA_OPCODE;
 
 

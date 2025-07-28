@@ -37,22 +37,21 @@ class AssemblyToBinary:
         rd =  instruction.rd
         rs1 = instruction.rs1
         rs2 = instruction.rs2
-        rs3 = instruction.rs3
         funct1 = instruction.funct1
         funct2 = instruction.funct2
         imm = instruction.imm
         binary_instruction = 0
-        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rs3={rs3}, rs4={rs4}, funct1={funct1}, funct2={funct2}, imm={imm}")
+        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, funct1={funct1}, funct2={funct2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
+        if instruction.opcode in ["S_ADDI_INT", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_FIX", "C_SET_STRIDE_REG"]:
+        elif instruction.opcode in ["S_LUI_INT", "C_SET_STRIDE_REG"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +
@@ -64,17 +63,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V"]:
-            binary_instruction = (
-                (funct2 << self.funct_dist + self.funct_width) +
-                (funct1 << self.funct_dist) +
-                (rs3 << (opw + 3 * ow)) +
-                (rs2 << (opw + 2 * ow)) +
-                (rs1 << (opw + ow)) +
-                (rd << opw) +
-                opcode
-            )
-        elif instruction.opcode in [ "M_MM", "M_TMM", "M_MM_WO"]:
+        elif instruction.opcode in [ "M_MM", "M_TMM", "M_MM_WO", "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V"]:
             binary_instruction = (
                 (funct2 << self.funct_dist + self.funct_width) +
                 (funct1 << self.funct_dist) +
