@@ -62,15 +62,19 @@ def load_isa_settings(file_path: str) -> dict:
 
 
 class Instruction:
-    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], imm: Optional[int]):
+    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rs3: Optional[str], funct1: Optional[int], funct2: Optional[int], imm: Optional[int] = None):
+
         self.opcode = opcode
         self.rd = rd
         self.rs1 = rs1
         self.rs2 = rs2
+        self.rs3 = rs3
+        self.funct1 = funct1
+        self.funct2 = funct2
         self.imm = imm
 
     def __repr__(self):
-        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', imm={self.imm})"
+        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', funct1={self.funct1}, funct2={self.funct2}, imm={self.imm})"
 
 
 def parse_asm_file(file_path: str) -> List[Instruction]:
@@ -78,8 +82,8 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
     Parse an ASM file into a list of Instruction objects.
 
     Supported formats:
+    - opcode rd, rs1, rs2, funct1, funct2;
     - opcode rd, rs1, imm;
-    - opcode rd, rs1, rs2;
     - opcode rd, rs1;
     - opcode rd;
 
@@ -108,7 +112,7 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 operand_0 = operands[0]
                 if operand_0[-1] == ';':
                     operand_0 = operand_0[:-1]
-                if operand_0.startswith('i'):
+                if operand_0.startswith('gp'):
                     rd = int(operand_0[1:], 16)
                 elif operand_0.startswith('f'):
                     rd = int(operand_0[1:], 16)
@@ -123,12 +127,16 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 rd = None
             rs1 = None
             rs2 = None
+            rs3 = None
             imm = None
+            funct1 = None
+            funct2 = None
+
             if len(operands) > 1:
                 operand_1 = operands[1]
                 if operand_1[-1] == ';':
                     operand_1 = operand_1[:-1]
-                if operand_1.startswith('i'):
+                if operand_1.startswith('gp'):
                     rs1 = int(operand_1[1:], 16)
                 elif operand_1.startswith('f'):
                     rs1 = int(operand_1[1:], 16)
@@ -140,12 +148,11 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                     except ValueError:
                         imm = None
 
-
-            if len(operands) == 3:
+            if len(operands) >= 3:
                 operand_2 = operands[2]
                 if operand_2[-1] == ';':
                     operand_2 = operand_2[:-1]
-                if operand_2.startswith('i'):
+                if operand_2.startswith('gp'):
                     rs2 = int(operand_2[1:], 16)
                 elif operand_2.startswith('f'):
                     rs2 = int(operand_2[1:], 16)
@@ -156,8 +163,17 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
+            
+            if len(operands) == 6:
+                funct2 = operands[5]
+                funct1 = int(operands[4])
+                rs3 = int(operands[3])
+                if (funct2[-1] == ';'):
+                    funct2 = int(funct2[:-1])
+                else:
+                    funct2 = int(funct2)
 
-            instructions.append(Instruction(opcode, rd, rs1, rs2, imm))
+            instructions.append(Instruction(opcode, rd, rs1, rs2, rs3, imm, funct1, funct2))
 
     return instructions
 

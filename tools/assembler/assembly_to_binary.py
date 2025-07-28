@@ -16,10 +16,10 @@ class AssemblyToBinary:
         self.isa_definitions = load_isa_definitions(isa_definition_file)
         self.isa_definition_file = isa_definition_file
         config_settings = load_svh_settings(config_file)
-        self.opcode_width = config_settings.get("OPCODE_WIDTH", 0)
-        self.operands_width = config_settings.get("OPERAND_WIDTH", 0)
-        self.imm_width = config_settings.get("IMM_WIDTH", 0)
-        self.imm2_width = config_settings.get("IMM_2_WIDTH", 0)
+        self.opcode_width    = config_settings.get("OPCODE_WIDTH", 0)
+        self.operands_width  = config_settings.get("OPERAND_WIDTH", 0)
+        self.imm_width       = config_settings.get("IMM_WIDTH", 0)
+        self.imm2_width      = config_settings.get("IMM_2_WIDTH", 0)
 
 
     def _convert_to_binary(self, instruction):
@@ -34,12 +34,15 @@ class AssemblyToBinary:
         rd =  instruction.rd
         rs1 = instruction.rs1
         rs2 = instruction.rs2
+        rs3 = instruction.rs3
+        funct1 = instruction.funct1
+        funct2 = instruction.funct2
         imm = instruction.imm
         binary_instruction = 0
         print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RESET_SRAM", "V_RECI_V", "V_EXP_V"]:
+        if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
@@ -52,7 +55,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_MV_FIX", "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V"]:
+        elif instruction.opcode in [ "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
