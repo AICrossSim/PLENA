@@ -159,7 +159,7 @@ ASIC = 16
 default = 16
 tunable_range = [ 16, 32,]
 
-[INSTR.FIXED_OPERAND_WIDTH]
+[INSTR.INT_OPERAND_WIDTH]
 active = 8
 SIMULATION = 3
 ASIC = 4

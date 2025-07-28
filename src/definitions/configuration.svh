@@ -24,7 +24,7 @@ package configuration_pkg;
     parameter   VECTOR_SRAM_DEPTH = 256;
     parameter   VECTOR_RESET_AMOUNT = 8;            // Need to be the same as Head_Dim for assembly code.
     parameter   INT_SRAM_WIDTH  = precision_pkg::INT_DATA_WIDTH;
-    parameter   INT_SRAM_DEPTH = 32;
+    parameter   INT_SRAM_DEPTH    = 32;
     parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
     parameter   FP_SRAM_DEPTH = 32;
     // HBM Related
@@ -36,41 +36,67 @@ package configuration_pkg;
 endpackage
 
 package instruction_pkg;
-    parameter FIXED_OPERAND_WIDTH   = 3;
+    parameter INT_OPERAND_WIDTH     = 4;
     parameter FP_OPERAND_WIDTH      = 3;
     parameter HBM_ADR_OPERAND_WIDTH = 3;
-    parameter OPERAND_WIDTH         = 3;
+    parameter OPERAND_WIDTH         = 4;
+    parameter FUNCT_WIDTH           = 4;
     parameter OPCODE_WIDTH          = 6;
     parameter IMM_WIDTH             = 7;
     parameter IMM_2_WIDTH           = 4;
-    parameter INSTRUCTION_LENGTH    = 16;
+    parameter INSTRUCTION_LENGTH    = 32;
 endpackage
 
 package simulation_pkg;
     parameter   FAKE_HBM_ADDR_WIDTH             = 16;
 endpackage
 
+`ifdef DC_LIB_EN // Define for DC Library Enabled, the pipeline stage lib changed accordingly.
 
-package pipeline_pkg;
-    parameter   MAX_PIPELINE_STAGE             = 10;   
-    parameter   MATRIX_MAX_CYCLES              = 8;
-    parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
-    parameter   MATRIX_W_OFFSET_CYCLES         = 8;
-    parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
-    parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 20;
-    parameter   VECTOR_ADD_CYCLES              = 7;
-    parameter   VECTOR_MUL_CYCLES              = 5;
-    parameter   VECTOR_EXP_CYCLES              = 6;
-    parameter   VECTOR_RECI_CYCLES             = 7;
-    parameter   VECTOR_MAX_CYCLES              = 4;
-    parameter   VECTOR_SUM_CYCLES              = 20;
-    parameter   SCALAR_FP_LONGEST_OPERATE_CYCLES = 4;
-    parameter   SCALAR_FP_BASIC_CYCLES         = 1;
-    parameter   SCALAR_FP_EXP_CYCLES           = 2;
-    parameter   SCALAR_FP_SQRT_CYCLES          = 2;
-    parameter   SCALAR_FP_RECI_CYCLES          = 2;
-    parameter   SCALAR_FIX_BASIC_CYCLES        = 1;
-endpackage
+    package pipeline_pkg;
+        parameter   MAX_PIPELINE_STAGE             = 10;   
+        parameter   MATRIX_MAX_CYCLES              = 8;
+        parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
+        parameter   MATRIX_W_OFFSET_CYCLES         = 8;
+        parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
+        parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 10;
+        parameter   VECTOR_ADD_CYCLES              = 2;
+        parameter   VECTOR_MUL_CYCLES              = 2;
+        parameter   VECTOR_EXP_CYCLES              = 2;
+        parameter   VECTOR_RECI_CYCLES             = 2;
+        parameter   VECTOR_MAX_CYCLES              = 4;
+        parameter   VECTOR_SUM_CYCLES              = 8;
+        parameter   SCALAR_FP_LONGEST_OPERATE_CYCLES = 4;
+        parameter   SCALAR_FP_BASIC_CYCLES         = 1;
+        parameter   SCALAR_FP_EXP_CYCLES           = 2;
+        parameter   SCALAR_FP_SQRT_CYCLES          = 2;
+        parameter   SCALAR_FP_RECI_CYCLES          = 2;
+        parameter   SCALAR_INT_BASIC_CYCLES        = 1;
+    endpackage
 
+`else
+
+    package pipeline_pkg;
+        parameter   MAX_PIPELINE_STAGE             = 10;   
+        parameter   MATRIX_MAX_CYCLES              = 8;
+        parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
+        parameter   MATRIX_W_OFFSET_CYCLES         = 8;
+        parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
+        parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 20;
+        parameter   VECTOR_ADD_CYCLES              = 7;
+        parameter   VECTOR_MUL_CYCLES              = 5;
+        parameter   VECTOR_EXP_CYCLES              = 6;
+        parameter   VECTOR_RECI_CYCLES             = 7;
+        parameter   VECTOR_MAX_CYCLES              = 4;
+        parameter   VECTOR_SUM_CYCLES              = 20;
+        parameter   SCALAR_FP_LONGEST_OPERATE_CYCLES = 4;
+        parameter   SCALAR_FP_BASIC_CYCLES         = 1;
+        parameter   SCALAR_FP_EXP_CYCLES           = 2;
+        parameter   SCALAR_FP_SQRT_CYCLES          = 2;
+        parameter   SCALAR_FP_RECI_CYCLES          = 2;
+        parameter   SCALAR_INT_BASIC_CYCLES        = 1;
+    endpackage
+
+`endif
 
 `endif

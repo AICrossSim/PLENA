@@ -12,7 +12,7 @@ module SimTop import instruction_pkg::*; #(
     parameter string    FAKE_HBM_ELEMENT_INIT_FILE    = "",
     parameter string    FAKE_HBM_SCALE_INIT_FILE      = "",
     parameter string    FP_MEM_INIT_FILE              = "",
-    parameter string    FIXED_MEM_INIT_FILE           = "",
+    parameter string    INT_MEM_INIT_FILE             = "",
     parameter string    VECTOR_MEM_RESULT_FILE        = "",
     parameter string    HBM_ADDR_MAPPER_FILE          = "",
     parameter string    FAKE_HBM_ELEMENT_WRITE_M_FILE = "",
@@ -40,7 +40,7 @@ import configuration_pkg::*;
 // Processor
 coprocessor #(
     .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-    .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE),
+    .INT_MEM_INIT_FILE(INT_MEM_INIT_FILE),
     .V_SRAM_RESULT_FILE(VECTOR_MEM_RESULT_FILE),
     .HBM_ADDR_MAPPER_FILE(HBM_ADDR_MAPPER_FILE)
 ) dut (

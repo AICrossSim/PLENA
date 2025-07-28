@@ -154,11 +154,9 @@ fp_fix_mult #(
     .data_out_ready     (mult_data_out_ready)
 );
 
-fp_cp_exp #(
-    .IN_EXP_WIDTH(EXP_WIDTH),
-    .IN_MANT_WIDTH(MANT_WIDTH),
-    .OUT_EXP_WIDTH(EXP_WIDTH),
-    .OUT_MANT_WIDTH(MANT_WIDTH)
+fp_fix_exp #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
 ) exp_unit (
     .clk(clk),
     .rst(rst),
@@ -170,11 +168,9 @@ fp_cp_exp #(
     .data_out_ready     (exp_data_out_ready)
 );
 
-fp_cp_reciprocal #(
-    .IN_EXP_WIDTH(EXP_WIDTH),
-    .IN_MANT_WIDTH(MANT_WIDTH),
-    .OUT_EXP_WIDTH(EXP_WIDTH),
-    .OUT_MANT_WIDTH(MANT_WIDTH)
+fp_fix_reciprocal #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
 ) scalar_fp_reciprocal_init (
     .clk(clk),
     .rst(rst),

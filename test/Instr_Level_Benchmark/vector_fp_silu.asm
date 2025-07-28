@@ -1,17 +1,18 @@
 
-// testing for HBM[2] = HBM[1] + HBM[0]
-
-S_LUI_FIX x1, 0; // x1 = 0 << 12
-C_SET_ADDR_REG x2, x1, x1; // 
-H_PREFETCH_V_C x2, x1, x2; // HBM[addr_x2 + 0] -> VSRAM[x2]
-
-// 1/(1+exp(-x))
-S_LUI_FIX x3, 0; 
-V_SUB_VV x3, x3, x1;// x3 = -x
-V_EXP_V x3, x3, x2; // x4 = exp(-x)
-S_LD_FP x4, 1; // question, the floating point can be represented as decimal? 
-V_ADD_VF x3, x3, x4;
-V_REC_V x3, x3;
-
-S_LUI_FIX x1, 1; // x1 = 0 << 12
-H_STORE_V_C x3, x1, x2; // HBM[addr_x2 + 1] = VSRAM[x3]
+S_LUI_FIX i1, 0; 
+C_SET_ADDR_REG a1, i1, i1; 
+H_PREFETCH_V i1, i1, a1; 
+// i1 = x
+S_LUI_FIX i2, 0; 
+S_LD_FP f1, i1, 0; 
+// f1 = 1
+V_EXP_V i2, i1, 0;
+// i2 = exp(x)
+V_ADD_VF i1, i2, f1;
+// i1 = exp(x) + 1
+V_RECI_V i1, i1, 0;
+// i1 = 1 / (exp(x) + 1)
+V_MUL_VV i1, i1, i2;
+// i1 = exp(x) / (exp(x) + 1)
+H_STORE_V_H_C i1, i2, a2; 
+// HBM[1] = i1

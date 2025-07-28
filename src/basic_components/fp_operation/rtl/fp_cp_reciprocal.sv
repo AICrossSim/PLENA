@@ -28,38 +28,6 @@ module fp_cp_reciprocal #(
     input logic data_out_ready
 );
 
-`ifdef DC_LIB_EN
-
-    initial begin
-        assert (IN_EXP_WIDTH == OUT_EXP_WIDTH) else $fatal("Input and output exponent widths must match");
-        assert (IN_MANT_WIDTH == OUT_MANT_WIDTH) else $fatal("Input and output mantissa widths must match");
-    end
-
-    logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_out_reg;
-
-    DW_fp_recip #(IN_MANT_WIDTH, IN_EXP_WIDTH, IEEE_COMPLIANCE, FAITHFUL_ROUNDING) dc_lib_fp_reciprocal ( 
-        .a      (data_in),
-        .rnd    (3'b000),
-        .z      (data_out_reg),
-        .status ()
-    );
-
-    skid_buffer #(
-        .DATA_WIDTH(IN_EXP_WIDTH + IN_MANT_WIDTH + 1)
-    ) buffer_data_out (
-        .clk(clk),
-        .rst(rst),
-        .data_in        (data_out_reg),
-        .data_in_valid  (data_in_valid),
-        .data_in_ready  (data_in_ready),
-        .data_out       (data_out),
-        .data_out_valid (data_out_valid),
-        .data_out_ready (data_out_ready)
-    );
-
-`else
-
-
     localparam int IN_FIXED_WIDTH = IN_MANT_WIDTH + 2;
     localparam int IN_FIXED_FRAC_WIDTH = IN_MANT_WIDTH;
 
@@ -126,7 +94,5 @@ module fp_cp_reciprocal #(
         .data_in(normalized_data),
         .data_out(data_out)
     );
-
-`endif
 
 endmodule

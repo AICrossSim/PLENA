@@ -7,11 +7,11 @@ Description : FP_Hash_Exp
             - Performs hash operation on the exponent of the input floating-point number.
 */
 module fp_hash_exp #(
-    parameter int IN_EXP_WIDTH = 5,
-    parameter int IN_MANT_WIDTH = 10,
+    parameter int IN_EXP_WIDTH = 6,
+    parameter int IN_MANT_WIDTH = 5,
     // Amount of bits needed to shift mantissas for alignment
-    parameter int OUT_EXP_WIDTH = -1,
-    parameter int OUT_MANT_WIDTH = -1
+    parameter int OUT_EXP_WIDTH = 6,
+    parameter int OUT_MANT_WIDTH = 5
 )(
     input  logic signed [IN_EXP_WIDTH + IN_MANT_WIDTH:0] data_in,
     output logic signed [OUT_EXP_WIDTH + OUT_MANT_WIDTH:0] data_out

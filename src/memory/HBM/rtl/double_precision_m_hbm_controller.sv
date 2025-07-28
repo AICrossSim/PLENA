@@ -10,7 +10,7 @@ Description : This module is used to control the HBM memory and TileLink interfa
 Status      : Under Development
 */
 
-module double_precision_hbm_controller #(
+module double_precision_m_hbm_controller #(
     parameter int   HIGH_MXFP_EXP_WIDTH     = 4,
     parameter int   HIGH_MXFP_MANT_WIDTH    = 3,
     parameter int   LOW_MXFP_EXP_WIDTH      = 4,
@@ -140,7 +140,9 @@ module double_precision_hbm_controller #(
         .SourceWidth        (SourceWidth),
         .SinkWidth          (SinkWidth)
     ) tl_selector_inst (
-        .select                 (precision_select), // 0: High Precision, 1: Low Precision
+        .clk                  (clk),
+        .rst                  (rst),
+        .select               (precision_select), // 0: High Precision, 1: Low Precision
         `TL_CONNECT_DEVICE_PORT (device_1, adapted_high_precision_tl_element),
         `TL_CONNECT_DEVICE_PORT (device_2, adapted_low_precision_tl_element),
         `TL_CONNECT_HOST_PORT   (host_out, adapted_tl_element)

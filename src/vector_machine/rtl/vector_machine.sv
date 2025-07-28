@@ -6,14 +6,14 @@
 
 
 /*
-Module      : Vector Machine Module V2
+Module      : Vector Machine Module
 Timing      : Sequential
 Description : This module is the second version of the vector machine based on FP data type.
             : It takes FP of different precision as input, output MX-FP data type.
 Status      : Passed Simple Tests
 */
 
-module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #(
+module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     localparam   ADDR_WIDTH     = ON_CHIP_ADDR_WIDTH    // Vector write address
 ) (
     input   logic clk,
@@ -119,14 +119,14 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
                 recorded_result_waddr <= result_waddr;
             end
 
-            if (!in_preparation_stage & (((element_v_control != STALL_V_ELEMENT) & (element_v_control != RESET_V)) || reduct_v_control != STALL_V_REDUCT)) begin
+            if (!in_preparation_stage & ((element_v_control != STALL_V_ELEMENT) || reduct_v_control != STALL_V_REDUCT)) begin
                 recorded_element_v_control  <= element_v_control;
                 recorded_reduct_v_control   <= reduct_v_control;
                 recorded_broadcast_en       <= broadcast_fp2;
                 recorded_s_wtarget          <= s_wtarget;
             end
 
-            if (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & complete_element_prepare) begin
+            if ((recorded_element_v_control != STALL_V_ELEMENT) & complete_element_prepare) begin
                 pipeline_compute_track[0] <= '{
                     waddr  : recorded_result_waddr,
                     ele_op : recorded_element_v_control,
@@ -162,7 +162,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             complete_element_prepare = 1'b0;
             complete_reduct_prepare = 1'b0;
         end else begin
-            if (!in_preparation_stage & (((element_v_control != STALL_V_ELEMENT) & (element_v_control != RESET_V)) || reduct_v_control != STALL_V_REDUCT)) begin
+            if (!in_preparation_stage & ((element_v_control != STALL_V_ELEMENT) || reduct_v_control != STALL_V_REDUCT)) begin
                 next_preparation_stage = 1'b1;
             end else if (complete_element_prepare || complete_reduct_prepare) begin
                 next_preparation_stage = 1'b0;
@@ -170,10 +170,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
                 next_preparation_stage = 1'b1;
             end
 
-            if ((((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & recorded_broadcast_en & v_port_a_valid)) begin
-                complete_element_prepare    = 1'b1;
-                complete_reduct_prepare     = 1'b0;
-            end else if (recorded_element_v_control == LD_V_ELEMENT & recorded_broadcast_en & v_port_b_valid) begin
+            if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
             end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & s_acc_in_valid) begin
@@ -215,7 +212,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     // Vector Port B Storage
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(VLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
     ) v_b_buffer (
         .clk(clk),
@@ -233,7 +230,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     // Scalar Port Storage (Solely used for Reduction Operation)
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1)
     ) s_in_buffer (
         .clk(clk),
@@ -253,7 +250,7 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
 
     // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
     always_comb begin
-        if (((recorded_element_v_control != STALL_V_ELEMENT) & (recorded_element_v_control != RESET_V)) & recorded_element_v_control != LD_V_ELEMENT) begin
+        if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
             element_v_in_a_valid = v_port_a_valid;
             element_v_in_b_valid = v_port_b_valid;
             red_v_in_a_valid     = 1'b0;
@@ -328,10 +325,6 @@ module vector_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_RECI_CYCLES-1].waddr;
-        end else if (pipeline_compute_track[0].ele_op == LD_V_ELEMENT) begin
-            result_v_out            = prepared_v_b;
-            compute_result_valid    = v_port_b_valid;
-            stored_result_waddr     = pipeline_compute_track[0].waddr;
         end else begin
             result_v_out            = 'b0;
             compute_result_valid    = 1'b0;

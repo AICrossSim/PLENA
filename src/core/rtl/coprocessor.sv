@@ -18,7 +18,7 @@ Description : This module serves as the top level of the coprocessor,
 module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
-        parameter string FIXED_MEM_INIT_FILE    = "",
+        parameter string INT_MEM_INIT_FILE      = "",
         parameter string V_SRAM_RESULT_FILE     = "",
         parameter string HBM_ADDR_MAPPER_FILE   = ""
     `endif
@@ -49,7 +49,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     
     // Execution Control
     OP_BUNDLE   decode_stage_op, exe_stage_op;
-    S_FIXED_OP  assigned_fixed_op;
+    S_INT_OP  assigned_int_op;
     logic pipeline_stall;
     MEM_WEN_INFO mem_write_control;
 
@@ -58,7 +58,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic stall_req_from_fp, fp_sram_stall_req, received_v_reduct_result;
     logic v_in_prep, m_in_prep, m_empty_in_progress;
     logic m_prefetch_data_not_ready, v_prefetch_data_not_ready;
-    logic v_sram_reset_in_progress;
     logic continuous_write_to_v_sram_port_b;
 
     // Memory Control Signals Declaration
@@ -89,7 +88,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     
     // Scalar Machine Control
     logic [IMM_WIDTH - 1 : 0] s_imm;
-    logic [FIXED_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2,  s_rd;
+    logic [INT_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2, s_rd;
     logic v_write_request;
     logic [1:0] m_write_request;
 
@@ -129,8 +128,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_in;
     logic [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH  : 0] fp_s_out;
     logic [VLEN-1:0][V_FP_EXP_WIDTH + V_FP_MANT_WIDTH:0]                                fp_s_vector_out;
-    logic [INT_DATA_WIDTH - 1 : 0] fixed_out_1;
-    logic [INT_DATA_WIDTH - 1 : 0] fixed_out_2;
+    logic [INT_DATA_WIDTH - 1 : 0] gp_out_1;
+    logic [INT_DATA_WIDTH - 1 : 0] gp_out_2;
     logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
     logic s_map_v_valid, s_map_v_ready;
 
@@ -156,7 +155,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .instruction_valid      (instruction_valid),
         .instruction_ready      (instruction_ready),
         .decode_stage_op        (decode_stage_op),
-        .assigned_fixed_op      (assigned_fixed_op),
+        .assigned_int_op        (assigned_int_op),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
         .rd                     (s_rd),
@@ -164,7 +163,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     );
 
     pipeline_control #(
-        .FIXED_OPERAND_WIDTH    (FIXED_OPERAND_WIDTH),
+        .INT_OPERAND_WIDTH    (INT_OPERAND_WIDTH),
         .FP_OPERAND_WIDTH       (FP_OPERAND_WIDTH),
         .INT_DATA_WIDTH       (INT_DATA_WIDTH),
         .IMM_WIDTH              (IMM_WIDTH)
@@ -172,8 +171,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .clk(clk),
         .rst(rst),
         .decode_stage_op                (decode_stage_op),
-        .fixed_addr_1                   (fixed_out_1),
-        .fixed_addr_2                   (fixed_out_2),
+        .fixed_addr_1                   (gp_out_1),
+        .fixed_addr_2                   (gp_out_2),
         .v_sram_wen_a                   (v_sram_wen_a),
         .v_sram_addr_a                  (v_sram_addr_a),
         .v_sram_wen_b                   (v_sram_wen_b),
@@ -188,7 +187,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .m_load_in_process              (m_in_prep),
         .m_empty_in_progress            (m_empty_in_progress),
         .v_load_in_process              (v_in_prep),
-        .v_sram_reset_in_progress       (v_sram_reset_in_progress),
         .s_received_v_reduct_result     (received_v_reduct_result),
         .pipeline_stall_req             (pipeline_stall),
         .exe_stage_op                   (exe_stage_op),
@@ -278,7 +276,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         );
 
         // Vector Compute Unit
-        vector_machine_v2 #(
+        vector_machine #(
         ) vector_machine_init (
             .clk(clk),
             .rst(rst),
@@ -312,19 +310,19 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         scalar_machine #(
             `ifdef SIMULATION
                 .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
-                .FIXED_MEM_INIT_FILE(FIXED_MEM_INIT_FILE)
+                .INT_MEM_INIT_FILE(INT_MEM_INIT_FILE)
             `endif            
         ) scalar_machine_init (
             .clk(clk),
             .rst(rst),
             .exe_stage_op           (exe_stage_op),
-            .assigned_fixed_op      (assigned_fixed_op),
+            .assigned_int_op        (assigned_int_op),
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
             .rd                     (s_rd),
             .imm_in                 (s_imm),
-            .fixed_out_1            (fixed_out_1),
-            .fixed_out_2            (fixed_out_2),
+            .gp_out_1               (gp_out_1),
+            .gp_out_2               (gp_out_2),
             .external_fp_in         (fp_s_out),
             .external_fp_in_valid   (v_s_out_valid),
             .external_fp_in_ready   (v_s_out_ready),
@@ -387,11 +385,11 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .MANT_WIDTH             (V_FP_MANT_WIDTH),
         .VLEN                   (VLEN),
         .MLEN                   (MLEN),
+        .BLEN                   (BLEN),
         .BLOCK_DIM              (BLOCK_DIM),
         .SRAM_DEPTH             (VECTOR_SRAM_DEPTH),
         .ON_CHIP_ADDR_WIDTH     (ON_CHIP_ADDR_WIDTH),
-        .PREFETCH_AMOUNT        (HBM_V_Prefetch_Amount),
-        .VECTOR_RESET_AMOUNT    (VECTOR_RESET_AMOUNT)
+        .PREFETCH_AMOUNT        (HBM_V_Prefetch_Amount)
         `ifdef SIMULATION
             ,
             .MEM_RESULT_FILE    (V_SRAM_RESULT_FILE)
@@ -400,8 +398,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .clk(clk),
         .rst(rst),
         .select_write_data_a                (select_write_data_a),
-        .region_reset_a                     (exe_stage_op.v_ele_op == RESET_V),
-        .reset_addr_a                       (exe_stage_op.addr_1),
         .port_a_req                         (v_sram_req_a),
         .port_a_write_en                    (v_sram_wen_a),
         .port_a_addr                        (v_sram_addr_a),

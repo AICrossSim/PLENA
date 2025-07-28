@@ -97,7 +97,7 @@ join_n #(
 );
 
 
-skid_buffer #(
+register_slice #(
     .DATA_WIDTH(VLEN * (MANT_WIDTH + EXP_WIDTH + 1))
 ) skid_buf_inst (
     .clk(clk),

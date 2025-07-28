@@ -36,7 +36,7 @@ class GenerateSVLutFP(GenerateSVLut):
             exp, mant = split_bin(i, self.exp_width, self.mant_width)
             fp = 2**exp * mant
             target_fp =self.f(torch.tensor(fp))
-            target_bin = fp_2_bin(target_fp, self.out_exp_width, self.out_mant_width)
+            _, target_bin = fp_2_bin(target_fp, self.out_exp_width, self.out_mant_width)
             in_bin = BitArray(uint=i, length=self.exp_width + self.mant_width + 1).bin
             out_bin = BitArray(uint=target_bin, length=self.out_exp_width + self.out_mant_width + 1).bin
             lut[in_bin] = out_bin
