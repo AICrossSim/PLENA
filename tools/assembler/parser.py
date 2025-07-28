@@ -69,6 +69,7 @@ class Instruction:
         self.rs1 = rs1
         self.rs2 = rs2
         self.rs3 = rs3
+
         self.funct1 = funct1
         self.funct2 = funct2
         self.imm = imm
@@ -163,11 +164,18 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
-            
+            if len(operands) == 5:
+                funct2 = operands[4]
+                funct1 = int(operands[3])
+                if (funct2[-1] == ';'):
+                    funct2 = int(funct2[:-1])
+                else:
+                    funct2 = int(funct2)
+
             if len(operands) == 6:
-                funct2 = operands[5]
-                funct1 = int(operands[4])
-                rs3 = int(operands[3])
+                funct2 = operands[6]
+                funct1 = int(operands[5])
+                rs3 = int(operands[4])
                 if (funct2[-1] == ';'):
                     funct2 = int(funct2[:-1])
                 else:

@@ -20,6 +20,9 @@ class AssemblyToBinary:
         self.operands_width  = config_settings.get("OPERAND_WIDTH", 0)
         self.imm_width       = config_settings.get("IMM_WIDTH", 0)
         self.imm2_width      = config_settings.get("IMM_2_WIDTH", 0)
+        self.instruction_length = config_settings.get("INSTRUCTION_LENGTH", 0)
+        self.funct_width = config_settings.get("FUNCT_WIDTH", 0)
+        self.funct_dist = self.instruction_length - 2 * self.funct_width
 
 
     def _convert_to_binary(self, instruction):
@@ -39,7 +42,7 @@ class AssemblyToBinary:
         funct2 = instruction.funct2
         imm = instruction.imm
         binary_instruction = 0
-        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, imm={imm}")
+        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rs3={rs3}, rs4={rs4}, funct1={funct1}, funct2={funct2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
         if instruction.opcode in ["S_ADDI_FIX", "S_LD_FP", "S_ST_FP", "S_LD_FIX", "S_ST_FIX", "S_MAP_V_FP", "V_RED_SUM", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
@@ -61,6 +64,25 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
+        elif instruction.opcode in [ "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V"]:
+            binary_instruction = (
+                (funct2 << self.funct_dist + self.funct_width) +
+                (funct1 << self.funct_dist) +
+                (rs3 << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in [ "M_MM", "M_TMM", "M_MM_WO"]:
+            binary_instruction = (
+                (funct2 << self.funct_dist + self.funct_width) +
+                (funct1 << self.funct_dist) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
         else:
             binary_instruction = (
                 (rs2 << (opw + 2 * ow)) +
@@ -75,7 +97,7 @@ class AssemblyToBinary:
     def write_binary_to_file(self, binary_instructions, output_file: str):
         with open(output_file, 'w') as file:
             for instruction in binary_instructions:
-                file.write(f"0x{instruction:04X}\n")
+                file.write(f"0x{instruction:08X}\n")
     
     def generate_binary(self, asm_file: str, output_file: str):
         """
