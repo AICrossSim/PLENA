@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Generic synchronous fifo for use in a variety of devices.
-
+`timescale 1ns / 1ps
 `include "prim_assert.sv"
 
 module prim_fifo_sync #(

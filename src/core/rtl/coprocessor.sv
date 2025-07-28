@@ -88,7 +88,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     
     // Scalar Machine Control
     logic [IMM_WIDTH - 1 : 0] s_imm;
-    logic [INT_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2, s_rs3, s_rd;
+    logic [INT_OPERAND_WIDTH - 1 : 0] s_rs1,  s_rs2, s_rd;
     logic v_write_request;
     logic [1:0] m_write_request;
 
@@ -158,7 +158,6 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .assigned_int_op        (assigned_int_op),
         .rs1                    (s_rs1),
         .rs2                    (s_rs2),
-        .rs3                    (s_rs3),
         .rd                     (s_rd),
         .imm                    (s_imm)
     );
@@ -317,7 +316,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .clk(clk),
             .rst(rst),
             .exe_stage_op           (exe_stage_op),
-            .assigned_int_op         (assigned_int_op),
+            .assigned_int_op        (assigned_int_op),
             .rs1                    (s_rs1),
             .rs2                    (s_rs2),
             .rd                     (s_rd),

@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 `ifndef PRIM_UTIL_PKG_SVH
 `define PRIM_UTIL_PKG_SVH
 `timescale 1ns / 1ps

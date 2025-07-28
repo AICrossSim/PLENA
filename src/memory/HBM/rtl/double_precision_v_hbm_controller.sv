@@ -189,7 +189,7 @@ module double_precision_v_hbm_controller #(
         .write_data             (write_low_precision_element),
         .write_mask             (low_precision_hbm_ele_write_mask),
         .fetch_data_valid       (loaded_low_precision_element_valid),
-        .ready_to_write         (loaded_low_precision_element_ready),
+        .ready_to_write         (low_precision_element_ready_to_write),
         `TL_CONNECT_HOST_PORT   (host, low_precision_tl_element)
     );
 

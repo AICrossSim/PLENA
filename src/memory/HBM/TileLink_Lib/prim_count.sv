@@ -22,7 +22,7 @@
 //
 // Note that if both incr_en_i and decr_en_i are asserted at the same time, the counter remains
 // unchanged. The counter is also protected against under- and overflows.
-
+`timescale 1ns / 1ps
 `include "prim_assert.sv"
 `include "prim_count_pkg.sv"
 

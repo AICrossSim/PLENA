@@ -14,7 +14,7 @@ Description :
 */
 
 module decoder import instruction_pkg::*; #(
-    parameter INSTRUCTION_LENGTH = 16,
+    parameter INSTRUCTION_LENGTH = 32,
     parameter OPERAND_WIDTH = 5,
     parameter OPCODE_WIDTH = 4,
     parameter IMM_WIDTH = 32,
@@ -39,7 +39,6 @@ module decoder import instruction_pkg::*; #(
     output      logic [INT_OPERAND_WIDTH - 1 : 0] rd,
     output      logic [INT_OPERAND_WIDTH - 1 : 0] rs1,
     output      logic [INT_OPERAND_WIDTH - 1 : 0] rs2,
-    output      logic [INT_OPERAND_WIDTH - 1 : 0] rs3,
     output      logic [IMM_WIDTH - 1 : 0] imm
 );
 
@@ -151,7 +150,7 @@ always_ff @(posedge clk) begin
         p1_pipeline_stall               <= 1'b0;
         exe_fixed_op                    <= STALL_S_INT;
         system_stall                    <= 1'b0;
-        decode_instr_info               <= 'b0;
+        decode_instr_info               <= '{opcode: '0, rs1: '0, rs2: '0, rs3: '0, rd: '0, imm: '0, funct1: '0, funct2: '0, instruction_type: INVALID_TYPE};
     end else begin
         if (system_stall_flag) begin
             system_stall <= 1'b1;
@@ -218,7 +217,7 @@ always_ff @(posedge clk) begin
         decode_stage_op.v_ele_op        <= STALL_V_ELEMENT;
         decode_stage_op.v_reduct_op     <= STALL_V_REDUCT;
         decode_stage_op.s_fp_op         <= STALL_S_FP;
-        assigned_int_op               <= PASS_ADDR_2;
+        assigned_int_op                 <= PASS_ADDR_2;
         decode_stage_op.c_op            <= STALL_C;
         decode_stage_op.h_op            <= STALL_H;
         decode_stage_op.m_transposed_read   <= 1'b0;
@@ -226,15 +225,14 @@ always_ff @(posedge clk) begin
         decode_stage_op.fps1            <= 'b0;
         decode_stage_op.fps2            <= 'b0;
         decode_stage_op.fpd             <= 'b0;
-        decode_stage_op.gp_reg1       <= 'b0;
-        decode_stage_op.gp_reg2       <= 'b0;
-        decode_stage_op.gp_rd        <= 'b0;
+        decode_stage_op.gp_reg1         <= 'b0;
+        decode_stage_op.gp_reg2         <= 'b0;
+        decode_stage_op.gp_rd           <= 'b0;
         decode_stage_op.update_m_waddr  <= pass_m_update_waddr;
         decode_stage_op.update_v_waddr  <= pass_v_update_waddr;
         fixed_op_stall_flag             <= 1'b0;
         rs1                             <= 'b0;
         rs2                             <= 'b0;
-        rs3                             <= 'b0;
         rd                              <= pass_rd_to_load;
         imm                             <= 'b0;
     end else if (!pipeline_stall) begin
@@ -445,14 +443,14 @@ always_ff @(posedge clk) begin
                 decode_stage_op.h_op            <= STALL_H;
 
                 if(decode_instr_info.opcode == C_SET_ADDR_REG) begin
-                    assigned_int_op                   <= PASS_ADDR;
+                    assigned_int_op                     <= PASS_ADDR;
                     decode_stage_op.c_op                <= SET_ADDR_REG;
                 end else if (decode_instr_info.opcode == C_BREAK) begin
-                    assigned_int_op                   <= STALL_S_INT;
-                    decode_stage_op.c_op                <= SET_LUT;
-                end else begin
-                    assigned_int_op                   <= STALL_S_INT;
+                    assigned_int_op                     <= STALL_S_INT;
                     decode_stage_op.c_op                <= BREAK;
+                end else begin
+                    assigned_int_op                     <= STALL_S_INT;
+                    decode_stage_op.c_op                <= STALL_C;
                 end
                 decode_stage_op.fps1              <= 'b0;
                 decode_stage_op.fps2              <= 'b0;
@@ -538,7 +536,6 @@ always_ff @(posedge clk) begin
                 decode_stage_op.fpd               <= 'b0;
                 rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
                 rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
-                rs3             <= decode_instr_info.rs3[INT_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd [INT_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
             end
@@ -556,7 +553,6 @@ always_ff @(posedge clk) begin
                 decode_stage_op.fpd               <= 'b0;
                 rs1             <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
                 rs2             <= decode_instr_info.rs2[INT_OPERAND_WIDTH - 1 : 0];
-                rs3             <= decode_instr_info.rs3[INT_OPERAND_WIDTH - 1 : 0];
                 rd              <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
                 imm             <= {IMM_WIDTH{1'b0}};
             end

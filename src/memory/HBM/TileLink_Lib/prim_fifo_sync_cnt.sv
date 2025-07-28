@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Read and write pointer logic for synchronous FIFOs
-
+`timescale 1ns / 1ps
 `include "prim_assert.sv"
 
 module prim_fifo_sync_cnt #(
