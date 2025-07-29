@@ -476,7 +476,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end
 
             //Port B
-            if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && !exe_stage_op.v_broadcast_en)) begin
+            if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && (!exe_stage_op.v_broadcast_en))) begin
                 // Read Port activated
                 v_v_b_load                  <= 1'b1;
             end else if ((exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_H_S) & hbm_ready_to_write) begin
@@ -505,13 +505,17 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                  // Intermediate HBM Fetch to the scratchpad sram
                 hbm_v_req_prefetch_data         <= 1'b1;
                 v_sram_prefetch_counter         <= v_sram_prefetch_counter + 'b1;
+                v_v_b_load                      <= 1'b0;
             end else if (v_sram_prefetch_counter == HBM_V_Prefetch_Amount) begin
                 // Finish Prefetching, reset the counter
                 hbm_v_req_prefetch_data         <= 1'b0;
                 continuous_v_prefetch_en        <= 1'b0;
                 v_sram_prefetch_counter         <= 'b0;
+                v_v_b_load                      <= 1'b0;
             end  else begin
-                
+                v_v_b_load                      <= 1'b0;
+                hbm_v_req_prefetch_data         <= 1'b0;
+                continuous_v_prefetch_en        <= 1'b0;
             end
 
             if (hbm_v_req_prefetch_data && prefetch_v_valid) begin

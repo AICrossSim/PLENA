@@ -105,7 +105,7 @@ INSTR_INFO decode_instr_info;
 always_comb begin
     case (loaded_opcode)
         // Matrix Operations
-        M_MM, M_TMM, M_MM_WO: begin
+        M_MM, M_TMM, M_MM_WO, M_MV, M_TMV, M_MV_WO: begin
             decode_instruction_type = M;
         end
 
@@ -130,7 +130,7 @@ always_comb begin
         end
 
         // CSR Setting
-        C_SET_ADDR_REG, C_SET_STRIDE_REG, C_SET_SCALE_REG, C_BREAK: begin
+        C_SET_ADDR_REG, C_SET_SCALE_REG, C_BREAK: begin
             decode_instruction_type = C;
         end
 
@@ -251,29 +251,10 @@ always_ff @(posedge clk) begin
 
         case(decode_instr_info.instruction_type)
             M: begin   
-                if (decode_instr_info.opcode == M_MM_WO) begin
-                    if (decode_instr_info.funct1 == 4'h1) begin
-                        decode_stage_op.m_op <= MV_WO;
-                    end else if (decode_instr_info.funct1 == 4'h0) begin
-                        decode_stage_op.m_op <= MM_WO;
-                    end else begin
-                        decode_stage_op.m_op <= STALL_M;
-                    end
-                end else begin
-                    if (decode_instr_info.funct1 == 4'h1) begin
-                        decode_stage_op.m_op <= MV_IC;
-                    end else if (decode_instr_info.funct1 == 4'h0) begin
-                        if (decode_instr_info.funct2 == 4'h1) begin
-                            decode_stage_op.m_op <= MM_PS;
-                        end else if (decode_instr_info.funct2 == 4'h0) begin
-                            decode_stage_op.m_op <= MM_IC;
-                        end else begin
-                            decode_stage_op.m_op <= STALL_M;
-                        end
-                    end else begin
-                        decode_stage_op.m_op <= STALL_M;
-                    end
-                end
+                decode_stage_op.m_op          <=    (decode_instr_info.opcode == M_MM_IC || decode_instr_info.opcode == M_TMM_IC)    ? MM_IC  :
+                                                    (decode_instr_info.opcode == M_MM_WO)                                            ? MM_WO  :       
+                                                    (decode_instr_info.opcode == M_MV_IC || decode_instr_info.opcode == M_TMV_IC)    ? MV_IC  :
+                                                    (decode_instr_info.opcode == M_MV_WO)                                            ? MV_WO  :  STALL_M;
                 decode_stage_op.v_ele_op      <= STALL_V_ELEMENT;
                 decode_stage_op.v_reduct_op   <= STALL_V_REDUCT;
                 decode_stage_op.s_fp_op       <= STALL_S_FP;
