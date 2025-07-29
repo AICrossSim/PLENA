@@ -80,13 +80,20 @@ module double_precision_m_hbm_controller #(
     logic hbm_high_precision_write_en, hbm_low_precision_write_en;
     logic hbm_high_precision_req_en, hbm_low_precision_req_en;
     logic high_precision_data_valid, low_precision_data_valid;
+    logic recorded_precision_select;
 
     assign high_precision_hbm_ele_write_mask = {HIGH_ELE_MASK_WIDTH{1'b1}};
     assign low_precision_hbm_ele_write_mask = {LOW_ELE_MASK_WIDTH{1'b1}};
 
     // Address for element and scale
     always_ff @(posedge clk) begin
-        if (hbm_prefetch_en) begin
+        if (rst) begin
+            offset_addr             <= 0;
+            stride_offset_for_scale <= 0;
+            hbm_high_precision_req_en <= 1'b0;
+            hbm_low_precision_req_en  <= 1'b0;
+            recorded_precision_select <= 1'b0;
+        end else if (hbm_prefetch_en) begin
             if (precision_select) begin
                 offset_addr             <= hbm_raddr[ON_CHIP_ADDR_WIDTH - 1 : 0] >> LOW_PRECISION_ELE_SCALE_ADR_RATIO;
                 stride_offset_for_scale <= stride_offset >> LOW_PRECISION_ELE_SCALE_ADR_RATIO;
@@ -101,6 +108,7 @@ module double_precision_m_hbm_controller #(
             hbm_raddr_for_ele       <= hbm_raddr;
             hbm_raddr_for_scale     <= hbm_waddr + offset_addr + scale_offset;
             stride_offset_for_ele   <= stride_offset;
+            recorded_precision_select <= precision_select;
 
         end else if (hbm_write_en) begin
             if (precision_select) begin
@@ -114,7 +122,7 @@ module double_precision_m_hbm_controller #(
                 hbm_high_precision_write_en     <= 1'b1;
                 hbm_low_precision_write_en      <= 1'b0;
             end
-            
+            recorded_precision_select <= precision_select;
             hbm_raddr_for_ele       <= hbm_waddr;
             hbm_raddr_for_scale     <= hbm_waddr  + offset_addr + scale_offset;
             stride_offset_for_ele   <= stride_offset;
@@ -123,9 +131,9 @@ module double_precision_m_hbm_controller #(
             hbm_low_precision_req_en      <= 1'b0;
         end
     end
-    assign prefetch_data_valid             = precision_select ? low_precision_data_valid : high_precision_data_valid;
-    // TODO: teporary solution for HBM write ready signal, if in the future need a buffer if the critical path happens here.
-    assign hbm_write_ready = (precision_select ? low_precision_element_ready_to_write : high_precision_element_ready_to_write) && scale_ready_to_write;
+    
+    assign prefetch_data_valid             = recorded_precision_select ? low_precision_data_valid : high_precision_data_valid;
+    assign hbm_write_ready = (recorded_precision_select ? low_precision_element_ready_to_write : high_precision_element_ready_to_write) && scale_ready_to_write;
 
     // -----------------------------
     // Low Precision and High Precision Selection
@@ -145,7 +153,7 @@ module double_precision_m_hbm_controller #(
     ) tl_selector_inst (
         .clk                  (clk),
         .rst                  (rst),
-        .select               (precision_select), // 0: High Precision, 1: Low Precision
+        .select               (recorded_precision_select), // 0: High Precision, 1: Low Precision
         `TL_CONNECT_DEVICE_PORT (device_1, adapted_high_precision_tl_element),
         `TL_CONNECT_DEVICE_PORT (device_2, adapted_low_precision_tl_element),
         `TL_CONNECT_HOST_PORT   (host_out, adapted_tl_element)

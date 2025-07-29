@@ -62,18 +62,18 @@ def load_isa_settings(file_path: str) -> dict:
 
 
 class Instruction:
-    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], funct1: Optional[int], funct2: Optional[int], imm: Optional[int] = None):
+    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rstride: Optional[str], funct1: Optional[int], imm: Optional[int] = None):
 
         self.opcode = opcode
         self.rd = rd
         self.rs1 = rs1
         self.rs2 = rs2
+        self.rstride = rstride
         self.funct1 = funct1
-        self.funct2 = funct2
         self.imm = imm
 
     def __repr__(self):
-        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', funct1={self.funct1}, funct2={self.funct2}, imm={self.imm})"
+        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, imm={self.imm})"
 
 
 def parse_asm_file(file_path: str) -> List[Instruction]:
@@ -129,9 +129,9 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 rd = None
             rs1 = None
             rs2 = None
+            rstride = None
             imm = None
             funct1 = None
-            funct2 = None
 
             if len(operands) > 1:
                 operand_1 = operands[1]
@@ -165,21 +165,14 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                     except ValueError:
                         pass
             if len(operands) == 5:
-                funct2 = operands[4]
-                funct1 = int(operands[3])
-                if (funct2[-1] == ';'):
-                    funct2 = int(funct2[:-1])
+                rstride = int(operands[3])
+                funct1 = operands[4]
+                if (funct1[-1] == ';'):
+                    funct1 = int(funct1[:-1])
                 else:
-                    funct2 = int(funct2)
+                    funct1 = int(funct1)
 
-            if len(operands) == 6:
-                funct2 = operands[6]
-                funct1 = int(operands[5])
-                if (funct2[-1] == ';'):
-                    funct2 = int(funct2[:-1])
-                else:
-                    funct2 = int(funct2)
-            instructions.append(Instruction(opcode, rd, rs1, rs2, funct1, funct2, imm))
+            instructions.append(Instruction(opcode, rd, rs1, rs2, rstride, funct1, imm))
 
     return instructions
 
