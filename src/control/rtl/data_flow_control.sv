@@ -196,7 +196,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             end_of_load_m               <= 1'b0;
         end else begin
             // Address Management
-            if (exe_stage_op.h_op == PREFETCH_M_H_C || exe_stage_op.h_op == PREFETCH_M_H_S || exe_stage_op.h_op == PREFETCH_M_L_C || exe_stage_op.h_op == PREFETCH_M_L_S) begin
+            if (exe_stage_op.h_op == PREFETCH_M_H || exe_stage_op.h_op == PREFETCH_M_L) begin
                 recorded_m_prefetch_addr        <= exe_stage_op.addr_2;
             end else if (exe_stage_op.m_op != STALL_M & exe_stage_op.m_op != MM_WO & exe_stage_op.m_op != MV_WO) begin
                 recorded_m_load_addr            <= exe_stage_op.addr_2;
@@ -337,12 +337,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
         if (rst) begin
             recorded_v_prefetch_addr = 'b0;
             hbm_waddr = 'b0;
-        end else if (exe_stage_op.h_op == PREFETCH_V_H_C || exe_stage_op.h_op == PREFETCH_V_H_S || exe_stage_op.h_op == PREFETCH_V_L_C || exe_stage_op.h_op == PREFETCH_V_L_S) begin
+        end else if (exe_stage_op.h_op == PREFETCH_V_H || exe_stage_op.h_op == PREFETCH_V_L) begin
             recorded_v_prefetch_addr = exe_stage_op.addr_2;
-            recorded_prefetch_precision = (exe_stage_op.h_op == PREFETCH_V_H_C || exe_stage_op.h_op == PREFETCH_V_H_S) ? 1'b0 : 1'b1;
-        end else if (exe_stage_op.h_op == STORE_V_H_S || exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_L_C || exe_stage_op.h_op == STORE_V_L_S ) begin
+            recorded_prefetch_precision = (exe_stage_op.h_op == PREFETCH_V_H) ? 1'b0 : 1'b1;
+        end else if (exe_stage_op.h_op == STORE_V_H || exe_stage_op.h_op == STORE_V_L) begin
             hbm_waddr = exe_stage_op.addr_2;
-            recorded_prefetch_precision = (exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_H_S) ? 1'b0 : 1'b1;
+            recorded_prefetch_precision = (exe_stage_op.h_op == STORE_V_H ) ? 1'b0 : 1'b1;
         end
     end
 
@@ -479,12 +479,12 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
             if (((exe_stage_op.v_ele_op != STALL_V_ELEMENT) && (!exe_stage_op.v_broadcast_en))) begin
                 // Read Port activated
                 v_v_b_load                  <= 1'b1;
-            end else if ((exe_stage_op.h_op == STORE_V_H_C || exe_stage_op.h_op == STORE_V_H_S) & hbm_ready_to_write) begin
+            end else if ((exe_stage_op.h_op == STORE_V_H) & hbm_ready_to_write) begin
                 // Start HBM Writeback to the scratchpad sram
                 continuous_write_to_hbm     <= 1'b1;
                 hbm_write_counter           <= 'b0;
                 v_v_b_load                  <= 1'b0;
-                v_sram_mxfp_req_b           <= (exe_stage_op.h_op == STORE_V_H_C) ? 2'b01 : 2'b10; // 01 for C, 10 for S
+                v_sram_mxfp_req_b           <= (exe_stage_op.h_op == STORE_V_H) ? 2'b01 : 2'b10; // 01 for C, 10 for S
             end else if (continuous_write_to_hbm && hbm_write_counter < HBM_WRITE_AMOUNT && hbm_ready_to_write) begin
                 // Intermediate HBM Writeback to the scratchpad sram
                 v_sram_mxfp_req_b           <= v_sram_mxfp_req_b;

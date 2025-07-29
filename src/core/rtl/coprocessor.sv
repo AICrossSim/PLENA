@@ -343,8 +343,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // -----------------------------
 
     // Matrix SRAM 
-    assign m_prefetch_en = (exe_stage_op.h_op == PREFETCH_M_H_C || exe_stage_op.h_op == PREFETCH_M_H_S || 
-                            exe_stage_op.h_op == PREFETCH_M_L_C || exe_stage_op.h_op == PREFETCH_M_L_S);
+    assign m_prefetch_en = (exe_stage_op.h_op == PREFETCH_M_H || exe_stage_op.h_op == PREFETCH_M_L);
     matrix_sram_without_rounding #(
         .WT_MXFP_EXP_WIDTH  (WT_MXFP_EXP_WIDTH),
         .WT_MXFP_MANT_WIDTH (WT_MXFP_MANT_WIDTH),
@@ -423,7 +422,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         .port_b_mxfp_low_out_valid          (v_port_b_low_out_valid),
         .port_b_low_element_out             (v_low_element_port_b_out),
         .port_b_scale_out                   (v_scale_port_b_out),
-        .prefetch_en                        (exe_stage_op.h_op == PREFETCH_V_H_C),
+        .prefetch_en                        (exe_stage_op.h_op == PREFETCH_V_H),
         .prefetch_addr                      (exe_stage_op.addr_2),
         .data_not_ready                     (v_prefetch_data_not_ready)
     );
@@ -445,7 +444,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     hbm_sys #(
         `ifdef SIMULATION
-            .MemInitFile(HBM_ADDR_MAPPER_FILE)
+            .MemAddrInitFile(HBM_ADDR_MAPPER_FILE),
+            .MemStrideInitFile("")
         `endif
     ) hbm_interface_init (
         .clk(clk),

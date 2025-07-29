@@ -13,7 +13,7 @@ package configuration_pkg;
     parameter   VLEN = MLEN;
     parameter   INST_BUFF_DEPTH = 16;
     parameter   ON_CHIP_ADDR_WIDTH = precision_pkg::INT_DATA_WIDTH;
-    parameter   HBM_ADDR_WIDTH = 128;
+    
     parameter   SourceWidth = 1;
     parameter   SinkWidth = 1;
     parameter   MATRIX_ACC_ADR_DEPTH = 8;
@@ -27,6 +27,9 @@ package configuration_pkg;
     parameter   INT_SRAM_DEPTH    = 32;
     parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
     parameter   FP_SRAM_DEPTH = 32;
+    parameter   HBM_ADDR_WIDTH = 128;
+    parameter   STRIDE_STORE_WIDTH = 8;
+
     // HBM Related
     parameter   HBM_M_Prefetch_Amount = 16;
     parameter   HBM_V_Prefetch_Amount = 16;

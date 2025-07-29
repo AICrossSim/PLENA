@@ -86,20 +86,14 @@ typedef enum logic [2:0] {
     BREAK               = 3'h6
 } C_OP;
 
-typedef enum logic [3:0] {
+typedef enum logic [2:0] {
     STALL_H         = 4'h0,
-    PREFETCH_M_H_C  = 4'h1,
-    PREFETCH_M_H_S  = 4'h2,
-    PREFETCH_M_L_C  = 4'h3,
-    PREFETCH_M_L_S  = 4'h4,
-    PREFETCH_V_H_C  = 4'h5,
-    PREFETCH_V_H_S  = 4'h6,
-    PREFETCH_V_L_C  = 4'h7,
-    PREFETCH_V_L_S  = 4'h8,
-    STORE_V_H_C     = 4'h9,
-    STORE_V_H_S     = 4'hA,
-    STORE_V_L_C     = 4'hB,
-    STORE_V_L_S     = 4'hC
+    PREFETCH_M_H    = 4'h1,
+    PREFETCH_M_L    = 4'h2,
+    PREFETCH_V_H    = 4'h3,
+    PREFETCH_V_L    = 4'h4,
+    STORE_V_H       = 4'h5,
+    STORE_V_L       = 4'h6
 } H_OP;
 
 function automatic int max(input int a, input int b);
@@ -179,11 +173,10 @@ typedef struct {
     logic [instruction_pkg::OPCODE_WIDTH  - 1 : 0]      opcode;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs1;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs2;
-    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs3;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rstride;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rd;
     logic [instruction_pkg::IMM_WIDTH - 1 : 0]          imm;
     logic [instruction_pkg::FUNCT_WIDTH - 1 : 0]        funct1;
-    logic [instruction_pkg::FUNCT_WIDTH - 1 : 0]        funct2;
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
@@ -201,7 +194,7 @@ typedef struct {
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fpd;
     logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg1;
     logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg2;
-    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg3;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_rstride;
     logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_rd;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_1;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_2;

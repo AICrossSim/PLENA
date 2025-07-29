@@ -46,6 +46,7 @@ def _generate_attention_code(node: Dict[str, Any]) -> str:
     head_dim = dims["head_dim"]
 
     # TODO: break flash attention down into multiple smaller templates for loop
+    # TODO: Templates in asm_templates/flash_attention_tr_loop.asm + asm_templates/flash_attention_tc_loop.asm
     code = f"""
 ; Self-attention: hidden_size={hidden_size}, num_heads={num_heads}, head_dim={head_dim}
 ; Q, K, V projections and attention computation

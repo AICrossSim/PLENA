@@ -71,7 +71,7 @@ module pipeline_control #(
         fpd                 : '0,
         gp_reg1             : '0,
         gp_reg2             : '0,
-        gp_reg3             : '0,
+        gp_rstride             : '0,
         gp_rd               : '0,
         addr_1              : '0,
         addr_2              : '0,
@@ -88,10 +88,10 @@ module pipeline_control #(
     
     // Decision for pipeline stall
     always_comb begin
-        if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_H_C || determine_stage_op.h_op == PREFETCH_M_H_S || determine_stage_op.h_op == PREFETCH_M_L_C || determine_stage_op.h_op == PREFETCH_M_L_S)) begin
+        if (hbm_m_prefetch_in_progress & ( determine_stage_op.h_op == PREFETCH_M_H || determine_stage_op.h_op == PREFETCH_M_L)) begin
             // Condition 0: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall  = 1'b1;            
-        end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_H_C || determine_stage_op.c_op == C_BREAK)) begin
+        end else if (hbm_v_prefetch_in_progress & (determine_stage_op.h_op == PREFETCH_V_H || determine_stage_op.c_op == C_BREAK)) begin
             // Condition 1: When prefetching instruction is in processed, another prefetching instruction is not allowed.
             pipeline_stall  = 1'b1;            
         end else if ((m_load_in_process || m_empty_in_progress) & ((determine_stage_op.m_op != STALL_M) || (determine_stage_op.m_op != MM_WO))) begin
@@ -157,7 +157,7 @@ module pipeline_control #(
         check_stage_op.fpd             = delayed_reg_rd_stage_op.fpd;
         check_stage_op.gp_reg1         = delayed_reg_rd_stage_op.gp_reg1;
         check_stage_op.gp_reg2         = delayed_reg_rd_stage_op.gp_reg2;
-        check_stage_op.gp_reg3         = delayed_reg_rd_stage_op.gp_reg3;
+        check_stage_op.gp_rstride         = delayed_reg_rd_stage_op.gp_rstride;
         check_stage_op.addr_1          = fixed_addr_1;
         check_stage_op.addr_2          = fixed_addr_2; 
         check_stage_op.update_m_waddr  = delayed_reg_rd_stage_op.update_m_waddr;
