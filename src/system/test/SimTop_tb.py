@@ -234,6 +234,7 @@ def SimToP_test():
             str(SRC_PATH / "basic_components/gemv"),
             str(SRC_PATH / "basic_components/synopsis"),
             str(SRC_PATH / "basic_components/synopsis_ip_inst"),
+            str(SRC_PATH / "basic_components/hadamard_transform"),
             str(SRC_PATH / "frontend"),
             str(SRC_PATH / "control"),
             str(SRC_PATH / "matrix_machine"),
