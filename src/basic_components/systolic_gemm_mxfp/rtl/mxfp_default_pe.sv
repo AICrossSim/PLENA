@@ -130,7 +130,8 @@ module mxfp_default_pe #(
     );
 
     assign scale_sum_result = reg_top_scale + reg_left_scale - SCALE_BIAS;
-
+    
+    // TODO: Replace
     fifo #(
         .DATA_WIDTH(MXFP_SCALE_WIDTH),
         .DEPTH(3)
@@ -151,7 +152,7 @@ module mxfp_default_pe #(
     // ==============================================================================================
 
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] shifted_result, rescaled_result;
-    logic shifted_result_valid, shifted_result_ready;
+    logic converted_result_valid, converted_result_ready;
     logic mxfp_mult_valid, mxfp_mult_ready;
 
     join2 #() join_mxfp_mult_inst (
@@ -168,8 +169,14 @@ module mxfp_default_pe #(
         .FP_EXP_WIDTH       (ACC_FP_EXP_WIDTH),
         .FP_MANT_WIDTH      (ACC_FP_MANT_WIDTH)
     ) mx_fp_to_fp (
+        .clk                (clk),
+        .rst                (rst),
+        .data_in_valid      (mxfp_mult_valid),
+        .data_in_ready      (mxfp_mult_ready),
         .element_data_in    (block_mult_result),
         .scale_data_in      (reg_scale_sum),
+        .data_out_valid     (converted_result_valid),
+        .data_out_ready     (converted_result_ready),
         .fp_out             (shifted_result)
     );
 
@@ -189,8 +196,8 @@ module mxfp_default_pe #(
         .clk(clk),
         .rst(rst),
         .clear_accumulator(clear_accumulator),
-        .data_in_valid  (mxfp_mult_valid),
-        .data_in_ready  (mxfp_mult_ready),
+        .data_in_valid  (converted_result_valid),
+        .data_in_ready  (converted_result_ready),
         .data_in        (shifted_result),
         .data_out       (out_fp),
         .data_out_valid (),

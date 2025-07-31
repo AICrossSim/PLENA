@@ -162,19 +162,19 @@ module double_precision_v_hbm_controller #(
     `TL_DECLARE(HBM_ELE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, adapted_high_precision_tl_element);
     `TL_BIND_HOST_PORT(host_element, adapted_tl_element);
 
-    // tl_selector #(
-    //     .DataWidth          (HBM_ELE_WIDTH),
-    //     .AddrWidth          (HBM_ADDR_WIDTH),
-    //     .SourceWidth        (SourceWidth),
-    //     .SinkWidth          (SinkWidth)
-    // ) tl_selector_inst (
-    //     .clk                    (clk),
-    //     .rst                    (rst),
-    //     .select                 (recorded_precision_select), // 0: High Precision, 1: Low Precision
-    //     `TL_CONNECT_DEVICE_PORT (device_1, adapted_high_precision_tl_element),
-    //     `TL_CONNECT_DEVICE_PORT (device_2, adapted_low_precision_tl_element),
-    //     `TL_CONNECT_HOST_PORT   (host_out, adapted_tl_element)
-    // );
+    tl_selector #(
+        .DataWidth          (HBM_ELE_WIDTH),
+        .AddrWidth          (HBM_ADDR_WIDTH),
+        .SourceWidth        (SourceWidth),
+        .SinkWidth          (SinkWidth)
+    ) tl_selector_inst (
+        .clk                    (clk),
+        .rst                    (rst),
+        .select                 (recorded_precision_select), // 0: High Precision, 1: Low Precision
+        `TL_CONNECT_DEVICE_PORT (device_1, adapted_high_precision_tl_element),
+        `TL_CONNECT_DEVICE_PORT (device_2, adapted_low_precision_tl_element),
+        `TL_CONNECT_HOST_PORT   (host_out, adapted_tl_element)
+    );
 
     // -----------------------------
     // Low Precision HBM element connection for TileLink

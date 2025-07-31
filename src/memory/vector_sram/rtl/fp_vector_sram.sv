@@ -217,8 +217,26 @@ module fp_vector_sram #(
 
     // -----------------------------
     // Port B Management
+    // As the conversion from mxfp to fp require several cycles, we need to delay the write enable and address signal.
     // -----------------------------
+    localparam MXFP_FP_DELAY_CYCLES = 2; // Number of cycles to delay for MX-FP to FP conversion
     logic   mxfp_fp_convert_port_b_ready;
+    logic   [MXFP_FP_DELAY_CYCLES - 1 : 0] delayed_port_b_write_en_internal;
+    logic   [MXFP_FP_DELAY_CYCLES - 1 : 0][INTERNAL_ADDR_LEN - 1 : 0] delayed_port_b_addr_internal;
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            delayed_port_b_write_en_internal <= '0;
+            delayed_port_b_addr_internal <= '0;
+        end else begin
+            delayed_port_b_write_en_internal[0] <= port_b_write_en;
+            delayed_port_b_addr_internal[0] <= translated_port_b_addr;
+            for (int i = 1; i < MXFP_FP_DELAY_CYCLES; i++) begin
+                delayed_port_b_write_en_internal[i] <= delayed_port_b_write_en_internal[i - 1];
+                delayed_port_b_addr_internal[i] <= delayed_port_b_addr_internal[i - 1];
+            end
+        end
+    end
+
     assign  port_b_fp_out = port_b_fp_out_internal;
 
     always_comb begin
@@ -245,8 +263,13 @@ module fp_vector_sram #(
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
             ) port_b_mx_fp_2_fp_high_precision_convert (
+                .clk            (clk),  
+                .rst            (rst),
+                .data_in_valid  (port_b_write_en),
+                .data_in_ready  (),
                 .element_in     (port_b_high_precision_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (port_b_scale_in[i]),
+                .data_out_ready (1'b1), // Always ready to accept data
                 .fp_out         (converted_b_high_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
             );
             
@@ -258,8 +281,12 @@ module fp_vector_sram #(
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
             ) port_b_mx_fp_2_fp_low_precision_convert (
+                .clk            (clk),  
+                .rst            (rst),
+                .data_in_valid  (port_b_write_en),
                 .element_in     (port_b_low_precision_element_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM]),
                 .scale_in       (port_b_scale_in[i]),
+                .data_out_ready (1'b1), // Always ready to accept data
                 .fp_out         (converted_b_low_fp_in[(i+1)*BLOCK_DIM-1 : i*BLOCK_DIM])
             );
         end
@@ -368,8 +395,8 @@ module fp_vector_sram #(
         .a_wmask_i      (port_a_mask_in),
         .a_rdata_o      (port_a_fp_out_internal),
         .b_req_i        (port_b_req || port_b_mxfp_req),
-        .b_write_i      (port_b_write_en),
-        .b_addr_i       (translated_port_b_addr),
+        .b_write_i      (delayed_port_b_write_en_internal[MXFP_FP_DELAY_CYCLES - 1]),
+        .b_addr_i       (delayed_port_b_addr_internal[MXFP_FP_DELAY_CYCLES - 1]),
         .b_wdata_i      (port_b_fp_in_internal),
         .b_wmask_i      (port_b_mask_in),
         .b_rdata_o      (port_b_fp_out_internal),

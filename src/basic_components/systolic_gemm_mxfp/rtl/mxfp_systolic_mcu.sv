@@ -441,6 +441,7 @@ module mxfp_systolic_mcu #(
 
 
     logic quantise_data_in_valid, quantise_data_in_ready;
+    logic casted_data_in_valid, casted_data_in_ready;
     logic quantised_result_valid, quantised_result_ready;
     logic block_data_in_valid, block_data_in_ready;
     logic unrolled_data_out_valid, unrolled_data_out_ready;
@@ -473,6 +474,7 @@ module mxfp_systolic_mcu #(
     logic [MAX_K_GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0]    stored_result_v;
     logic [MAX_K_GEBM_OUT_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]            quantised_result_v;
     logic [MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]         stored_quantized_result;
+    logic [MAX_K_GEBM_OUT_DIM - 1 : 0] split_quantised_result_valid;
 
     always_comb begin
         if (sa_control == 1'b0) begin
@@ -514,8 +516,14 @@ module mxfp_systolic_mcu #(
                     .OUT_EXP_WIDTH  (FP_EXP_WIDTH),
                     .OUT_MANT_WIDTH (FP_MANT_WIDTH)
                 ) cast_inst (
-                    .data_in      (stored_result_v[i]),
-                    .data_out     (quantised_result_v[i])
+                    .clk            (clk),
+                    .rst            (rst),
+                    .data_in_valid  (quantise_data_in_valid),
+                    .data_in_ready  (),
+                    .data_in        (stored_result_v[i]),
+                    .data_out_valid (split_quantised_result_valid[i]),
+                    .data_out_ready (1'b1),
+                    .data_out       (quantised_result_v[i])
                 );
             end
 
@@ -537,19 +545,27 @@ module mxfp_systolic_mcu #(
                     .OUT_EXP_WIDTH  (FP_EXP_WIDTH),
                     .OUT_MANT_WIDTH (FP_MANT_WIDTH)
                 ) cast_inst (
-                    .data_in      (stored_result_v[i]),
-                    .data_out     (quantised_result_v[i])
+                    .data_in_valid  (quantise_data_in_valid),
+                    .data_in_ready  (),
+                    .data_in        (stored_result_v[i]),
+                    .data_out_valid (split_quantised_result_valid[i]),
+                    .data_out_ready (1'b1),
+                    .data_out       (quantised_result_v[i])
                 );
             end
         end
+
+        assign casted_data_in_valid = &split_quantised_result_valid;
+        assign quantise_data_in_ready = casted_data_in_ready;
+        
         skid_buffer #(
             .DATA_WIDTH(MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
         ) quantized_result_buffer (
             .clk(clk),
             .rst(rst),
             .data_in        (quantised_result_v),
-            .data_in_valid  (quantise_data_in_valid),
-            .data_in_ready  (quantise_data_in_ready),
+            .data_in_valid  (casted_data_in_valid),
+            .data_in_ready  (casted_data_in_ready),
             .data_out       (stored_quantized_result),
             .data_out_valid (quantised_result_valid),
             .data_out_ready (quantised_result_ready)

@@ -14,7 +14,13 @@ module fp_ieee_casting #(
     parameter   OUT_EXP_WIDTH = 5,
     parameter   OUT_MANT_WIDTH = 8
 )(
+    input clk,
+    input rst,
+    input data_in_valid,
+    output logic data_in_ready,
     input  logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
+    output logic data_out_valid,
+    input  logic data_out_ready,
     output logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] data_out
 );
     initial begin
@@ -24,7 +30,8 @@ module fp_ieee_casting #(
             else $error("IN_MANT_WIDTH must be greater than or equal to OUT_MANT_WIDTH");
     end
 
-    logic [OUT_EXP_WIDTH + IN_MANT_WIDTH : 0] intermediate_data;
+    logic [OUT_EXP_WIDTH + IN_MANT_WIDTH : 0] exp_casted_data;
+    logic [OUT_EXP_WIDTH + OUT_MANT_WIDTH : 0] intermediate_data_out;
 
     fp_ieee_exponent_casting #(
         .IN_EXP_WIDTH(IN_EXP_WIDTH),
@@ -32,7 +39,7 @@ module fp_ieee_casting #(
         .MANT_WIDTH(IN_MANT_WIDTH)
     ) fp_ieee_exponent_casting_inst (
         .data_in(data_in),
-        .data_out(intermediate_data)
+        .data_out(exp_casted_data)
     );
 
     fp_ieee_mantissa_casting #(
@@ -40,8 +47,22 @@ module fp_ieee_casting #(
         .IN_MANT_WIDTH(IN_MANT_WIDTH),
         .OUT_MANT_WIDTH(OUT_MANT_WIDTH)
     ) fp_ieee_mantissa_casting_inst (
-        .data_in(intermediate_data),
-        .data_out(data_out)
+        .data_in(exp_casted_data),
+        .data_out(intermediate_data_out)
     );
+
+    register_slice #(
+        .DATA_WIDTH(OUT_EXP_WIDTH + OUT_MANT_WIDTH + 1)
+    ) register_slice_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in        (intermediate_data_out),
+        .data_in_valid  (data_in_valid),
+        .data_in_ready  (data_in_ready),
+        .data_out       (data_out),
+        .data_out_valid (data_out_valid),
+        .data_out_ready (data_out_ready)
+    );
+
 endmodule
 
