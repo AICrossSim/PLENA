@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "hbm_sys"
+set top_design "DW_fp_exp_inst"
 
 #------------------------------
 # Setup DC logging paths
