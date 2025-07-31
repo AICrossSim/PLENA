@@ -13,8 +13,8 @@ Status      : Passed Simple Tests
 */
 
 module fp_fix_mult #(
-    parameter int EXP_WIDTH = 5,
-    parameter int MANT_WIDTH = 10,
+    parameter int EXP_WIDTH = 6,
+    parameter int MANT_WIDTH = 5,
     parameter int IEEE_COMPLIANCE = 0,
     parameter int UBR_FLAG = 0
 )(
