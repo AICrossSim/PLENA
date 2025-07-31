@@ -127,7 +127,7 @@ def device_performance(device_model, seq_context_length, max_batch, model_config
     for batch in sampled_batch:
         if batch > device_model.M:
             break
-        compute_intensity = 2 * min(device_model.K, max_tilesize) * batch * device_model.operate_freq / 1e9
+        compute_intensity = 2 * min(device_model.K, max_tilesize) * device_model.operate_freq / 1e9
         actual_performance[batch] = min(compute_intensity, max_tflops)
 
 

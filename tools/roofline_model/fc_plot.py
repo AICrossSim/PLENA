@@ -19,9 +19,9 @@ colors = {
 Operate_Freq = 1e9      # 1 GHz
 DataWidth = 2           # 1 byte per element
 HBM_Bandwidth = 800e9   # 800 GB/s
-HBM_Capacity = 128      # 128 GB
-SEQ_LENGTH_NORM =  512
-SEQ_LENGTH_REASONING = 8192
+HBM_Capacity = 160      # 128 GB
+SEQ_LENGTH_NORM =  3000
+SEQ_LENGTH_REASONING = 6500
 
 B200_Params = {
     "HBM_Capacity": HBM_Capacity,  # HBM 3e
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
     model_config        = load_json(model_config_path)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 3), sharey=True)
-
+    tick_positions = [1, 2, 4, 8, 16, 32, 64, 128]
 
     # Plot TPU Performance
     tpu_model   = DeviceModel(operate_freq=TPU_Params["Operate_Freq"], M=TPU_Params["M"], K=TPU_Params["K"], N=TPU_Params["N"], data_width=TPU_Params["DataWidth"], hbm_bandwidth=TPU_Params["HBM_Bandwidth"], hbm_capacity=TPU_Params["HBM_Capacity"])
@@ -161,9 +161,11 @@ if __name__ == "__main__":
     ax1.set_yscale('log')
     ax1.set_ylabel('Attainable GFLOPs/s')
     ax1.set_xlabel('Batch Size')
+    ax1.set_xticks(tick_positions)
+    ax1.set_xticklabels([str(t) for t in tick_positions])
     ax1.set_ylim(1e2, 1e5)
     ax1.set_xlim(1, 256)
-    ax1.set_title('Normal Inference Performance')
+    ax1.set_title('Normal Model FC Layer Inference Inference Performance')
     
     ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='8 * 512 W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
@@ -179,7 +181,7 @@ if __name__ == "__main__":
         list(tpu_actual_performance_normal.keys()),
         [v for v in tpu_actual_performance_normal.values()],
         label='TPU',
-        color='grey',
+        color=colors["dark_pink"],
         linewidth=2
     )
 
@@ -212,8 +214,10 @@ if __name__ == "__main__":
     ax2.set_ylabel('Attainable GFLOPs/s')
     ax2.set_xlabel('Batch Size')
     ax2.set_ylim(1e2, 1e5)
+    ax2.set_xticks(tick_positions)
+    ax2.set_xticklabels([str(t) for t in tick_positions])
     ax2.set_xlim(1, 256)
-    ax2.set_title('Reasoning Inference Performance')
+    ax2.set_title('Reasoning Model FC Layer Inference Performance')
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax2.vlines(soft_optimised_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 
@@ -229,7 +233,7 @@ if __name__ == "__main__":
     ax2.plot(
         list(tpu_actual_performance_reasoning.keys()),
         [v for v in tpu_actual_performance_reasoning.values()],
-        color='grey',
+        color=colors["dark_pink"],
         linewidth=2
     )
     
@@ -276,4 +280,4 @@ if __name__ == "__main__":
     # Adjust space so plots don't overlap with the legend
     fig.subplots_adjust(right=0.75)  # Leave space for legend
     plt.tight_layout()
-    plt.savefig('systolic_array_comparison.png', bbox_inches='tight', dpi=300)
+    plt.savefig('fc_sa_comparison.png', bbox_inches='tight', dpi=300)

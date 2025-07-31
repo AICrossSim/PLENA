@@ -19,12 +19,8 @@ module fp_vector_element_alu #(
     input  logic rst,
     input  V_ELEMENT_OP operation,
 
-    input  logic data_a_valid,
-    output logic data_a_ready,
+    input  logic data_in_valid,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,
-
-    input  logic data_b_valid,
-    output logic data_b_ready,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
 
 
@@ -40,7 +36,6 @@ module fp_vector_element_alu #(
     logic negated_en;
 
 
-    logic data_in_valid, data_in_ready;
     logic p1_data_in_valid, p1_data_in_ready;
     logic mult_data_in_valid, mult_data_in_ready;
     logic mult_data_out_valid, mult_data_out_ready;
@@ -61,13 +56,6 @@ module fp_vector_element_alu #(
         end
     end
 
-    join2 #() join_data_in (
-        .data_in_valid({data_a_valid, data_b_valid}),
-        .data_in_ready({data_a_ready, data_b_ready}),
-        .data_out_valid(data_in_valid),
-        .data_out_ready(data_in_ready)
-    );
-
     register_slice #(
         .DATA_WIDTH((EXP_WIDTH + MANT_WIDTH + 1)*2)
     ) input_regstore_inst (
@@ -75,7 +63,7 @@ module fp_vector_element_alu #(
         .rst(rst),
         .data_in        ({data_a, data_b}),
         .data_in_valid  (data_in_valid),
-        .data_in_ready  (data_in_ready),
+        .data_in_ready  (),
         .data_out       ({p1_data_a, p1_data_b}),
         .data_out_valid (p1_data_in_valid),
         .data_out_ready (p1_data_in_ready)

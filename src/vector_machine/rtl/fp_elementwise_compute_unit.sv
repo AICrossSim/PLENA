@@ -42,28 +42,16 @@ module fp_elementwise_compute_unit #(
 
 logic v_compute_ready, v_compute_valid;
 logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] v_alu_out;
-
-logic [VLEN - 1:0] split_v_in_a_ready, split_v_in_b_ready;
-logic [VLEN - 1:0] split_v_in_a_valid, split_v_in_b_valid;
 logic [VLEN - 1:0] split_result_ready, split_result_valid;
 
-split_n #(
-    .N (VLEN)
-) split_data_a (
-    .data_in_valid(v_in_a_valid),
-    .data_in_ready(v_in_a_ready),
-    .data_out_valid(split_v_in_a_valid),
-    .data_out_ready(split_v_in_a_ready)
+logic element_in_valid;
+join2 #() join_input_handshake (
+    .data_in_valid({v_in_a_valid, v_in_b_valid}),
+    .data_in_ready({v_in_a_ready, v_in_b_ready}),
+    .data_out_valid(element_in_valid),
+    .data_out_ready(1'b1)
 );
 
-split_n #(
-    .N (VLEN)
-) split_data_b (
-    .data_in_valid(v_in_b_valid),
-    .data_in_ready(v_in_b_ready),
-    .data_out_valid(split_v_in_b_valid),
-    .data_out_ready(split_v_in_b_ready)
-);
 
 generate;
     for (genvar i = 0; i < VLEN; i = i + 1) begin : parallel_vec_alu
@@ -73,11 +61,8 @@ generate;
         ) vec_alu_inst (
             .clk(clk),
             .rst(rst),
-            .data_a_valid       (split_v_in_a_valid[i]),
-            .data_a_ready       (split_v_in_a_ready[i]),
+            .data_in_valid       (element_in_valid),
             .data_a             (v_in_a[i]),
-            .data_b_valid       (split_v_in_b_valid[i]),
-            .data_b_ready       (split_v_in_b_ready[i]),
             .data_b             (v_in_b[i]),
             .operation          (operation),
             .data_out           (v_alu_out[i]),
@@ -109,6 +94,5 @@ register_slice #(
     .data_out_valid (v_out_valid),
     .data_out_ready (v_out_ready)
 );
-
 
 endmodule
