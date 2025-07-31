@@ -75,6 +75,7 @@ endpackage
         parameter   SCALAR_FP_SQRT_CYCLES          = 2;
         parameter   SCALAR_FP_RECI_CYCLES          = 2;
         parameter   SCALAR_INT_BASIC_CYCLES        = 1;
+        parameter   HADAMARD_TRANSFORM_CYCLES      = $clog2(configuration_pkg::MLEN) + 1;
     endpackage
 
 `else

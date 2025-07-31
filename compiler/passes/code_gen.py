@@ -39,8 +39,7 @@ def _generate_attention_code(node: Dict[str, Any]) -> str:
     """Generate assembly code for attention operations."""
     projection_template = _load_template("fake_projection")
     flash_attention_template = _load_template("flash_attention")
-    breakpoint()
-
+    print("node :", node)
     dims = node["dimensions"]
     hidden_size = dims["hidden_size"]
     num_heads = dims["num_attention_heads"]

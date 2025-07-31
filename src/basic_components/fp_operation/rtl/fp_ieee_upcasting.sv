@@ -3,7 +3,7 @@
 /*
 Module      : fp_dequantizer
 Timing      : Combinatorial Logic
-Description : FP_IEEE_Casting
+Description : FP_IEEE_UPCasting
             - Performs dequantising the lower precision floating-point format to a higher precision format.
 */
 
