@@ -22,12 +22,12 @@ default.svf
 Coprocessor_Vivado_Prj/
 
 tools/synopsys/
+tools/alib-52/
 
 src/basic_components/synopsis/
 .Xil
 
 *.log
-
 *.rpt
 
 .nfs*

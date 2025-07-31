@@ -136,7 +136,7 @@ module fp_cp_exp #(
         .data_out(casted_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(OUT_EXP_WIDTH + OUT_MANT_WIDTH + 1)
     ) buffer_normalise_cast (
         .clk(clk),

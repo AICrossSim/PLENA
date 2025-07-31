@@ -12,10 +12,10 @@ Status      : Passed Simple Tests
 */
 
 module fp_cp_asym_mult #(
-    parameter int EXP_WIDTH_A       = 5,
-    parameter int MANT_WIDTH_A      = 10,
-    parameter int EXP_WIDTH_B       = 5,
-    parameter int MANT_WIDTH_B      = 10,
+    parameter int EXP_WIDTH_A       = 3,
+    parameter int MANT_WIDTH_A      = 4,
+    parameter int EXP_WIDTH_B       = 2,
+    parameter int MANT_WIDTH_B      = 3,
     // Amount of bits needed to shift mantissas for alignment
     parameter int EXT_MANT_WIDTH    = 0,
     // Need to increase exp width by 1 to handle overflow
@@ -97,7 +97,7 @@ module fp_cp_asym_mult #(
         .signed_mant(signed_mant_a)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH_A + IN_FIXED_WIDTH_A)
     ) buffer_partition_a (
         .clk(clk),
@@ -120,7 +120,7 @@ module fp_cp_asym_mult #(
         .signed_mant(signed_mant_b)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH_B + IN_FIXED_WIDTH_B)
     ) buffer_partition_b (
         .clk(clk),
@@ -213,7 +213,7 @@ module fp_cp_asym_mult #(
         .data_out       (p4_casted_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(OUT_EXP_WIDTH + EXT_EXP_WIDTH + OUT_MANT_WIDTH + EXT_MANT_WIDTH + 1)
     ) buffer_normalise_cast (
         .clk(clk),

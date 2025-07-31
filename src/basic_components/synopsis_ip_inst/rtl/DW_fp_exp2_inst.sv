@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module DW_fp_exp_inst #(
+module DW_fp_exp2_inst #(
     parameter int EXP_WIDTH = 6,
     parameter int MANT_WIDTH = 5,
     parameter int IEEE_COMPLIANCE = 1
@@ -18,7 +18,7 @@ module DW_fp_exp_inst #(
 
 logic [MANT_WIDTH+EXP_WIDTH : 0] data_out_reg;
 // Instance of DW_fp_add
-DW_fp_exp #(
+DW_fp_exp2 #(
     .sig_width(MANT_WIDTH), 
     .exp_width(EXP_WIDTH), 
     .arch(2'd0), 

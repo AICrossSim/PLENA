@@ -13,8 +13,8 @@ Status      : Passed Simple Tests
 */
 
 module fp_fix_exp #(
-    parameter int EXP_WIDTH = 5,
-    parameter int MANT_WIDTH = 10
+    parameter int EXP_WIDTH = 6,
+    parameter int MANT_WIDTH = 5
 )(
     input  logic clk,
     input  logic rst,
