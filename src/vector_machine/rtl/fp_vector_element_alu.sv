@@ -83,7 +83,7 @@ module fp_vector_element_alu #(
 
     always_comb begin
         // Combinational module to flip the sign bit for FP subtraction
-        negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
+        negated_data_b = {~p1_data_b[EXP_WIDTH + MANT_WIDTH], p1_data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
         case (recorded_operation)
             ADD_V_ELEMENT: begin
                 negated_en = 1'b0;
@@ -145,13 +145,13 @@ fp_fix_adder #(
 ) adder (
     .clk(clk),
     .rst(rst),
-    .data_in_valid(add_data_in_valid),
-    .data_in_ready(add_data_in_ready),
-    .data_a(data_a),
-    .data_b(negated_en ? negated_data_b : data_b),
-    .data_out(data_out_add),
-    .data_out_valid(add_data_out_valid),
-    .data_out_ready(add_data_out_ready)
+    .data_in_valid      (add_data_in_valid),
+    .data_in_ready      (add_data_in_ready),
+    .data_a             (p1_data_a),
+    .data_b             (negated_en ? negated_data_b : p1_data_b),
+    .data_out           (data_out_add),
+    .data_out_valid     (add_data_out_valid),
+    .data_out_ready     (add_data_out_ready)
 );
 
 fp_fix_mult #(
@@ -162,8 +162,8 @@ fp_fix_mult #(
     .rst(rst),
     .data_in_valid      (mult_data_in_valid),
     .data_in_ready      (mult_data_in_ready),
-    .data_a             (data_a),
-    .data_b             (data_b),
+    .data_a             (p1_data_a),
+    .data_b             (p1_data_b),
     .data_out           (data_out_mul),
     .data_out_valid     (mult_data_out_valid),
     .data_out_ready     (mult_data_out_ready)
@@ -177,7 +177,7 @@ fp_fix_exp #(
     .rst(rst),
     .data_in_valid      (exp_data_in_valid),
     .data_in_ready      (exp_data_in_ready),
-    .data_in            (data_a),
+    .data_in            (p1_data_a),
     .data_out           (data_out_exp),
     .data_out_valid     (exp_data_out_valid),
     .data_out_ready     (exp_data_out_ready)
@@ -191,7 +191,7 @@ fp_fix_reciprocal #(
     .rst(rst),
     .data_in_valid  (reci_data_in_valid),
     .data_in_ready  (reci_data_in_ready),
-    .data_in        (data_a),
+    .data_in        (p1_data_a),
     .data_out_valid (reci_data_out_valid),
     .data_out_ready (reci_data_out_ready),
     .data_out       (data_out_reci)

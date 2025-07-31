@@ -88,9 +88,9 @@ generate;
     );
 
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(COMPUTE_DIM * COMPUTE_DIM * (ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1))
-    ) skid_buffer_inst (
+    ) register_slice_inst (
         .clk(clk),
         .rst(rst),
         .data_in            (accumulated_data),

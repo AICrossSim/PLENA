@@ -291,10 +291,11 @@ module scalar_machine import precision_pkg::*;  #(
             gp_reg_wdata = gp_alu_out;
             gp_reg_wen   = gp_alu_valid;
         end
-
-        // Level-2 Forwarding
-        gp_reg_1 = ((p1_rs1 == p2_rd) & gp_reg_wen) ? gp_reg_wdata : gp_loaded_reg_1;
-        gp_reg_2 = ((p1_rs2 == p2_rd) & gp_reg_wen) ? gp_reg_wdata : gp_loaded_reg_2;
+        // Level-2 Forwarding (TODO: Currently hide for timing check)
+        // gp_reg_1 = ((p1_rs1 == p2_rd) & gp_reg_wen) ? gp_reg_wdata : gp_loaded_reg_1;
+        // gp_reg_2 = ((p1_rs2 == p2_rd) & gp_reg_wen) ? gp_reg_wdata : gp_loaded_reg_2;
+        gp_reg_1 = gp_loaded_reg_1;
+        gp_reg_2 = gp_loaded_reg_2;
     end
 
     always_ff @(posedge clk) begin
@@ -331,7 +332,6 @@ module scalar_machine import precision_pkg::*;  #(
             end else begin
                 gp_write_from_sram_req       <= 1'b0;
             end
-
 
             if (exe_gp_op == PASS_ADDR || exe_gp_op == PASS_ADDR_2) begin
                 gp_out_1                 <= gp_reg_1;

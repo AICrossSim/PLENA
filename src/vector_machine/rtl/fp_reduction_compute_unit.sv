@@ -123,7 +123,7 @@ logic p1_v_in_valid, p1_v_in_ready;
         );
       end
 
-      assign data_storage[0]= 'p1_v_in;
+      assign data_storage[0]= p1_v_in;
       assign valid[0] = p1_v_in_valid;
       assign p1_v_in_ready = ready[0];
 

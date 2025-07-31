@@ -99,7 +99,7 @@ join_n #(
 
 register_slice #(
     .DATA_WIDTH(VLEN * (MANT_WIDTH + EXP_WIDTH + 1))
-) skid_buf_inst (
+) result_buf_inst (
     .clk(clk),
     .rst(rst),
     .data_in        (v_alu_out),

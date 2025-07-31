@@ -221,7 +221,7 @@ module double_precision_v_hbm_controller #(
         `TL_CONNECT_HOST_PORT       (device,    adapted_low_precision_tl_element)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(LOW_ELE_WIDTH)
     ) low_precision_skid_buffer (
         .clk(clk),

@@ -102,7 +102,7 @@ module mx_fp_blockwise_adder #(
     // Shift the elements
     generate
         
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
         ) store_data_to_shift_element (
             .clk(clk),
@@ -115,7 +115,7 @@ module mx_fp_blockwise_adder #(
             .data_out_ready (to_shift_out_ready)
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
         ) store_wo_shifted_element (
             .clk(clk),
@@ -142,7 +142,7 @@ module mx_fp_blockwise_adder #(
         assign af_shift_in_valid = to_shift_out_valid;
         assign to_shift_out_ready = af_shift_in_ready;
         
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
         ) store_shifted_element (
             .clk(clk),
@@ -182,7 +182,7 @@ module mx_fp_blockwise_adder #(
             .data_out_ready(addition_in_ready)
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(BLOCK_DIM * (MXFP_EXP_WIDTH + MXFP_MANT_WIDTH + 1))
         ) store_addition_result (
             .clk(clk),
