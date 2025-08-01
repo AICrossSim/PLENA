@@ -140,7 +140,7 @@ if __name__ == "__main__":
     print(f"Config parent path: {config_parent_path}")
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
     model_config        = load_json(model_config_path)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 3), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(3, 2), sharey=True)
     tick_positions = [1, 2, 4, 8, 16, 32, 64, 128]
 
     # Plot TPU Performance
@@ -163,16 +163,19 @@ if __name__ == "__main__":
     ax1.set_xlabel('Batch Size')
     ax1.set_xticks(tick_positions)
     ax1.set_xticklabels([str(t) for t in tick_positions])
+    ax1.set_yticks([1e2, 1e3, 1e4, 1e5])
+    ax1.set_yticklabels(['$10^2$', '$10^3$', '$10^4$', '$10^5$'])
+    ax1.minorticks_off()
     ax1.set_ylim(1e2, 1e5)
     ax1.set_xlim(1, 256)
-    ax1.set_title('Normal Model FC Layer')
+    ax1.set_title('Normal Model')
     
-    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='8 * 512 W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
+    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax1.plot(
         list(tpu_roofline_performance.keys()),
         [v for v in tpu_roofline_performance.values()],
-        label='128 * 128 W/O Memory Wall',
+        label='TPU W/O Memory Wall',
         linewidth=0.8, linestyle='--',
         color='grey'
     )
@@ -255,29 +258,37 @@ if __name__ == "__main__":
 
     ax2.hlines(max(soft_optimised_actual_performance_reasoning.values()), max(soft_optimised_actual_performance_reasoning.keys()), soft_optimised_reasoning_batch_bound, color=colors["dark_blue"], linewidth=2)
 
+    # ---- LEGEND ----
+    from math import ceil
     from collections import OrderedDict
 
-    # Get handles and labels from both axes
-    handles1, labels1 = ax1.get_legend_handles_labels()
-    handles2, labels2 = ax2.get_legend_handles_labels()
-
-    # Combine all handles and labels
-    all_handles = handles1 + handles2
-    all_labels = labels1 + labels2
-
-    # Remove duplicates while preserving order
+    handles, labels = ax1.get_legend_handles_labels()
     legend_dict = OrderedDict()
-    for h, l in zip(all_handles, all_labels):
+    for h, l in zip(handles, labels):
         if l not in legend_dict:
             legend_dict[l] = h
+    print("Legend Dictionary:", legend_dict)# --- Custom legend order, TPU-related last ---
+    custom_order = [
+        'PLENA W/O Memory Wall',
+        'PLENA W/O Quantisation',
+        'PLENA W Quantisation',
+        'TPU W/O Memory Wall',
+        'TPU'
+    ]
 
+    # Reconstruct handles/labels in the order you want
+    custom_handles = [legend_dict[label] for label in custom_order if label in legend_dict]
+    custom_labels  = [label for label in custom_order if label in legend_dict]
 
-    fig.legend(legend_dict.values(), legend_dict.keys(),
-            loc='center left',
-            bbox_to_anchor=(1.02, 0.8),  # Push to the right of both axes
-            fontsize=5, frameon=False)
+    ncol = ceil(len(custom_labels) / 2)  # Two rows
 
-    # Adjust space so plots don't overlap with the legend
-    fig.subplots_adjust(right=0.75)  # Leave space for legend
+    fig.legend(
+        custom_handles, custom_labels,
+        loc='lower center',
+        bbox_to_anchor=(0.5, -0.1),  # Adjust for spacing
+        fontsize=5, frameon=False,
+        ncol=ncol
+    )
+    fig.subplots_adjust(bottom=0.28)
     plt.tight_layout()
-    plt.savefig('fc_sa_comparison.png', bbox_inches='tight', dpi=300)
+    plt.savefig('fc_sa_comparison_1x4.png', bbox_inches='tight', dpi=300)
