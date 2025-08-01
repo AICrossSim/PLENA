@@ -31,17 +31,15 @@ class FPAddTB(Testbench):
             self.log.setLevel(logging.DEBUG)
 
         # * QKV drivers
-        self.a_driver = MultiSignalStreamDriver(
-            dut.clk, (dut.exp_a, dut.mant_a), dut.a_in_valid, dut.a_in_ready
+        self.input_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.exp_a, dut.mant_a, dut.exp_b, dut.mant_b), dut.data_in_valid, dut.data_in_ready
         )
-        self.b_driver = MultiSignalStreamDriver(
-            dut.clk, (dut.exp_b, dut.mant_b), dut.b_in_valid, dut.b_in_ready)
 
         self.out_monitor = MultiSignalStreamMonitor(
             dut.clk,
             (dut.exp_out, dut.mant_out),
-            dut.out_valid,
-            dut.out_ready,
+            dut.data_out_valid,
+            dut.data_out_ready,
             check=True,
         )
 
@@ -69,8 +67,7 @@ class FPAddTB(Testbench):
         qb, b_exp, b_mant = _minifloat_ieee_quantize_hardware(torch_b, width, exponent_width)
 
         exp_sum, mant_sum = fp_add_hardware(a_exp, a_mant, b_exp, b_mant, config)
-        self.a_input = [(int(a_exp[i]), int(a_mant[i]*2**config["IN_FIX_FRAC_WIDTH"])) for i in range(num)]
-        self.b_input = [(int(b_exp[i]), int(b_mant[i]*2**config["IN_FIX_FRAC_WIDTH"])) for i in range(num)]
+        self.inputs = [(int(a_exp[i]), int(a_mant[i]*2**config["IN_FIX_FRAC_WIDTH"]), int(b_exp[i]), int(b_mant[i]*2**config["IN_FIX_FRAC_WIDTH"])) for i in range(num)]
         self.exp_out = [(int(exp_sum[i]), int(mant_sum[i]*2**config["OUT_FIX_FRAC_WIDTH"])) for i in range(num)]
 
     async def run_test(self, us, num):
@@ -80,8 +77,7 @@ class FPAddTB(Testbench):
 
         self.generate_inputs(num)   
 
-        self.a_driver.load_driver(self.a_input)
-        self.b_driver.load_driver(self.b_input)
+        self.input_driver.load_driver(self.inputs)
 
         self.out_monitor.load_monitor(self.exp_out)
 

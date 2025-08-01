@@ -16,7 +16,7 @@ module fp_ieee_casting #(
 )(
     input clk,
     input rst,
-    input data_in_valid,
+    input  logic data_in_valid,
     output logic data_in_ready,
     input  logic [IN_EXP_WIDTH + IN_MANT_WIDTH : 0] data_in,  // {sign, exp, mant}
     output logic data_out_valid,
