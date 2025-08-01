@@ -165,7 +165,7 @@ if __name__ == "__main__":
     ax1.set_xticklabels([str(t) for t in tick_positions])
     ax1.set_ylim(1e2, 1e5)
     ax1.set_xlim(1, 256)
-    ax1.set_title('Normal Model FC Layer Inference Inference Performance')
+    ax1.set_title('Normal Model FC Layer')
     
     ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='8 * 512 W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     ax2.set_xticks(tick_positions)
     ax2.set_xticklabels([str(t) for t in tick_positions])
     ax2.set_xlim(1, 256)
-    ax2.set_title('Reasoning Model FC Layer Inference Performance')
+    ax2.set_title('Reasoning Model FC Layer')
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax2.vlines(soft_optimised_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 
