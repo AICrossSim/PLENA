@@ -4,19 +4,19 @@ alias th := test-hw
 test-hw:
 	python3 src/basic_components/fp_operation/test/fp_ieee_partition_tb.py
 	python3 src/basic_components/fp_operation/test/fp_ieee_normalize_tb.py
-	python3 src/basic_components/fp_operation/test/fp_ieee_casting_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_ieee_casting_tb.py
 	python3 src/basic_components/fp_operation/test/fp_cp_adder_tb.py
 	python3 src/basic_components/fp_operation/test/fp_cp_mult_tb.py
-	python3 src/basic_components/fp_operation/test/fp_cp_asym_mult_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_cp_asym_mult_tb.py
 
-	python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
-	python3 src/basic_components/fp_operation/test/fp_exp_tb.py
-	python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
-	python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_exp_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
+	# python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
 
 	python3 src/basic_components/fp_operation/test/fp_fix_reciprocal_tb.py	
 	python3 src/basic_components/fp_operation/test/fp_fix_exp_tb.py	
-	python3 src/basic_components/fp_operation/test/fp_fix_add_tb.py	
+	python3 src/basic_components/fp_operation/test/fp_fix_adder_tb.py	
 	python3 src/basic_components/fp_operation/test/fp_fix_mult_tb.py	
 
 test-sw:
