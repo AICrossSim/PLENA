@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import logging
 from re import A
 import pytest
@@ -14,15 +12,37 @@ import torch
 
 from cfl_cocotb import veri_runner
 from cfl_cocotb.runner import SRC_PATH
-from cfl_cocotb.testbench import CombinationalTestbench
+from cfl_cocotb.testbench import Testbench
 from cfl_cocotb.fp_generation import TorchFpGenerator
+from cfl_cocotb.streaming import StreamMonitor, MultiSignalStreamDriver
+
 
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook, get_dut_attributes
+from cocotb.log import SimLog
 
+class FPCPMultTB(Testbench):
+    def __init__(self, dut) -> None:
+        super().__init__(dut, dut.clk, dut.rst)
 
-class FPCPMultTB(CombinationalTestbench):
+        if not hasattr(self, "log"):
+            self.log = SimLog("%s" % (type(self).__qualname__))
+            self.log.setLevel(logging.DEBUG)
+
+        # * QKV drivers
+        self.in_driver = MultiSignalStreamDriver(
+            dut.clk, (dut.data_a, dut.data_b), dut.data_in_valid, dut.data_in_ready
+        )
+
+        self.out_monitor = StreamMonitor(
+            dut.clk,
+            dut.data_out,
+            dut.data_out_valid,
+            dut.data_out_ready,
+            check=True,
+            unsigned=True,
+        )
     def generate_inputs(self, num):
         # seed = torch.randint(0, 1000000, (1,)).item()
         torch.manual_seed(0)
@@ -67,39 +87,36 @@ class FPCPMultTB(CombinationalTestbench):
 
         outputs_out = pack_fp_to_bin(out_exp, out_mant, q_config["exp_width"] + q_config["ext_exp_width"], q_config["mant_width"] + q_config["ext_mant_width"])
 
-        self.inputs = {
-            "data_a": inputs_a.int().tolist(),
-            "data_b": inputs_b.int().tolist(),
-        }
+        self.inputs = [(int(inputs_a[i]), int(inputs_b[i])) for i in range(num)]
 
         self.log.debug(f"input_0 : {qa}, {a_exp}, {a_mant}")
         self.log.debug(f"input_1 : {qb}, {b_exp}, {b_mant}")
         self.log.debug(f"output : {qout}, {out_exp}, {out_mant}")
-        self.outputs = {
-            "data_out": outputs_out.int().tolist(),
-        }
+        self.outputs = [int(outputs_out[i]) for i in range(num)]
 
-    def check_output(self, input, output):
-        self.log.debug(f"Expected result : {input}, got: {int(output)}")
-        self.log.debug(f"----------------{self.dut}---------")
-        get_dut_attributes(self.dut, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting}---------")
-        # get_dut_attributes(self.dut.fp_casting, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_exponent_casting_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_exponent_casting_inst, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst, self.log, None)
-        # self.log.debug(f"----------------{self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst}---------")
-        # get_dut_attributes(self.dut.fp_casting.fp_ieee_mantissa_casting_inst.round_to_nearest_even_inst, self.log, None)
+    async def run_test(self, us, num):
+        await self.reset()
+        self.log.info(f"Reset finished")
+        self.out_monitor.ready.value = 1
 
-        assert input == output, f"Expected {input}, but got {int(output)}"
+        self.generate_inputs(num)   
+
+        self.in_driver.load_driver(self.inputs)
+
+        self.out_monitor.load_monitor(self.outputs)
+
+        await Timer(100, units="ns")
+
+        await Timer(us, units="us")
+        assert self.out_monitor.exp_queue.empty()
+
 
 @cocotb.test()
 async def test_fp_cp_mult(dut):
     set_excepthook()
     tb = FPCPMultTB(dut)
     tb.log.setLevel(logging.INFO)
-    await tb.run_test(10)
+    await tb.run_test(10, 10)
     # try:
     #     tb = FPCPMultTB(dut)
     #     tb.log.setLevel(logging.DEBUG)
@@ -128,7 +145,7 @@ def test_simple_fp_addition():
             {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 3, "EXT_EXP_WIDTH" : 1},
             # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
         ],
-        trace = False,
+        trace = True,
     )
 
 if __name__ == "__main__":

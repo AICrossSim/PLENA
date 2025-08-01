@@ -12,8 +12,8 @@ Status      : Passed Simple Tests
 */
 
 module fp_cp_adder #(
-    parameter int EXP_WIDTH = 5,
-    parameter int MANT_WIDTH = 10,
+    parameter int EXP_WIDTH = 6,
+    parameter int MANT_WIDTH = 5,
     // Amount of bits needed to shift mantissas for alignment
     parameter int EXT_MANT_WIDTH = 0,
     // Need to increase exp width by 1 to handle overflow
@@ -83,16 +83,10 @@ module fp_cp_adder #(
         .OUT_FIX_WIDTH      (ADDER_OUT_FIXED_WIDTH),
         .OUT_FIX_FRAC_WIDTH (ADDER_OUT_FIXED_FRAC_WIDTH)
     ) fp_adder_inst (
-        .clk        (clk),
-        .rst        (rst),
         .exp_a      (signed_exp_a),
         .mant_a     (signed_mant_a),
         .exp_b      (signed_exp_b),
         .mant_b     (signed_mant_b),
-        .data_in_valid (data_in_valid),
-        .data_in_ready (data_in_ready),
-        .data_out_valid (adder_out_valid),
-        .data_out_ready (adder_out_ready),
         .exp_out    (signed_exp_out),
         .mant_out   (signed_mant_out)
     );
@@ -120,9 +114,9 @@ module fp_cp_adder #(
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
         .data_in    (normalized_data),
-        .data_out   (casted_data),
         .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready)
+        .data_out_ready(data_out_ready),
+        .data_out   (data_out)
     );
 
 

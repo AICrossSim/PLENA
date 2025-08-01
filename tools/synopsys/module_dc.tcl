@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "fp_cp_adder"
+set top_design "fp_cp_mult"
 
 #------------------------------
 # Setup DC logging paths
@@ -111,7 +111,6 @@ write_file -f ddc     -hierarchy -output ${run}/${top_design}_unmapped.ddc
 #------------------------- 
 # compile 
 #-------------------------
-optimize_registers
 
 compile_ultra -retime
 # compile
