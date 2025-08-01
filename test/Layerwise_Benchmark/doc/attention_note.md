@@ -215,7 +215,7 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 - 4: K_SIZE_FOR_ONE_FULL_BUFFER_ITR (HEAD_DIM * BLEN * (KV_PRECISION_BLOCK_SIZE // 8))  (Tr * Tc)
 - 5: K_BLOCK_SIZE       (HEAD_DIM * MLEN * (KV_PRECISION_BLOCK_SIZE // 8))              (Tc * Tr)
 - 6: Q_BLOCK_SIZE       (HEAD_DIM * MLEN * (ACTIVATION_PRECISION_BLOCK_SIZE // 8))      (Tr)
-- 7: HEAD_DIM
+- 7: HEAD_DIM * BLEN
 - 8: HIGH_PRECISION_ADDR_DISTANCE_PER_STRIDE
 - 9: LOW_PRECISION_ADDR_DISTANCE_PER_STRIDE
 - 11: ACT_PRECISION_STRIDE_LENGTH (hidden_size * (Q_PRECISION_BLOCK_SIZE) // 8)         (1)
@@ -225,6 +225,7 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 - 14: Counter for Tc Iteration                                                          (Tr * Tc * 2)
 - 15: O_OFFSET                                                                          (Tr)
 - 16: BATCH_SIZE
+- 18: MLEN * BLEN
 
 
 ## FP SRAM Layout
