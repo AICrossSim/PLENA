@@ -103,7 +103,7 @@ module mxint_cast #(
 
 
 
-  skid_buffer #(
+  register_slice #(
       .DATA_WIDTH(LOG2_WIDTH)
   ) log2_reg_slice (
       .clk(clk),

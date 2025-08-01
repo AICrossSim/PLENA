@@ -115,7 +115,7 @@ module fp_vector_reduce_layer #(
             //     .data_out_ready     (adder_data_out_ready_array[i])
             // );
 
-            fp_fix_adder #(
+            fp_cp_adder #(
                 .EXP_WIDTH(IN_EXP_WIDTH),
                 .MANT_WIDTH(IN_MAN_WIDTH)
             )   layer_fp_add (

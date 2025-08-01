@@ -198,7 +198,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     );
 
     // Vector Port A Storage
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(VLEN * (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1))
     ) v_a_buffer (
         .clk(clk),
@@ -253,34 +253,55 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     
 
     // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_a;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_b;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_in_v;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] reduct_in_v;
     assign hadamard_transform_in_ready = 1'b1;
-    always_comb begin
+    assign v_port_a_ready = 1'b1;
+    assign v_port_b_ready = 1'b1;
+
+    always_ff @(posedge clk) begin
         if ((recorded_element_v_control == INNER_HADAMARD_TRANSFORM)) begin
-            hadamard_transform_in_valid = v_port_a_valid;
-            element_v_in_b_valid = 1'b0;
-            red_v_in_a_valid     = 1'b0;
-            v_port_a_ready       = hadamard_transform_in_ready;
-            v_port_b_ready       = 1'b1;
+            hadamard_transform_in_valid <= v_port_a_valid;
+            element_v_in_b_valid        <= 1'b0;
+            red_v_in_a_valid            <= 1'b0;
+            element_v_in_a_valid        <= 1'b0;
+            element_v_in_b_valid        <= 1'b0;
+            element_in_v_a              <= 'b0;
+            element_in_v_b              <= 'b0;
+            reduct_in_v                 <= 'b0;
+            hadamard_transform_in_v     <= prepared_v_a;
         end else if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
-            element_v_in_a_valid = v_port_a_valid;
-            element_v_in_b_valid = v_port_b_valid;
-            red_v_in_a_valid     = 1'b0;
-            v_port_a_ready       = element_v_in_a_ready;
-            v_port_b_ready       = element_v_in_b_ready;
+            hadamard_transform_in_valid     <= 1'b0;
+            element_v_in_a_valid            <= v_port_a_valid;
+            element_v_in_b_valid            <= v_port_b_valid;
+            red_v_in_a_valid                <= 1'b0;
+            element_in_v_a                  <= prepared_v_a;
+            element_in_v_b                  <= prepared_v_b;
+            reduct_in_v                     <= 'b0;
+            hadamard_transform_in_v         <= 'b0;
         end else if (recorded_reduct_v_control != STALL_V_REDUCT) begin
-            element_v_in_a_valid = 1'b0;
-            element_v_in_b_valid = 1'b0;
-            red_v_in_a_valid     = v_port_a_valid;    
-            v_port_a_ready       = red_v_in_a_ready;
-            v_port_b_ready       = 1'b1;
+            element_v_in_a_valid <= 1'b0;
+            element_v_in_b_valid <= 1'b0;
+            red_v_in_a_valid     <= v_port_a_valid; 
+            hadamard_transform_in_valid <= 1'b0;   
+            element_in_v_a       <= 'b0;
+            element_in_v_b       <= 'b0;
+            reduct_in_v          <= prepared_v_a;
+            hadamard_transform_in_v <= 'b0;
         end else begin
-            element_v_in_a_valid = 1'b0;
-            element_v_in_b_valid = 1'b0;
-            red_v_in_a_valid     = 1'b0;
-            v_port_a_ready       = 1'b1;
-            v_port_b_ready       = 1'b1;
+            element_v_in_a_valid <= 1'b0;
+            element_v_in_b_valid <= 1'b0;
+            red_v_in_a_valid     <= 1'b0;
+            hadamard_transform_in_valid <= 1'b0;
+            element_in_v_a       <= 'b0;
+            element_in_v_b       <= 'b0;
+            reduct_in_v          <= 'b0;
+            hadamard_transform_in_v <= 'b0;
         end
     end
+
 
     //----------------------------//
     // Elementwise Compute Unit
@@ -293,18 +314,18 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     ) element_unit (
         .clk(clk),
         .rst(rst),
-        .v_in_a(prepared_v_a),
-        .v_in_a_valid(element_v_in_a_valid),
-        .v_in_a_ready(element_v_in_a_ready),
+        .v_in_a         (element_in_v_a),
+        .v_in_a_valid   (element_v_in_a_valid),
+        .v_in_a_ready   (element_v_in_a_ready),
 
-        .v_in_b(prepared_v_b),
-        .v_in_b_valid(element_v_in_b_valid),
-        .v_in_b_ready(element_v_in_b_ready),
+        .v_in_b         (element_in_v_b),
+        .v_in_b_valid   (element_v_in_b_valid),
+        .v_in_b_ready   (element_v_in_b_ready),
 
-        .operation(recorded_element_v_control),
-        .v_out(element_v_out),
-        .v_out_valid(element_v_out_valid),
-        .v_out_ready(element_v_out_ready)
+        .operation      (recorded_element_v_control),
+        .v_out          (element_v_out),
+        .v_out_valid    (element_v_out_valid),
+        .v_out_ready    (element_v_out_ready)
     );
 
 
@@ -389,7 +410,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     ) reduction_unit (
         .clk(clk),
         .rst(rst),
-        .v_in           ({prepared_v_a, s_acc_in}),
+        .v_in           ({reduct_in_v, s_acc_in}),
         .v_in_valid     (red_v_in_valid),
         .v_in_ready     (red_v_in_ready),
         .operation      (recorded_reduct_v_control),

@@ -111,9 +111,8 @@ write_file -f ddc     -hierarchy -output ${run}/${top_design}_unmapped.ddc
 #------------------------- 
 # compile 
 #-------------------------
-compile
-
-
+optimize_registers
+compile_ultra -retime
 
 #-------------------------
 # change names
