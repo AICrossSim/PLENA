@@ -116,7 +116,7 @@ async def test_fp_cp_mult(dut):
     set_excepthook()
     tb = FPCPMultTB(dut)
     tb.log.setLevel(logging.INFO)
-    await tb.run_test(10, 10)
+    await tb.run_test(100, 10)
     # try:
     #     tb = FPCPMultTB(dut)
     #     tb.log.setLevel(logging.DEBUG)
@@ -141,8 +141,7 @@ def test_simple_fp_addition():
             str(SRC_PATH / "basic_components/int_operation")
         ],
         module_param_list=[
-            # {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
-            {"EXP_WIDTH" : 4, "MANT_WIDTH" : 3, "EXT_MANT_WIDTH" : 3, "EXT_EXP_WIDTH" : 1},
+            {"EXP_WIDTH" : 6, "MANT_WIDTH" : 5, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
             # {"EXP_WIDTH" : 1, "MANT_WIDTH" : 6, "EXT_MANT_WIDTH" : 0, "EXT_EXP_WIDTH" : 0},
         ],
         trace = True,

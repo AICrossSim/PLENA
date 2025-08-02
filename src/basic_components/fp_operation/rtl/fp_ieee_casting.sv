@@ -9,10 +9,10 @@ Description : FP_IEEE_Casting
 */
 
 module fp_ieee_casting #(
-    parameter   IN_EXP_WIDTH = 5,
-    parameter   IN_MANT_WIDTH = 10,
-    parameter   OUT_EXP_WIDTH = 5,
-    parameter   OUT_MANT_WIDTH = 8
+    parameter   IN_EXP_WIDTH = 7,
+    parameter   IN_MANT_WIDTH = 6,
+    parameter   OUT_EXP_WIDTH = 6,
+    parameter   OUT_MANT_WIDTH = 4
 )(
     input clk,
     input rst,

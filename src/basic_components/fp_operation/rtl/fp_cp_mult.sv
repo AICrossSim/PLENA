@@ -46,8 +46,10 @@ module fp_cp_mult #(
     logic signed [IN_FIXED_WIDTH - 1:0] signed_mant_a, signed_mant_b;
     logic signed [MULT_OUT_EXP_WIDTH - 1:0] signed_exp_out;
     logic signed [MULT_OUT_FIXED_WIDTH - 1:0] signed_mant_out;
-    
     logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] normalized_data;
+
+    logic signed [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH:0] reg_data_out;
+    logic reg_data_out_valid, reg_data_out_ready;
 
     // Instantiate fp_ieee_partition for data_a
     fp_ieee_partition #(
@@ -108,9 +110,23 @@ module fp_cp_mult #(
         .data_in(normalized_data),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
+        .data_out(reg_data_out),
+        .data_out_valid(reg_data_out_valid),
+        .data_out_ready(reg_data_out_ready)
+    );
+
+    multi_register_slice #(
+        .DATA_WIDTH(EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH + 1),
+        .N(1)
+    ) multi_register_slice_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in(reg_data_out),
+        .data_in_valid(reg_data_out_valid),
+        .data_in_ready(reg_data_out_ready),
+        .data_out(data_out),
         .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready),
-        .data_out(data_out)
+        .data_out_ready(data_out_ready)
     );
 
 
