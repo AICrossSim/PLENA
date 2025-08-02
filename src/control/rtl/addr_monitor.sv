@@ -91,7 +91,7 @@ module addr_monitor#(
                     end
                 end
                 stall_req = |addr_collide_flag;
-            end else if (((determine_stage_op.v_ele_op == EXP_V_ELEMENT) || (determine_stage_op.v_ele_op == RECI_V_ELEMENT)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
+            end else if (((determine_stage_op.v_ele_op == EXP_V_ELEMENT) || (determine_stage_op.v_ele_op == RECI_V_ELEMENT) || (determine_stage_op.v_ele_op == INNER_HADAMARD_TRANSFORM)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // One port of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin

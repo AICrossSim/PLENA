@@ -13,7 +13,6 @@ module mx_fp_2_fp_block #(
     parameter MXFP_MANT_WIDTH = 3,
     parameter MXFP_EXP_WIDTH = 4,
     parameter MXFP_SCALE_WIDTH = 8,
-
     parameter FP_MANT_WIDTH = 3,
     parameter FP_EXP_WIDTH = 4
 )(
@@ -38,29 +37,29 @@ module mx_fp_2_fp_block #(
     split_n #(
         .N(BLOCK_DIM)
     ) split_input_signal_in (
-        .data_in_valid(data_in_valid),
-        .data_in_ready(data_in_ready),
-        .data_out_valid(split_data_in_valid),
-        .data_out_ready(split_data_in_ready)
+        .data_in_valid  (data_in_valid),
+        .data_in_ready  (data_in_ready),
+        .data_out_valid (split_data_in_valid),
+        .data_out_ready (split_data_in_ready)
     );
 
     for (genvar i = 0; i < BLOCK_DIM; i++) begin
         mx_fp_2_fp_unary #(
-            .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
-            .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
-            .FP_MANT_WIDTH(FP_MANT_WIDTH),
-            .FP_EXP_WIDTH(FP_EXP_WIDTH)
+            .MXFP_EXP_WIDTH     (MXFP_EXP_WIDTH),
+            .MXFP_MANT_WIDTH    (MXFP_MANT_WIDTH),
+            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+            .FP_MANT_WIDTH      (FP_MANT_WIDTH),
+            .FP_EXP_WIDTH       (FP_EXP_WIDTH)
         ) mx_fp_2_fp_unary_inst (
             .clk(clk),
             .rst(rst),
-            .data_in_valid(split_data_in_valid[i]),
-            .data_in_ready(split_data_in_ready[i]),
-            .element_data_in(element_in[i]),
-            .scale_data_in(scale_in),
-            .data_out_valid(converted_data_out_valid[i]),
-            .data_out_ready(converted_data_out_ready[i]),
-            .fp_out(fp_out[i])
+            .data_in_valid      (split_data_in_valid[i]),
+            .data_in_ready      (split_data_in_ready[i]),
+            .element_data_in    (element_in[i]),
+            .scale_data_in      (scale_in),
+            .data_out_valid     (converted_data_out_valid[i]),
+            .data_out_ready     (converted_data_out_ready[i]),
+            .fp_out             (fp_out[i])
         );
     end
 

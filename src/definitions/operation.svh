@@ -35,8 +35,7 @@ typedef enum logic [3:0] {
     EXP_V_ELEMENT   = 4'h4,
     RECI_V_ELEMENT  = 4'h5,
     INNER_HADAMARD_TRANSFORM = 4'h6,
-    OUTER_HADAMARD_TRANSFORM = 4'h7,
-    BROADCAST_V_ELEMENT  = 4'h8
+    BROADCAST_V_ELEMENT  = 4'h7
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
