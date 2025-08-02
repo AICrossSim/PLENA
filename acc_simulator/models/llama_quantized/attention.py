@@ -55,9 +55,13 @@ class LlamaAttentionMXFP(LlamaAttention):
         cache_position: Optional[LongTensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[Tensor, Optional[Tensor], Optional[Tuple[Tensor]]]:
+        # [batch_size, seq_length]
         input_shape = hidden_states.shape[:-1]
+        # [batch_size, seq_length, num_heads, head_dim]
+        # -1 infers num_heads = hidden_dim // head_dim
         hidden_shape = (*input_shape, -1, self.head_dim)
 
+        # hidden_states.shape == [batch_size, seq_length, hidden_dim]
         # [batch_size, num_heads, seq_length, head_dim]
         query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
         key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)

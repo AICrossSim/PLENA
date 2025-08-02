@@ -19,27 +19,15 @@ Usage:
     python -m acc_simulator.eval.acc_sim --help
 """
 
-from pprint import pformat
-from typing import Literal, Union
+from typing import Union
 import time
 
 import torch
 
-from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
-from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
-from ..eval.eval_utils import *
+from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
-
-from ..utils import setup_args_linear_nonlinear, replace_modules, create_device_map
-from torch import nn
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers.models.llama.modeling_llama import (
-    LlamaAttention,
-    LlamaRMSNorm,
-    LlamaMLP
-)
-from accelerate import dispatch_model
-
+from ..utils import setup_args_linear_nonlinear
+from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -52,7 +40,10 @@ def llama_eval(
     preset_minifloat_NL: Union[str, None] = None,
     model_parallel: bool = True,
     log_dir: Union[str, None] = None,
-    enable_eval_harness: bool = False
+    enable_eval_harness: bool = False,
+    use_gptq: bool = False,
+    offline_rotate: bool = False,
+    online_rotate: bool = False
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -72,6 +63,12 @@ def llama_eval(
         model_parallel: Whether to auto-dispatch model across GPUs, will trigger Triton Kernel for mxfp quantization if set.
         log_dir: Directory to save logs and results.
         enable_eval_harness: Whether to run evaluation via EleutherAI lm-eval-harness.
+        use_gptq (bool): Whether to use GPTQ optimization during quantization.
+            When True, collects input Hessians and applies GPTQ algorithm.
+            When False, performs simple cast to MXFP format.
+            Defaults to True.
+        offline_rotate: Whether to apply offline hadamard rotation.
+        online_rotate: Whether to apply online inner layer activation rotation.
     """
     start_time = time.time()
     preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
@@ -97,71 +94,21 @@ def llama_eval(
     else:
         print("Using original parameters, no quantization applied.")
 
-    
-    # create the tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name, use_fast=False, trust_remote_code=True
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=torch.bfloat16, attn_implementation="eager"
-    )
-    if model_parallel:
-        device_map = create_device_map(model, "auto-balanced")
-        model = dispatch_model(model, device_map=device_map)
-    else: 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = model.to(device)
-    
+    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16)
+
+    model.eval()
+    if offline_rotate:
+        fuse_rms_norms(model)
+        replace_rms_norms(model)
+        rotate_llama(model, online_rotate)
+
     if preset != "original":
-        # MLP - SILU
-        replace_modules(
-            model,
-            target_class=LlamaMLP,
-            replacement_class=LlamaMLPActFP,
-            factory_fn=LlamaMLPActFP.from_mlp,
-            kwargs=quant_args["mlp_kwargs"],
-            label="LlamaMLP"
-        )
-
-        # Attention - softmax, rope, matmul
-        replace_modules(
-            model,
-            target_class=LlamaAttention,
-            replacement_class=LlamaAttentionMXFP,
-            factory_fn=LlamaAttentionMXFP.from_attention,
-            kwargs=quant_args["attn_kwargs"],
-            label="LlamaAttention"
-        )
-
-        # Linear
-        replace_modules(
-            model,
-            target_class=nn.Linear,
-            replacement_class=MXFPLinearPTQ,
-            factory_fn=MXFPLinearPTQ.from_linear,
-            kwargs=quant_args["fc_kwargs"],
-            label="MXFPLinearPTQ"
-        )
-
-        # Embedding
-        replace_modules(
-            model,
-            target_class=nn.Embedding,
-            replacement_class=MXFPEmbeddingPTQ,
-            factory_fn=MXFPEmbeddingPTQ.from_embedding,
-            kwargs=quant_args["embed_kwargs"],
-            label="Embedding"
-        )
-
-        # RMSNorm
-        replace_modules(
-            model,
-            target_class=LlamaRMSNorm,
-            replacement_class=FPRMSNormPTQ,
-            factory_fn=FPRMSNormPTQ.from_rmsnorm,
-            kwargs=quant_args["rms_kwargs"],
-            label="FPRMSNormPTQ"
-        )
+        if use_gptq:
+            pass
+            # TODO: Holder
+        else:
+            # Cast without GPTQ
+            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
     
     if enable_eval_harness:
         results = evaluate_with_lm_eval(
@@ -176,7 +123,8 @@ def llama_eval(
             model=model, 
             tokenizer=tokenizer, 
             dataset_name=tasks, 
-            max_length=2048)
+            max_length=2048,
+            verbose=True)
 
     if log_dir:
         save_results(log_dir, results)

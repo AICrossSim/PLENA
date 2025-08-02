@@ -20,6 +20,7 @@ class LlamaMLPActFP(LlamaMLP):
     
 
     def forward(self, x: Tensor) -> Tensor:
+        # rotate activation on-line here before down_projection 
         down_proj = self.down_proj(silu_minifloat(self.gate_proj(x), self.silu_meta, self.silu_func_type) * self.up_proj(x))
         return down_proj
     

@@ -8,9 +8,21 @@ import re
 import torch
 from torch import nn
 
+from transformers.models.llama.modeling_llama import (
+    LlamaAttention,
+    LlamaRMSNorm,
+    LlamaMLP
+)
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from accelerate import dispatch_model
+
+
+from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
+from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
 from ..quantize.quantizer.mxfp import MXFPMeta
 from ..quantize.quantizer.minifloat import MinifloatMeta
-
+from ..utils import replace_modules, create_device_map
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
     # Always store logs inside acc_simulator/logs regardless of current working directory
@@ -84,6 +96,7 @@ def print_all_layers(model: nn.Module):
         print(f"{name}: {type(layer).__name__} | device: {device}")
     print("====================")
 
+
 def validate_preset_format(preset: str) -> None:
     """
     Ensures that the preset string:
@@ -151,3 +164,95 @@ def validate_and_sanitize_quant_args(
     preset_minifloat_NL = check_and_clear("NLq", preset_minifloat_NL, "preset_minifloat_NL")
 
     return preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL
+
+
+def setup_model(model_name, model_parallel, dtype):
+        # set tokenizer like this for now
+        if "meta" in model_name:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name, use_fast=False, trust_remote_code=True
+            )
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, torch_dtype=dtype, attn_implementation="eager"
+        )
+        if model_parallel:
+            device_map = create_device_map(model, "auto-balanced")
+            model = dispatch_model(model, device_map=device_map)
+        else: 
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            model = model.to(device)
+        return tokenizer, model
+    
+
+def quantize_model(
+    model: nn.Module,
+    quant_args: dict,
+    linear_only: bool = False,
+    skip_lm_head: bool = True
+):
+    """
+    Replaces specific modules in the model with their quantized counterparts based on preset.
+
+    Args:
+        model (nn.Module): The model to modify.
+        quant_args (dict): Dictionary of kwargs for each quantized module type.
+        linear_only (bool): If True, only replaces nn.Linear layers.
+        skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
+    """
+    # Replace linear layers (always included)
+    replace_modules(
+        model,
+        target_class=nn.Linear,
+        replacement_class=MXFPLinearPTQ,
+        factory_fn=MXFPLinearPTQ.from_linear,
+        kwargs=quant_args.get("fc_kwargs", {}),
+        label="MXFPLinearPTQ",
+        skip_names=["lm_head"] if skip_lm_head else None
+    )
+
+    if linear_only:
+        return
+
+    # Replace MLP activations (e.g., SiLU)
+    replace_modules(
+        model,
+        target_class=LlamaMLP,
+        replacement_class=LlamaMLPActFP,
+        factory_fn=LlamaMLPActFP.from_mlp,
+        kwargs=quant_args.get("mlp_kwargs", {}),
+        label="LlamaMLP"
+    )
+
+    # Replace attention (e.g., softmax, rope, matmul)
+    replace_modules(
+        model,
+        target_class=LlamaAttention,
+        replacement_class=LlamaAttentionMXFP,
+        factory_fn=LlamaAttentionMXFP.from_attention,
+        kwargs=quant_args.get("attn_kwargs", {}),
+        label="LlamaAttention"
+    )
+
+    # Replace embedding layers
+    replace_modules(
+        model,
+        target_class=nn.Embedding,
+        replacement_class=MXFPEmbeddingPTQ,
+        factory_fn=MXFPEmbeddingPTQ.from_embedding,
+        kwargs=quant_args.get("embed_kwargs", {}),
+        label="Embedding"
+    )
+
+    # Replace normalization layers
+    replace_modules(
+        model,
+        target_class=LlamaRMSNorm,
+        replacement_class=FPRMSNormPTQ,
+        factory_fn=FPRMSNormPTQ.from_rmsnorm,
+        kwargs=quant_args.get("rms_kwargs", {}),
+        label="FPRMSNormPTQ"
+    )
+
