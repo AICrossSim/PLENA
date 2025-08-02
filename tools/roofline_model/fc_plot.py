@@ -140,7 +140,7 @@ if __name__ == "__main__":
     print(f"Config parent path: {config_parent_path}")
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
     model_config        = load_json(model_config_path)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(3, 2), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 2), sharey=True)
     tick_positions = [1, 2, 4, 8, 16, 32, 64, 128]
 
     # Plot TPU Performance
@@ -220,7 +220,8 @@ if __name__ == "__main__":
     ax2.set_xticks(tick_positions)
     ax2.set_xticklabels([str(t) for t in tick_positions])
     ax2.set_xlim(1, 256)
-    ax2.set_title('Reasoning Model FC Layer')
+    ax2.minorticks_off()
+    ax2.set_title('Reasoning Model')
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax2.vlines(soft_optimised_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 
@@ -269,17 +270,16 @@ if __name__ == "__main__":
             legend_dict[l] = h
     print("Legend Dictionary:", legend_dict)# --- Custom legend order, TPU-related last ---
     custom_order = [
+        'TPU W/O Memory Wall',
+        'TPU',
         'PLENA W/O Memory Wall',
         'PLENA W/O Quantisation',
-        'PLENA W Quantisation',
-        'TPU W/O Memory Wall',
-        'TPU'
+        'PLENA W Quantisation'
     ]
 
     # Reconstruct handles/labels in the order you want
     custom_handles = [legend_dict[label] for label in custom_order if label in legend_dict]
     custom_labels  = [label for label in custom_order if label in legend_dict]
-
     ncol = ceil(len(custom_labels) / 2)  # Two rows
 
     fig.legend(
@@ -287,7 +287,7 @@ if __name__ == "__main__":
         loc='lower center',
         bbox_to_anchor=(0.5, -0.1),  # Adjust for spacing
         fontsize=5, frameon=False,
-        ncol=ncol
+        ncol=3
     )
     fig.subplots_adjust(bottom=0.28)
     plt.tight_layout()
