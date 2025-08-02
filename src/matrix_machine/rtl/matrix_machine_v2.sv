@@ -22,7 +22,6 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Execution Control
     input  OP_BUNDLE    exe_stage_op,
     output logic        empty_in_progress,   
-    output logic        stall_for_addr,
 
     // Matix - row-major order
     input  logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]            m_element,
@@ -57,7 +56,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     logic   wait_for_output;
     logic   [1:0] recorded_wr_mode; // 2'b01: M_MM_WO, 2'b10: M_MV_WO
     logic   [MLEN-1:0] [V_FP_EXP_WIDTH + V_FP_MANT_WIDTH : 0]   result_v;
-    logic   result_in_valid, result_in_ready;
+    logic   result_out_valid, result_out_ready;
     logic   [ACC_ADDR_WIDTH-1:0] acc_addr;
     logic   acc_addr_valid, acc_addr_ready;
     logic   [VLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]   stored_v_element;
@@ -94,7 +93,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
                 recorded_m_waddr <= addr_in;
                 wait_for_output <= 1'b1;
                 recorded_wr_mode <= 2'b10; // M_MV_WO
-            end else if (result_in_valid) begin
+            end else if (result_out_valid) begin
                 wait_for_output <= 1'b0;
                 recorded_wr_mode <= 2'b00; // No write
             end
@@ -102,19 +101,18 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     end
 
     // Load Accumulation Address
-
-    fifo #(
-        .DATA_WIDTH (ACC_ADDR_WIDTH),
-        .DEPTH      (MATRIX_ACC_ADR_DEPTH)
-    ) m_acc_addr_fifo (
+    writeback_buffer_controller #(
+        .BLEN (BLEN),
+        .MLEN (MLEN),
+        .ADDR_WIDTH (ACC_ADDR_WIDTH)
+    ) write_buffer_controller (
         .clk(clk),
         .rst(rst),
-        .data_in        (exe_stage_op.addr_2[ACC_ADDR_WIDTH-1:0]),
-        .data_in_valid  (exe_stage_op.update_m_waddr),
-        .data_in_ready  (stall_for_addr),
-        .data_out       (acc_addr),
-        .data_out_valid (acc_addr_valid),
-        .data_out_ready (acc_addr_ready)
+        .buffer_addr_in             (exe_stage_op.addr_2[ACC_ADDR_WIDTH-1:0]),
+        .writeback_buffer_enable    (exe_stage_op.update_m_waddr),
+        .buffer_addr_out            (acc_addr),
+        .buffer_addr_valid          (acc_addr_valid),
+        .buffer_addr_ready          (acc_addr_ready)
     );
 
 
@@ -256,20 +254,20 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .v2_in_valid        (stored_v_valid),
         .v2_in_ready        (stored_v_ready),
         .v_result           (result_v),
-        .v_result_write_req (result_in_valid),
-        .v_result_ready     (result_in_ready),
+        .v_result_write_req (result_out_valid),
+        .v_result_ready     (result_out_ready),
         .empty_in_progress  (empty_in_progress)
     );
 
-    logic delayed_result_in_valid;
-    assign m_wreq   = (result_in_valid & ~delayed_result_in_valid) ? recorded_wr_mode : 2'b00;
+    logic delayed_result_out_valid;
+    assign m_wreq   = (result_out_valid & ~delayed_result_out_valid) ? recorded_wr_mode : 2'b00;
     assign m_waddr  = recorded_m_waddr;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            delayed_result_in_valid <= 1'b0;
+            delayed_result_out_valid <= 1'b0;
         end else begin
-            delayed_result_in_valid <= result_in_valid;
+            delayed_result_out_valid <= result_out_valid;
         end
     end
 
@@ -279,8 +277,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .clk(clk),
         .rst(rst),
         .data_in        (result_v),
-        .data_in_valid  (delayed_result_in_valid),
-        .data_in_ready  (result_in_ready),
+        .data_in_valid  (delayed_result_out_valid),
+        .data_in_ready  (result_out_ready),
         .data_out       (out_v_fp),
         .data_out_valid (out_valid),
         .data_out_ready (out_ready)

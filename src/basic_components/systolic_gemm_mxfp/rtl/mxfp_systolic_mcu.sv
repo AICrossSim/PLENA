@@ -164,12 +164,12 @@ module mxfp_systolic_mcu #(
                 v2_load_counter  <= '0;
             end
             // Output Reset
-            output_reset <= (((control_in_exe == MV_WO) && ((&gemv_result_valid) == 1'b1)) || ((control_in_exe == MM_PS) && ((&gemm_result_valid) == 1'b1)));
+            output_reset <= (((control_in_exe == MV_WO) && ((&gemv_result_valid) == 1'b1)) || ((control_in_exe == MM_WO) && ((&gemm_result_valid) == 1'b1)));
         end
     end
 
     always_comb begin
-        if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
+        if ((control_in_exe == MM_IC) & complete_v1_load & complete_v2_load) begin
             complete_loading = 1'b1;
         end else if (control_in_exe == MV_IC & complete_v1_load) begin
             complete_loading = 1'b1;
@@ -292,7 +292,7 @@ module mxfp_systolic_mcu #(
             ready_to_load_output    <= 1'b0;
             empty_in_progress       <= 1'b0;
         end else begin
-            if (complete_loading & (control_in_exe == MM_PS)) begin
+            if (complete_loading & (control_in_exe == MM_WO)) begin
                 feed_counter        <= '0;
                 empty_in_progress   <= 1'b1;
             end else if (empty_in_progress) begin
@@ -309,7 +309,7 @@ module mxfp_systolic_mcu #(
                 ready_to_load_output <= 1'b0;
             end
             gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_WO)) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 
@@ -586,7 +586,7 @@ module mxfp_systolic_mcu #(
     ) hold_and_unroll_for_gemm (
         .clk(clk),
         .rst(rst),
-        .acc_waddr(acc_waddr),
+        .acc_waddr              (acc_waddr),
         .acc_waddr_valid        (fetch_next_acc_waddr_valid),
         .acc_waddr_ready        (fetch_next_acc_waddr_ready),
         .wait_for_output        (wait_for_output),

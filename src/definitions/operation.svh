@@ -23,8 +23,7 @@ typedef enum logic [2:0] {
     MV_IC           = 3'h1,
     MV_WO           = 3'h2,
     MM_IC           = 3'h3,
-    MM_PS           = 3'h4,
-    MM_WO           = 3'h5,
+    MM_WO           = 3'h4,
     STALL_M         = 3'h0
 } M_OP;
 

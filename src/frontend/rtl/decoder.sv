@@ -174,11 +174,6 @@ always_comb begin
     // Instructions that requires three operands. Insert additionally operation to load the third operand, the insertion takes place only when the pipeline is not stalled.
     if (!start_from_stall & pipeline_stall & recorded_stall_for_read_rd_flag) begin
         stall_for_read_rd   = 1'b1;
-    end else if (rd_operand_ready == 1'b0 & (decode_stage_op.m_op == MM_PS)) begin
-        m_update_waddr          = 1'b1;
-        v_update_waddr          = 1'b0;
-        stall_for_read_rd_flag  = 1'b1;
-        rd_to_load              = rd;
     end else if (rd_operand_ready == 1'b0 & (decode_stage_op.v_ele_op != STALL_V_ELEMENT)) begin
         m_update_waddr          = 1'b0;
         v_update_waddr          = 1'b1;
