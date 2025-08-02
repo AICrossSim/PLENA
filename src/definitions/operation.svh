@@ -122,40 +122,42 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_MUL_VF               = 6'h0C,
     V_EXP_V                = 6'h0D,
     V_RECI_V               = 6'h0E,
-    V_RED_SUM              = 6'h0F,
-    V_RED_MAX              = 6'h10,
-    V_BC_S                 = 6'h11,
-    V_HADAMARD_TRANSFORM   = 6'h12,
+    V_BC_S                 = 6'h0F,
+    V_RED_SUM              = 6'h10,
+    V_RED_MAX              = 6'h11,
 
     // Scalar Operations (Floating-Point)
-    S_ADD_FP               = 6'h13,
-    S_SUB_FP               = 6'h14,
-    S_MAX_FP               = 6'h15,
-    S_MUL_FP               = 6'h16,
-    S_EXP_FP               = 6'h17,
-    S_RECI_FP              = 6'h18,
-    S_SQRT_FP              = 6'h19,
-    S_LD_FP                = 6'h1A,
-    S_ST_FP                = 6'h1B,
-    S_MAP_V_FP             = 6'h1C,
+    S_ADD_FP               = 6'h12,
+    S_SUB_FP               = 6'h13,
+    S_MAX_FP               = 6'h14,
+    S_MUL_FP               = 6'h15,
+    S_EXP_FP               = 6'h16,
+    S_RECI_FP              = 6'h17,
+    S_SQRT_FP              = 6'h18,
+    S_LD_FP                = 6'h19,
+    S_ST_FP                = 6'h1A,
+    S_MAP_V_FP             = 6'h1B,
 
     // Scalar Operations  (INT)
-    S_ADD_INT              = 6'h1D,
-    S_ADDI_INT             = 6'h1E,
-    S_SUB_INT              = 6'h1F,
-    S_MUL_INT              = 6'h20,
-    S_LUI_INT              = 6'h21,
-    S_LD_INT               = 6'h22,
-    S_ST_INT               = 6'h23,
+    S_ADD_INT              = 6'h1C,
+    S_ADDI_INT             = 6'h1D,
+    S_SUB_INT              = 6'h1E,
+    S_MUL_INT              = 6'h1F,
+    S_LUI_INT              = 6'h20,
+    S_LD_INT               = 6'h21,
+    S_ST_INT               = 6'h22,
 
     // Memory Operations
-    H_PREFETCH_M           = 6'h24,
-    H_PREFETCH_V           = 6'h25,
-    H_STORE_V              = 6'h26,
+    H_PREFETCH_M           = 6'h23,
+    H_PREFETCH_V           = 6'h24,
+    H_STORE_V              = 6'h25,
 
     // CSR Setting
-    C_SET_ADDR_REG         = 6'h27,
-    C_SET_SCALE_REG        = 6'h28,
+    C_SET_ADDR_REG         = 6'h26,
+    C_SET_SCALE_REG        = 6'h27,
+
+    // Addtional Instructions
+    C_HADAMARD_TRANSFORM   = 6'h28,
     C_BREAK                = 6'h29
 } CUSTOM_ISA_OPCODE;
 

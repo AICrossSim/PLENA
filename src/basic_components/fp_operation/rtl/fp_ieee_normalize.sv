@@ -16,11 +16,11 @@ Output      :
 */
 
 module fp_ieee_normalize #(
-    parameter  IN_FIXED_WIDTH = 12,  // For sign bit and implicit 1
-    parameter IN_FIXED_FRAC_WIDTH = 10,
-    parameter IN_EXP_WIDTH = 5,
+    parameter   IN_FIXED_WIDTH = 12,  // For sign bit and implicit 1
+    parameter   IN_FIXED_FRAC_WIDTH = 10,
+    parameter   IN_EXP_WIDTH = 5,
     parameter   OUT_MANT_WIDTH = 10,
-    localparam   OUT_EXP_WIDTH = IN_EXP_WIDTH + 1
+    localparam  OUT_EXP_WIDTH = IN_EXP_WIDTH + 1
 )(
     input  logic signed [IN_FIXED_WIDTH-1:0] signed_mant,
     input  logic signed [IN_EXP_WIDTH-1:0] signed_exp,

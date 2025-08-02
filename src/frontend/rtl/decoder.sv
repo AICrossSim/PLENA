@@ -109,7 +109,7 @@ always_comb begin
         end
 
         // Vector Operations
-        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_RED_SUM, V_RED_MAX, V_BC_S : begin
+        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_RED_SUM, V_RED_MAX, V_BC_S, C_HADAMARD_TRANSFORM : begin
             decode_instruction_type = V;
         end
 
@@ -271,7 +271,8 @@ always_ff @(posedge clk) begin
                                                 (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT  :
                                                 (decode_instr_info.opcode == V_EXP_V)                                          ? EXP_V_ELEMENT  : 
                                                 (decode_instr_info.opcode == V_RECI_V)                                         ? RECI_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_BC_S)                                           ? BROADCAST_V_ELEMENT   : STALL_V_ELEMENT;
+                                                (decode_instr_info.opcode == V_BC_S)                                           ? BROADCAST_V_ELEMENT   : 
+                                                (decode_instr_info.opcode == C_HADAMARD_TRANSFORM)                             ? INNER_HADAMARD_TRANSFORM   : STALL_V_ELEMENT;
 
                 decode_stage_op.v_reduct_op <=      (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                                     (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;

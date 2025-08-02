@@ -47,7 +47,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Declarations
     // -----------------------------
     import pipeline_pkg::*;
-    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BLEN);
+    localparam ACC_ADDR_WIDTH = $clog2(MLEN / BLEN) + 1;
     M_OP    matrix_opcode; 
 
     logic   [ADDR_WIDTH-1:0] recorded_m_waddr;

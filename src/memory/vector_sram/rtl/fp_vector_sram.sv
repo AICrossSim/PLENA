@@ -119,7 +119,7 @@ module fp_vector_sram #(
     logic [INTERNAL_ADDR_LEN - 1 : 0]     translated_port_b_addr, translated_port_a_addr, translated_prefetch_addr, translated_port_a_addr_internal;
     logic [SRAM_DEPTH - 1 : 0]            mem_data_tag;
     
-    localparam BITWIDTH_PER_ROW         = (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) * VLEN / 8;
+    localparam BITWIDTH_PER_ROW         = VLEN;
     assign translated_port_a_addr       = port_a_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_port_b_addr       = port_b_addr >> $clog2(BITWIDTH_PER_ROW);
     assign translated_prefetch_addr     = prefetch_addr >> $clog2(BITWIDTH_PER_ROW);

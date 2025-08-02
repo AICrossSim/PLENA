@@ -159,11 +159,13 @@ class SimTOP(Testbench):
         instruction_mapping_pipeline(
             blocks, bias, asm_file, data_config, quant_config)
         inputs = []
+
         with open(self.instr_file, 'r') as file:
             for line in file:
                 stripped_line = line.strip()
                 if stripped_line:  # skip empty lines
                     inputs.append(int(stripped_line, base=16))
+
         return inputs
 
     def assign_workload(self):
