@@ -112,7 +112,6 @@ write_file -f ddc     -hierarchy -output ${run}/${top_design}_unmapped.ddc
 #-------------------------
 
 # optimize_registers
-# compile_ultra -retime
-compile
+compile_ultra -retime
 
 report_area

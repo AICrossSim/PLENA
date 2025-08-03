@@ -48,8 +48,9 @@ module fp_cp_mult #(
     logic signed [MULT_OUT_FIXED_WIDTH - 1:0] signed_mant_out;
     logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] normalized_data;
 
-    logic signed [EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH:0] reg_data_out;
-    logic reg_data_out_valid, reg_data_out_ready;
+    logic signed [MULT_OUT_EXP_WIDTH - 1:0] reg_signed_exp_out;
+    logic signed [MULT_OUT_FIXED_WIDTH - 1:0] reg_signed_mant_out;
+    logic reg_mult_out_valid, reg_mult_out_ready;
 
     // Instantiate fp_ieee_partition for data_a
     fp_ieee_partition #(
@@ -86,7 +87,18 @@ module fp_cp_mult #(
         .exp_out(signed_exp_out),
         .mant_out(signed_mant_out)
     );
-
+    register_slice #(
+        .DATA_WIDTH(MULT_OUT_EXP_WIDTH + MULT_OUT_FIXED_WIDTH)
+    ) register_slice_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in({signed_exp_out, signed_mant_out}),
+        .data_in_valid(data_in_valid),
+        .data_in_ready(data_in_ready),
+        .data_out({reg_signed_exp_out, reg_signed_mant_out}),
+        .data_out_valid(reg_mult_out_valid),
+        .data_out_ready(reg_mult_out_ready)
+    );
     // Instantiate fp_ieee_normalize for output
     fp_ieee_normalize #(
         .IN_FIXED_WIDTH(MULT_OUT_FIXED_WIDTH),
@@ -94,8 +106,8 @@ module fp_cp_mult #(
         .IN_EXP_WIDTH(MULT_OUT_EXP_WIDTH),
         .OUT_MANT_WIDTH(NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
-        .signed_mant(signed_mant_out),
-        .signed_exp(signed_exp_out),
+        .signed_mant(reg_signed_mant_out),
+        .signed_exp(reg_signed_exp_out),
         .fp_out(normalized_data)
     );
 
@@ -108,26 +120,13 @@ module fp_cp_mult #(
         .clk(clk),
         .rst(rst),
         .data_in(normalized_data),
-        .data_in_valid(data_in_valid),
-        .data_in_ready(data_in_ready),
-        .data_out(reg_data_out),
-        .data_out_valid(reg_data_out_valid),
-        .data_out_ready(reg_data_out_ready)
-    );
-
-    multi_register_slice #(
-        .DATA_WIDTH(EXP_WIDTH + EXT_EXP_WIDTH + MANT_WIDTH + EXT_MANT_WIDTH + 1),
-        .N(1)
-    ) multi_register_slice_inst (
-        .clk(clk),
-        .rst(rst),
-        .data_in(reg_data_out),
-        .data_in_valid(reg_data_out_valid),
-        .data_in_ready(reg_data_out_ready),
+        .data_in_valid(reg_mult_out_valid),
+        .data_in_ready(reg_mult_out_ready),
         .data_out(data_out),
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready)
     );
+
 
 
 
