@@ -126,7 +126,6 @@ module fp_vector_element_alu #(
         endcase
     end
 
-
 fp_cp_adder #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH)
@@ -142,7 +141,7 @@ fp_cp_adder #(
     .data_out_ready     (add_data_out_ready)
 );
 
-fp_fix_mult #(
+fp_cp_mult #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH)
 ) multiplier (

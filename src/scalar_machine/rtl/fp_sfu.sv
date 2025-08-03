@@ -91,6 +91,13 @@ always_comb begin
             result_valid            = exp_out_valid;
             exp_out_ready           = result_ready;
         end
+        SQRT_FP: begin
+            result_data             = fp_sqrt_out;
+            sqrt_in_valid           = data_in_valid;
+            data_in_ready           = sqrt_in_ready;
+            result_valid            = sqrt_out_valid;
+            sqrt_out_ready          = result_ready;
+        end
 
         default: begin
             result_data             = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
@@ -125,6 +132,20 @@ end
         .data_out_valid (exp_out_valid),
         .data_out_ready (exp_out_ready),
         .data_out       (fp_exp_out)
+    );
+
+    fp_fix_sqrt #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
+    ) scalar_fp_sqrt_init (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (sqrt_in_valid),
+        .data_in_ready  (sqrt_in_ready),
+        .data_in        (data_in),
+        .data_out_valid (sqrt_out_valid),
+        .data_out_ready (sqrt_out_ready),
+        .data_out       (fp_sqrt_out)
     );
 
     register_slice #(

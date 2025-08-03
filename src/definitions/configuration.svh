@@ -61,16 +61,16 @@ endpackage
         parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
         parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 10;
         parameter   VECTOR_ADD_CYCLES              = 2;
-        parameter   VECTOR_MUL_CYCLES              = 2;
-        parameter   VECTOR_EXP_CYCLES              = 2;
+        parameter   VECTOR_MUL_CYCLES              = 1;
+        parameter   VECTOR_EXP_CYCLES              = 1;
         parameter   VECTOR_RECI_CYCLES             = 2;
         parameter   VECTOR_MAX_CYCLES              = 4;
         parameter   VECTOR_SUM_CYCLES              = 8;
         parameter   SCALAR_FP_LONGEST_OPERATE_CYCLES = 4;
         parameter   SCALAR_FP_BASIC_CYCLES         = 1;
-        parameter   SCALAR_FP_EXP_CYCLES           = 2;
-        parameter   SCALAR_FP_SQRT_CYCLES          = 2;
-        parameter   SCALAR_FP_RECI_CYCLES          = 2;
+        parameter   SCALAR_FP_EXP_CYCLES           = 1;
+        parameter   SCALAR_FP_SQRT_CYCLES          = 1;
+        parameter   SCALAR_FP_RECI_CYCLES          = 1;
         parameter   SCALAR_INT_BASIC_CYCLES        = 1;
         parameter   HADAMARD_TRANSFORM_CYCLES      = $clog2(configuration_pkg::MLEN) + 1;
     endpackage
