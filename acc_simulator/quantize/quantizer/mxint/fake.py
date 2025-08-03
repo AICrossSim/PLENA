@@ -30,8 +30,8 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta) -> tuple[Tensor, 
     x = x / 2**scale
     x_mant = x * 2**(mxint_meta.element_bits - 1)
     scale = scale + scale_bias
-    scale = scale.to(torch.uint8)
-    x_mant = x_mant.round().to(torch.int8)
+    scale = scale.clamp(min=0, max=2**mxint_meta.scale_bits-2)
+    x_mant = x_mant.round().clamp(min=-2**(mxint_meta.element_bits-1), max=2**(mxint_meta.element_bits-1)-1)
 
     return scale, x_mant
 
@@ -52,9 +52,6 @@ def compose_mxint_tensor(
     Returns:
         Tensor: The composed MXINT tensor.
     """
-    assert shared_scales.dtype == torch.uint8
-    assert elements.dtype == torch.int8
-
     B = mxint_meta.block_size
     n_blocks = shared_scales.shape[0]
     scale_bias = 2**(mxint_meta.scale_bits - 1) - 1

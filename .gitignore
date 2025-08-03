@@ -38,6 +38,7 @@ src/basic_components/synopsis/
 
 *.pt
 
+acc_simulator/third_party/
 analyzed/
 
 notebooks/
