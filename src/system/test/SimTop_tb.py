@@ -151,7 +151,7 @@ class SimTOP(Testbench):
             qdata, 
             width=precision_settings["V_FP_EXP_WIDTH"] + precision_settings["V_FP_MANT_WIDTH"] + 1, 
             exponent_width=precision_settings["V_FP_EXP_WIDTH"])
-
+        print(f"input ref data: {data}")
         blocks, bias = rand_gen_high.quantize_tensor(data)
 
         generate_golden_result(data, precision_settings, data_config)
@@ -320,6 +320,7 @@ def init_mem():
 
 if __name__ == "__main__":
     init_mem()
+    
     SimToP_test()
 
 

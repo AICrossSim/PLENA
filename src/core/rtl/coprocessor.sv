@@ -20,7 +20,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
         parameter string FP_MEM_INIT_FILE       = "",
         parameter string INT_MEM_INIT_FILE      = "",
         parameter string V_SRAM_RESULT_FILE     = "",
-        parameter string HBM_ADDR_MAPPER_FILE   = ""
+        parameter string HBM_ADDR_MAPPER_FILE   = "",
+        parameter string HBM_STRIDE_INIT_FILE   = ""
     `endif
 )(
     input   logic clk,
@@ -445,7 +446,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     hbm_sys #(
         `ifdef SIMULATION
             .MemAddrInitFile(HBM_ADDR_MAPPER_FILE),
-            .MemStrideInitFile("")
+            .MemStrideInitFile(HBM_STRIDE_INIT_FILE)
         `endif
     ) hbm_interface_init (
         .clk(clk),
