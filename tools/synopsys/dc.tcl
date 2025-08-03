@@ -62,11 +62,11 @@ lappend search_path  ${src}
 # Note: Using default work library (no custom work_db needed)
 
 #---------------------------------------
-# Set the clock and reset in the design
+# Set the clock and reset in the design (assuming 1ps for time unit)
 #---------------------------------------
 set top_clk_name    "clk"
 set reset           "rst"
-set clk_period      "4.444"
+set clk_period      "1000"   
 
 #--------------------------
 # Read RTL files
@@ -111,9 +111,8 @@ write_file -f ddc     -hierarchy -output ${run}/${top_design}_unmapped.ddc
 #------------------------- 
 # compile 
 #-------------------------
-compile
-
-
+optimize_registers
+compile_ultra -retime
 
 #-------------------------
 # change names

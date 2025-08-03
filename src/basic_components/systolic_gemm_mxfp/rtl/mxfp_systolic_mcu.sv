@@ -164,12 +164,12 @@ module mxfp_systolic_mcu #(
                 v2_load_counter  <= '0;
             end
             // Output Reset
-            output_reset <= (((control_in_exe == MV_WO) && ((&gemv_result_valid) == 1'b1)) || ((control_in_exe == MM_PS) && ((&gemm_result_valid) == 1'b1)));
+            output_reset <= (((control_in_exe == MV_WO) && ((&gemv_result_valid) == 1'b1)) || ((control_in_exe == MM_WO) && ((&gemm_result_valid) == 1'b1)));
         end
     end
 
     always_comb begin
-        if ((control_in_exe == MM_IC || control_in_exe == MM_PS) & complete_v1_load & complete_v2_load) begin
+        if ((control_in_exe == MM_IC) & complete_v1_load & complete_v2_load) begin
             complete_loading = 1'b1;
         end else if (control_in_exe == MV_IC & complete_v1_load) begin
             complete_loading = 1'b1;
@@ -244,7 +244,7 @@ module mxfp_systolic_mcu #(
         .data_out_ready({v1_for_mv_ele_in_ready, v1_for_mv_scale_in_ready})
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1))
     ) v1_gemv_ele_streamer (
             .clk           (clk),
@@ -257,7 +257,7 @@ module mxfp_systolic_mcu #(
             .data_out_ready(v1_for_mv_ele_out_ready)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * MXFP_SCALE_WIDTH)
     ) v1_gemv_scale_streamer (
             .clk           (clk),
@@ -292,7 +292,7 @@ module mxfp_systolic_mcu #(
             ready_to_load_output    <= 1'b0;
             empty_in_progress       <= 1'b0;
         end else begin
-            if (complete_loading & (control_in_exe == MM_PS)) begin
+            if (complete_loading & (control_in_exe == MM_WO)) begin
                 feed_counter        <= '0;
                 empty_in_progress   <= 1'b1;
             end else if (empty_in_progress) begin
@@ -309,7 +309,7 @@ module mxfp_systolic_mcu #(
                 ready_to_load_output <= 1'b0;
             end
             gemv_result_valid <= (gemv_result_ready  & (control_in_exe == MV_WO)) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_ready  & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 
@@ -441,6 +441,7 @@ module mxfp_systolic_mcu #(
 
 
     logic quantise_data_in_valid, quantise_data_in_ready;
+    logic casted_data_in_valid, casted_data_in_ready;
     logic quantised_result_valid, quantised_result_ready;
     logic block_data_in_valid, block_data_in_ready;
     logic unrolled_data_out_valid, unrolled_data_out_ready;
@@ -473,6 +474,7 @@ module mxfp_systolic_mcu #(
     logic [MAX_K_GEBM_OUT_DIM - 1 : 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0]    stored_result_v;
     logic [MAX_K_GEBM_OUT_DIM - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]            quantised_result_v;
     logic [MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) - 1 : 0]         stored_quantized_result;
+    logic [MAX_K_GEBM_OUT_DIM - 1 : 0] split_quantised_result_valid;
 
     always_comb begin
         if (sa_control == 1'b0) begin
@@ -514,8 +516,14 @@ module mxfp_systolic_mcu #(
                     .OUT_EXP_WIDTH  (FP_EXP_WIDTH),
                     .OUT_MANT_WIDTH (FP_MANT_WIDTH)
                 ) cast_inst (
-                    .data_in      (stored_result_v[i]),
-                    .data_out     (quantised_result_v[i])
+                    .clk            (clk),
+                    .rst            (rst),
+                    .data_in_valid  (quantise_data_in_valid),
+                    .data_in_ready  (),
+                    .data_in        (stored_result_v[i]),
+                    .data_out_valid (split_quantised_result_valid[i]),
+                    .data_out_ready (1'b1),
+                    .data_out       (quantised_result_v[i])
                 );
             end
 
@@ -537,19 +545,27 @@ module mxfp_systolic_mcu #(
                     .OUT_EXP_WIDTH  (FP_EXP_WIDTH),
                     .OUT_MANT_WIDTH (FP_MANT_WIDTH)
                 ) cast_inst (
-                    .data_in      (stored_result_v[i]),
-                    .data_out     (quantised_result_v[i])
+                    .data_in_valid  (quantise_data_in_valid),
+                    .data_in_ready  (),
+                    .data_in        (stored_result_v[i]),
+                    .data_out_valid (split_quantised_result_valid[i]),
+                    .data_out_ready (1'b1),
+                    .data_out       (quantised_result_v[i])
                 );
             end
         end
-        skid_buffer #(
+
+        assign casted_data_in_valid = &split_quantised_result_valid;
+        assign quantise_data_in_ready = casted_data_in_ready;
+        
+        register_slice #(
             .DATA_WIDTH(MAX_K_GEBM_OUT_DIM * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
         ) quantized_result_buffer (
             .clk(clk),
             .rst(rst),
             .data_in        (quantised_result_v),
-            .data_in_valid  (quantise_data_in_valid),
-            .data_in_ready  (quantise_data_in_ready),
+            .data_in_valid  (casted_data_in_valid),
+            .data_in_ready  (casted_data_in_ready),
             .data_out       (stored_quantized_result),
             .data_out_valid (quantised_result_valid),
             .data_out_ready (quantised_result_ready)
@@ -570,7 +586,7 @@ module mxfp_systolic_mcu #(
     ) hold_and_unroll_for_gemm (
         .clk(clk),
         .rst(rst),
-        .acc_waddr(acc_waddr),
+        .acc_waddr              (acc_waddr),
         .acc_waddr_valid        (fetch_next_acc_waddr_valid),
         .acc_waddr_ready        (fetch_next_acc_waddr_ready),
         .wait_for_output        (wait_for_output),
@@ -584,7 +600,7 @@ module mxfp_systolic_mcu #(
 
     assign v_result_write_req = result_data_valid & v_result_ready;
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
     ) result_buffer (
         .clk(clk),

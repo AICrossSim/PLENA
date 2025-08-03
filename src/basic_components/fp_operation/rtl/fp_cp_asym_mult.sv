@@ -12,10 +12,10 @@ Status      : Passed Simple Tests
 */
 
 module fp_cp_asym_mult #(
-    parameter int EXP_WIDTH_A       = 5,
-    parameter int MANT_WIDTH_A      = 10,
-    parameter int EXP_WIDTH_B       = 5,
-    parameter int MANT_WIDTH_B      = 10,
+    parameter int EXP_WIDTH_A       = 3,
+    parameter int MANT_WIDTH_A      = 4,
+    parameter int EXP_WIDTH_B       = 2,
+    parameter int MANT_WIDTH_B      = 3,
     // Amount of bits needed to shift mantissas for alignment
     parameter int EXT_MANT_WIDTH    = 0,
     // Need to increase exp width by 1 to handle overflow
@@ -72,10 +72,11 @@ module fp_cp_asym_mult #(
     logic p1_mult_ready, p1_mult_valid;
     logic p2_mult_ready, p2_mult_valid;
     logic p3_mult_ready, p3_mult_valid;
+    logic p4_mult_ready, p4_mult_valid;
 
     logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] p2_normalized_data;
     logic signed [NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH:0] p3_normalized_data;
-    logic [OUT_EXP_WIDTH + EXT_EXP_WIDTH + OUT_MANT_WIDTH + EXT_MANT_WIDTH : 0] casted_data;
+    logic [OUT_EXP_WIDTH + EXT_EXP_WIDTH + OUT_MANT_WIDTH + EXT_MANT_WIDTH : 0] p4_casted_data;
 
     split_n #(
         .N(2)
@@ -96,7 +97,7 @@ module fp_cp_asym_mult #(
         .signed_mant(signed_mant_a)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH_A + IN_FIXED_WIDTH_A)
     ) buffer_partition_a (
         .clk(clk),
@@ -119,7 +120,7 @@ module fp_cp_asym_mult #(
         .signed_mant(signed_mant_b)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(IN_EXP_WIDTH_B + IN_FIXED_WIDTH_B)
     ) buffer_partition_b (
         .clk(clk),
@@ -157,7 +158,7 @@ module fp_cp_asym_mult #(
         .data_out_ready(p1_mult_ready)
     );
     
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(MULT_OUT_EXP_WIDTH + MULT_OUT_FIXED_WIDTH)
     ) buffer_mult (
         .clk(clk),
@@ -183,7 +184,7 @@ module fp_cp_asym_mult #(
         .fp_out         (p2_normalized_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(NORMALIZE_OUT_EXP_WIDTH + NORMALIZE_OUT_MANT_WIDTH + 1)
     ) buffer_normalise (
         .clk(clk),
@@ -202,18 +203,24 @@ module fp_cp_asym_mult #(
         .OUT_EXP_WIDTH  (OUT_EXP_WIDTH + EXT_EXP_WIDTH),
         .OUT_MANT_WIDTH (OUT_MANT_WIDTH + EXT_MANT_WIDTH)
     ) fp_casting (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (p3_mult_valid),
+        .data_in_ready  (p3_mult_ready),
         .data_in        (p3_normalized_data),
-        .data_out       (casted_data)
+        .data_out_valid (p4_mult_valid),
+        .data_out_ready (p4_mult_ready),
+        .data_out       (p4_casted_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(OUT_EXP_WIDTH + EXT_EXP_WIDTH + OUT_MANT_WIDTH + EXT_MANT_WIDTH + 1)
     ) buffer_normalise_cast (
         .clk(clk),
         .rst(rst),
-        .data_in            (casted_data),
-        .data_in_valid      (p3_mult_valid),
-        .data_in_ready      (p3_mult_ready),
+        .data_in            (p4_casted_data),
+        .data_in_valid      (p4_mult_valid),
+        .data_in_ready      (p4_mult_ready),
         .data_out           (data_out),
         .data_out_valid     (data_out_valid),
         .data_out_ready     (data_out_ready)

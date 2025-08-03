@@ -13,7 +13,9 @@ module fp_cp_reciprocal #(
     parameter   IN_EXP_WIDTH = 5,
     parameter   IN_MANT_WIDTH = 10,
     parameter   OUT_EXP_WIDTH = 5,
-    parameter   OUT_MANT_WIDTH = 10
+    parameter   OUT_MANT_WIDTH = 10,
+    parameter   IEEE_COMPLIANCE = 0,
+    parameter   FAITHFUL_ROUNDING = 0
 )(
     input  logic clk,
     input  logic rst,

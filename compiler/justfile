@@ -1,0 +1,4 @@
+format:
+	uv run --dev ruff format
+run:
+	uv run python runner.py AICrossSim/clm-60m test_output.asm

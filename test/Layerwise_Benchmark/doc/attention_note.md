@@ -192,41 +192,38 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
   ---
 
 ## HBM ADDR Reg Arrangement
-- x0: used to store HBM_ADDR[0] (WEIGHT_OFFSET)
-- x1: used to store HBM_ADDR[1] (WEIGHT_BIAS_OFFSET)
-- x2: used to store HBM_ADDR[2] (Q_CACHE_OFFSET)
-- x3: used to store HBM_ADDR[3] (K_CACHE_OFFSET)
-- x4: used to store HBM_ADDR[4] (V_CACHE_OFFSET)
-- x5: used to store HBM_ADDR[5] (O_CACHE_OFFSET)
-
-## Register Arrangement
-- x1: used to store incremental pointer across N/Br
-- x2: used to store incremental pointer across N/Bc
+- a0: used to store HBM_ADDR[0] (WEIGHT_OFFSET)
+- a1: used to store HBM_ADDR[1] (WEIGHT_BIAS_OFFSET)
+- a2: used to store HBM_ADDR[2] (Q_CACHE_OFFSET)
+- a3: used to store HBM_ADDR[3] (K_CACHE_OFFSET)
+- a4: used to store HBM_ADDR[4] (V_CACHE_OFFSET)
+- a5: used to store HBM_ADDR[5] (O_CACHE_OFFSET)
 
 
 ## Vector SRAM Layout
-- Q     (Prefetch_Amount_V, MLEN), P
+- Q     (HEAD_DIM, MLEN)
+- S     (MLEN, MLEN)
 - PV    (Head_Dim, MLEN)
 - O_Old (Head_Dim, MLEN)
 
 
 ## FIXED SRAM Layout
-- 0: ACT_PRECISION_STRIDE_LENGTH (hidden_size * (Q_PRECISION_BLOCK_SIZE) // 8)
-- 1: KV_PRECISION_STRIDE_LENGTH  (hidden_size * (KV_PRECISION_BLOCK_SIZE) // 8)
-- 2: MLEN
-- 3: 2*MLEN
-- 4: Q_SIZE
-- 5: KV_SIZE
-- 6: WEIGHT_SIZE
+- 0: Q_INNER_BLOCK_SIZE (MLEN * BLEN * (ACTIVATION_PRECISION_BLOCK_SIZE // 8))          (Tr * Tc * HEAD_DIM/MLEN)
+- 1: K_INEER_BLOCK_SIZE (MLEN * BLEN * (KV_PRECISION_BLOCK_SIZE // 8))                  (Tr * Tc * HEAD_DIM/MLEN)
+- 2: V_SRAM_S_OFFSET    (HEAD_DIM * MLEN)                                               (Tr)
+- 3: FULL_BUFFER_SIZE:Q_SIZE_FOR_ONE_FULL_BUFFER_ITR  (HEAD_DIM * BLEN * (ACTIVATION_PRECISION_BLOCK_SIZE // 8))      (Tr)
+- 4: K_SIZE_FOR_ONE_FULL_BUFFER_ITR (HEAD_DIM * BLEN * (KV_PRECISION_BLOCK_SIZE // 8))  (Tr * Tc)
+- 5: K_BLOCK_SIZE       (HEAD_DIM * MLEN * (KV_PRECISION_BLOCK_SIZE // 8))              (Tc * Tr)
+- 6: Q_BLOCK_SIZE       (HEAD_DIM * MLEN * (ACTIVATION_PRECISION_BLOCK_SIZE // 8))      (Tr)
 - 7: HEAD_DIM
 - 8: HIGH_PRECISION_ADDR_DISTANCE_PER_STRIDE
 - 9: LOW_PRECISION_ADDR_DISTANCE_PER_STRIDE
-- 10: MLEN * BLEN * (WEIGHT_PRECISION_BLOCK_SIZE // 8)
-- 11: MLEN * BLEN * (KV_PRECISION_BLOCK_SIZE // 8)
+- 11: ACT_PRECISION_STRIDE_LENGTH (hidden_size * (Q_PRECISION_BLOCK_SIZE) // 8)         (1)
+- 12: KV_PRECISION_STRIDE_LENGTH  (hidden_size * (KV_PRECISION_BLOCK_SIZE) // 8)        (1)
 - 12: MLEN * MLEN + Head_DIM * MLEN
-- 13: Counter for Tr Iteration
-- 14: Counter for Tc Iteration
-- 15: O_OFFSET
+- 13: Counter for Tr Iteration                                                          (Tr * 2)
+- 14: Counter for Tc Iteration                                                          (Tr * Tc * 2)
+- 15: O_OFFSET                                                                          (Tr)
 - 16: BATCH_SIZE
 
 

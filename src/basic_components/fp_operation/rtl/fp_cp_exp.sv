@@ -6,14 +6,13 @@ Module      : Vector Exp
 Timing      : Combinatorial Logic
 Description : This module includes elementwise vector computations 
             : 4. Elementwise Exponential
-Status      : Under Development
 */
 
 module fp_cp_exp #(
-    parameter   IN_EXP_WIDTH = 5,
-    parameter   IN_MANT_WIDTH = 10,
-    parameter   OUT_EXP_WIDTH = 5,
-    parameter   OUT_MANT_WIDTH = 10
+    parameter   IN_EXP_WIDTH = 6,
+    parameter   IN_MANT_WIDTH = 5,
+    parameter   OUT_EXP_WIDTH = 6,
+    parameter   OUT_MANT_WIDTH = 5
 )(
     input  logic clk,
     input  logic rst,
@@ -24,7 +23,6 @@ module fp_cp_exp #(
     output logic data_out_valid,
     input  logic data_out_ready
 );
-
     localparam int EXTEND_WIDTH = 5;
     localparam int IN_FIXED_WIDTH = IN_MANT_WIDTH + 2;
     localparam int IN_FIXED_FRAC_WIDTH = IN_MANT_WIDTH;
@@ -138,7 +136,7 @@ module fp_cp_exp #(
         .data_out(casted_data)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(OUT_EXP_WIDTH + OUT_MANT_WIDTH + 1)
     ) buffer_normalise_cast (
         .clk(clk),
@@ -150,6 +148,7 @@ module fp_cp_exp #(
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready)
     );
+
 endmodule
 
 

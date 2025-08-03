@@ -54,6 +54,21 @@ module fp_reduction_compute_unit #(
     output  logic s_out_valid,
     input   logic s_out_ready
 );
+logic [VEC_DIM - 1 : 0] [IN_WIDTH - 1 : 0] p1_v_in;
+logic p1_v_in_valid, p1_v_in_ready;
+
+    register_slice #(
+        .DATA_WIDTH(IN_WIDTH * VEC_DIM)
+    ) input_regstore_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in        (v_in),
+        .data_in_valid  (v_in_valid),
+        .data_in_ready  (v_in_ready),
+        .data_out       (p1_v_in),
+        .data_out_valid (p1_v_in_valid),
+        .data_out_ready (p1_v_in_ready)
+    );
 
   generate
       logic [OUT_WIDTH*VEC_DIM-1:0] data_storage [LEVELS:0];  // TODO: Need to be optimized, memory inefficient
@@ -94,7 +109,7 @@ module fp_reduction_compute_unit #(
             .data_out_ready (compute_ready[i])
         );
 
-        skid_buffer #(
+        register_slice #(
             .DATA_WIDTH(LEVEL_OUT_DIM * LEVEL_OUT_WIDTH)
         ) register_slice (
             .clk           (clk),
@@ -108,9 +123,9 @@ module fp_reduction_compute_unit #(
         );
       end
 
-      assign data_storage[0]= v_in;
-      assign valid[0] = v_in_valid;
-      assign v_in_ready = ready[0];
+      assign data_storage[0]= p1_v_in;
+      assign valid[0] = p1_v_in_valid;
+      assign p1_v_in_ready = ready[0];
 
       assign s_out = data_storage[LEVELS][OUT_WIDTH-1:0];
       assign s_out_valid = valid[LEVELS];

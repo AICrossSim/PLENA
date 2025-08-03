@@ -19,12 +19,8 @@ module fp_vector_element_alu #(
     input  logic rst,
     input  V_ELEMENT_OP operation,
 
-    input  logic data_a_valid,
-    output logic data_a_ready,
+    input  logic data_in_valid,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_a,
-
-    input  logic data_b_valid,
-    output logic data_b_ready,
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_b,
 
 
@@ -36,10 +32,11 @@ module fp_vector_element_alu #(
     V_ELEMENT_OP recorded_operation;
     logic [EXP_WIDTH + MANT_WIDTH : 0] data_out_add, data_out_mul, data_out_exp, data_out_reci;
     logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
+    logic [EXP_WIDTH + MANT_WIDTH : 0] p1_data_a, p1_data_b;
     logic negated_en;
 
 
-    logic data_in_valid, data_in_ready;
+    logic p1_data_in_valid, p1_data_in_ready;
     logic mult_data_in_valid, mult_data_in_ready;
     logic mult_data_out_valid, mult_data_out_ready;
     logic add_data_in_valid, add_data_in_ready;
@@ -59,21 +56,27 @@ module fp_vector_element_alu #(
         end
     end
 
-    join2 #() join_data_in (
-        .data_in_valid({data_a_valid, data_b_valid}),
-        .data_in_ready({data_a_ready, data_b_ready}),
-        .data_out_valid(data_in_valid),
-        .data_out_ready(data_in_ready)
+    register_slice #(
+        .DATA_WIDTH((EXP_WIDTH + MANT_WIDTH + 1)*2)
+    ) input_regstore_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in        ({data_a, data_b}),
+        .data_in_valid  (data_in_valid),
+        .data_in_ready  (),
+        .data_out       ({p1_data_a, p1_data_b}),
+        .data_out_valid (p1_data_in_valid),
+        .data_out_ready (p1_data_in_ready)
     );
 
     always_comb begin
         // Combinational module to flip the sign bit for FP subtraction
-        negated_data_b = {~data_b[EXP_WIDTH + MANT_WIDTH], data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
+        negated_data_b = {~p1_data_b[EXP_WIDTH + MANT_WIDTH], p1_data_b[EXP_WIDTH + MANT_WIDTH - 1 : 0]};
         case (recorded_operation)
             ADD_V_ELEMENT: begin
                 negated_en = 1'b0;
-                add_data_in_valid = data_in_valid;
-                data_in_ready = add_data_in_ready;
+                add_data_in_valid = p1_data_in_valid;
+                p1_data_in_ready = add_data_in_ready;
                 data_out = data_out_add;
                 data_out_valid = add_data_out_valid;
                 add_data_out_ready = data_out_ready;
@@ -81,8 +84,8 @@ module fp_vector_element_alu #(
 
             SUB_V_ELEMENT: begin
                 negated_en = 1'b1;
-                add_data_in_valid = data_in_valid;
-                data_in_ready = add_data_in_ready;
+                add_data_in_valid = p1_data_in_valid;
+                p1_data_in_ready = add_data_in_ready;
                 data_out = data_out_add;
                 data_out_valid = add_data_out_valid;
                 add_data_out_ready = data_out_ready;
@@ -90,8 +93,8 @@ module fp_vector_element_alu #(
 
             MUL_V_ELEMENT: begin
                 negated_en = 1'b0;
-                mult_data_in_valid = data_in_valid;
-                data_in_ready = mult_data_in_ready;
+                mult_data_in_valid = p1_data_in_valid;
+                p1_data_in_ready = mult_data_in_ready;
                 data_out = data_out_mul;
                 data_out_valid = mult_data_out_valid;
                 mult_data_out_ready = data_out_ready;
@@ -99,8 +102,8 @@ module fp_vector_element_alu #(
 
             EXP_V_ELEMENT: begin
                 negated_en = 1'b0;
-                exp_data_in_valid = data_in_valid;
-                data_in_ready = exp_data_in_ready;
+                exp_data_in_valid = p1_data_in_valid;
+                p1_data_in_ready = exp_data_in_ready;
                 data_out = data_out_exp;
                 data_out_valid = exp_data_out_valid;
                 exp_data_out_ready = data_out_ready;
@@ -108,8 +111,8 @@ module fp_vector_element_alu #(
 
             RECI_V_ELEMENT: begin
                 negated_en = 1'b0;
-                reci_data_in_valid = data_in_valid;
-                data_in_ready = reci_data_in_ready;
+                reci_data_in_valid = p1_data_in_valid;
+                p1_data_in_ready = reci_data_in_ready;
                 data_out = data_out_reci; // RECI operation uses data_a as input
                 data_out_valid = reci_data_out_valid;
                 reci_data_out_ready = data_out_ready;
@@ -123,68 +126,59 @@ module fp_vector_element_alu #(
         endcase
     end
 
-
-fp_cp_adder_v2 #(
+fp_cp_adder #(
     .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH),
-    .EXT_EXP_WIDTH(0),
-    .EXT_MANT_WIDTH(0)
+    .MANT_WIDTH(MANT_WIDTH)
 ) adder (
     .clk(clk),
     .rst(rst),
-    .data_in_valid(add_data_in_valid),
-    .data_in_ready(add_data_in_ready),
-    .data_a(data_a),
-    .data_b(negated_en ? negated_data_b : data_b),
-    .data_out(data_out_add),
-    .data_out_valid(add_data_out_valid),
-    .data_out_ready(add_data_out_ready)
+    .data_in_valid      (add_data_in_valid),
+    .data_in_ready      (add_data_in_ready),
+    .data_a             (p1_data_a),
+    .data_b             (negated_en ? negated_data_b : p1_data_b),
+    .data_out           (data_out_add),
+    .data_out_valid     (add_data_out_valid),
+    .data_out_ready     (add_data_out_ready)
 );
 
 fp_cp_mult #(
     .EXP_WIDTH(EXP_WIDTH),
-    .MANT_WIDTH(MANT_WIDTH),
-    .EXT_EXP_WIDTH(0),
-    .EXT_MANT_WIDTH(0)
+    .MANT_WIDTH(MANT_WIDTH)
 ) multiplier (
     .clk(clk),
     .rst(rst),
-    .data_in_valid(mult_data_in_valid),
-    .data_in_ready(mult_data_in_ready),
-    .data_a(data_a),
-    .data_b(data_b),
-    .data_out(data_out_mul),
-    .data_out_valid(mult_data_out_valid),
-    .data_out_ready(mult_data_out_ready)
+    .data_in_valid      (mult_data_in_valid),
+    .data_in_ready      (mult_data_in_ready),
+    .data_a             (p1_data_a),
+    .data_b             (p1_data_b),
+    .data_out           (data_out_mul),
+    .data_out_valid     (mult_data_out_valid),
+    .data_out_ready     (mult_data_out_ready)
 );
 
-fp_cp_exp #(
-    .IN_EXP_WIDTH(EXP_WIDTH),
-    .IN_MANT_WIDTH(MANT_WIDTH),
-    .OUT_EXP_WIDTH(EXP_WIDTH),
-    .OUT_MANT_WIDTH(MANT_WIDTH)
+fp_fix_exp #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
 ) exp_unit (
     .clk(clk),
     .rst(rst),
     .data_in_valid      (exp_data_in_valid),
     .data_in_ready      (exp_data_in_ready),
-    .data_in            (data_a),
+    .data_in            (p1_data_a),
     .data_out           (data_out_exp),
     .data_out_valid     (exp_data_out_valid),
     .data_out_ready     (exp_data_out_ready)
 );
 
-fp_cp_reciprocal #(
-    .IN_EXP_WIDTH(EXP_WIDTH),
-    .IN_MANT_WIDTH(MANT_WIDTH),
-    .OUT_EXP_WIDTH(EXP_WIDTH),
-    .OUT_MANT_WIDTH(MANT_WIDTH)
+fp_fix_reciprocal #(
+    .EXP_WIDTH(EXP_WIDTH),
+    .MANT_WIDTH(MANT_WIDTH)
 ) scalar_fp_reciprocal_init (
     .clk(clk),
     .rst(rst),
     .data_in_valid  (reci_data_in_valid),
     .data_in_ready  (reci_data_in_ready),
-    .data_in        (data_a),
+    .data_in        (p1_data_a),
     .data_out_valid (reci_data_out_valid),
     .data_out_ready (reci_data_out_ready),
     .data_out       (data_out_reci)

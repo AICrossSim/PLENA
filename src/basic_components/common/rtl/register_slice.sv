@@ -1,16 +1,15 @@
 `timescale 1ns / 1ps
 module register_slice #(
-    parameter DATA_WIDTH = 32,
-    parameter type MYDATA = logic [DATA_WIDTH-1:0]
+    parameter DATA_WIDTH = 8
 ) (
     input logic clk,
     input logic rst,
 
-    input  MYDATA data_in,
+    input  logic [DATA_WIDTH-1:0] data_in,
     input  logic  data_in_valid,
     output logic  data_in_ready,
 
-    output MYDATA data_out,
+    output logic [DATA_WIDTH-1:0] data_out,
     output logic  data_out_valid,
     input  logic  data_out_ready
 );
