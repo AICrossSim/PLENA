@@ -10,21 +10,21 @@ Description :
 
 package precision_pkg;
     // HBM Storage Precision 
-    parameter   ACT_MXFP_MANT_WIDTH = 6;
-    parameter   ACT_MXFP_EXP_WIDTH  = 5;
-    parameter   KV_MXFP_MANT_WIDTH  = 3;
-    parameter   KV_MXFP_EXP_WIDTH   = 4;
-    parameter   WT_MXFP_MANT_WIDTH  = 3;
-    parameter   WT_MXFP_EXP_WIDTH   = 4;
+    parameter   ACT_MXFP_MANT_WIDTH = 3;
+    parameter   ACT_MXFP_EXP_WIDTH  = 4;
+    parameter   KV_MXFP_MANT_WIDTH  = 2;
+    parameter   KV_MXFP_EXP_WIDTH   = 1;
+    parameter   WT_MXFP_MANT_WIDTH  = 2;
+    parameter   WT_MXFP_EXP_WIDTH   = 1;
     parameter   MXFP_SCALE_WIDTH    = 8;
     parameter   BLOCK_DIM = 4;
     // Per Unit Precision
-    parameter   V_FP_EXP_WIDTH  = 5;
-    parameter   V_FP_MANT_WIDTH = 6;
-    parameter   M_FP_EXP_WIDTH  = 5;
-    parameter   M_FP_MANT_WIDTH = 6;
-    parameter   S_FP_EXP_WIDTH  = 5;
-    parameter   S_FP_MANT_WIDTH = 6;
+    parameter   V_FP_EXP_WIDTH  = 6;
+    parameter   V_FP_MANT_WIDTH = 5;
+    parameter   M_FP_EXP_WIDTH  = 6;
+    parameter   M_FP_MANT_WIDTH = 5;
+    parameter   S_FP_EXP_WIDTH  = 6;
+    parameter   S_FP_MANT_WIDTH = 5;
     parameter   INT_DATA_WIDTH  = 32;
     // Compute Related Precision
     parameter   PRODUCT_EXT_EXP_WIDTH       = 0;

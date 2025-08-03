@@ -18,7 +18,7 @@ module writeback_buffer_controller #(
     input logic  [ADDR_WIDTH-1:0] buffer_addr_in,
     output logic [BLEN*MLEN-1:0] buffer_addr_out,
     output logic buffer_addr_valid,
-    output logic buffer_addr_ready
+    input logic  buffer_addr_ready
 );
 
 localparam int BUFFER_AMOUNT = MLEN / BLEN;

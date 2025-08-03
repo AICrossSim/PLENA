@@ -56,6 +56,7 @@ def generate_golden_result(data, precision_settings, data_config):
         block_size=data_config["block_size"])
     qele = pbmant * 2**pbexp
 
+    breakpoint()
     logger.debug("---- mxfp_input ----")
     logger.debug(f"data: {data}")
     logger.debug(f"pbexp: {pbexp}")
@@ -86,7 +87,7 @@ def generate_golden_result(data, precision_settings, data_config):
     logger.debug(f"1_exp_fp: {q1_exp_fp}")
     logger.debug(f"--hardware bin--")
     logger.debug(f"bin_1_exp_fp: {bin_1_exp_fp}")
-
+    
 
     return qdata
 

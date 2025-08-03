@@ -19,8 +19,7 @@ module DW_fp_sqrt_inst #(
     DW_fp_sqrt #(
         .sig_width(MANT_WIDTH), 
         .exp_width(EXP_WIDTH), 
-        .ieee_compliance(1),
-        .faithful_round(1)
+        .ieee_compliance(1)
     ) dc_lib_fp_sqrt ( 
         .a      (data_in),
         .rnd    (3'b000),
