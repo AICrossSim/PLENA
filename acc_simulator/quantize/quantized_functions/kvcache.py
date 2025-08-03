@@ -2,7 +2,7 @@ from typing import Literal
 
 from torch import Tensor
 
-from mase_triton.mxfp.functional import quantize_dequantize as mxfp_quantizer_sim
+from ..quantizer.mxfp import mxfp_quantizer_sim
 from ..quantizer.mxfp import MXFPMeta
 
 
