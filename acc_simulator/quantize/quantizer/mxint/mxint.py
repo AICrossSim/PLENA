@@ -5,6 +5,7 @@ from torch import Tensor
 from .import kernels as mxint_kernels
 from ..mxfp.helpers import flatten_for_quantize, permute_for_dequantize
 from .meta import MXIntMeta, MXIntTensorMeta
+from .fake import extract_mxint_components as extract_mxint_components_fake, compose_mxint_tensor as compose_mxint_tensor_fake
 
 
 def extract_mxint_components(
@@ -38,11 +39,12 @@ def extract_mxint_components(
     tensor = tensor.to(torch.bfloat16)
     tensor = flatten_for_quantize(tensor, block_dim)
     if device == "cpu":
-        raise NotImplementedError("CPU is not supported for MXINT")
+        scales, elements = extract_mxint_components_fake(tensor, mxint_meta)
     else:
-        scales, elements = mxint_kernels.extract_mxint_components(
-            tensor, mxint_meta=mxint_meta
-        )
+        # scales, elements = mxint_kernels.extract_mxint_components(
+        #     tensor, mxint_meta=mxint_meta
+        # )
+        scales, elements = extract_mxint_components_fake(tensor, mxint_meta)
     tensor_meta = MXIntTensorMeta(
         device=device,
         dtype=ori_dtype,
@@ -78,13 +80,14 @@ def compose_mxint_tensor(
     dtype = getattr(torch, tensor_meta.dtype) if dtype is None else dtype
 
     if device == "cpu":
-        raise NotImplementedError
+        tensor = compose_mxint_tensor_fake(scales, elements, tensor_meta.meta)
     else:
-        tensor = mxint_kernels.compose_mxint_tensor(
-            shared_scales=scales,
-            elements=elements,
-            mxint_meta=tensor_meta.meta,
-        )
+        # tensor = mxint_kernels.compose_mxint_tensor(
+        #     shared_scales=scales,
+        #     elements=elements,
+        #     mxint_meta=tensor_meta.meta,
+        # )
+        tensor = compose_mxint_tensor_fake(scales, elements, tensor_meta.meta)
 
     tensor = permute_for_dequantize(
         tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim

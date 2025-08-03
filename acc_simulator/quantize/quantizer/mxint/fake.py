@@ -25,54 +25,37 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta) -> tuple[Tensor, 
     x = x.reshape(n_blocks, B)  # [n_blocks, B]
 
     x_max = x.abs().max(dim=1, keepdim=True).values
-    scale = x_max.ceil().to(torch.uint8)
+    scale = x_max.log2().ceil()
+    scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+    x = x / 2**scale
+    x_mant = x * 2**(mxint_meta.element_bits - 1)
+    scale = scale + scale_bias
+    scale = scale.to(torch.uint8)
+    x_mant = x_mant.round().to(torch.int8)
 
-    return exp_max, el
+    return scale, x_mant
 
 
-def compose_mxfp_tensor(
+def compose_mxint_tensor(
     shared_scales: Tensor,
     elements: Tensor,
-    mxfp_meta: MXFPMeta,
+    mxint_meta: MXIntMeta,
 ):
     """
-    Composes a MXFP tensor from the scale and element components.
+    Composes a MXINT tensor from the scale and element components.
 
     Args:
         shared_scales (Tensor): The shared scales tensor.
         elements (Tensor): The elements tensor.
-        mxfp_meta (MXFPMeta): The metadata for the MXFP format.
+        mxint_meta (MXIntMeta): The metadata for the MXINT format.
 
     Returns:
-        Tensor: The composed MXFP tensor.
+        Tensor: The composed MXINT tensor.
     """
     assert shared_scales.dtype == torch.uint8
-    assert elements.dtype == torch.uint8
+    assert elements.dtype == torch.int8
 
-    B = mxfp_meta.block_size
+    B = mxint_meta.block_size
     n_blocks = shared_scales.shape[0]
-    el_exp_bits = mxfp_meta.element_exp_bits
-    el_man_bits = mxfp_meta.element_frac_bits
-    el_exp_man_bits = mxfp_meta.element_bits - 1
-    el_exp_bias = 2 ** (el_exp_bits - 1) - 1
-
-    exp_max = shared_scales.to(torch.uint16).view(torch.int16)
-    exp_max = exp_max.expand(-1, B)  # [n_blocks, B]
-
-    underflow_mask = elements & (2**el_exp_man_bits - 1) == 0
-    elements = elements.to(torch.int16)
-    sign = elements << (15 - (el_exp_bits + el_man_bits))
-    sign = sign & 0x8000
-    mantissa = elements & (2**el_man_bits - 1)
-    mantissa = mantissa << (7 - el_man_bits)
-
-    el_exp = (elements >> el_man_bits) & (2 ** (el_exp_bits) - 1)
-    el_exp = el_exp - el_exp_bias
-    exp = exp_max + el_exp
-    exp = exp << 7
-
-    dequantized = sign | exp | mantissa
-    dequantized = dequantized.view(torch.bfloat16)
-    dequantized = torch.where(underflow_mask, 0.0, dequantized)
-    dequantized = dequantized.reshape(n_blocks * B)
-    return dequantized
+    scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+    return elements / 2**(mxint_meta.element_bits-1) * 2**(shared_scales - scale_bias)
