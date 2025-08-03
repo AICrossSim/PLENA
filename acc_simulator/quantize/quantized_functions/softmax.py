@@ -3,8 +3,7 @@ from typing import Literal
 import torch
 from torch import Tensor
 
-from mase_triton.minifloat.functional import quantize_dequantize as minifloat_quantizer_sim
-from ..quantizer.minifloat import MinifloatMeta
+from ..quantizer.minifloat import minifloat_quantizer_sim, MinifloatMeta
 
 
 def softmax_minifloat(

@@ -4,8 +4,7 @@ from torch import Tensor, nn
 
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
-from mase_triton.minifloat.functional import quantize_dequantize as minifloat_quantizer_sim
-from ..quantizer.minifloat import MinifloatMeta
+from ..quantizer.minifloat import minifloat_quantizer_sim, MinifloatMeta
 
 
 class FPRMSNormPTQ(nn.Module):
