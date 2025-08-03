@@ -183,6 +183,7 @@ if __name__ == "__main__":
     # file_path = '/home/george/Coprocessor_for_Llama/src/definitions/operation.svh'
     # enum_dict = load_isa_definitions(file_path)
     # print(enum_dict)
+    
 
     asm_file_path = '/home/george/Coprocessor_for_Llama/src/system/test/benchmarks/fixed.asm'
     loaded_instr = parse_asm_file(asm_file_path)

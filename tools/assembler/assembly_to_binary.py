@@ -1,5 +1,4 @@
 from assembler.parser import load_isa_definitions, load_isa_settings, parse_asm_file
-
 from utils.load_config import load_svh_settings
 import torch
 from cfl_tools import PROJECT_PATH
@@ -51,7 +50,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_INT", "C_SET_SCALE_REG"]:
+        elif instruction.opcode in ["S_LUI_INT"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +
@@ -60,6 +59,11 @@ class AssemblyToBinary:
         elif instruction.opcode in [ "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in [ "C_SET_SCALE_REG"]:
+            binary_instruction = (
                 (rd << opw) +
                 opcode
             )
@@ -103,3 +107,18 @@ class AssemblyToBinary:
         return binary_instructions
     
 
+# if __name__ == "__main__":
+#     import os
+#     from pathlib import Path
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--layer', type=str, required=True, help='Input file name')
+#     parser.add_argument('--test_type', type=str, default='Layerwise_Benchmark', help='Input file name (default: basic)')
+#     args = parser.parse_args()
+
+#     isa_file_path = '../../src/definitions/operation.svh'
+#     config_file_path = '../../src/definitions/configuration.svh'
+#     asm_file_path = f'../../test/{args.test_type}/{args.layer}.asm'
+#     print(f'Assembling {asm_file_path} to {args.layer}.mem')
+#     output_file_path = f'../../test/{args.test_type}/{args.layer}.mem'
+#     assembler = AssemblyToBinary(isa_file_path, config_file_path)
+#     assembler.generate_binary(asm_file_path, output_file_path)
