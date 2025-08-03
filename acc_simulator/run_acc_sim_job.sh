@@ -1,7 +1,7 @@
 #!/bin/bash
 
-MODEL_NAME="meta-llama/Meta-Llama-3-8B"
-# MODEL_NAME="meta-llama/Llama-2-7b-hf"
+# MODEL_NAME="meta-llama/Meta-Llama-3-8B"
+MODEL_NAME="meta-llama/Llama-2-7b-hf"
 
 # --preset XWqBKVNL \
 echo $MODEL_NAME

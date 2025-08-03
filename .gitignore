@@ -24,6 +24,8 @@ Coprocessor_Vivado_Prj/
 tools/synopsys/
 tools/alib-52/
 
+acc_simulator/third_party/fast-hadamard-transform/
+
 src/basic_components/synopsis/
 .Xil
 
