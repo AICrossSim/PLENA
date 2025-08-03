@@ -65,13 +65,15 @@ always_ff @(posedge clk) begin
     end
 end
 
-logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_exp_out;
+logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_exp_out, fp_sqrt_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] result_data;
 logic result_valid, result_ready;
 logic reciprocal_in_valid, exp_in_valid;
 logic reciprocal_in_ready, exp_in_ready;
 logic reciprocal_out_valid, exp_out_valid;
 logic reciprocal_out_ready, exp_out_ready;
+logic sqrt_out_valid, sqrt_in_valid;
+logic sqrt_in_ready, sqrt_out_ready;
 
 
 always_comb begin
