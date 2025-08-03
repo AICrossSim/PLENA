@@ -83,7 +83,8 @@ def rotate_mlp_input(mlp, Q: torch.Tensor) -> None:
 
 
 def rotate_mlp_output(mlp, Q: torch.Tensor, online_rotate: bool = True) -> None:
-    weight = mlp.down_proj.weight
+    down_proj = mlp.down_proj
+    weight = down_proj.weight
 
     Q = Q.to(weight.device)
     rotated = (Q.T @ weight.data.double()).to(dtype=weight.dtype)
@@ -92,7 +93,7 @@ def rotate_mlp_output(mlp, Q: torch.Tensor, online_rotate: bool = True) -> None:
     if online_rotate:
         # Apply exact (inverse) hadamard on the weights of mlp output, with cuda fht
         # on input feature 
-        apply_exact_had_to_linear(mlp.down_proj, had_dim=-1, output=False) 
+        apply_exact_had_to_linear(down_proj, had_dim=-1, output=False) 
 
 
 @torch.inference_mode()

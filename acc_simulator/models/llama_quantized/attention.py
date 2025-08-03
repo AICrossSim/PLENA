@@ -1,4 +1,6 @@
 from typing import Literal, Optional, Tuple
+import math
+import fast_hadamard_transform
 
 from torch import Tensor, nn, LongTensor
 from transformers.models.llama.modeling_llama import (
@@ -31,8 +33,10 @@ class LlamaAttentionMXFP(LlamaAttention):
         softmax_func_type: Literal["X", "Xq"] | None,
         kv_cache_meta: MXFPMeta | None,
         kv_func_type: Literal["KV", "KVq"] | None,
+        online_rotate: bool
     ):
         super().__init__(config, layer_idx)
+        self.config = config
         self.qk_q_meta = qk_q_meta
         self.qk_k_meta = qk_k_meta
         self.qk_func_type = qk_func_type
@@ -45,6 +49,7 @@ class LlamaAttentionMXFP(LlamaAttention):
         self.softmax_func_type = softmax_func_type
         self.kv_cache_meta = kv_cache_meta
         self.kv_func_type = kv_func_type
+        self.online_rotate = online_rotate
 
     def forward(
         self,
@@ -112,7 +117,17 @@ class LlamaAttentionMXFP(LlamaAttention):
             **kwargs,
         )
 
+        # (batch_size, seq_len, num_heads, head_dim) → (batch_size, seq_len, num_heads * head_dim)
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+
+        # online hadamard here for activation before o_proj
+        if self.online_rotate:
+            init_shape = attn_output.shape
+            had_dim =  self.config.head_dim
+            attn_output = fast_hadamard_transform.hadamard_transform(attn_output.reshape(-1, init_shape[-1]//had_dim, had_dim).transpose(1, 2),
+                                                               scale=1/math.sqrt(init_shape[-1]//had_dim)).transpose(1, 2)
+            attn_output = attn_output.reshape(init_shape)
+        
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -132,6 +147,7 @@ class LlamaAttentionMXFP(LlamaAttention):
         softmax_func_type: Literal["X", "Xq"] | None,
         kv_cache_meta: MXFPMeta | None,
         kv_func_type: Literal["KV", "KVq"] | None,
+        online_rotate: bool
     ):
         new_attn = cls(
             config=attention.config,
@@ -147,7 +163,8 @@ class LlamaAttentionMXFP(LlamaAttention):
             softmax_meta=softmax_meta,
             softmax_func_type=softmax_func_type,
             kv_cache_meta=kv_cache_meta,
-            kv_func_type=kv_func_type
+            kv_func_type=kv_func_type,
+            online_rotate=online_rotate
         )
         device, dtype = next(attention.parameters()).device, next(attention.parameters()).dtype
         new_attn = new_attn.to(dtype=dtype, device=device)

@@ -23,6 +23,7 @@ from typing import Union
 import time
 
 import torch
+import transformers
 
 from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
@@ -79,7 +80,7 @@ def llama_eval(
         preset_minifloat_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat_NL)
+    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxfp_Kv, preset_minifloat_NL, online_rotate)
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)
@@ -95,21 +96,27 @@ def llama_eval(
         print("Using original parameters, no quantization applied.")
 
     tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16)
-
+    
+    # TODO: set seed properly later, also seed the calibration samples
+    transformers.set_seed(0)
     model.eval()
     if offline_rotate:
         fuse_rms_norms(model)
         replace_rms_norms(model)
-        rotate_llama(model, online_rotate)
-
-    if preset != "original":
-        if use_gptq:
-            pass
-            # TODO: Holder
-        else:
-            # Cast without GPTQ
+        rotate_llama(model, online_rotate) 
+        if online_rotate:
             quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
     
+    
+    if preset != "original":
+        # TODO: Quantization Holder
+        if use_gptq:
+            pass
+        else:
+            # Cast without GPTQ
+            pass
+
+
     if enable_eval_harness:
         results = evaluate_with_lm_eval(
             model=model, 

@@ -4,6 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo 
 from pathlib import Path
 import re
+import matplotlib.pyplot as plt
 
 import torch
 from torch import nn
@@ -202,20 +203,7 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
-    # Replace linear layers (always included)
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args.get("fc_kwargs", {}),
-        label="MXFPLinearPTQ",
-        skip_names=["lm_head"] if skip_lm_head else None
-    )
-
-    if linear_only:
-        return
-
+    # Order matters
     # Replace MLP activations (e.g., SiLU)
     replace_modules(
         model,
@@ -235,6 +223,21 @@ def quantize_model(
         kwargs=quant_args.get("attn_kwargs", {}),
         label="LlamaAttention"
     )
+    
+    # Replace linear layers (always included)
+    replace_modules(
+        model,
+        target_class=nn.Linear,
+        replacement_class=MXFPLinearPTQ,
+        factory_fn=MXFPLinearPTQ.from_linear,
+        kwargs=quant_args.get("fc_kwargs", {}),
+        label="MXFPLinearPTQ",
+        skip_names=["lm_head"] if skip_lm_head else None
+    )
+
+    # TODO: set flag properly laterx
+    # if linear_only:
+    #     return
 
     # Replace embedding layers
     replace_modules(
@@ -256,3 +259,17 @@ def quantize_model(
         label="FPRMSNormPTQ"
     )
 
+
+def plot_activation_distribution(tensor, title: str, step: int = 0, save_path: str = "act_hist.png"):
+    data = tensor.detach().cpu().flatten().numpy()
+
+    plt.figure(figsize=(6, 4))
+    plt.hist(data, bins=100, alpha=0.7)
+    plt.title(title)
+    plt.xlabel("Activation value")
+    plt.ylabel("Frequency")
+    plt.xlim(-0.1, 0.1)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"{save_path}_{step}.png")
+    plt.close()

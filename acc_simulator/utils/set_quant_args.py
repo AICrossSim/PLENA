@@ -54,7 +54,7 @@ def setup_norm_args(preset, preset_minifloat_NL):
     
     return rms_kwargs
 
-def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_mxfp_Kv, preset_minifloat_NL):
+def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_mxfp_Kv, preset_minifloat_NL, online_rotate):
     attn_kwargs = {
         "qk_q_meta": None,
         "qk_k_meta": None,
@@ -68,7 +68,8 @@ def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_mxfp_Kv, prese
         "av_func_type": "XW",
         "rope_func_type": "X",
         "softmax_func_type": "X",
-        "kv_func_type": "KV"
+        "kv_func_type": "KV",
+        "online_rotate": online_rotate
     }
     if preset != "original":
         qk_func_type = ""
@@ -97,10 +98,11 @@ def setup_atten_args(preset, preset_mxfp_x, preset_mxfp_w, preset_mxfp_Kv, prese
 
     return attn_kwargs
 
-def setup_mlp_args(preset, preset_minifloat_NL):
+def setup_mlp_args(preset, preset_minifloat_NL, online_rotate):
     mlp_kwargs = {
         "silu_meta": None,
-        "silu_func_type": "X"
+        "silu_func_type": "X",
+        "online_rotate": online_rotate
     }
     if preset != "original" and "NLq" in preset:
         mlp_kwargs["silu_meta"] = MinifloatMeta.from_string(preset_minifloat_NL)
@@ -114,6 +116,7 @@ def setup_args_linear_nonlinear(
     preset_mxfp_W: str | None,
     preset_mxfp_Kv: str | None,
     preset_minifloat_NL: str | None,
+    online_rotate: bool
 ) -> dict:
     kwargs = {
         "preset": preset,
@@ -121,12 +124,13 @@ def setup_args_linear_nonlinear(
         "preset_mxfp_w": preset_mxfp_W,
         "preset_mxfp_Kv": preset_mxfp_Kv,
         "preset_minifloat_NL": preset_minifloat_NL,
+        "online_rotate": online_rotate
     }
 
     return {
         "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w"])),
         "embed_kwargs": setup_embed_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_w"])),
-        "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w", "preset_mxfp_Kv", "preset_minifloat_NL"])),
-        "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_minifloat_NL"])),
+        "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w", "preset_mxfp_Kv", "preset_minifloat_NL", "online_rotate"])),
+        "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_minifloat_NL", "online_rotate"])),
         "rms_kwargs": setup_norm_args(**filter_kwargs(kwargs, ["preset", "preset_minifloat_NL"])),
     }
