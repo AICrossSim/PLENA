@@ -33,8 +33,7 @@ module mxfp_systolic_mcu #(
     parameter   N                     = 4,
     parameter   K                     = 8, 
     localparam  ROW_BLOCK_NUM         = K / BLOCK_DIM,
-    localparam  ACC_NUM = K / M,
-    localparam  ACC_ADDR_WIDTH = $clog2(ACC_NUM)
+    parameter   ACC_ADDR_WIDTH        = 8
 )(
     input   logic clk,
     input   logic rst,

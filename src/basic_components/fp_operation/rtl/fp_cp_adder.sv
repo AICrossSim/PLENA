@@ -45,9 +45,13 @@ module fp_cp_adder #(
     logic signed [IN_EXP_WIDTH - 1:0]   signed_exp_a, signed_exp_b;
     logic signed [IN_FIXED_WIDTH - 1:0] signed_mant_a, signed_mant_b;
 
-
     logic signed [ADDER_OUT_EXP_WIDTH - 1:0]    signed_exp_out;
     logic signed [ADDER_OUT_FIXED_WIDTH - 1:0]  signed_mant_out;
+    logic signed [ADDER_OUT_EXP_WIDTH - 1:0]    p1_signed_exp_out;
+    logic signed [ADDER_OUT_FIXED_WIDTH - 1:0]  p1_signed_mant_out;
+
+    logic p1_adder_out_valid;
+    logic p1_adder_out_ready;
 
     logic casted_data_valid;
     logic casted_data_ready;
@@ -90,6 +94,19 @@ module fp_cp_adder #(
         .exp_out    (signed_exp_out),
         .mant_out   (signed_mant_out)
     );
+
+    register_slice #(
+        .DATA_WIDTH(ADDER_OUT_EXP_WIDTH + ADDER_OUT_FIXED_WIDTH + 1)
+    ) register_slice_inst (
+        .clk(clk),
+        .rst(rst),
+        .data_in        ({signed_exp_out, signed_mant_out}),
+        .data_in_valid  (data_in_valid),
+        .data_in_ready  (data_in_ready),
+        .data_out       ({p1_signed_exp_out, p1_signed_mant_out}),
+        .data_out_valid (p1_adder_out_valid),
+        .data_out_ready (p1_adder_out_ready)
+    );
     
     // Instantiate fp_ieee_normalize for output
     fp_ieee_normalize #(
@@ -98,8 +115,8 @@ module fp_cp_adder #(
         .IN_EXP_WIDTH           (ADDER_OUT_EXP_WIDTH),
         .OUT_MANT_WIDTH         (NORMALIZE_OUT_MANT_WIDTH)
     ) fp_normalize (
-        .signed_mant    (signed_mant_out),
-        .signed_exp     (signed_exp_out),
+        .signed_mant    (p1_signed_mant_out),
+        .signed_exp     (p1_signed_exp_out),
         .fp_out         (normalized_data)
     );
 
@@ -111,8 +128,8 @@ module fp_cp_adder #(
     ) fp_casting (
         .clk(clk),
         .rst(rst),
-        .data_in_valid(data_in_valid),
-        .data_in_ready(data_in_ready),
+        .data_in_valid(p1_adder_out_valid),
+        .data_in_ready(p1_adder_out_ready),
         .data_in    (normalized_data),
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready),

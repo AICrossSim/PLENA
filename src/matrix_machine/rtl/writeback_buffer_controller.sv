@@ -16,7 +16,7 @@ module writeback_buffer_controller #(
     input logic rst,
     input logic writeback_buffer_enable,
     input logic  [ADDR_WIDTH-1:0] buffer_addr_in,
-    output logic [BLEN*MLEN-1:0] buffer_addr_out,
+    output logic [ADDR_WIDTH-1:0] buffer_addr_out,
     output logic buffer_addr_valid,
     input logic  buffer_addr_ready
 );

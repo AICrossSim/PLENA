@@ -236,7 +236,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .SYSTOLIC_PROCESSING_OVERHEAD (SYSTOLIC_PROCESSING_OVERHEAD),
         .M                  (BLEN),
         .K                  (MLEN),
-        .N                  (BLEN)
+        .N                  (BLEN),
+        .ACC_ADDR_WIDTH     (ACC_ADDR_WIDTH)
     ) matrix_compute_unit (
         .clk                (clk),
         .rst                (rst),

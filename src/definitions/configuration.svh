@@ -26,7 +26,7 @@ package configuration_pkg;
     parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
     parameter   FP_SRAM_DEPTH = 32;
     parameter   HBM_ADDR_WIDTH = 128;
-    parameter   STRIDE_STORE_WIDTH = 8;
+    
     // HBM Related
     parameter   HBM_M_Prefetch_Amount = 16;
     parameter   HBM_V_Prefetch_Amount = 16;
@@ -39,6 +39,7 @@ package instruction_pkg;
     parameter INT_OPERAND_WIDTH     = 4;
     parameter FP_OPERAND_WIDTH      = 3;
     parameter HBM_ADR_OPERAND_WIDTH = 3;
+    parameter STRIDE_OPERAND_WIDTH = 3;
     parameter OPERAND_WIDTH         = 4;
     parameter FUNCT_WIDTH           = 4;
     parameter OPCODE_WIDTH          = 6;

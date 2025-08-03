@@ -62,7 +62,7 @@ module mx_fp_2_fp_unary #(
     assign signed_out_exp_element = $signed(signed_exp_element) + $signed({1'b0, scale_data_in}) - SCALE_BIAS;
 
     register_slice #(
-        .DATA_WIDTH(MXFP_EXP_WIDTH + SCALE_WIDTH)
+        .DATA_WIDTH(SCALE_WIDTH + MXFP_FIX_WIDTH)
     ) register_slice_inst (
         .clk(clk),
         .rst(rst),

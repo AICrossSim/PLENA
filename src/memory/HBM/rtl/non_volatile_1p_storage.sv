@@ -10,11 +10,11 @@ Description : This module implements a 2-port, 1-read 1-write register file.
 
 module non_volatile_1p_storage #(
     parameter int BITWIDTH = 32,
-    parameter int DEPTH = 32,
     `ifdef SIMULATION
         parameter string MemInitFile = "",
     `endif
-    localparam int ADDR_WIDTH = $clog2(DEPTH)
+    parameter int ADDR_WIDTH = 8,
+    localparam int DEPTH = 2 ** ADDR_WIDTH
 )(
     input  logic                  clk,
     input  logic [ADDR_WIDTH-1:0] raddr,            // Read address

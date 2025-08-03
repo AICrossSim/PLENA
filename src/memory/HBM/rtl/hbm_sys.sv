@@ -210,8 +210,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .addr_in_a      (mem_stage_op.addr_1),
         .addr_in_b      (mem_stage_op.addr_2),
         .addr_offset    (mem_stage_op.addr_1),
-        .read_operand   (mem_stage_op.gp_reg2),
-        .write_operand  (mem_stage_op.gp_rd),
+        .read_operand   (mem_stage_op.gp_reg2[HBM_ADR_OPERAND_WIDTH - 1:0]),
+        .write_operand  (mem_stage_op.gp_rd[HBM_ADR_OPERAND_WIDTH - 1:0]),
         .hbm_addr_out   (hbm_addr_out)
     );
 
@@ -240,7 +240,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     non_volatile_1p_storage #(
         .BITWIDTH (ON_CHIP_ADDR_WIDTH),
-        .DEPTH    (STRIDE_STORE_WIDTH)
+        .ADDR_WIDTH (STRIDE_OPERAND_WIDTH)
         `ifdef SIMULATION
            , .MemInitFile (MemStrideInitFile)
         `endif
