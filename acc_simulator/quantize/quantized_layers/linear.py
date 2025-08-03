@@ -1,10 +1,12 @@
-from typing import Literal
+from typing import Literal, Union
 
 import torch
 from torch import Tensor, nn
 
 from mase_triton.mxfp.functional import quantize_dequantize as mxfp_quantizer_sim
 from ..quantizer.mxfp import MXFPMeta
+from ..quantizer.mxint import MXIntMeta
+from ..quantizer.mxint import mxint_quantizer_sim
 
 
 class MXFPLinearPTQ(nn.Module):
@@ -16,7 +18,7 @@ class MXFPLinearPTQ(nn.Module):
         weight: Tensor,
         bias: Tensor | None,
         x_mxfp_meta: MXFPMeta | None,
-        w_mxfp_meta: MXFPMeta | None,
+        w_mx_meta: Union[MXFPMeta, MXIntMeta, None],
         b_mxfp_meta: MXFPMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
@@ -31,7 +33,7 @@ class MXFPLinearPTQ(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.x_mxfp_meta = x_mxfp_meta
-        self.w_mxfp_meta = w_mxfp_meta
+        self.w_mx_meta = w_mx_meta
         self.b_mxfp_meta = b_mxfp_meta
         self.layer_type = layer_type
 
@@ -39,7 +41,8 @@ class MXFPLinearPTQ(nn.Module):
         self.bias = None
 
         if "Wq" in self.layer_type:
-            self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mxfp_meta)
+            self.weight = mxint_quantizer_sim(weight, block_dim=1, mxint_meta=w_mx_meta)
+            # self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mx_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 
@@ -63,7 +66,7 @@ class MXFPLinearPTQ(nn.Module):
         return (
             f"in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, "
             f"layer_type={self.layer_type}, "
-            f"w_mxfp_meta={self.w_mxfp_meta}, x_mxfp_meta={self.x_mxfp_meta}, "
+            f"w_mx_meta={self.w_mx_meta}, x_mxfp_meta={self.x_mxfp_meta}, "
             f"b_mxfp_meta={self.b_mxfp_meta}"
         )
 
@@ -72,7 +75,7 @@ class MXFPLinearPTQ(nn.Module):
         cls,
         layer: nn.Linear,
         x_mxfp_meta: MXFPMeta | None,
-        w_mxfp_meta: MXFPMeta | None,
+        w_mx_meta: Union[MXFPMeta, MXIntMeta, None],
         b_mxfp_meta: MXFPMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
@@ -87,7 +90,7 @@ class MXFPLinearPTQ(nn.Module):
                 weight=layer.weight.clone(),
                 bias=layer.bias.clone() if layer.bias is not None else None,
                 x_mxfp_meta=x_mxfp_meta,
-                w_mxfp_meta=w_mxfp_meta,
+                w_mx_meta=w_mx_meta,
                 b_mxfp_meta=b_mxfp_meta,
                 layer_type=layer_type
             )

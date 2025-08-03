@@ -2,6 +2,7 @@ from typing import Literal, Optional, Tuple
 import math
 import fast_hadamard_transform
 
+import torch
 from torch import Tensor, nn, LongTensor
 from transformers.models.llama.modeling_llama import (
     Cache,
@@ -196,15 +197,15 @@ def eager_attention_forward_mxfp(
     value_states = repeat_kv(value, module.num_key_value_groups)
 
     # *: quantized QK matmul if meta is not None
-    # attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
-    attn_weights = matmul_mxfp(
-        query,
-        key_states.transpose(2, 3),
-        input_meta=qk_q_meta,
-        other_meta=qk_k_meta,
-        func_type=qk_func_type
-    )
-    attn_weights = attn_weights * scaling
+    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
+    # attn_weights = matmul_mxfp(
+    #     query,
+    #     key_states.transpose(2, 3),
+    #     input_meta=qk_q_meta,
+    #     other_meta=qk_k_meta,
+    #     func_type=qk_func_type
+    # )
+    # attn_weights = attn_weights * scaling
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -220,14 +221,14 @@ def eager_attention_forward_mxfp(
         attn_weights, p=dropout, training=module.training
     )
     # *: quantized AV matmul if meta is not None
-    # attn_output = torch.matmul(attn_weights, value_states)
-    attn_output = matmul_mxfp(
-        attn_weights,
-        value_states,
-        input_meta=av_a_meta,
-        other_meta=av_v_meta,
-        func_type=av_func_type
-    )
+    attn_output = torch.matmul(attn_weights, value_states)
+    # attn_output = matmul_mxfp(
+    #     attn_weights,
+    #     value_states,
+    #     input_meta=av_a_meta,
+    #     other_meta=av_v_meta,
+    #     func_type=av_func_type
+    # )
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights

@@ -1,15 +1,16 @@
 from ..quantize.quantizer.minifloat import MinifloatMeta
 from ..quantize.quantizer.mxfp import MXFPMeta
+from ..quantize.quantizer.mxint import MXIntMeta
 
 
 def filter_kwargs(all_kwargs: dict, allowed_keys: list[str]) -> dict:
     return {k: v for k, v in all_kwargs.items() if k in allowed_keys}
 
 
-def setup_linear_args(preset, preset_mxfp_x, preset_mxfp_w):
+def setup_linear_args(preset, preset_mxfp_x, preset_mxint_w):
     linear_kwargs = {
         "x_mxfp_meta": None,
-        "w_mxfp_meta": None,
+        "w_mx_meta": None,
         "b_mxfp_meta": None,
         "layer_type": "XWB",
     }
@@ -17,10 +18,11 @@ def setup_linear_args(preset, preset_mxfp_x, preset_mxfp_w):
         if "Xq" in preset:
             linear_kwargs["x_mxfp_meta"] = MXFPMeta.from_string(preset_mxfp_x)
         if "Wq" in preset:
-            linear_kwargs["w_mxfp_meta"] = MXFPMeta.from_string(preset_mxfp_w)
+            linear_kwargs["w_mx_meta"] = MXIntMeta.from_string(preset_mxint_w)
+            # linear_kwargs["w_mx_meta"] = MXFPMeta.from_string(preset_mxfp_w)
         # bias and weights sharing the same datatype setup
-        if "Bq" in preset and preset_mxfp_w != None:
-            linear_kwargs["b_mxfp_meta"] = MXFPMeta.from_string(preset_mxfp_w)
+        if "Bq" in preset and preset_mxint_w != None:
+            linear_kwargs["b_mxfp_meta"] = MXIntMeta.from_string(preset_mxint_w)
         linear_kwargs["layer_type"] = preset
     
     return linear_kwargs
@@ -114,6 +116,7 @@ def setup_args_linear_nonlinear(
     preset: str,
     preset_mxfp_X: str | None,
     preset_mxfp_W: str | None,
+    preset_mxint_W: str | None,
     preset_mxfp_Kv: str | None,
     preset_minifloat_NL: str | None,
     online_rotate: bool
@@ -122,13 +125,14 @@ def setup_args_linear_nonlinear(
         "preset": preset,
         "preset_mxfp_x": preset_mxfp_X,
         "preset_mxfp_w": preset_mxfp_W,
+        "preset_mxint_w": preset_mxint_W,
         "preset_mxfp_Kv": preset_mxfp_Kv,
         "preset_minifloat_NL": preset_minifloat_NL,
         "online_rotate": online_rotate
     }
 
     return {
-        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w"])),
+        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxint_w"])),
         "embed_kwargs": setup_embed_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_w"])),
         "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_mxfp_x", "preset_mxfp_w", "preset_mxfp_Kv", "preset_minifloat_NL", "online_rotate"])),
         "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_minifloat_NL", "online_rotate"])),

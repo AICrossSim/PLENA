@@ -23,6 +23,7 @@ from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNo
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
 from ..quantize.quantizer.mxfp import MXFPMeta
 from ..quantize.quantizer.minifloat import MinifloatMeta
+from ..quantize.quantizer.mxint import MXIntMeta
 from ..utils import replace_modules, create_device_map
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
@@ -124,6 +125,7 @@ def validate_and_sanitize_quant_args(
     preset: str,
     preset_mxfp_X: str | None,
     preset_mxfp_W: str | None,
+    preset_mxint_W: str | None,
     preset_mxfp_Kv: str | None,
     preset_minifloat_NL: str | None,
 ) -> tuple[str | None, str | None, str | None, str | None]:
@@ -151,6 +153,8 @@ def validate_and_sanitize_quant_args(
             # Early input Str format validation, will rasie ValueError from ../meta.py if format invalid
             if "MXFP" in arg_value:
                 _ = MXFPMeta.from_string(arg_value)
+            elif "MXInt" in arg_value:
+                _ = MXIntMeta.from_string(arg_value)
             elif "FP" in arg_value:
                 _ = MinifloatMeta.from_string(arg_value)
             return arg_value
@@ -161,10 +165,11 @@ def validate_and_sanitize_quant_args(
 
     preset_mxfp_X = check_and_clear("Xq", preset_mxfp_X, "preset_mxfp_X")
     preset_mxfp_W = check_and_clear("Wq", preset_mxfp_W, "preset_mxfp_W")
+    preset_mxint_W = check_and_clear("Wq", preset_mxint_W, "preset_mxfp_W")
     preset_mxfp_Kv = check_and_clear("KVq", preset_mxfp_Kv, "preset_mxfp_Kv")
     preset_minifloat_NL = check_and_clear("NLq", preset_minifloat_NL, "preset_minifloat_NL")
 
-    return preset_mxfp_X, preset_mxfp_W, preset_mxfp_Kv, preset_minifloat_NL
+    return preset_mxfp_X, preset_mxfp_W, preset_mxint_W, preset_mxfp_Kv, preset_minifloat_NL
 
 
 def setup_model(model_name, model_parallel, dtype):
@@ -236,8 +241,8 @@ def quantize_model(
     )
 
     # TODO: set flag properly laterx
-    # if linear_only:
-    #     return
+    if linear_only:
+        return
 
     # Replace embedding layers
     replace_modules(
