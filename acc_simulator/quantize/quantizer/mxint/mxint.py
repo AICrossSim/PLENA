@@ -133,9 +133,12 @@ def mxint_quantizer_sim(
             scales, elements, tensor_meta = extract_mxint_components(
                 tensor, block_dim, mxint_meta, percentile=percentile
             )
-            scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+            # scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+            # q = elements / 2**(mxint_meta.element_bits - 1) * 2**(scales - scale_bias)
+
             # similarity = _get_similarity(tensor, tensor_dq, metric="l2norm").mean().abs()
-            q = elements / 2**(mxint_meta.element_bits - 1) * 2**(scales - scale_bias)
+
+            q = elements / 2**(mxint_meta.element_bits - 1) * scales
 
             q -= qtensor
             q.abs_()
