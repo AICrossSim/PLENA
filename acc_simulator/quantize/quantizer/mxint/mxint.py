@@ -117,34 +117,16 @@ def mxint_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
-<<<<<<< Updated upstream
-=======
-    percentiles = [
-    1.0,
-    0.999, 0.995, 0.99, 0.98, 0.97,
-    0.95, 0.93, 0.90, 0.87,
-    0.85, 0.80, 0.75, 0.70,
-    0.65, 0.60, 0.55, 0.50
-    ]
->>>>>>> Stashed changes
     from tools.cfl_tools.debugger import _get_similarity
     min_similarity = torch.tensor(float("inf"), device=tensor.device)
     out_dq = torch.zeros_like(tensor)
     if quantile_search:
-<<<<<<< Updated upstream
         for percentile in [1.0, 0.99, 0.95, 0.90, 0.80, 0.70, 0.60, 0.50]:
-=======
-        for percentile in percentiles:
->>>>>>> Stashed changes
             scales, elements, tensor_meta = extract_mxint_components(
                 tensor, block_dim, mxint_meta, percentile=percentile
             )
             tensor_dq = compose_mxint_tensor(scales, elements, tensor_meta, dtype=dtype)
             similarity = _get_similarity(tensor, tensor_dq, metric="l2norm").mean().abs()
-<<<<<<< Updated upstream
-=======
-            # l2 wx 
->>>>>>> Stashed changes
             out_dq = tensor_dq if similarity < min_similarity else out_dq
             min_similarity = torch.minimum(min_similarity, similarity)
     else:
@@ -152,8 +134,4 @@ def mxint_quantizer_sim(
             tensor, block_dim, mxint_meta, percentile=1.0
         )
         out_dq = compose_mxint_tensor(scales, elements, tensor_meta, dtype=dtype)
-<<<<<<< Updated upstream
     return out_dq
-=======
-    return out_dq
->>>>>>> Stashed changes
