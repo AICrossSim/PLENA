@@ -96,7 +96,7 @@ module mx_fp_2_fp_unary #(
     );
 
     register_slice #(
-        .DATA_WIDTH(MXFP_EXP_WIDTH + SCALE_WIDTH)
+        .DATA_WIDTH(MXFP_EXP_WIDTH + SCALE_WIDTH + 1)
     ) casted_reg_inst (
         .clk(clk),
         .rst(rst),

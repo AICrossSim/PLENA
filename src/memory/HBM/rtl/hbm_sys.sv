@@ -246,7 +246,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         `endif
     ) stride_regfile (
         .clk(clk),
-        .raddr(mem_stage_op.gp_rstride),
+        .raddr(mem_stage_op.gp_rstride[STRIDE_OPERAND_WIDTH - 1:0]),
         .rdata(stride_size)
     );
 

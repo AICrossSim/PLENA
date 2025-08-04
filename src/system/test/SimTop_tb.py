@@ -47,6 +47,7 @@ INSTRUCTION_LENGTH = 16
 set_excepthook()
 
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin, fp_2_bin
+
 def generate_golden_result(data, precision_settings, data_config):
     qdata, pbexp, pbmant, pbbias = _mx_fp_quantize_hardware(
         data, 
@@ -55,8 +56,6 @@ def generate_golden_result(data, precision_settings, data_config):
         exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
         block_size=data_config["block_size"])
     qele = pbmant * 2**pbexp
-
-    breakpoint()
     logger.debug("---- mxfp_input ----")
     logger.debug(f"data: {data}")
     logger.debug(f"pbexp: {pbexp}")
@@ -270,7 +269,7 @@ def SimToP_test():
             }
         ],
         trace = True,
-        skip_build = False,
+        skip_build = False
     )
 
 def init_mem():

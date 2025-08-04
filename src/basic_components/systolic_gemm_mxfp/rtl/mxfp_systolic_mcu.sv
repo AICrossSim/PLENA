@@ -581,7 +581,8 @@ module mxfp_systolic_mcu #(
         .N(N),
         .K(K),
         .FP_EXP_WIDTH(FP_EXP_WIDTH),
-        .FP_MANT_WIDTH(FP_MANT_WIDTH)
+        .FP_MANT_WIDTH(FP_MANT_WIDTH),
+        .ACC_ADDR_WIDTH(ACC_ADDR_WIDTH)
     ) hold_and_unroll_for_gemm (
         .clk(clk),
         .rst(rst),

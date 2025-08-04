@@ -4,7 +4,8 @@
 /*
 Module      : FP Per Tile Hadamard Transform RTL 
 Timing      : Sequential Logic
-Status      : Full Pipelined Version Hadamard Transform RTL
+Description : Full Pipelined Version Hadamard Transform RTL
+Status      : Under Development
 */
 
 
@@ -22,7 +23,7 @@ module per_tile_hadamard_transform #(
 );
 
     localparam int TRANSFORM_STAGES = $clog2(TILESIZE);
-    logic [TRANSFORM_STAGES : 0][TILESIZE - 1: 0][EXP_WIDTH + MANT_WIDTH : 0] data_reg;
+    logic [TRANSFORM_STAGES + 1 : 0][TILESIZE - 1: 0][EXP_WIDTH + MANT_WIDTH : 0] data_reg;
     logic [TILESIZE - 1: 0][EXP_WIDTH + MANT_WIDTH : 0] stage_0_reg;
     logic [TRANSFORM_STAGES : 0] data_valid_reg;
 
@@ -48,13 +49,13 @@ module per_tile_hadamard_transform #(
     assign data_reg[0] = stage_0_reg;
     genvar h, i, j;
     generate
-        for (h = 1; h < TILESIZE + 1; h = h * 2) begin : loop_h
+        for (h = 1; h < TILESIZE + 1; h *= 2) begin : loop_h
             localparam int STAGE = $clog2(h+1);
-            for (i = 0; i < TILESIZE; i = i + h) begin : loop_i
+            for (i = 0; i < TILESIZE; i += h * 2) begin : loop_i
                 for (j = i; j < i + h; j ++) begin
                     logic [EXP_WIDTH + MANT_WIDTH : 0] negated_data_b;
-                    assign negated_data_b = {data_reg[STAGE][j+h][EXP_WIDTH + MANT_WIDTH], 
-                                            ~data_reg[STAGE][j+h][EXP_WIDTH + MANT_WIDTH - 1:0]};
+                    assign negated_data_b = {~data_reg[STAGE][j+h][EXP_WIDTH + MANT_WIDTH], 
+                                            data_reg[STAGE][j+h][EXP_WIDTH + MANT_WIDTH - 1:0]};
                     fp_fix_adder_wo_handshake #(
                         .EXP_WIDTH(EXP_WIDTH),
                         .MANT_WIDTH(MANT_WIDTH)
@@ -86,6 +87,7 @@ module per_tile_hadamard_transform #(
     endgenerate
 
     // Output assignment
-    assign data_out = data_reg[TRANSFORM_STAGES];
+    assign data_out         = data_reg[TRANSFORM_STAGES];
+    assign data_out_valid   = data_valid_reg[TRANSFORM_STAGES];
 
 endmodule

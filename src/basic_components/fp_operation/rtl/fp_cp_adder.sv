@@ -96,8 +96,8 @@ module fp_cp_adder #(
     );
 
     register_slice #(
-        .DATA_WIDTH(ADDER_OUT_EXP_WIDTH + ADDER_OUT_FIXED_WIDTH + 1)
-    ) register_slice_inst (
+        .DATA_WIDTH(ADDER_OUT_EXP_WIDTH + ADDER_OUT_FIXED_WIDTH)
+    ) register_add_inst (
         .clk(clk),
         .rst(rst),
         .data_in        ({signed_exp_out, signed_mant_out}),
