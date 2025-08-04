@@ -43,13 +43,14 @@ set dir_list [list \
     "basic_components/int_operation/rtl" \
     "basic_components/synopsis_ip_inst/rtl" \
     "basic_components/synopsis/rtl" \
+    "basic_components/hadamard_transform/rtl" \
     "memory/matrix_sram/rtl" \
     "memory/vector_sram/rtl" \
     "memory/scalar_sram/rtl" \
     "memory/HBM/rtl" \
     "memory/HBM/TileLink_Lib" \
     "matrix_machine/rtl" \
-    "frontend/rtl" \
+    "frontend/rtl" \hadamard_transform
     "scalar_machine/rtl" \
     "vector_machine/rtl" \
     "control/rtl" \

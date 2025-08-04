@@ -20,7 +20,7 @@ module mxfp_sum_across_sa #(
     output logic    [SYS_ARRAY_AMOUNT - 1 : 0] in_ready,
 
     // Output to Top Level
-    output  logic [COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] m_out_data,
+    output  logic [COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] m_out_data,
     output  logic out_valid,
     input   logic out_ready
 );
@@ -28,7 +28,7 @@ module mxfp_sum_across_sa #(
     logic input_array_valid, input_array_ready;
     logic [COMPUTE_DIM * COMPUTE_DIM- 1: 0] per_pe_valid, per_pe_ready;
     logic [COMPUTE_DIM * COMPUTE_DIM- 1: 0] per_pe_acc_valid, per_pe_acc_ready;
-    logic [COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] accumulated_data;
+    logic [COMPUTE_DIM- 1: 0][COMPUTE_DIM- 1: 0][ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] accumulated_data;
 
 generate;
 
