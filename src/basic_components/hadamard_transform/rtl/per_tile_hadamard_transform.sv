@@ -25,7 +25,7 @@ module per_tile_hadamard_transform #(
     localparam int TRANSFORM_STAGES = $clog2(TILESIZE);
     logic [TRANSFORM_STAGES + 1 : 0][TILESIZE - 1: 0][EXP_WIDTH + MANT_WIDTH : 0] data_reg;
     logic [TILESIZE - 1: 0][EXP_WIDTH + MANT_WIDTH : 0] stage_0_reg;
-    logic [TRANSFORM_STAGES : 0] data_valid_reg;
+    logic [TRANSFORM_STAGES + 1 : 0] data_valid_reg;
 
     always_ff @(posedge clk) begin
         if (rst) begin

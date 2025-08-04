@@ -50,7 +50,7 @@ set dir_list [list \
     "memory/HBM/rtl" \
     "memory/HBM/TileLink_Lib" \
     "matrix_machine/rtl" \
-    "frontend/rtl" \hadamard_transform
+    "frontend/rtl" \
     "scalar_machine/rtl" \
     "vector_machine/rtl" \
     "control/rtl" \
