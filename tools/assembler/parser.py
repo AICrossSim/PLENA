@@ -62,15 +62,18 @@ def load_isa_settings(file_path: str) -> dict:
 
 
 class Instruction:
-    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], imm: Optional[int]):
+    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rstride: Optional[str], funct1: Optional[int], imm: Optional[int] = None):
+
         self.opcode = opcode
         self.rd = rd
         self.rs1 = rs1
         self.rs2 = rs2
+        self.rstride = rstride
+        self.funct1 = funct1
         self.imm = imm
 
     def __repr__(self):
-        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', imm={self.imm})"
+        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, imm={self.imm})"
 
 
 def parse_asm_file(file_path: str) -> List[Instruction]:
@@ -78,8 +81,10 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
     Parse an ASM file into a list of Instruction objects.
 
     Supported formats:
-    - opcode rd, rs1, imm;
+    - opcode rd, rs1, rs2, rs3, funct1, funct2;
+    - opcode rd, rs1, rs2, funct1, funct2;
     - opcode rd, rs1, rs2;
+    - opcode rd, rs1, imm;
     - opcode rd, rs1;
     - opcode rd;
 
@@ -103,13 +108,14 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 continue  # Invalid line
             opcode = parts[0]
             operands = [part.strip() for part in ' '.join(parts[1:]).split(',')]
+            print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
             # Decode based on number of operands
             if len(operands) > 0:
                 operand_0 = operands[0]
                 if operand_0[-1] == ';':
                     operand_0 = operand_0[:-1]
-                if operand_0.startswith('i'):
-                    rd = int(operand_0[1:], 16)
+                if operand_0.startswith('gp'):
+                    rd = int(operand_0[2:], 16)
                 elif operand_0.startswith('f'):
                     rd = int(operand_0[1:], 16)
                 elif operand_0.startswith('a'):
@@ -123,13 +129,16 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 rd = None
             rs1 = None
             rs2 = None
+            rstride = None
             imm = None
+            funct1 = None
+
             if len(operands) > 1:
                 operand_1 = operands[1]
                 if operand_1[-1] == ';':
                     operand_1 = operand_1[:-1]
-                if operand_1.startswith('i'):
-                    rs1 = int(operand_1[1:], 16)
+                if operand_1.startswith('gp'):
+                    rs1 = int(operand_1[2:], 16)
                 elif operand_1.startswith('f'):
                     rs1 = int(operand_1[1:], 16)
                 elif operand_0.startswith('a'):
@@ -140,13 +149,12 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                     except ValueError:
                         imm = None
 
-
-            if len(operands) == 3:
+            if len(operands) > 2:
                 operand_2 = operands[2]
                 if operand_2[-1] == ';':
                     operand_2 = operand_2[:-1]
-                if operand_2.startswith('i'):
-                    rs2 = int(operand_2[1:], 16)
+                if operand_2.startswith('gp'):
+                    rs2 = int(operand_2[2:], 16)
                 elif operand_2.startswith('f'):
                     rs2 = int(operand_2[1:], 16)
                 elif operand_2.startswith('a'):
@@ -156,8 +164,15 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
+            if len(operands) == 5:
+                rstride = int(operands[3])
+                funct1 = operands[4]
+                if (funct1[-1] == ';'):
+                    funct1 = int(funct1[:-1])
+                else:
+                    funct1 = int(funct1)
 
-            instructions.append(Instruction(opcode, rd, rs1, rs2, imm))
+            instructions.append(Instruction(opcode, rd, rs1, rs2, rstride, funct1, imm))
 
     return instructions
 
@@ -168,6 +183,7 @@ if __name__ == "__main__":
     # file_path = '/home/george/Coprocessor_for_Llama/src/definitions/operation.svh'
     # enum_dict = load_isa_definitions(file_path)
     # print(enum_dict)
+    
 
     asm_file_path = '/home/george/Coprocessor_for_Llama/src/system/test/benchmarks/fixed.asm'
     loaded_instr = parse_asm_file(asm_file_path)

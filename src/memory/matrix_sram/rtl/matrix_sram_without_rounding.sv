@@ -57,7 +57,7 @@ module matrix_sram_without_rounding #(
 // -----------------------------
 
 logic [AddrLen - 1 : 0] waddr_for_sub_sram, raddr_for_sub_sram, prefetch_addr_for_sub_sram;
-localparam BITWIDTH_PER_ROW =  (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1) * MLEN * PARALLEL_DIM / 8;
+localparam BITWIDTH_PER_ROW =  MLEN * PARALLEL_DIM;
 wire [AddrLen + $clog2(BITWIDTH_PER_ROW) - 1 : 0] shifted_prefetch_addr;
 
 assign waddr_for_sub_sram = sram_waddr >> $clog2(BITWIDTH_PER_ROW);

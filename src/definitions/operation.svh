@@ -23,20 +23,19 @@ typedef enum logic [2:0] {
     MV_IC           = 3'h1,
     MV_WO           = 3'h2,
     MM_IC           = 3'h3,
-    MM_PS           = 3'h4,
-    MM_WO           = 3'h5,
+    MM_WO           = 3'h4,
     STALL_M         = 3'h0
 } M_OP;
 
-typedef enum logic [2:0] {
-    STALL_V_ELEMENT = 3'h0,
-    ADD_V_ELEMENT   = 3'h1,
-    SUB_V_ELEMENT   = 3'h2,
-    MUL_V_ELEMENT   = 3'h3,
-    EXP_V_ELEMENT   = 3'h4,
-    RECI_V_ELEMENT  = 3'h5,
-    LD_V_ELEMENT    = 3'h6,
-    RESET_V         = 3'h7
+typedef enum logic [3:0] {
+    STALL_V_ELEMENT = 4'h0,
+    ADD_V_ELEMENT   = 4'h1,
+    SUB_V_ELEMENT   = 4'h2,
+    MUL_V_ELEMENT   = 4'h3,
+    EXP_V_ELEMENT   = 4'h4,
+    RECI_V_ELEMENT  = 4'h5,
+    INNER_HADAMARD_TRANSFORM = 4'h6,
+    BROADCAST_V_ELEMENT  = 4'h7
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
@@ -63,47 +62,38 @@ typedef enum logic [3:0] {
 } S_FP_OP;
 
 typedef enum logic [3:0] {
-    ADD_FIX       = 4'h1,
-    ADDI_FIX      = 4'h2,
-    SUB_FIX       = 4'h3,
-    MUL_FIX       = 4'h4,
-    LUI_FIX       = 4'h5,
-    MV_FIX        = 4'h6,
-    ACC_MULI      = 4'h7,
-    LD_FIX        = 4'h8,
-    ST_FIX        = 4'h9,
-    PASS_ADDR     = 4'hA,
-    PASS_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 adress.
-    COMP_ADDR     = 4'hC,
-    COMP_ADDR_2   = 4'hD, // addr_port_2: rd and addr_port_1: rs1 + imm
-    STALL_S_FIXED = 4'h0
-} S_FIXED_OP;
+    ADD_INT       = 4'h1,
+    ADDI_INT      = 4'h2,
+    SUB_INT       = 4'h3,
+    MUL_INT       = 4'h4,
+    LUI_INT       = 4'h5,
+    LD_INT        = 4'h6,
+    ST_INT        = 4'h7,
+    PASS_ADDR     = 4'h8,
+    PASS_ADDR_2   = 4'h9, // addr_port_2: rd and addr_port_1: rs1 adress.
+    COMP_ADDR     = 4'hA,
+    COMP_ADDR_2   = 4'hB, // addr_port_2: rd and addr_port_1: rs1 + imm
+    STALL_S_INT   = 4'h0
+} S_INT_OP;
 
 typedef enum logic [2:0] {
     STALL_C             = 3'h0,
     SET_ADDR_REG        = 3'h1,
     SET_V_STRIDE_SIZE   = 3'h2,
     SET_M_STRIDE_SIZE   = 3'h3,
-    SET_LUT             = 3'h4,
-    SET_V_SCALE_REG     = 3'h5,
-    SET_M_SCALE_REG     = 3'h6,
-    BREAK               = 3'h7
+    SET_V_SCALE_REG     = 3'h4,
+    SET_M_SCALE_REG     = 3'h5,
+    BREAK               = 3'h6
 } C_OP;
 
-typedef enum logic [3:0] {
+typedef enum logic [2:0] {
     STALL_H         = 4'h0,
-    PREFETCH_M_H_C  = 4'h1,
-    PREFETCH_M_H_S  = 4'h2,
-    PREFETCH_M_L_C  = 4'h3,
-    PREFETCH_M_L_S  = 4'h4,
-    PREFETCH_V_H_C  = 4'h5,
-    PREFETCH_V_H_S  = 4'h6,
-    PREFETCH_V_L_C  = 4'h7,
-    PREFETCH_V_L_S  = 4'h8,
-    STORE_V_H_C     = 4'h9,
-    STORE_V_H_S     = 4'hA,
-    STORE_V_L_C     = 4'hB,
-    STORE_V_L_S     = 4'hC
+    PREFETCH_M_H    = 4'h1,
+    PREFETCH_M_L    = 4'h2,
+    PREFETCH_V_H    = 4'h3,
+    PREFETCH_V_L    = 4'h4,
+    STORE_V_H       = 4'h5,
+    STORE_V_L       = 4'h6
 } H_OP;
 
 function automatic int max(input int a, input int b);
@@ -115,80 +105,68 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     INVALID_OPCODE         = 6'h00,
 
     // Matrix Operations
-    M_MM_IC                = 6'h01,
-    M_MM_PS                = 6'h02,
+    M_MM                   = 6'h01,
+    M_TMM                  = 6'h02,
     M_MM_WO                = 6'h03,
-    M_TMM_IC               = 6'h04,
-    M_TMM_PS               = 6'h05,
-    M_MV_IC                = 6'h06,
-    M_MV_WO                = 6'h07,
-    M_TMV_IC               = 6'h08,
+    M_MV                   = 6'h04,
+    M_TMV                  = 6'h05,
+    M_MV_WO                = 6'h06,
 
     // Vector Operations
-    V_ADD_VV               = 6'h09,
-    V_ADD_VF               = 6'h0A,
-    V_SUB_VV               = 6'h0B,
-    V_SUB_VF               = 6'h0C,
-    V_MUL_VV               = 6'h0D,
-    V_MUL_VF               = 6'h0E,
-    V_EXP_V                = 6'h0F,
-    V_RECI_V               = 6'h10,
-    V_LD_F                 = 6'h11,
-    V_RED_SUM              = 6'h12,
-    V_RED_MAX              = 6'h13,
-    V_RESET_SRAM           = 6'h14,
+    V_ADD_VV               = 6'h07,
+    V_ADD_VF               = 6'h08,
+    V_SUB_VV               = 6'h09,
+    V_SUB_VF               = 6'h0A,
+    V_MUL_VV               = 6'h0B,
+    V_MUL_VF               = 6'h0C,
+    V_EXP_V                = 6'h0D,
+    V_RECI_V               = 6'h0E,
+    V_BC_S                 = 6'h0F,
+    V_RED_SUM              = 6'h10,
+    V_RED_MAX              = 6'h11,
 
     // Scalar Operations (Floating-Point)
-    S_ADD_FP               = 6'h15,
-    S_SUB_FP               = 6'h16,
-    S_MAX_FP               = 6'h17,
-    S_MUL_FP               = 6'h18,
-    S_EXP_FP               = 6'h19,
-    S_RECI_FP              = 6'h1A,
-    S_SQRT_FP              = 6'h1B,
-    S_MV_FP                = 6'h1C,
-    S_LD_FP                = 6'h1D,
-    S_ST_FP                = 6'h1E,
-    S_MAP_V_FP             = 6'h1F,
+    S_ADD_FP               = 6'h12,
+    S_SUB_FP               = 6'h13,
+    S_MAX_FP               = 6'h14,
+    S_MUL_FP               = 6'h15,
+    S_EXP_FP               = 6'h16,
+    S_RECI_FP              = 6'h17,
+    S_SQRT_FP              = 6'h18,
+    S_LD_FP                = 6'h19,
+    S_ST_FP                = 6'h1A,
+    S_MAP_V_FP             = 6'h1B,
 
-    // Scalar Operations (Fixed-Point)
-    S_ADD_FIX              = 6'h20,
-    S_ADDI_FIX             = 6'h21,
-    S_SUB_FIX              = 6'h22,
-    S_MUL_FIX              = 6'h23,
-    S_LUI_FIX              = 6'h24,
-    S_MV_FIX               = 6'h25,
-    S_ACC_MULI             = 6'h26,
-    S_LD_FIX               = 6'h27,
-    S_ST_FIX               = 6'h28,
+    // Scalar Operations  (INT)
+    S_ADD_INT              = 6'h1C,
+    S_ADDI_INT             = 6'h1D,
+    S_SUB_INT              = 6'h1E,
+    S_MUL_INT              = 6'h1F,
+    S_LUI_INT              = 6'h20,
+    S_LD_INT               = 6'h21,
+    S_ST_INT               = 6'h22,
 
     // Memory Operations
-    H_PREFETCH_M_H_C       = 6'h29, // WT_PRECISION
-    H_PREFETCH_M_H_S       = 6'h2A,
-    H_PREFETCH_M_L_C       = 6'h2B, // KV_PRECISION
-    H_PREFETCH_M_L_S       = 6'h2C,
-    H_PREFETCH_V_H_C       = 6'h2D, // ACT_PRECISION
-    H_PREFETCH_V_H_S       = 6'h2E,
-    H_PREFETCH_V_L_C       = 6'h2F, // 
-    H_PREFETCH_V_L_S       = 6'h30,
-    H_STORE_V_H_C          = 6'h31,
-    H_STORE_V_H_S          = 6'h32,
-    H_STORE_V_L_C          = 6'h33,
-    H_STORE_V_L_S          = 6'h34,
+    H_PREFETCH_M           = 6'h23,
+    H_PREFETCH_V           = 6'h24,
+    H_STORE_V              = 6'h25,
 
     // CSR Setting
-    C_SET_ADDR_REG         = 6'h35,
-    C_SET_LUT              = 6'h36,
-    C_SET_STRIDE_REG       = 6'h37,
-    C_SET_SCALE_REG        = 6'h38,
-    C_BREAK                = 6'h39
+    C_SET_ADDR_REG         = 6'h26,
+    C_SET_SCALE_REG        = 6'h27,
+
+    // Addtional Instructions
+    C_HADAMARD_TRANSFORM   = 6'h28,
+    C_BREAK                = 6'h29
 } CUSTOM_ISA_OPCODE;
+
+
 
 typedef enum logic [2:0] {
     INVALID_TYPE = 3'h0,
     M            = 3'h1,
     V            = 3'h2,
-    S_FIX        = 3'h3,
+    S_INT        = 3'h3,
     S_FP         = 3'h4,
     C            = 3'h5,
     H            = 3'h6
@@ -198,8 +176,10 @@ typedef struct {
     logic [instruction_pkg::OPCODE_WIDTH  - 1 : 0]      opcode;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs1;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rs2;
+    logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rstride;
     logic [instruction_pkg::OPERAND_WIDTH - 1 : 0]      rd;
     logic [instruction_pkg::IMM_WIDTH - 1 : 0]          imm;
+    logic [instruction_pkg::FUNCT_WIDTH - 1 : 0]        funct1;
     CUSTOM_ISA_TYPE instruction_type;
 } INSTR_INFO;
 
@@ -215,9 +195,10 @@ typedef struct {
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fps1;
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fps2;
     logic [instruction_pkg::FP_OPERAND_WIDTH - 1:0]         fpd;
-    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]      fixed_rs1;
-    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]      fixed_rs2;
-    logic [instruction_pkg::FIXED_OPERAND_WIDTH - 1:0]      fixed_rd;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg1;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_reg2;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_rstride;
+    logic [instruction_pkg::INT_OPERAND_WIDTH - 1:0]        gp_rd;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_1;
     logic [configuration_pkg::ON_CHIP_ADDR_WIDTH - 1:0]     addr_2;
     logic update_m_waddr;

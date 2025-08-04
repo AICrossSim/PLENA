@@ -7,8 +7,8 @@ Description : FP_IEEE_Partition
 */
 
 module fp_ieee_partition #(
-    parameter   EXP_WIDTH = 5,
-    parameter   MANT_WIDTH = 10,
+    parameter   EXP_WIDTH = 6,
+    parameter   MANT_WIDTH = 5,
     localparam   OUT_MANT_WIDTH = MANT_WIDTH + 2
 )(
     input  logic [EXP_WIDTH + MANT_WIDTH : 0] data_in,  // {sign, exp, mant}

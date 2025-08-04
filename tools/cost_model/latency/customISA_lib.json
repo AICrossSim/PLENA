@@ -74,11 +74,6 @@
         "pipelined" : "1 + VECTOR_EXP_CYCLES"
     },
 
-    "V_LD_F" : {
-        "alone" : "6 + 3 + 1",
-        "pipelined" : "1"
-    },
-
     "V_RED_SUM" : {
         "alone" : "6 + 3 + VECTOR_REDUCT_CYCLES + 1",
         "pipelined" : "VECTOR_REDUCT_CYCLES"

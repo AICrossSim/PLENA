@@ -6,23 +6,22 @@ from pathlib import Path
 import os
 
 
-turq = (40, 161, 151)
-darkblue = (18, 67, 109)
-dark_pink = (128, 22, 80)
-orange = (244, 106, 37)
-turq = tuple([i / 255 for i in turq])
-darkblue = tuple([i / 255 for i in darkblue])
-dark_pink = tuple([i / 255 for i in dark_pink])
-orange = tuple([i / 255 for i in orange])
-colors = [darkblue, orange, turq, dark_pink]
+colors = {
+    "turq": tuple(i / 255 for i in (40, 161, 151)),
+    "darkblue": tuple(i / 255 for i in (18, 67, 109)),
+    "dark_pink": tuple(i / 255 for i in (128, 22, 80)),
+    "orange": tuple(i / 255 for i in (244, 106, 37)),
+    "dark_green": tuple(i / 255 for i in (61, 159, 60)),
+    "dark_blue": tuple(i / 255 for i in (54, 125, 176)),
+}
 
 # HBM Settings
 Operate_Freq = 1e9      # 1 GHz
 DataWidth = 2           # 1 byte per element
 HBM_Bandwidth = 800e9   # 800 GB/s
-HBM_Capacity = 128      # 128 GB
-SEQ_LENGTH_NORM =  512
-SEQ_LENGTH_REASONING = 2048
+HBM_Capacity = 160      # 128 GB
+SEQ_LENGTH_NORM =  3000
+SEQ_LENGTH_REASONING = 6500
 
 B200_Params = {
     "HBM_Capacity": HBM_Capacity,  # HBM 3e
@@ -38,9 +37,9 @@ TPU_Params = {
     "HBM_Capacity": HBM_Capacity,  # HBM 3e
     "HBM_Bandwidth": HBM_Bandwidth,  # 512 GB/s
     "Operate_Freq": 1e9,  # 1 GHz
-    "M" : 128,
-    "K" : 128,
-    "N" : 128,
+    "M" : 64,
+    "K" : 64,
+    "N" : 64,
     "DataWidth": 2  # 1 byte per element
 }
 
@@ -48,9 +47,9 @@ PLENA = {
     "HBM_Capacity": HBM_Capacity,  # HBM 3e
     "HBM_Bandwidth": HBM_Bandwidth,  # 512 GB/s
     "Operate_Freq": 1e9,  # 1 GHz
-    "M" : 32,
+    "M" : 8,
     "K" : 512,
-    "N" : 32,
+    "N" : 8,
     "DataWidth": 2  # 1 byte per element
 }
 
@@ -132,7 +131,7 @@ def device_performance(device_model, seq_context_length, max_batch, model_config
         actual_performance[batch] = min(compute_intensity, max_tflops)
 
 
-    return roofline_performance, actual_performance, min(batch_bound, device_model.M)
+    return roofline_performance, actual_performance, batch_bound
 
 
 if __name__ == "__main__":
@@ -141,8 +140,8 @@ if __name__ == "__main__":
     print(f"Config parent path: {config_parent_path}")
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
     model_config        = load_json(model_config_path)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 3), sharey=True)
-
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 2), sharey=True)
+    tick_positions = [1, 2, 4, 8, 16, 32, 64, 128]
 
     # Plot TPU Performance
     tpu_model   = DeviceModel(operate_freq=TPU_Params["Operate_Freq"], M=TPU_Params["M"], K=TPU_Params["K"], N=TPU_Params["N"], data_width=TPU_Params["DataWidth"], hbm_bandwidth=TPU_Params["HBM_Bandwidth"], hbm_capacity=TPU_Params["HBM_Capacity"])
@@ -150,7 +149,7 @@ if __name__ == "__main__":
     soft_optimised_plena_model = DeviceModel(operate_freq=PLENA["Operate_Freq"], M=PLENA["M"], K=PLENA["K"], N=TPU_Params["N"], data_width= PLENA["DataWidth"] / 3, hbm_bandwidth=PLENA["HBM_Bandwidth"], hbm_capacity=PLENA["HBM_Capacity"])
 
     tpu_roofline_performance, tpu_actual_performance_normal, tpu_normal_batch_bound = device_performance(tpu_model, SEQ_LENGTH_NORM, 256, model_config)
-    _, tpu_actual_performance_reasoning, reasoning_batch_bound = device_performance(tpu_model, SEQ_LENGTH_REASONING, 256, model_config)
+    _, tpu_actual_performance_reasoning, tpu_actual_reasoning_batch_bound = device_performance(tpu_model, SEQ_LENGTH_REASONING, 256, model_config)
 
     plena_roofline_performance, plena_actual_performance_normal, plena_normal_batch_bound = device_performance(plena_model, SEQ_LENGTH_NORM, 256, model_config)
     _, plena_actual_performance_reasoning, plena_reasoning_batch_bound = device_performance(plena_model, SEQ_LENGTH_REASONING, 256, model_config)
@@ -160,124 +159,136 @@ if __name__ == "__main__":
 
     ax1.set_xscale('log')
     ax1.set_yscale('log')
-    ax1.set_ylabel('Performance (GFLOPs/s)')
+    ax1.set_ylabel('Attainable GFLOPs/s')
     ax1.set_xlabel('Batch Size')
+    ax1.set_xticks(tick_positions)
+    ax1.set_xticklabels([str(t) for t in tick_positions])
+    ax1.set_yticks([1e2, 1e3, 1e4, 1e5])
+    ax1.set_yticklabels(['$10^2$', '$10^3$', '$10^4$', '$10^5$'])
+    ax1.minorticks_off()
     ax1.set_ylim(1e2, 1e5)
     ax1.set_xlim(1, 256)
-    ax1.set_title('Normal Inference Performance')
-
-    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA Theoratical Performance Without Memory Bottleneck', color=colors[0], linewidth=1, linestyle='--')
+    ax1.set_title('Normal Model')
+    
+    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax1.plot(
         list(tpu_roofline_performance.keys()),
         [v for v in tpu_roofline_performance.values()],
-        label='TPU Theoratical Performance Without Memory Bottleneck',
-        linewidth=1, linestyle='--',
+        label='TPU W/O Memory Wall',
+        linewidth=0.8, linestyle='--',
         color='grey'
     )
     
     ax1.plot(
         list(tpu_actual_performance_normal.keys()),
-        [v * 0.7 for v in tpu_actual_performance_normal.values()],
-        label='TPU Normal',
-        marker='o',  markersize=4,
-        color='grey',
-        linewidth=1
+        [v for v in tpu_actual_performance_normal.values()],
+        label='TPU',
+        color=colors["dark_pink"],
+        linewidth=2
     )
-
 
     ax1.vlines(soft_optimised_normal_batch_bound, 1e2, 1e5, color = 'grey', linestyle='--', linewidth=0.5)
 
     ax1.plot(
         list(plena_actual_performance_normal.keys()),
         [v for v in plena_actual_performance_normal.values()],
-        label='PLENA Normal W/O Quantisation',
-        marker='o',  markersize=4,
-        color=colors[1],
+        label='PLENA W/O Quantisation',
+        color=colors["dark_green"],
         linewidth=2
     )
 
+    ax1.hlines(max(plena_actual_performance_normal.values()), max(plena_actual_performance_normal.keys()), plena_normal_batch_bound, color=colors["dark_green"], linewidth=2)
+
     ax1.plot(
         list(soft_optimised_actual_performance_normal.keys()),
-        [v * 0.8 for v in soft_optimised_actual_performance_normal.values()],
-        label='PLENA Normal W Quantisation',
-        marker='o',  markersize=4,
-        color=colors[3],
+        [v for v in soft_optimised_actual_performance_normal.values()],
+        label='PLENA W Quantisation',
+        color= colors["dark_blue"],
         linewidth=2
     )
+
+    ax1.hlines(max(soft_optimised_actual_performance_normal.values()), max(soft_optimised_actual_performance_normal.keys()), soft_optimised_normal_batch_bound, color=colors["dark_blue"], linewidth=2)
 
 
     # Plot Reasoninng
     ax2.set_xscale('log')
     ax2.set_yscale('log')
-    ax2.set_ylabel('Performance (GFLOPs/s)')
+    ax2.set_ylabel('Attainable GFLOPs/s')
     ax2.set_xlabel('Batch Size')
     ax2.set_ylim(1e2, 1e5)
+    ax2.set_xticks(tick_positions)
+    ax2.set_xticklabels([str(t) for t in tick_positions])
     ax2.set_xlim(1, 256)
-    ax2.set_title('Reasoning Inference Performance')
+    ax2.minorticks_off()
+    ax2.set_title('Reasoning Model')
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax2.vlines(soft_optimised_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 
-    ax2.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA Theoratical Performance Without Memory Bottleneck', color=colors[0], linewidth=1, linestyle='--')
+    ax2.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), color="grey", linewidth=1, linestyle='--')
     
     ax2.plot(
         list(tpu_roofline_performance.keys()),
         [v for v in tpu_roofline_performance.values()],
-        label='TPU Theoratical Performance Without Memory Bottleneck',
-        linewidth=1, linestyle='--',
+        linewidth=0.8, linestyle='--',
         color='grey'
     )
     
     ax2.plot(
         list(tpu_actual_performance_reasoning.keys()),
-        [v * 0.8 for v in tpu_actual_performance_reasoning.values()],
-        label='TPU Reasoning',
-        marker='*',  markersize=8,
-        color='grey',
-        linewidth=1
+        [v for v in tpu_actual_performance_reasoning.values()],
+        color=colors["dark_pink"],
+        linewidth=2
     )
     
     ax2.plot(
         list(plena_actual_performance_reasoning.keys()),
         [v for v in plena_actual_performance_reasoning.values()],
-        label='PLENA Reasoning W/O Quantisation',
-        marker='*',  markersize=8,
-        color=colors[1],
+        color=colors["dark_green"],
         linewidth=2
     )
+
+    ax2.hlines(max(plena_actual_performance_reasoning.values()), max(plena_actual_performance_reasoning.keys()), plena_reasoning_batch_bound, color=colors["dark_green"], linewidth=2)
 
     ax2.plot(
         list(soft_optimised_actual_performance_reasoning.keys()),
-        [0.8 * v for v in soft_optimised_actual_performance_reasoning.values()],
-        label='PLENA Reasoning W Quantisation',
-        marker='*',  markersize=8,
-        color=colors[3],
+        [ v for v in soft_optimised_actual_performance_reasoning.values()],
+        color=colors["dark_blue"],
         linewidth=2
     )
 
+    ax2.hlines(max(soft_optimised_actual_performance_reasoning.values()), max(soft_optimised_actual_performance_reasoning.keys()), soft_optimised_reasoning_batch_bound, color=colors["dark_blue"], linewidth=2)
+
+    # ---- LEGEND ----
+    from math import ceil
     from collections import OrderedDict
 
-    # Get handles and labels from both axes
-    handles1, labels1 = ax1.get_legend_handles_labels()
-    handles2, labels2 = ax2.get_legend_handles_labels()
-
-    # Combine all handles and labels
-    all_handles = handles1 + handles2
-    all_labels = labels1 + labels2
-
-    # Remove duplicates while preserving order
+    handles, labels = ax1.get_legend_handles_labels()
     legend_dict = OrderedDict()
-    for h, l in zip(all_handles, all_labels):
+    for h, l in zip(handles, labels):
         if l not in legend_dict:
             legend_dict[l] = h
+    print("Legend Dictionary:", legend_dict)# --- Custom legend order, TPU-related last ---
+    custom_order = [
+        'TPU W/O Memory Wall',
+        'TPU',
+        'PLENA W/O Memory Wall',
+        'PLENA W/O Quantisation',
+        'PLENA W Quantisation'
+    ]
 
+    # Reconstruct handles/labels in the order you want
+    custom_handles = [legend_dict[label] for label in custom_order if label in legend_dict]
+    custom_labels  = [label for label in custom_order if label in legend_dict]
+    ncol = ceil(len(custom_labels) / 2)  # Two rows
 
-    fig.legend(legend_dict.values(), legend_dict.keys(),
-            loc='center left',
-            bbox_to_anchor=(1.02, 0.5),  # Push to the right of both axes
-            fontsize=5, frameon=False)
-
-    # Adjust space so plots don't overlap with the legend
-    fig.subplots_adjust(right=0.75)  # Leave space for legend
+    fig.legend(
+        custom_handles, custom_labels,
+        loc='lower center',
+        bbox_to_anchor=(0.5, -0.1),  # Adjust for spacing
+        fontsize=5, frameon=False,
+        ncol=3
+    )
+    fig.subplots_adjust(bottom=0.28)
     plt.tight_layout()
-    plt.savefig('systolic_array_comparison.png', bbox_inches='tight', dpi=300)
+    plt.savefig('fc_sa_comparison_1x4.png', bbox_inches='tight', dpi=300)

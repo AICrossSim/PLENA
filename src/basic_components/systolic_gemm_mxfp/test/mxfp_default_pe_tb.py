@@ -46,7 +46,8 @@ async def simple_random_mxfp_test(dut):
         qmult_result = pack_fp_to_bin(mult_exp, mult_mant, 4, 3)
 
         result = test_data_1 * test_data_1 + test_data_2 * test_data_2 + 2
-        qresult = minifloat_ieee_quantizer(torch.tensor(result), 16, 8)
+        result = [test_data_1 * test_data_1, test_data_2 * test_data_2, 1, 1]
+        qresult = minifloat_ieee_quantizer(torch.tensor(result), 16, 7)
         await Timer(40, units="ns")
         for i in range(size):
             await RisingEdge(dut.clk)
@@ -59,17 +60,25 @@ async def simple_random_mxfp_test(dut):
             dut.in_left_element.value = mx_elems[0][i]
             dut.in_left_scale.value = mx_scale[0]
             dut.system_left_valid.value = 1
-
             dut.out_result_ready.value = 1
+        await RisingEdge(dut.clk)
+        dut.in_left_element.value = 0
+        dut.in_left_scale.value = 0
+        dut.system_left_valid.value = 0
+        dut.in_top_element.value = 0
+        dut.in_top_scale.value = 0
+        dut.system_top_valid.value = 0
+        dut.out_result_ready.value = 1
 
 
         while True:
             await RisingEdge(dut.clk)
-            cocotb.log.info(f"Result: {qresult}")
+            # cocotb.log.info(f"Result: {qresult}")
             cocotb.log.info(f"Result: {fp_2_bin(qresult, 7, 8)}")
+            print("fp_out", bin_2_fp(int(dut.out_fp.value.integer), 7, 8))
             if dut.out_fp.value.integer != 0:
-                breakpoint()
                 cocotb.log.info(f"Result: {dut.out_fp.value}")
+                cocotb.log.info(f"Result: {bin_2_fp(int(dut.out_fp.value.integer), 7, 8)}")
 
     # Start clock generation
     cocotb.start_soon(Clock(dut.clk, 5, units="ns").start()) 
@@ -90,7 +99,6 @@ async def simple_random_mxfp_test(dut):
             break
         else:
             dut.mult_valid.value = 0
-
 
     await Timer(1, units="us")
 
@@ -117,7 +125,9 @@ def test_simple_pe():
             str(SRC_PATH / "basic_components/fp_operation"),
             str(SRC_PATH / "basic_components/conversion"),
             str(SRC_PATH / "basic_components/common"),
-            str(SRC_PATH / "basic_components/int_operation")
+            str(SRC_PATH / "basic_components/int_operation"),
+            str(SRC_PATH / "basic_components/synopsis"),
+            str(SRC_PATH / "basic_components/synopsis_ip_inst")
         ],
         definitions_path = [],
         module_param_list=[

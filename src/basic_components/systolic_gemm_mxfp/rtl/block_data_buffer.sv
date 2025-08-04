@@ -21,8 +21,9 @@ module block_data_buffer #(
     parameter N = 4,
     parameter FP_EXP_WIDTH = 8,
     parameter FP_MANT_WIDTH = 7,
-    localparam ACC_NUM = K / M,
-    localparam ACC_ADDR_WIDTH = $clog2(ACC_NUM)
+    parameter ACC_ADDR_WIDTH = 4,
+    localparam ACC_NUM = K / M
+    
 )(
     input   logic clk,
     input   logic rst,

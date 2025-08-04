@@ -11,8 +11,8 @@ Status      : Passed Simple Tests
 */
 
 module fp_mult #(
-    parameter int IN_EXP_WIDTH = 5,
-    parameter int IN_FIX_WIDTH = 10,
+    parameter int IN_EXP_WIDTH = 6,
+    parameter int IN_FIX_WIDTH = 5,
     parameter int IN_FIX_FRAC_WIDTH = IN_FIX_WIDTH - 1,
     parameter int OUT_FIX_FRAC_WIDTH = IN_FIX_FRAC_WIDTH + IN_FIX_FRAC_WIDTH,
     // Amount of bits needed to shift mantissas for alignment

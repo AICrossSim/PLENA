@@ -75,7 +75,7 @@ module addr_monitor#(
             stall_req = |addr_collide_flag;
 
         end else if (!sys_pipe_stall) begin
-            if ((determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO) ||((determine_stage_op.v_ele_op != STALL_V_ELEMENT) & (!determine_stage_op.v_broadcast_en)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin        
+            if ((determine_stage_op.m_op != STALL_M & determine_stage_op.m_op != MM_WO) ||((determine_stage_op.v_ele_op == ADD_V_ELEMENT) || (determine_stage_op.v_ele_op == SUB_V_ELEMENT) || (determine_stage_op.v_ele_op == MUL_V_ELEMENT))) begin
                 // Two ports of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if ((v_write_addr_track[i].track_addr == determine_stage_op.addr_1) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -91,7 +91,7 @@ module addr_monitor#(
                     end
                 end
                 stall_req = |addr_collide_flag;
-            end else if (((determine_stage_op.v_ele_op != STALL_V_ELEMENT) & (determine_stage_op.v_broadcast_en))) begin
+            end else if (((determine_stage_op.v_ele_op == EXP_V_ELEMENT) || (determine_stage_op.v_ele_op == RECI_V_ELEMENT) || (determine_stage_op.v_ele_op == INNER_HADAMARD_TRANSFORM)) || (determine_stage_op.v_reduct_op != STALL_V_REDUCT)) begin
                 // One port of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_1)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -103,7 +103,7 @@ module addr_monitor#(
                     end
                 end
                 stall_req = |addr_collide_flag;
-            end else if (determine_stage_op.h_op == STORE_V_H_C ||determine_stage_op.h_op == STORE_V_H_S ) begin
+            end else if (determine_stage_op.h_op == STORE_V_H ||determine_stage_op.h_op == STORE_V_H ) begin
                 // One port of address to monitor
                 for (int i = 0; i < PIPELINE_STAGES; i++) begin
                     if (((v_write_addr_track[i].track_addr == determine_stage_op.addr_2)) & (v_write_addr_track[i].activate == 1'b1)) begin
@@ -143,8 +143,7 @@ module addr_monitor#(
 
     // Decide which source is providing the address this cycle
     always_comb begin
-        if (exe_stage_op.h_op == PREFETCH_V_H_C) begin
-            // Note, PREFETCH_M_H_C does not need to be monitored as it cannot be directly written.
+        if (exe_stage_op.h_op == PREFETCH_V_H) begin
             insert_addr  = exe_stage_op.addr_2;
             insert_valid = 1'b1;
         end else if (exe_stage_op.update_m_waddr) begin

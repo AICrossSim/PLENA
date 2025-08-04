@@ -107,9 +107,9 @@ def llama_eval(
         replace_rms_norms(model)
         rotate_llama(model, online_rotate) 
         if online_rotate:
-            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
-    
-    quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
+            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=True)
+    # if offline_rotate == False and online_rotate == False:
+    quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=True)
     
     if preset != "original":
         # TODO: Quantization Holder

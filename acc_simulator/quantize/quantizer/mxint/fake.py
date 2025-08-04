@@ -4,7 +4,7 @@ from torch import Tensor
 from .meta import MXIntMeta
 
 
-def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta) -> tuple[Tensor, Tensor]:
+def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta, percentile: float = 1.0) -> tuple[Tensor, Tensor]:
     """
     Extracts the scale and element components from a MXFP tensor.
 
@@ -24,14 +24,20 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta) -> tuple[Tensor, 
     x = x.flatten()
     x = x.reshape(n_blocks, B)  # [n_blocks, B]
 
-    x_max = x.abs().max(dim=1, keepdim=True).values
+    x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True)
+<<<<<<< Updated upstream
     scale = x_max.log2().ceil()
     scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
     x = x / 2**scale
     x_mant = x * 2**(mxint_meta.element_bits - 1)
     scale = scale + scale_bias
-    scale = scale.to(torch.uint8)
-    x_mant = x_mant.round().to(torch.int8)
+    scale = scale.clamp(min=0, max=2**mxint_meta.scale_bits-1)
+=======
+    scale = x_max.to(torch.bfloat16)
+    x = x / 2**scale
+    x_mant = x * 2**(mxint_meta.element_bits - 1)
+>>>>>>> Stashed changes
+    x_mant = x_mant.round().clamp(min=-2**(mxint_meta.element_bits-1), max=2**(mxint_meta.element_bits-1)-1)
 
     return scale, x_mant
 
@@ -52,10 +58,6 @@ def compose_mxint_tensor(
     Returns:
         Tensor: The composed MXINT tensor.
     """
-    assert shared_scales.dtype == torch.uint8
-    assert elements.dtype == torch.int8
-
     B = mxint_meta.block_size
     n_blocks = shared_scales.shape[0]
-    scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
-    return elements / 2**(mxint_meta.element_bits-1) * 2**(shared_scales - scale_bias)
+    return elements / 2**(mxint_meta.element_bits-1) * 2**shared_scales

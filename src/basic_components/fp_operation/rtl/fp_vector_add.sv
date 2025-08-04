@@ -41,7 +41,7 @@ module fp_vector_add #(
 
 
   for (genvar i = 0; i < VEC_DIM; i = i + 1) begin : parallel_mult
-    fp_cp_adder_v2 #(
+    fp_cp_adder #(
         .MANT_WIDTH(MANT_WIDTH),
         .EXP_WIDTH(EXP_WIDTH),
         .EXT_MANT_WIDTH(EXT_MANT_WIDTH),

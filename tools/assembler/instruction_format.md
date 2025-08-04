@@ -9,6 +9,6 @@
 
 
 # Register Naming Convention
-- General Int Registers:    i0, i1, ..., i7
+- General Int Registers:    gp0, gp1, ..., gp16
 - Floating Point Registers: f0, f1, ..., f7
 - Address Registers:        a0, a1, ..., a7

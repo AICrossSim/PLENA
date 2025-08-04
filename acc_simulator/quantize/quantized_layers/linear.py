@@ -7,6 +7,7 @@ from mase_triton.mxfp.functional import quantize_dequantize as mxfp_quantizer_si
 from ..quantizer.mxfp import MXFPMeta
 from ..quantizer.mxint import MXIntMeta
 from ..quantizer.mxint import mxint_quantizer_sim
+from ..quantizer.int import quantize_dequantize as int_quantizer_sim
 
 
 class MXFPLinearPTQ(nn.Module):
@@ -42,6 +43,7 @@ class MXFPLinearPTQ(nn.Module):
 
         if "Wq" in self.layer_type:
             self.weight = mxint_quantizer_sim(weight, block_dim=1, mxint_meta=w_mx_meta)
+            # self.weight = int_quantizer_sim(weight)
             # self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mx_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)

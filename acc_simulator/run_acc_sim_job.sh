@@ -1,7 +1,7 @@
 #!/bin/bash
 
-MODEL_NAME="meta-llama/Meta-Llama-3-8B"
-# MODEL_NAME="meta-llama/Llama-2-7b-hf"
+# MODEL_NAME="meta-llama/Meta-Llama-3-8B"
+MODEL_NAME="meta-llama/Llama-2-7b-hf"
 
 # --preset XWqBKVNL \
 echo $MODEL_NAME
@@ -10,11 +10,11 @@ CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim 
   --model_name="$MODEL_NAME" \
   --preset XWqBKVNL \
   --preset_mxfp_W MXFP_E4M3_B16_S8 \
-  --preset_mxint_W MXINT_8_B16_S8 \
+  --preset_mxint_W MXINT_4_B16_S8 \
   --model_parallel True \
   --use_gptq False\
-  --offline_rotate False \
-  --online_rotate False \
+  --offline_rotate True \
+  --online_rotate True \
   # > acc_simulator/rotation2.out 2>&1
 
 # echo "Running XWqBKVNL linear weights only GPTQ"

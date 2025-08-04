@@ -65,13 +65,15 @@ always_ff @(posedge clk) begin
     end
 end
 
-logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_exp_out;
+logic [EXP_WIDTH + MANT_WIDTH : 0] fp_reciprocal_out, fp_exp_out, fp_sqrt_out;
 logic [EXP_WIDTH + MANT_WIDTH : 0] result_data;
 logic result_valid, result_ready;
 logic reciprocal_in_valid, exp_in_valid;
 logic reciprocal_in_ready, exp_in_ready;
 logic reciprocal_out_valid, exp_out_valid;
 logic reciprocal_out_ready, exp_out_ready;
+logic sqrt_out_valid, sqrt_in_valid;
+logic sqrt_in_ready, sqrt_out_ready;
 
 
 always_comb begin
@@ -91,6 +93,13 @@ always_comb begin
             result_valid            = exp_out_valid;
             exp_out_ready           = result_ready;
         end
+        SQRT_FP: begin
+            result_data             = fp_sqrt_out;
+            sqrt_in_valid           = data_in_valid;
+            data_in_ready           = sqrt_in_ready;
+            result_valid            = sqrt_out_valid;
+            sqrt_out_ready          = result_ready;
+        end
 
         default: begin
             result_data             = {(EXP_WIDTH + MANT_WIDTH){1'b0}}; // Default case to avoid latches
@@ -99,11 +108,9 @@ always_comb begin
     endcase
 end
 
-    fp_cp_reciprocal #(
-        .IN_EXP_WIDTH(EXP_WIDTH),
-        .IN_MANT_WIDTH(MANT_WIDTH),
-        .OUT_EXP_WIDTH(EXP_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH)
+    fp_fix_reciprocal #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) scalar_fp_reciprocal_init (
         .clk(clk),
         .rst(rst),
@@ -115,11 +122,9 @@ end
         .data_out       (fp_reciprocal_out)
     );
 
-    fp_cp_exp #(
-        .IN_EXP_WIDTH(EXP_WIDTH),
-        .IN_MANT_WIDTH(MANT_WIDTH),
-        .OUT_EXP_WIDTH(EXP_WIDTH),
-        .OUT_MANT_WIDTH(MANT_WIDTH)
+    fp_fix_exp #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
     ) scalar_fp_exp_init (
         .clk(clk),
         .rst(rst),
@@ -131,7 +136,21 @@ end
         .data_out       (fp_exp_out)
     );
 
-    skid_buffer #(
+    fp_fix_sqrt #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
+    ) scalar_fp_sqrt_init (
+        .clk(clk),
+        .rst(rst),
+        .data_in_valid  (sqrt_in_valid),
+        .data_in_ready  (sqrt_in_ready),
+        .data_in        (data_in),
+        .data_out_valid (sqrt_out_valid),
+        .data_out_ready (sqrt_out_ready),
+        .data_out       (fp_sqrt_out)
+    );
+
+    register_slice #(
         .DATA_WIDTH(EXP_WIDTH + MANT_WIDTH + 1)
     ) register_slice (
         .clk           (clk),

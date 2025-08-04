@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "fp_cp_adder_v2"
+set top_design "fp_cp_mult"
 
 #------------------------------
 # Setup DC logging paths
@@ -26,7 +26,7 @@ set logs_dir ${WORK_DIR}/outputs/logs
 #------------------------------
 # set process
 #------------------------------
-proc cal_freq { clock_period } {
+proc cal_freq {clock_period} {
   return [expr 1000/$clock_period];
 }
 
@@ -35,11 +35,11 @@ proc cal_freq { clock_period } {
 #------------------------------
 # Set paths
 set src ${WORK_DIR}/../../src
-set outputs ${WORK_DIR}/outputs
-set run ${WORK_DIR}/outputs/netlist
-set log ${WORK_DIR}/outputs/logs    
-set rpt ${WORK_DIR}/outputs/rpt 
-set out ${WORK_DIR}/outputs/out
+set outputs ${WORK_DIR}/outputs/${top_design}
+set run ${WORK_DIR}/outputs/${top_design}/netlist
+set log ${WORK_DIR}/outputs/${top_design}logs    
+set rpt ${WORK_DIR}/outputs/${top_design}/rpt 
+set out ${WORK_DIR}/outputs/${top_design}/out
 
 file mkdir ${log}
 file mkdir ${outputs}
@@ -66,7 +66,7 @@ lappend search_path  ${src}
 #---------------------------------------
 set top_clk_name    "clk"
 set reset           "rst"
-set clk_period      "4.444"
+set clk_period      "1000"
 
 #--------------------------
 # Read RTL files
@@ -111,8 +111,10 @@ write_file -f ddc     -hierarchy -output ${run}/${top_design}_unmapped.ddc
 #------------------------- 
 # compile 
 #-------------------------
-compile
 
+# optimize_registers
+compile_ultra -retime
+# compile
 
 
 #-------------------------
@@ -130,6 +132,7 @@ check_design > ${log}/${top_design}_check.log
 # save the design
 #-------------------------
 
+
 write_file -f verilog -hierarchy -output ${out}/${top_design}_mapped.v
 write_file -f ddc     -hierarchy -output ${out}/${top_design}_mapped.ddc
 write_sdf ${out}/${top_design}.sdf
@@ -139,15 +142,18 @@ write_script -format dctcl -hierarchy -output ${run}/${top_design}.tcl
 #-------------------------
 # report
 #-------------------------
+report_units > ${rpt}/${top_design}_units.log
 report_clock -skew > ${rpt}/${top_design}_clk.log
 echo "The frequency of the led is :" >> ${rpt}/${top_design}_clk.log
 echo "-----------------------------" >> ${rpt}/${top_design}_clk.log
-echo [cal_freq $clk_period] "MHz" >> ${rpt}/${top_design}_clk.log
+echo [cal_freq $clk_period] "GHz" >> ${rpt}/${top_design}_clk.log
 echo "-----------------------------" >> ${rpt}/${top_design}_clk.log
 
 report_area > ${rpt}/${top_design}_area.log
 report_timing > ${rpt}/${top_design}_timing.log
 report_timing -delay_type max -max_paths 50 -nworst 1 -significant_digits 3 -sort_by slack > ${rpt}/${top_design}_slack_timing.log
+# report_timing -capacitance -transition_time > ${rpt}/${top_design}_timing_cap.log
+# report_net -capacitance > ${rpt}/${top_design}_net_cap.log
 report_constraints -all_violators > ${rpt}/${top_design}_con.log
 report_reference > ${rpt}/${top_design}_reference.log
 report_power > ${rpt}/${top_design}_power.log

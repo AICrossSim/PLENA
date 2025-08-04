@@ -41,18 +41,19 @@ set dir_list [list \
     "basic_components/gemv/rtl" \
     "basic_components/systolic_gemm_mxfp/rtl" \
     "basic_components/int_operation/rtl" \
+    "basic_components/synopsis_ip_inst/rtl" \
+    "basic_components/synopsis/rtl" \
     "memory/matrix_sram/rtl" \
     "memory/vector_sram/rtl" \
     "memory/scalar_sram/rtl" \
     "memory/HBM/rtl" \
     "memory/HBM/TileLink_Lib" \
-    "memory/HBM/xilinx_ip" \
     "matrix_machine/rtl" \
     "frontend/rtl" \
     "scalar_machine/rtl" \
     "vector_machine/rtl" \
     "control/rtl" \
-    "core/rtl" \
+    "core/rtl" 
 ]
 
 

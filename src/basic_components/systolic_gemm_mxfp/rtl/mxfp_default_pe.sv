@@ -130,7 +130,8 @@ module mxfp_default_pe #(
     );
 
     assign scale_sum_result = reg_top_scale + reg_left_scale - SCALE_BIAS;
-
+    
+    // TODO: Replace
     fifo #(
         .DATA_WIDTH(MXFP_SCALE_WIDTH),
         .DEPTH(3)
@@ -151,7 +152,7 @@ module mxfp_default_pe #(
     // ==============================================================================================
 
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] shifted_result, rescaled_result;
-    logic shifted_result_valid, shifted_result_ready;
+    logic converted_result_valid, converted_result_ready;
     logic mxfp_mult_valid, mxfp_mult_ready;
 
     join2 #() join_mxfp_mult_inst (
@@ -168,23 +169,17 @@ module mxfp_default_pe #(
         .FP_EXP_WIDTH       (ACC_FP_EXP_WIDTH),
         .FP_MANT_WIDTH      (ACC_FP_MANT_WIDTH)
     ) mx_fp_to_fp (
+        .clk                (clk),
+        .rst                (rst),
+        .data_in_valid      (mxfp_mult_valid),
+        .data_in_ready      (mxfp_mult_ready),
         .element_data_in    (block_mult_result),
         .scale_data_in      (reg_scale_sum),
+        .data_out_valid     (converted_result_valid),
+        .data_out_ready     (converted_result_ready),
         .fp_out             (shifted_result)
     );
 
-    skid_buffer #(
-        .DATA_WIDTH         (ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1)
-    ) skid_buffer_dequantised (
-        .clk(clk),
-        .rst(rst),
-        .data_in            (shifted_result),
-        .data_in_valid      (mxfp_mult_valid),
-        .data_in_ready      (mxfp_mult_ready),
-        .data_out           (rescaled_result),
-        .data_out_valid     (shifted_result_valid),
-        .data_out_ready     (shifted_result_ready)
-    );
 
     // ==============================================================================================
     // STAGE 4: Accumulation
@@ -194,38 +189,19 @@ module mxfp_default_pe #(
     logic [ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH : 0] acc_result;
     logic acc_result_valid, acc_result_ready;
 
-    fp_cp_adder_v2 #(
-        .MANT_WIDTH(ACC_FP_MANT_WIDTH),
-        .EXP_WIDTH(ACC_FP_EXP_WIDTH),
-        .EXT_MANT_WIDTH(0),
-        .EXT_EXP_WIDTH(0)
+    fp_fix_accumulator #(
+        .MANT_WIDTH (ACC_FP_MANT_WIDTH),
+        .EXP_WIDTH  (ACC_FP_EXP_WIDTH)
     ) acc_adder (
         .clk(clk),
         .rst(rst),
-        .data_in_valid  (shifted_result_valid),
-        .data_in_ready  (shifted_result_ready),
-        .data_a         (stored_result),
-        .data_b         (rescaled_result),
-        .data_out       (acc_result),
-        .data_out_valid (acc_result_valid),
-        .data_out_ready (acc_result_ready)
+        .clear_accumulator(clear_accumulator),
+        .data_in_valid  (converted_result_valid),
+        .data_in_ready  (converted_result_ready),
+        .data_in        (shifted_result),
+        .data_out       (out_fp),
+        .data_out_valid (),
+        .data_out_ready (out_result_ready)
     );
-
-    assign acc_result_ready = 1'b1; // Always ready to accept acc result / TODO: Might need to change this
-
-    always_ff @(posedge clk) begin
-        if (rst || clear_accumulator) begin
-            stored_result <= 'b0;
-        end else begin
-            if (acc_result_valid) begin
-                stored_result <= acc_result;
-            end
-            if (out_result_ready) begin 
-                out_fp <= stored_result;
-            end else begin
-                out_fp <= {(ACC_FP_EXP_WIDTH + ACC_FP_MANT_WIDTH + 1){1'b0}};
-            end
-        end
-    end
 
 endmodule

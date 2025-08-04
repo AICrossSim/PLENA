@@ -45,6 +45,54 @@ current_path = Path(__file__).resolve().parent
 testcase_name = "matrix"
 INSTRUCTION_LENGTH = 16
 set_excepthook()
+
+from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin, fp_2_bin
+
+def generate_golden_result(data, precision_settings, data_config):
+    qdata, pbexp, pbmant, pbbias = _mx_fp_quantize_hardware(
+        data, 
+        width=precision_settings["ACT_MXFP_EXP_WIDTH"] + precision_settings["ACT_MXFP_MANT_WIDTH"] + 1, 
+        exponent_width=precision_settings["ACT_MXFP_EXP_WIDTH"], 
+        exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
+        block_size=data_config["block_size"])
+    qele = pbmant * 2**pbexp
+    logger.debug("---- mxfp_input ----")
+    logger.debug(f"data: {data}")
+    logger.debug(f"pbexp: {pbexp}")
+    logger.debug(f"pbmant: {pbmant}")
+    logger.debug(f"qele: {qele}")
+    bin_ele = pack_fp_to_bin(pbexp, pbmant, precision_settings["ACT_MXFP_EXP_WIDTH"], precision_settings["ACT_MXFP_MANT_WIDTH"])
+    bin_bias = pbbias
+    logger.debug(f"-- hardware bin --")
+    logger.debug(f"bin_ele: {bin_ele}")
+    logger.debug(f"bin_bias: {bin_bias}")
+
+
+    logger.debug("---- fp_input ----")
+    qdata_fp, bin_fp = fp_2_bin(qdata, precision_settings["V_FP_EXP_WIDTH"], precision_settings["V_FP_MANT_WIDTH"])
+    logger.debug(f"qdata_fp: {qdata_fp}")
+    logger.debug(f"--hardware bin--")
+    logger.debug(f"bin_fp: {bin_fp}")
+
+    logger.debug("---- exp_out ----")
+    exp_fp = torch.exp(qdata_fp)
+    qexp_fp, bin_exp_fp = fp_2_bin(exp_fp, precision_settings["V_FP_EXP_WIDTH"], precision_settings["V_FP_MANT_WIDTH"])
+    logger.debug(f"exp_fp: {qexp_fp}")
+    logger.debug(f"--hardware bin--")
+    logger.debug(f"bin_exp_fp: {bin_exp_fp}")
+
+    logger.debug("---- 1 + exp(x) ----")
+    q1_exp_fp, bin_1_exp_fp = fp_2_bin(1 + qexp_fp, precision_settings["V_FP_EXP_WIDTH"], precision_settings["V_FP_MANT_WIDTH"])
+    logger.debug(f"1_exp_fp: {q1_exp_fp}")
+    logger.debug(f"--hardware bin--")
+    logger.debug(f"bin_1_exp_fp: {bin_1_exp_fp}")
+    
+
+    return qdata
+
+    
+
+
 class SimTOP(Testbench):
     def __init__(self, dut, element_file, scale_file, instr_file) -> None:
         super().__init__(dut, dut.clk, dut.rst)
@@ -103,22 +151,21 @@ class SimTOP(Testbench):
             qdata, 
             width=precision_settings["V_FP_EXP_WIDTH"] + precision_settings["V_FP_MANT_WIDTH"] + 1, 
             exponent_width=precision_settings["V_FP_EXP_WIDTH"])
-
-
+        print(f"input ref data: {data}")
         blocks, bias = rand_gen_high.quantize_tensor(data)
-        logger.debug(f"original data: {data}")
-        logger.debug(f"mxfp quantized data: {qdata}")
-        logger.debug(f"mxfp quantized ele: {qele}")
-        logger.debug(f"fp quantized data: {self.qdata}")
-        
+
+        generate_golden_result(data, precision_settings, data_config)
+
         instruction_mapping_pipeline(
             blocks, bias, asm_file, data_config, quant_config)
         inputs = []
+
         with open(self.instr_file, 'r') as file:
             for line in file:
                 stripped_line = line.strip()
                 if stripped_line:  # skip empty lines
                     inputs.append(int(stripped_line, base=16))
+
         return inputs
 
     def assign_workload(self):
@@ -140,7 +187,6 @@ class SimTOP(Testbench):
                 logger.info(f"Instruction ready: {self.dut.instruction.value}")
 
 
-
     async def check_vector_sram(self):
         def log_fp_data_with_handshake(data, exp_width, mant_width):
             _list = []
@@ -153,45 +199,16 @@ class SimTOP(Testbench):
                 torch_fp = bin_2_fp(item, exp_width, mant_width)
                 torch_list.append(torch_fp)
             return torch_list
-
+        
         while True:
             await RisingEdge(self.dut.clk)
-            vector_out_ready = self.dut.dut.vector_machine_init.v_out_ready.value
-            vector_out_data = self.dut.dut.vector_machine_init.v_out.value
+            if self.dut.dut.vector_machine_init.element_v_out_valid.value == 1 and self.dut.dut.vector_machine_init.element_v_out_ready.value == 1:
+                data = self.dut.dut.vector_machine_init.element_v_out.value
+                list_ = []
+                for i in range(0, len(data), 16):
+                    list_.append(data[i:i+15].integer)
+                self.log.debug(f"Vector Core fp_out: {list_}")
 
-            vector_a_valid = self.dut.dut.vector_machine_init.v_a_valid.value
-            vector_a_ready = self.dut.dut.vector_machine_init.v_a_ready.value
-            vector_a_data = self.dut.dut.vector_machine_init.v_a_in.value
-
-            vector_b_valid = self.dut.dut.vector_machine_init.v_b_valid.value
-            vector_b_ready = self.dut.dut.vector_machine_init.v_b_ready.value
-            vector_b_data = self.dut.dut.vector_machine_init.v_b_in.value
-
-            from assembler.parser import load_isa_definitions
-            isa_definitions = load_isa_definitions(str(SRC_PATH / "definitions" / "operation.svh"))
-            # Create a reverse mapping of ISA definitions
-            isa_definitions_reverse = {v: k for k, v in isa_definitions.items()}
-            if self.dut.dut.instruction_valid.value == 1 and self.dut.dut.instruction_ready.value == 1:
-                instruction = self.dut.dut.instruction.value[15-5:15]
-                isa = isa_definitions_reverse[int(instruction)]
-                self.log.debug(f"Instruction: {instruction} {isa}")
-                
-            element_v_control = self.dut.dut.vector_machine_init.element_v_control.value
-            self.log.debug(f"element_v_control: {element_v_control}")
-            if element_v_control.value == 1:
-                data = log_fp_data_with_handshake(self.dut.dut.v_high_precision_element_port_b_in.value, 7, 8)
-            
-            # if vector_out_valid == 1 and vector_out_ready == 1:
-            #     lut_list = log_fp_data_with_handshake(vector_out_data, 7, 8)
-            #     self.log.debug(f"Vector Core fp_out: {lut_list}")
-            
-            if vector_a_valid == 1 and vector_a_ready == 1:
-                a_list = log_fp_data_with_handshake(vector_a_data, 7, 8)
-                self.log.debug(f"Vector Core fp_a: {a_list}")
-            
-            if vector_b_valid == 1 and vector_b_ready == 1:
-                b_list = log_fp_data_with_handshake(vector_b_data, 7, 8)
-                self.log.debug(f"Vector SRAM fp_b: {b_list}")
 
 @cocotb.test()
 async def test(dut):
@@ -217,6 +234,9 @@ def SimToP_test():
             str(SRC_PATH / "basic_components/cast"),
             str(SRC_PATH / "basic_components/systolic_gemm_mxfp"),
             str(SRC_PATH / "basic_components/gemv"),
+            str(SRC_PATH / "basic_components/synopsis"),
+            str(SRC_PATH / "basic_components/synopsis_ip_inst"),
+            str(SRC_PATH / "basic_components/hadamard_transform"),
             str(SRC_PATH / "frontend"),
             str(SRC_PATH / "control"),
             str(SRC_PATH / "matrix_machine"),
@@ -231,7 +251,7 @@ def SimToP_test():
         ],       
         definitions_path = [
             str(SRC_PATH / "definitions"), 
-            str(SRC_PATH / "memory/HBM/TileLink_Lib")
+            str(SRC_PATH / "memory/HBM/TileLink_Lib"),
         ],
         module_param_list=[
             {
@@ -239,7 +259,7 @@ def SimToP_test():
                 "FAKE_HBM_ELEMENT_INIT_FILE": f"\"{os.environ['HBM_ELEMENT_FILE']}\"",
                 "FAKE_HBM_SCALE_INIT_FILE": f"\"{os.environ['HBM_SCALE_FILE']}\"",
                 "FP_MEM_INIT_FILE": f"\"{os.environ['FP_MEM_INIT_FILE']}\"",
-                "FIXED_MEM_INIT_FILE": f"\"{os.environ['FIXED_MEM_INIT_FILE']}\"",
+                "INT_MEM_INIT_FILE": f"\"{os.environ['INT_MEM_INIT_FILE']}\"",
                 "VECTOR_MEM_RESULT_FILE": f"\"{os.environ['VECTOR_MEM_RESULT_FILE']}\"",
                 "HBM_ADDR_MAPPER_FILE": f"\"{os.environ['HBM_ADDR_MAPPER_FILE']}\"",
                 "FAKE_HBM_ELEMENT_WRITE_M_FILE": f"\"{os.environ['FAKE_HBM_ELEMENT_WRITE_M_FILE']}\"",
@@ -249,7 +269,7 @@ def SimToP_test():
             }
         ],
         trace = True,
-        skip_build = False,
+        skip_build = False
     )
 
 def init_mem():
@@ -283,11 +303,13 @@ def init_mem():
     addr_mapper_file            = build_path / "hbm_addr_mapper.mem"
 
     fp_mem_file.touch()
+    with open(fp_mem_file, "w") as f:
+        f.write("3F00\n")
     fixed_mem_file.touch()
     addr_mapper_file.touch()
 
     os.environ["FP_MEM_INIT_FILE"] = str(fp_mem_file)
-    os.environ["FIXED_MEM_INIT_FILE"] = str(fixed_mem_file)
+    os.environ["INT_MEM_INIT_FILE"] = str(fixed_mem_file)
     os.environ["VECTOR_MEM_RESULT_FILE"] = str(vector_mem_result_file)
     os.environ["HBM_ADDR_MAPPER_FILE"] = str(addr_mapper_file)
     os.environ["FAKE_HBM_ELEMENT_WRITE_M_FILE"] = str(hbm_write_element_m_file)
@@ -298,6 +320,7 @@ def init_mem():
 
 if __name__ == "__main__":
     init_mem()
+    
     SimToP_test()
 
 
