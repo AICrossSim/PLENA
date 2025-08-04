@@ -40,8 +40,8 @@ class MXFPLinearPTQ(nn.Module):
         self.bias = None
 
         if "Wq" in self.layer_type:
-            self.weight = mxint_quantizer_sim(weight, block_dim=1, mxint_meta=w_mx_meta)
-            # self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mx_meta)
+            # self.weight = mxint_quantizer_sim(weight, block_dim=1, mxint_meta=w_mx_meta)
+            self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mx_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 

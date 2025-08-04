@@ -165,7 +165,7 @@ def validate_and_sanitize_quant_args(
 
     preset_mxfp_X = check_and_clear("Xq", preset_mxfp_X, "preset_mxfp_X")
     preset_mxfp_W = check_and_clear("Wq", preset_mxfp_W, "preset_mxfp_W")
-    preset_mxint_W = check_and_clear("Wq", preset_mxint_W, "preset_mxfp_W")
+    # preset_mxint_W = check_and_clear("Wq", preset_mxint_W, "preset_mxfp_W")
     preset_mxfp_Kv = check_and_clear("KVq", preset_mxfp_Kv, "preset_mxfp_Kv")
     preset_minifloat_NL = check_and_clear("NLq", preset_minifloat_NL, "preset_minifloat_NL")
 
@@ -210,24 +210,24 @@ def quantize_model(
     """
     # Order matters
     # Replace MLP activations (e.g., SiLU)
-    replace_modules(
-        model,
-        target_class=LlamaMLP,
-        replacement_class=LlamaMLPActFP,
-        factory_fn=LlamaMLPActFP.from_mlp,
-        kwargs=quant_args.get("mlp_kwargs", {}),
-        label="LlamaMLP"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaMLP,
+    #     replacement_class=LlamaMLPActFP,
+    #     factory_fn=LlamaMLPActFP.from_mlp,
+    #     kwargs=quant_args.get("mlp_kwargs", {}),
+    #     label="LlamaMLP"
+    # )
 
     # Replace attention (e.g., softmax, rope, matmul)
-    replace_modules(
-        model,
-        target_class=LlamaAttention,
-        replacement_class=LlamaAttentionMXFP,
-        factory_fn=LlamaAttentionMXFP.from_attention,
-        kwargs=quant_args.get("attn_kwargs", {}),
-        label="LlamaAttention"
-    )
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaAttention,
+    #     replacement_class=LlamaAttentionMXFP,
+    #     factory_fn=LlamaAttentionMXFP.from_attention,
+    #     kwargs=quant_args.get("attn_kwargs", {}),
+    #     label="LlamaAttention"
+    # )
     
     # Replace linear layers (always included)
     replace_modules(

@@ -7,6 +7,7 @@ class MXFPMeta:
     scale_exp_bits: int
     element_exp_bits: int
     element_frac_bits: int
+    element_is_finite: bool
 
     @classmethod
     def from_string(cls, name: str) -> "MXFPMeta":
@@ -19,12 +20,14 @@ class MXFPMeta:
         element_frac_bits = int(match.group(2))
         block_size = int(match.group(3))
         scale_exp_bits = int(match.group(4))
+        element_is_finite = True
 
         return cls(
             block_size=block_size,
             scale_exp_bits=scale_exp_bits,
             element_exp_bits=element_exp_bits,
             element_frac_bits=element_frac_bits,
+            element_is_finite=element_is_finite,
         )
  
 @dataclass

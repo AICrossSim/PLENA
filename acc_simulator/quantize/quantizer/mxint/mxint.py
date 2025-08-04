@@ -117,7 +117,7 @@ def mxint_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
-    from tools.cfl_tools.debugger import _get_similarity
+    from cfl_tools.debugger import _get_similarity
     min_similarity = torch.tensor(float("inf"), device=tensor.device)
     out_dq = torch.zeros_like(tensor)
     if quantile_search:

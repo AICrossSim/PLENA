@@ -89,7 +89,6 @@ def compose_mxfp_tensor(
         tensor = mxfp_fake.compose_mxfp_tensor(
             shared_scales=scales,
             elements=elements,
-            mxfp_meta=tensor_meta.meta,
         )
 
     tensor = permute_for_dequantize(
@@ -123,4 +122,5 @@ def mxfp_quantizer_sim(
         tensor, block_dim, mxfp_meta
     )
     tensor_dq = compose_mxfp_tensor(scales, elements, tensor_meta, dtype=dtype)
+    breakpoint()
     return tensor_dq
