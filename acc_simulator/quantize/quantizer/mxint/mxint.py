@@ -129,7 +129,10 @@ def mxint_quantizer_sim(
         best_scales, best_elements, tensor_meta = extract_mxint_components(
             tensor, block_dim, mxint_meta, percentile=1.0
         )
-        for percentile in [1.0, 0.99, 0.95, 0.90, 0.80, 0.70, 0.60, 0.50]:
+        max_shrink = 0.8
+        grid = 100
+        for i in range(int(max_shrink * grid)):
+            percentile = 1 - i / grid
             scales, elements, tensor_meta = extract_mxint_components(
                 tensor, block_dim, mxint_meta, percentile=percentile
             )
@@ -143,7 +146,7 @@ def mxint_quantizer_sim(
             q -= qtensor
             q.abs_()
             q.pow_(2.4)
-            err = torch.sum(q, 1)
+            err = torch.sum(q, 1).to(best.dtype)
             tmp = err < best
             if torch.any(tmp):
                 best[tmp] = err[tmp]
