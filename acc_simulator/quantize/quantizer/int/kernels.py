@@ -3,7 +3,7 @@ import triton
 from torch import Tensor
 from triton import language as tl
 
-from .meta import MXIntMeta
+from .meta import IntMeta
 
 
 def _find_block_max(x: Tensor, block_size: int) -> Tensor:
@@ -71,7 +71,7 @@ def _extract_int_components_kernel(
 
 def extract_mxint_components(
     x: Tensor,
-    mxint_meta: MXIntMeta,
+    int_meta: IntMeta,
 ):
     assert x.dtype == torch.bfloat16
     assert x.ndim == 1

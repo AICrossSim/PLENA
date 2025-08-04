@@ -121,17 +121,37 @@ def mxint_quantizer_sim(
     min_similarity = torch.tensor(float("inf"), device=tensor.device)
     out_dq = torch.zeros_like(tensor)
     if quantile_search:
+        qtensor = tensor.flatten()
+        B = mxint_meta.block_size
+
+        qtensor = qtensor.reshape(-1, B)  # [n_blocks, B]
+        best = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device)
+        best_scales, best_elements, tensor_meta = extract_mxint_components(
+            tensor, block_dim, mxint_meta, percentile=1.0
+        )
         for percentile in [1.0, 0.99, 0.95, 0.90, 0.80, 0.70, 0.60, 0.50]:
             scales, elements, tensor_meta = extract_mxint_components(
                 tensor, block_dim, mxint_meta, percentile=percentile
             )
-            tensor_dq = compose_mxint_tensor(scales, elements, tensor_meta, dtype=dtype)
-            similarity = _get_similarity(tensor, tensor_dq, metric="l2norm").mean().abs()
-            out_dq = tensor_dq if similarity < min_similarity else out_dq
-            min_similarity = torch.minimum(min_similarity, similarity)
+            scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+            # similarity = _get_similarity(tensor, tensor_dq, metric="l2norm").mean().abs()
+            q = elements / 2**(mxint_meta.element_bits - 1) * 2**(scales - scale_bias)
+
+            q -= qtensor
+            q.abs_()
+            q.pow_(2.4)
+            err = torch.sum(q, 1)
+            tmp = err < best
+            if torch.any(tmp):
+                best[tmp] = err[tmp]
+                best_scales[tmp] = scales[tmp]
+                best_elements[tmp] = elements[tmp]
     else:
         scales, elements, tensor_meta = extract_mxint_components(
             tensor, block_dim, mxint_meta, percentile=1.0
         )
-        out_dq = compose_mxint_tensor(scales, elements, tensor_meta, dtype=dtype)
+        best_scales = scales
+        best_elements = elements
+    
+    out_dq = compose_mxint_tensor(best_scales, best_elements, tensor_meta, dtype=dtype)
     return out_dq

@@ -7,7 +7,7 @@ from mase_triton.mxfp.functional import quantize_dequantize as mxfp_quantizer_si
 from ..quantizer.mxfp import MXFPMeta
 from ..quantizer.mxint import MXIntMeta
 from ..quantizer.mxint import mxint_quantizer_sim
-from ..quantizer.int import quantize_dequantize as int_quantizer_sim
+# from ..quantizer.int import quantize_dequantize as int_quantizer_sim
 
 
 class MXFPLinearPTQ(nn.Module):
