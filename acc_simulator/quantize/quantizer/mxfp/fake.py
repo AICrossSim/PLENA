@@ -38,5 +38,5 @@ def compose_mxfp_tensor(
     elements: Tensor,
 ) -> Tensor:
     dequantized = elements * 2**shared_scales
-    dequantized = dequantized.flatten()
+    dequantized = dequantized.flatten().to(torch.bfloat16)
     return dequantized

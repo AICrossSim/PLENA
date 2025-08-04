@@ -7,7 +7,7 @@ from .meta import MinifloatMeta
 def extract_minifloat_component(x: Tensor, minifloat_meta: MinifloatMeta) -> Tensor:
     y_exp_bits = minifloat_meta.exp_bits
     y_frac_bits = minifloat_meta.frac_bits
-    always_finite = minifloat_meta.is_finite
+    always_finite = True
 
     y_exp_bias = (1 << (y_exp_bits - 1)) - 1  # 2^(y_exp_bits - 1) - 1
     # if always_finite: 2^y_exp_bits - 1 - bias = 2^y_exp_bits - 1 - 2^(y_exp_bits - 1) + 1 = 2^(y_exp_bits - 1)
@@ -67,7 +67,7 @@ def compose_minifloat_component(
 ) -> Tensor:
     exp_bits = minifloat_meta.exp_bits
     frac_bits = minifloat_meta.frac_bits
-    always_finite = minifloat_meta.is_finite
+    always_finite = True
 
     x_sign_mask = 1 << (exp_bits + frac_bits)
     x_frac_mask = (1 << frac_bits) - 1
