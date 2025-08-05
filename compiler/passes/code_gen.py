@@ -10,14 +10,6 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 
-
-# required register number 
-# reduce size
-# reduce unit size
-# base address 1
-# base address 2
-# target address 1
-
 def _general_mlen_mlen_multiply_code(
     mlen: int,
     blen: int,
@@ -265,8 +257,32 @@ def _computing_pv_code(
         # ;<<<< -------Complete PV------- >>>>
     return generated_code
 
+def _computing_o_code(
+    mlen: int,
+    alive_registers_fix: List[int],
+    alive_registers_fp: List[int],
+    m_res_address: int,
+    pv_result_address: int,
+    o_base_address: int,
+) -> str:
+    """
+    mlen: the number of row of the QKT result
+    alive_registers_fix: the list of alive registers for fix point operations
+    alive_registers_fp: the list of alive registers for floating point operations
+    m_res_address: the address of the m_res
+    pv_result_address: the address of the PV result
+    """
+    m_res_vector_address_register = alive_registers_fix[0]
+    # load m_res
+    generated_code = ""
+    generated_code += f"S_LD_FIX {m_res_vector_address_register}, gp0, {m_res_address} \n"
+    # store m_res at x0 to replace P
+    generated_code += f"S_MAP_V_FP x0, {m_res_vector_address_register}, 0 \n"
 
-    
+   
+
+
+    return generated_code
 
 def _load_template(template_name: str) -> str:
     """Load assembly template from file."""
