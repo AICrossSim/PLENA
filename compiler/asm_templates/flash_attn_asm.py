@@ -372,6 +372,8 @@ FIXED_SRAM_ADDRESS_MAP = {
     "k_mm_block_size_address": 3,
     "q_dot_product_block_size_address": 4,
     "k_dot_product_block_size_address": 4,
+    "v_block_size_address": 4,
+    "p_block_size_address": 4,
     "s_block_size_address": 5,
     "m_res_address": 6,
     "m_last_address": 7,
@@ -509,3 +511,5 @@ def flash_attn_asm(
         generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["q_block_size_address"]} \n"
         generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
         generated_code += f"S_ST_FIX {general_address_register}, gp0, {q_base_address} \n"
+    
+    return generated_code

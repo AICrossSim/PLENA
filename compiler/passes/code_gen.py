@@ -9,7 +9,7 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-from compiler.asm_templates.flash_attn_asm import flash_attn_asm
+from asm_templates.flash_attn_asm import flash_attn_asm
 
 
 def _load_template(template_name: str) -> str:
@@ -49,7 +49,7 @@ def _generate_attention_code(node: Dict[str, Any]) -> str:
     flash_attention_template = flash_attn_asm(
         head_dim=head_dim
     )
-    
+
     # TODO: break flash attention down into multiple smaller templates for loop
     code = f"""
 ; Self-attention: hidden_size={hidden_size}, num_heads={num_heads}, head_dim={head_dim}
