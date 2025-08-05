@@ -1,6 +1,7 @@
 import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
+from tools import load_svh_settings
 
 '''
 VAddVv { rd: u8, rs1: u8, rs2: u8 },
@@ -100,14 +101,13 @@ def _check_op(op_name: str, op_type: str) -> bool:
 
 def _load_hardware_config() -> str:
     """Load hardware config from file."""
-    templates_dir = Path(__file__).parent.parent / "asm_templates"
-    template_path = templates_dir / f"hardware_config.yaml"
+    config_dir = Path(__file__).parent.parent / "src/definitions"
+    config_path = templates_dir / f"configuration.svh"
 
     if not template_path.exists():
-        raise FileNotFoundError(f"Template hardware_config.yaml not found in {templates_dir}")
+        raise FileNotFoundError(f"configuration.svh not found in {templates_dir}")
 
-    with open(template_path, "r") as f:
-        return f.read()
+    return load_svh_settings(config_path)
 
 def _generate_vin_vin_vout_op(op_name: str, reg_in_0: str, reg_in_1: str, reg_out: str, loops: int) -> str:
     code = f"""
