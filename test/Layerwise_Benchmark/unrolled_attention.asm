@@ -148,51 +148,47 @@ M_MM_WO x0, 0, 0;
 S_ADDI_FIX x4, x0, 0;
 S_LD_FIX x5, x0, 2;
 ; Load MLEN
-S_LD_FIX x1, x0, 3;
-; Load 2 * MLEN
-S_ADDI_FIX x6, x0, 0;
+S_ADDI_FIX x6, x5, 0;
 ; Counter for m_old
-S_ADDI_FIX x7, x5, 0;
+S_ADDI_FIX x7, x6, x5;
 ; Counter for m_res
+S_ADDI_FIX x1, x7, x5;
+; Counter for l_old
 
 ;<------- Online Softmax Loop BR ------>
 ; fp (x1) stores m_curr
 ; fp (x2) stores (exp(m_last - m_curr)) ^ -1
 ; fp (x3) stores sum(vect)
 ; fp (x4) stores l
-S_LD_FP    x1, x6, 0;
-S_MV_FP    x2, x1, 0; 
-V_RED_MAX  x1, x4, 0;
-S_SUB_FP   x2, x2, x1;
-S_EXP_FP   x2, x2, 0;
-S_ST_FP    x1, x6, 0;
-V_SUB_VF   x4, x4, x1;
-S_ADD_FIX  x4, x4, x5;
-S_ADD_FIX x6, x6, 1;
-S_ADD_FIX x7, x7, 1;
-V_EXP_V   x4, x4, 0;
-S_LD_FP    x4, x1, 0;
-V_RED_SUM  x3, x4, 0;
-S_MUL_FP   x4, x4, x2;
-S_ADD_FP   x4, x3, x4;
-S_RECI_FP  x2, x2, 0;
-S_ST_FP    x2, x7, 1;
-S_ST_FP    x4, x1, 0;
-; Store L
+S_LD_FP    fp1, x6, 0; load m_last from FP[MLEN] to fp1
+S_MV_FP    fp2, fp1, 0; copy m_last to fp2
+V_RED_MAX  fp1, x4, 0; m_curr = find max of (P[x4], m_last) and store at fp1
+S_SUB_FP   fp2, fp2, fp1; m_res = m_last - m_curr
+S_EXP_FP   fp2, fp2, 0; exp(m_res)
+S_ST_FP    fp1, x6, 0; store m_curr at FP[MLEN]
+V_SUB_VF   x4, x4, fp1; S' = S - m_curr
+; S_ADD_FIX  x4, x4, x5;
+; S_ADD_FIX x6, x6, 1;
+; S_ADD_FIX x7, x7, 1;
+V_EXP_V   x4, x4, 0; P = exp(S')
+S_LD_FP    fp4, x1, 0; load l_old from FP[2*MLEN] to fp4
+V_RED_SUM  fp3, x4, 0; P = sum(P)
+S_MUL_FP   fp4, fp4, fp2; l_s = l_old * exp(m_res)
+S_ADD_FP   fp4, fp3, fp4; l_s = l_old * exp(m_res) + sum(P)
+S_ST_FP    fp2, x7, 0; store m_res at FP[2*MLEN] so that later on we can map it to a vector and conduct line 10.
+S_ST_FP    fp4, x1, 0; store l_s at FP[3*MLEN]
 
 ;<------- Online Softmax Loop MLEN END ------>
 ;<<<< -------Complete Online Softmax------- >>>>
 
 ; Multiplying with V
 ; compute sequence address of V      
-S_ADDI_FIX  x2, x0, 0;                      x2 = 0
 S_ADDI_FIX  x3, x0, 0;                      x3 = 0 Address pointer to P in VECTOR SRAM
-S_ADDI_FIX  x4, x0, 0;                      x4 = 0 Accumulate pointer in matrix unit.
 S_ADDI_FIX  x6, x0, 0;                      x6 = 0 Address pointer to V in MATRIX SRAM
 S_LD_FIX    x5, x0, 11;                     x5 = BLEN * MLEN
 S_LD_FIX    x1, x0, 10;                     x1 = MLEN * MLEN; PV result offset in Vector SRAM, address pointer to the result.
 H_PREFETCH_M_S x0, x7, x4;
-;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) Outer LOOP  Head_dim / BLEN ------>
+;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) Outer LOOP  Head_dim / MLEN ------>
 
 ;<------- PV (MLEN, MLEN) @ (MLEN, BLEN) Inner LOOP  MLEN / BLEN ------>
 M_MM_PS     x4, x6, x3;
@@ -206,7 +202,7 @@ S_ADDI_FIX      x3, x0, 0;             ; Reset x3 to 0, use it as an incremental
 S_ADDI_FIX      x4, x0, 0;             ; Reset x4 to 0, use it as an accumulated pointer across MLEN/BLEN;
 S_ADD_FIX       x6, x6, x5;
 
-;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) End of Outer LOOP  Head_dim / BLEN ------>
+;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) End of Outer LOOP  Head_dim / MLEN ------>
 
 ;<<<< -------Complete PV------- >>>>
 S_LD_FIX        x3, x0, 2; 

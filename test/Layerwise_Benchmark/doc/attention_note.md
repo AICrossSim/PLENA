@@ -226,7 +226,8 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 - 15: O_OFFSET                                                                          (Tr)
 - 16: BATCH_SIZE
 - 18: MLEN * BLEN
-
+- 19: MLEN
+- 20: 2 * MLEN
 
 ## FP SRAM Layout
 - Negative Max
