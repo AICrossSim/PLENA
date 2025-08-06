@@ -9,8 +9,14 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from tools import load_svh_settings
-from asm_templates.projection_asm import projection_asm
-from asm_templates.flash_attn_asm import flash_attn_asm
+from asm_templates import (
+    projection_asm,
+    flash_attn_asm,
+    ffn_asm,
+    rms_norm_asm,
+    elementwise_add_asm,
+    embedding_asm
+)
 
 
 def _load_template(template_name: str) -> str:
@@ -29,12 +35,15 @@ def _generate_embedding_code(node: Dict[str, Any]) -> str:
     """Generate assembly code for embedding operations."""
     vocab_size = node["dimensions"]["num_embeddings"]
     embedding_dim = node["dimensions"]["embedding_dim"]
-
+    dim = node["dimensions"]
     code = f"""
-; Embedding lookup: vocab_size={vocab_size}, embedding_dim={embedding_dim}
-; Input: token_ids, Output: embedded_vectors
-TODO: fill me
-"""
+    ; Embedding lookup: vocab_size={vocab_size}, embedding_dim={embedding_dim}
+    ; Input: token_ids, Output: embedded_vectors
+    """
+    code += embedding_asm(
+        batch=dim.get("batch", 1),
+        hidden_size=dim["embedding_dim"]
+    )
     return code.strip()
 
 
@@ -78,17 +87,31 @@ def _generate_ffn_code(node: Dict[str, Any]) -> str:
     code = f"""
     ; FFN/MLP: hidden_size={hidden_size}, intermediate_size={intermediate_size}, activation={activation}
     ; Gate and Up projections
-    {template}
-    ; FFN operations
-    TODO: fill me
-    {template}
     """
+    code += ffn_asm(
+        hidden_size=hidden_size,
+        intermediate_size=intermediate_size,
+        activation=activation
+    )
     return code.strip()
 
 
 def _generate_normalization_code(node: Dict[str, Any]) -> str:
     """Generate assembly code for normalization operations."""
-    code = ""
+
+    dims = node["dimensions"]
+    hidden_size = dims["hidden_size"]
+    intermediate_size = dims["intermediate_size"]
+    activation = dims["activation"]
+    code = f"""
+    ; Normalization: hidden_size={hidden_size}
+    ; Layer normalization
+    """
+    code += rms_norm_asm(
+        hidden_size=hidden_size,
+        intermediate_size=intermediate_size,
+        activation=activation
+    )
     return code.strip()
 
 
@@ -98,10 +121,12 @@ def _generate_elementwise_add_code(node: Dict[str, Any]) -> str:
     shape = dims["shape"]
 
     code = f"""
-; Elementwise addition (residual connection): shape={shape}
-; Add two tensors element-wise
-TODO: fill me
-"""
+    ; Elementwise addition (residual connection): shape={shape}
+    """
+    code += elementwise_add_asm(
+        batch=dims.get("batch", 1),
+        hidden_size=dims["hidden_size"]
+    )
     return code.strip()
 
 
