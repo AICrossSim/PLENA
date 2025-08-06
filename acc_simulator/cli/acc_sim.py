@@ -36,8 +36,7 @@ def llama_eval(
     tasks: Union[str, list[str]] = "wikitext",
     preset: Union[str, None] = "original",
     preset_mxfp_X: Union[str, None] = None,
-    preset_mxfp_W: Union[str, None] = None,
-    preset_mxint_W: Union[str, None] = None,
+    preset_W: Union[str, None] = None,
     preset_mxfp_Kv: Union[str, None] = None,
     preset_minifloat_NL: Union[str, None] = None,
     model_parallel: bool = True,
@@ -73,16 +72,15 @@ def llama_eval(
         online_rotate: Whether to apply online inner layer activation rotation.
     """
     start_time = time.time()
-    preset_mxfp_X, preset_mxfp_W, preset_mxint_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
+    preset_mxfp_X, preset_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
         preset,
         preset_mxfp_X,
-        preset_mxfp_W,
-        preset_mxint_W,
+        preset_W,
         preset_mxfp_Kv,
         preset_minifloat_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_mxfp_W,  preset_mxint_W, preset_mxfp_Kv, preset_minifloat_NL, online_rotate)
+    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_W, preset_mxfp_Kv, preset_minifloat_NL, online_rotate)
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)

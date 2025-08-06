@@ -99,11 +99,13 @@ def compose_mxfp_tensor(
     return tensor
 
 
+from cfl_tools.debugger import _get_similarity
 def mxfp_quantizer_sim(
     tensor: Tensor,
     block_dim: int,
     mxfp_meta: MXFPMeta,
     dtype: torch.dtype | None = None,
+    quantile_search: bool = True,
 ) -> Tensor:
     """
     Quantizes and dequantizes a tensor using the MXFP format.
@@ -119,6 +121,29 @@ def mxfp_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
+
+    if quantile_search:
+        percentiles = [
+            1.0,
+            0.999, 0.998, 0.997, 0.995, 0.993, 0.99,
+            0.98, 0.97, 0.96, 0.95,
+            0.93, 0.91, 0.90,
+            0.87, 0.85, 0.83, 0.80,
+            0.75, 0.70, 0.65, 0.60, 0.55, 0.50
+        ]
+        for percentile in percentiles:
+            scales, elements, tensor_meta = extract_mxfp_components(
+                tensor, block_dim, mxfp_meta, percentile=percentile
+            )
+            tensor_dq = compose_mxfp_tensor(scales, elements, tensor_meta, dtype=dtype)
+            similarity = _get_similarity(tensor, tensor_dq, metric="l2norm").mean().abs()
+            out_dq = tensor_dq if similarity < min_similarity else out_dq
+            min_similarity = torch.minimum(min_similarity, similarity)
+    else:
+        scales, elements, tensor_meta = extract_mxfp_components(
+            tensor, block_dim, mxfp_meta, percentile=1.0
+        )
+        out_dq = compose_mxfp_tensor(scales, elements, tensor_meta, dtype=dtype)
     scales, elements, tensor_meta = extract_mxfp_components(
         tensor, block_dim, mxfp_meta
     )
