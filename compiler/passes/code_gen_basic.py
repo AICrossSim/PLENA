@@ -11,10 +11,14 @@ def _general_projection_code(
     hidden_size: int,
     alive_registers: List[int],
     weight_base_address: int,
+    head_dim: int,
+    cos_base_address: int,
+    sin_base_address: int,
     rope_base_address: int,
     activation_addr_int_sram_index: int,
     activation_base_address: int,
-    result_base_address: int
+    result_base_address: int,
+    rope_enabled: bool = True
 ) -> str:
     """
     Generates assembly code for a general matrix multiplication operation.
@@ -41,6 +45,7 @@ def _general_projection_code(
     # reset the registers
     set_w_base_register  = f"S_LD_INT {w_base_register}, gp0, {weight_base_address} \n"
     set_a_base_address   = f"S_LD_INT {a_base_register}, gp0, {activation_base_address} \n"
+    set_result_address   = f"S_LD_INT {result_register}, gp0, {result_base_address} \n"
 
     set_w_actual_address = f"S_ADD_INT {w_actual_register}, gp0, {w_base_register} \n"
     set_a_actual_address = f"S_ADD_INT {a_actual_register}, gp0, {a_base_register} \n"
@@ -50,8 +55,10 @@ def _general_projection_code(
     col_loop_over_hid = hidden_size // mlen
     generated_code += set_w_base_register
     generated_code += set_a_base_address
+    generated_code += set_result_address
+
     for i in range(row_loop_over_hid):
-        generated_code += f"<---- Generating New Row Tile at index {i} \n"
+        generated_code += f"<---- Generating New Row Tile at index {i} ----> \n"
         for j in range(col_loop_over_hid):
             generated_code += f"<---- Generating New Column Tile at row {i} col {j} \n"
             generated_code += f"M_MM 0, {w_actual_register}, {a_actual_register} \n"
@@ -61,6 +68,36 @@ def _general_projection_code(
     generated_code += increment_result_actual_address
     
     # RoPE
+    if rope_enabled:
+        generated_code += " Generating RoPE code here \n"
+        generated_code += set_result_address 
+        per_head_dim = hidden_size // head_dim
+        num_mlen_per_head = per_head_dim // mlen
+        
+        upper_base_register = alive_registers[0]
+        lower_base_register = alive_registers[1]
+        roped_upper_base_register = alive_registers[2]
+        roped_lower_base_register = alive_registers[3]
+        cos_base_register = alive_registers[4]
+        sin_base_register = alive_registers[5]
+        intermediate_1_register = alive_registers[6]
+        intermediate_2_register = alive_registers[7]
 
+
+        generated_code += f"S_LD_INT {cos_base_register}, gp0, {cos_base_address} \n"
+        generated_code += f"S_LD_INT {sin_base_register}, gp0, {sin_base_address} \n"
+
+        for i in range(batch * head_dim):
+            generated_code += f"<---- Generating RoPE code for batch {i // head_dim} head {i % head_dim} ----> \n"
+            generated_code += f"V_MUL_VV {intermediate_1_register}, {upper_base_register}, {cos_base_register} \n"
+            generated_code += f"V_MUL_VV {intermediate_2_register}, {lower_base_register}, {sin_base_register} \n"
+            generated_code += f"V_SUB_VV {roped_upper_base_register}, {intermediate_1_register}, {intermediate_2_register} \n"
+            generated_code += f"V_MUL_VV {intermediate_1_register}, {upper_base_register}, {sin_base_register} \n"
+            generated_code += f"V_MUL_VV {intermediate_2_register}, {lower_base_register}, {cos_base_register} \n"
+            generated_code += f"V_ADD_VV {roped_lower_base_register}, {intermediate_1_register}, {intermediate_2_register} \n"
+            generated_code += f"S_ADDI_INT {upper_base_register}, {mlen} \n"
+            generated_code += f"S_ADDI_INT {lower_base_register}, {mlen} \n"
+            generated_code += f"S_ADDI_INT {roped_upper_base_register}, {mlen} \n"
+            generated_code += f"S_ADDI_INT {roped_lower_base_register}, {mlen} \n"
 
     return generated_code
