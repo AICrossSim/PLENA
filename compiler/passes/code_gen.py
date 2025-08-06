@@ -9,6 +9,8 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
+from asm_templates.flash_attn_asm import flash_attn_asm
+
 
 def _load_template(template_name: str) -> str:
     """Load assembly template from file."""
@@ -38,12 +40,15 @@ TODO: fill me
 def _generate_attention_code(node: Dict[str, Any]) -> str:
     """Generate assembly code for attention operations."""
     projection_template = _load_template("fake_projection")
-    flash_attention_template = _load_template("flash_attention")
-    print("node :", node)
+
     dims = node["dimensions"]
     hidden_size = dims["hidden_size"]
     num_heads = dims["num_attention_heads"]
     head_dim = dims["head_dim"]
+
+    flash_attention_template = flash_attn_asm(
+        head_dim=head_dim
+    )
 
     # TODO: break flash attention down into multiple smaller templates for loop
     # TODO: Templates in asm_templates/flash_attention_tr_loop.asm + asm_templates/flash_attention_tc_loop.asm
