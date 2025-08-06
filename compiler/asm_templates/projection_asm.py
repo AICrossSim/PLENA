@@ -1,10 +1,10 @@
 import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-from tools import load_svh_settings
 
 
-def _general_projection_code(
+
+def projection_asm(
     mlen: int,
     blen: int,
     batch: int,
@@ -31,7 +31,7 @@ def _general_projection_code(
         rope_base_address (int): index for the address mapper pointing to the base addr of the rope matrix.
         activation_base_address (int): index for the address mapper pointing to the base addr of the activation matrix.
     Returns:
-        str: Generated assembly code for projection, including dot product of weight *
+        str: Generated assembly code for projection, including dot product and RoPE(cond)
     """
     generated_code = ""
     # Dot product of weight (Hidden Size, Hidden Size) and activation (Batch, 1, Hidden Size)

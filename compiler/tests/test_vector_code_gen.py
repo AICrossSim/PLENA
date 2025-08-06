@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from passes.code_gen_op import _generate_vector_op
+from compiler.asm_templates.code_gen_op import _generate_vector_op
 
 def test_attention_code_generation():
     """Test the attention code generation function"""
