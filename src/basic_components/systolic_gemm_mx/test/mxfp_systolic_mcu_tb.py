@@ -87,7 +87,7 @@ def mcu_test():
     # Run tests with different params
     veri_runner(
         group = "systolic_gemm_mx",
-        module = "mxfp_systolic_mcu",
+        module = "mx_systolic_mcu",
         additional_include_paths = [
             str(SRC_PATH / "basic_components/mx_fp_operation"),
             str(SRC_PATH / "basic_components/buffer"),

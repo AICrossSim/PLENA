@@ -9,7 +9,7 @@ Description : Since the data fed into the array is in diagonal format, the scale
 Status      : Under Development
 */
 
-module mxfp_first_row_mini_systolic_array #(
+module mx_first_row_mini_systolic_array #(
     // MX-FP Data Format
     parameter MXFP_T_EXP_WIDTH      = 4,
     parameter MXFP_T_MANT_WIDTH     = 3,
@@ -20,7 +20,9 @@ module mxfp_first_row_mini_systolic_array #(
 
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
-    parameter ACC_FP_MANT_WIDTH     = 7
+    parameter ACC_FP_MANT_WIDTH     = 7,
+    parameter L_MX_INT_EN           = 0,
+    parameter T_MX_INT_EN           = 0
 )(
 
     input logic clk,
@@ -120,7 +122,9 @@ generate;
                     .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
                     .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                     .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
-                    .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
+                    .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                    .L_MX_INT_EN       (L_MX_INT_EN),
+                    .T_MX_INT_EN       (T_MX_INT_EN)
                 ) first_row_pe (
                     .clk(clk),
                     .rst(rst),
@@ -153,7 +157,9 @@ generate;
                     .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
                     .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
                     .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
-                    .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
+                    .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                    .L_MX_INT_EN        (L_MX_INT_EN),
+                    .T_MX_INT_EN        (T_MX_INT_EN)
                 ) pe (
                     .clk(clk),
                     .rst(rst),

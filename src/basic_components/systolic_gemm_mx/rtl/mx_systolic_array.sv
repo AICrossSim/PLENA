@@ -7,20 +7,22 @@ Description : It can be used for both GEMM and GEMV operations.
 Status      : Under Development
 */
 
-module mxfp_systolic_array #(
+module mx_systolic_array #(
     // MX-FP Data Format
-    parameter MXFP_T_EXP_WIDTH      = 4,
-    parameter MXFP_T_MANT_WIDTH     = 3,
-    parameter MXFP_L_EXP_WIDTH      = 4,
-    parameter MXFP_L_MANT_WIDTH     = 3,
-    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter MX_T_EXP_WIDTH        = 4,
+    parameter MX_T_MANT_WIDTH       = 3,
+    parameter MX_L_EXP_WIDTH        = 4,
+    parameter MX_L_MANT_WIDTH       = 3,
+    parameter MX_SCALE_WIDTH        = 8,
     parameter BLOCK_DIM             = 4,
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
     parameter ACC_FP_MANT_WIDTH     = 7,
     // Dimension
     parameter COMPUTE_DIM           = 8,
-    localparam BLOCK_NUM            = COMPUTE_DIM / BLOCK_DIM
+    localparam BLOCK_NUM            = COMPUTE_DIM / BLOCK_DIM,
+    parameter L_MX_INT_EN           = 0,
+    parameter T_MX_INT_EN           = 0
 )(
 
     input   logic clk,
@@ -29,26 +31,26 @@ module mxfp_systolic_array #(
     input   logic control,
 
     // Input from Top Array
-    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1) - 1 : 0] in_top_element,
-    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MX_T_EXP_WIDTH + MX_T_MANT_WIDTH + 1) - 1 : 0] in_top_element,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * MX_SCALE_WIDTH - 1 : 0] in_top_scale,
     input   logic in_top_valid,
     output  logic in_top_ready,
 
     // Input from Top Vector Array
-    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1) - 1 : 0] in_top_v_element,
-    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * MXFP_SCALE_WIDTH - 1 : 0] in_top_v_scale,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MX_T_EXP_WIDTH + MX_T_MANT_WIDTH + 1) - 1 : 0] in_top_v_element,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * MX_SCALE_WIDTH - 1 : 0] in_top_v_scale,
     input   logic in_top_v_valid,
     output  logic in_top_v_ready,
 
     // Input from Left Array
-    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_element,
-    input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MX_L_MANT_WIDTH + MX_L_EXP_WIDTH + 1) - 1 : 0] in_left_element,
+    input   logic [BLOCK_NUM - 1: 0]    [MX_SCALE_WIDTH - 1 : 0] in_left_scale,
     input   logic in_left_valid,
     output  logic in_left_ready,
 
     // Input from Left Vector Array
-    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1) - 1 : 0] in_left_v_element,
-    input   logic [BLOCK_NUM - 1: 0]    [MXFP_SCALE_WIDTH - 1 : 0] in_left_v_scale,
+    input   logic [BLOCK_NUM - 1: 0]    [BLOCK_DIM * (MX_L_MANT_WIDTH + MX_L_EXP_WIDTH + 1) - 1 : 0] in_left_v_element,
+    input   logic [BLOCK_NUM - 1: 0]    [MX_SCALE_WIDTH - 1 : 0] in_left_v_scale,
     input   logic in_left_v_valid,
     output  logic in_left_v_ready,
 
@@ -69,10 +71,10 @@ module mxfp_systolic_array #(
         end
     end
 
-    logic [BLOCK_DIM * ( MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1 ) - 1 : 0]    ho_transfer_elem      [BLOCK_NUM - 1:0][BLOCK_NUM :0];
-    logic [MXFP_SCALE_WIDTH - 1 : 0]                                            ho_transfer_scale     [BLOCK_NUM - 1:0][BLOCK_NUM :0];
-    logic [BLOCK_DIM * ( MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1 ) - 1 : 0]    ve_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
-    logic [BLOCK_DIM * MXFP_SCALE_WIDTH - 1 : 0]                                ve_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
+    logic [BLOCK_DIM * ( MX_L_MANT_WIDTH + MX_L_EXP_WIDTH + 1 ) - 1 : 0]    ho_transfer_elem      [BLOCK_NUM - 1:0][BLOCK_NUM :0];
+    logic [MX_SCALE_WIDTH - 1 : 0]                                            ho_transfer_scale     [BLOCK_NUM - 1:0][BLOCK_NUM :0];
+    logic [BLOCK_DIM * ( MX_T_MANT_WIDTH + MX_T_EXP_WIDTH + 1 ) - 1 : 0]    ve_transfer_elem      [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
+    logic [BLOCK_DIM * MX_SCALE_WIDTH - 1 : 0]                                ve_transfer_scale     [BLOCK_NUM : 0][BLOCK_NUM - 1:0];
 
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM- 1: 0][BLOCK_DIM - 1: 0][BLOCK_DIM * (ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH + 1 ) - 1 : 0] result_values;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] result_valid;
@@ -130,15 +132,17 @@ module mxfp_systolic_array #(
         for (genvar i = 0; i < BLOCK_NUM; i = i + 1) begin : pe_row
             for (genvar j = 0; j < BLOCK_NUM; j = j + 1) begin : pe_col
                 if (i == 0) begin
-                    mxfp_first_row_mini_systolic_array #(
-                        .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
-                        .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
-                        .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
-                        .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
-                        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                    mx_first_row_mini_systolic_array #(
+                        .MX_T_EXP_WIDTH   (MX_T_EXP_WIDTH),
+                        .MX_T_MANT_WIDTH  (MX_T_MANT_WIDTH),
+                        .MX_L_EXP_WIDTH   (MX_L_EXP_WIDTH),
+                        .MX_L_MANT_WIDTH  (MX_L_MANT_WIDTH),
+                        .MX_SCALE_WIDTH   (MX_SCALE_WIDTH),
                         .BLOCK_DIM          (BLOCK_DIM),
                         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
-                        .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
+                        .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                        .L_MX_INT_EN        (L_MX_INT_EN),
+                        .T_MX_INT_EN        (T_MX_INT_EN)
                     ) first_row_mini_sys_init (
                         .clk(clk),
                         .rst(rst),
@@ -164,15 +168,17 @@ module mxfp_systolic_array #(
                         .out_result_ready   (result_ready[i][j])
                     );
                 end else begin
-                    mxfp_mini_systolic_array #(
-                        .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
-                        .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
-                        .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
-                        .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
-                        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                    mx_mini_systolic_array #(
+                        .MX_T_EXP_WIDTH   (MX_T_EXP_WIDTH),
+                        .MX_T_MANT_WIDTH  (MX_T_MANT_WIDTH),
+                        .MX_L_EXP_WIDTH   (MX_L_EXP_WIDTH),
+                        .MX_L_MANT_WIDTH  (MX_L_MANT_WIDTH),
+                        .MX_SCALE_WIDTH   (MX_SCALE_WIDTH),
                         .BLOCK_DIM          (BLOCK_DIM),
                         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
-                        .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH)
+                        .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
+                        .L_MX_INT_EN        (L_MX_INT_EN),
+                        .T_MX_INT_EN        (T_MX_INT_EN)
                     ) default_mini_sys_init (
                         .clk(clk),
                         .rst(rst),

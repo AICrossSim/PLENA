@@ -8,7 +8,7 @@ Description : It is used to prepare the data input to the systolic array compute
 Status      : Under Development
 */
 
-module mxfp_systolic_left_streamer #(
+module mx_systolic_left_streamer #(
     // MX-FP Data Format
     parameter MX_EXP_WIDTH        = 4,
     parameter MX_MANT_WIDTH       = 3,

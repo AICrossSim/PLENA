@@ -222,7 +222,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // Systolic Matrix Compute Unit
     // -----------------------------
 
-    mxfp_systolic_mcu #(
+    mx_systolic_mcu #(
         .FP_EXP_WIDTH       (V_FP_EXP_WIDTH),
         .FP_MANT_WIDTH      (V_FP_MANT_WIDTH),
         .MXFP_T_EXP_WIDTH   (WT_MXFP_EXP_WIDTH),

@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "operation.svh"
 /*
-Module      : MXFP & MXINT Mixed Data Type Systolic Array Based Matrix Compute Unit (MCU)
+Module      : Systolic Array Based Matrix Compute Unit (MCU)
 Timing      : Sequential
 Description : It supports both for GEMM and GEMV operations.
             : (M, K) x (K, N) = (M, N)
@@ -14,15 +14,15 @@ Description : It supports both for GEMM and GEMV operations.
 Status      : Under Development
 */
 
-module asymmetric_mx_systolic_mcu #(
+module mx_systolic_mcu #(
     // MX-FP Data Format
     parameter FP_EXP_WIDTH          = 8,
     parameter FP_MANT_WIDTH         = 7,
-    parameter MXFP_T_EXP_WIDTH      = 4,
-    parameter MXFP_T_MANT_WIDTH     = 3,
-    parameter MXINT_L_EXP_WIDTH     = 4,
-    parameter MXINT_L_MANT_WIDTH    = 3,
-    parameter MX_SCALE_WIDTH        = 8,
+    parameter MX_T_EXP_WIDTH      = 4,
+    parameter MX_T_MANT_WIDTH     = 3,
+    parameter MX_L_EXP_WIDTH      = 4,
+    parameter MX_L_MANT_WIDTH     = 3,
+    parameter MX_SCALE_WIDTH      = 8,
     parameter BLOCK_DIM             = 4,
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
@@ -44,17 +44,17 @@ module asymmetric_mx_systolic_mcu #(
     input   logic wait_for_output,
     
     // Multiplicant Matrix 1 TOP
-    input   logic [K - 1 : 0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0] v1_element,
-    input   logic [K - 1 : 0][MX_SCALE_WIDTH - 1 : 0]                 v1_scale,
+    input   logic [K - 1 : 0][MX_T_EXP_WIDTH + MX_T_MANT_WIDTH : 0]     v1_element,
+    input   logic [K - 1 : 0][MX_SCALE_WIDTH - 1 : 0]                   v1_scale,
     input   logic v1_in_valid,
     output  logic v1_in_ready,
     // Multiplier   Matrix 2 LEFT
-    input   logic [K - 1 : 0][MXINT_L_EXP_WIDTH + MXINT_L_MANT_WIDTH : 0] v2_element,
-    input   logic [ROW_BLOCK_NUM - 1 : 0][MX_SCALE_WIDTH - 1 : 0]     v2_scale,
+    input   logic [K - 1 : 0][MX_L_EXP_WIDTH + MX_L_MANT_WIDTH : 0]     v2_element,
+    input   logic [ROW_BLOCK_NUM - 1 : 0][MX_SCALE_WIDTH - 1 : 0]       v2_scale,
     input   logic v2_in_valid,
     output  logic v2_in_ready,
     // Vector Product Output
-    output  logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]     v_result,
+    output  logic [K - 1 : 0][FP_EXP_WIDTH + FP_MANT_WIDTH : 0]         v_result,
     output  logic v_result_write_req,
     input   logic v_result_ready,
     output  logic empty_in_progress
@@ -89,13 +89,13 @@ module asymmetric_mx_systolic_mcu #(
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_top_in_valid, array_top_in_ready;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] array_left_in_valid, array_left_in_ready;
 
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]       array_top_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MX_T_EXP_WIDTH + MX_T_MANT_WIDTH : 0]           array_top_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MX_SCALE_WIDTH - 1 : 0]                         array_top_in_scale;
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]       array_top_v_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MX_T_EXP_WIDTH + MX_T_MANT_WIDTH : 0]           array_top_v_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MX_SCALE_WIDTH - 1 : 0]                         array_top_v_in_scale;
-    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXINT_L_EXP_WIDTH + MXINT_L_EXP_WIDTH : 0]      array_left_in_element;
+    wire [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MX_L_EXP_WIDTH + MX_L_MANT_WIDTH : 0]           array_left_in_element;
     wire [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MX_SCALE_WIDTH - 1 : 0]                 array_left_in_scale;
-    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MXINT_L_EXP_WIDTH + MXINT_L_EXP_WIDTH : 0]     array_left_v_in_element;
+    logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM - 1 : 0]   [MX_L_EXP_WIDTH + MX_L_MANT_WIDTH : 0]          array_left_v_in_element;
     logic [SYS_ARRAY_AMOUNT - 1 : 0][BLOCK_NUM_PER_ARRAY - 1 : 0]   [MX_SCALE_WIDTH - 1 : 0]                array_left_v_in_scale;
 
 
@@ -244,7 +244,7 @@ module asymmetric_mx_systolic_mcu #(
     );
 
     register_slice #(
-        .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * (MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH + 1))
+        .DATA_WIDTH(SYS_ARRAY_AMOUNT * COMPUTE_DIM * (MX_T_EXP_WIDTH + MX_T_MANT_WIDTH + 1))
     ) v1_gemv_ele_streamer (
             .clk           (clk),
             .rst           (rst),
@@ -354,9 +354,9 @@ module asymmetric_mx_systolic_mcu #(
         );
 
         for (genvar i = 0; i < SYS_ARRAY_AMOUNT; i++) begin
-            mxfp_systolic_top_streamer #(
-                .MX_EXP_WIDTH       (MXFP_T_EXP_WIDTH),
-                .MX_MANT_WIDTH      (MXFP_T_MANT_WIDTH),
+            mx_systolic_top_streamer #(
+                .MX_EXP_WIDTH       (MX_T_EXP_WIDTH),
+                .MX_MANT_WIDTH      (MX_T_MANT_WIDTH),
                 .MX_SCALE_WIDTH     (MX_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
@@ -375,9 +375,9 @@ module asymmetric_mx_systolic_mcu #(
                 .data_out_ready (array_top_in_ready[i])
             );
 
-            mxfp_systolic_left_streamer #(
-                .MX_EXP_WIDTH       (MXINT_L_EXP_WIDTH),
-                .MX_MANT_WIDTH      (MXINT_L_MANT_WIDTH),
+            mx_systolic_left_streamer #(
+                .MX_EXP_WIDTH       (MX_L_EXP_WIDTH),
+                .MX_MANT_WIDTH      (MX_L_MANT_WIDTH),
                 .MX_SCALE_WIDTH     (MX_SCALE_WIDTH),
                 .BLOCK_DIM          (BLOCK_DIM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
@@ -397,15 +397,15 @@ module asymmetric_mx_systolic_mcu #(
             );
 
             mxfp_systolic_array #(
-                .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
-                .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
-                .MXINT_L_EXP_WIDTH   (MXINT_L_EXP_WIDTH),
-                .MXINT_L_EXP_WIDTH  (MXINT_L_EXP_WIDTH),
-                .MX_SCALE_WIDTH     (MX_SCALE_WIDTH),
-                .BLOCK_DIM          (BLOCK_DIM),
-                .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
-                .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
-                .COMPUTE_DIM        (COMPUTE_DIM)
+                .MX_T_EXP_WIDTH       (MX_T_EXP_WIDTH),
+                .MX_T_MANT_WIDTH      (MX_T_MANT_WIDTH),
+                .MX_L_EXP_WIDTH       (MX_L_EXP_WIDTH),
+                .MX_L_MANT_WIDTH      (MX_L_MANT_WIDTH),
+                .MX_SCALE_WIDTH       (MX_SCALE_WIDTH),
+                .BLOCK_DIM            (BLOCK_DIM),
+                .ACC_FP_EXP_WIDTH     (ACC_FP_EXP_WIDTH),
+                .ACC_FP_MANT_WIDTH    (ACC_FP_MANT_WIDTH),
+                .COMPUTE_DIM          (COMPUTE_DIM)
             ) systolic_array_inst (
                 .clk(clk),
                 .rst                (rst),
@@ -449,7 +449,7 @@ module asymmetric_mx_systolic_mcu #(
     localparam GEBM_OUT_DIM = COMPUTE_DIM * COMPUTE_DIM;
     localparam MAX_K_GEBM_OUT_DIM = (K > GEBM_OUT_DIM) ? K : GEBM_OUT_DIM;
 
-    mxfp_sum_across_sa #(
+    mx_sum_across_sa #(
         .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
         .COMPUTE_DIM        (COMPUTE_DIM),
@@ -580,9 +580,9 @@ module asymmetric_mx_systolic_mcu #(
         .M(M),
         .N(N),
         .K(K),
-        .FP_EXP_WIDTH(FP_EXP_WIDTH),
-        .FP_MANT_WIDTH(FP_MANT_WIDTH),
-        .ACC_ADDR_WIDTH(ACC_ADDR_WIDTH)
+        .FP_EXP_WIDTH       (FP_EXP_WIDTH),
+        .FP_MANT_WIDTH      (FP_MANT_WIDTH),
+        .ACC_ADDR_WIDTH     (ACC_ADDR_WIDTH)
     ) hold_and_unroll_for_gemm (
         .clk(clk),
         .rst(rst),
@@ -601,7 +601,7 @@ module asymmetric_mx_systolic_mcu #(
     assign v_result_write_req = result_data_valid & v_result_ready;
 
     register_slice #(
-        .DATA_WIDTH(K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
+        .DATA_WIDTH (K * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1))
     ) result_buffer (
         .clk(clk),
         .rst(rst),

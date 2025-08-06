@@ -19,7 +19,11 @@ module mxfp_default_pe #(
     parameter ACC_FP_EXP_WIDTH      = 8,
     parameter ACC_FP_MANT_WIDTH     = 7,
     parameter PROD_EXT_EXP_WIDTH    = 0,
-    parameter PROD_EXT_MANT_WIDTH   = 0 
+    parameter PROD_EXT_MANT_WIDTH   = 0,
+
+    // Data Type Control
+    parameter L_MX_INT_EN           = 0,
+    parameter T_MX_INT_EN           = 0 // Not implemented yet
 )(
 
     input logic clk,
