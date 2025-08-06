@@ -117,7 +117,7 @@ async def simple_random_mxfp_test(dut):
 def test_simple_pe():
     # Run tests with different params
     veri_runner(
-        group = "systolic_gemm_mxfp",
+        group = "systolic_gemm_mx",
         module = "mxfp_default_pe",
         additional_include_paths = [
             str(SRC_PATH / "basic_components/mx_fp_operation"),

@@ -54,7 +54,7 @@ def simple_test():
             str(SRC_PATH / "basic_components/fixed_operation"),
             str(SRC_PATH / "basic_components/int_operation"),
             str(SRC_PATH / "basic_components/cast"),
-            str(SRC_PATH / "basic_components/systolic_gemm_mxfp"),
+            str(SRC_PATH / "basic_components/systolic_gemm_mx"),
             str(SRC_PATH / "basic_components/gemv"),
             str(SRC_PATH / "basic_components/synopsis"),
             str(SRC_PATH / "basic_components/synopsis_ip_inst"),
