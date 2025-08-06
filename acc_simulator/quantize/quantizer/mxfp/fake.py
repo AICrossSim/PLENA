@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 
 from quant.quantizer.minifloat import minifloat_denorm_quantizer
+from ..minifloat.minifloat_fake import minifloat_denorm_quantizer
 from ..minifloat.fake import (
     compose_minifloat_component,
     extract_minifloat_component,
@@ -36,6 +37,7 @@ def extract_mxfp_components(x: Tensor, mxfp_meta: MXFPMeta):
 def compose_mxfp_tensor(
     shared_scales: Tensor,
     elements: Tensor,
+    mxfp_meta: MXFPMeta,
 ) -> Tensor:
     dequantized = elements * 2**shared_scales
     dequantized = dequantized.flatten().to(torch.bfloat16)
