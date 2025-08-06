@@ -123,7 +123,7 @@ def mxint_quantizer_sim(
         B = mxint_meta.block_size
 
         qtensor = qtensor.reshape(-1, B)  # [n_blocks, B]
-        best = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device)
+        best_err = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device)
         best_scales, best_elements, tensor_meta = extract_mxint_components(
             tensor, block_dim, mxint_meta, percentile=1.0
         )
@@ -146,9 +146,9 @@ def mxint_quantizer_sim(
             q.abs_()
             q.pow_(2)
             err = torch.sum(q, 1)
-            tmp = err < best
+            tmp = err < best_err
             if torch.any(tmp):
-                best[tmp] = err[tmp]
+                best_err[tmp] = err[tmp]
                 best_scales[tmp] = scales[tmp]
                 best_elements[tmp] = elements[tmp]
     else:
@@ -157,5 +157,5 @@ def mxint_quantizer_sim(
         )
         best_scales = scales
         best_elements = elements
-    
+    out_dq = compose_mxint_tensor(best_scales, best_elements, tensor_meta)
     return out_dq

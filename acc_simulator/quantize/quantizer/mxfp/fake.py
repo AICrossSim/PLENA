@@ -10,7 +10,7 @@ from ..minifloat.fake import (
 from .meta import MXFPMeta
 
 
-def extract_mxfp_components(x: Tensor, mxfp_meta: MXFPMeta):
+def extract_mxfp_components(x: Tensor, mxfp_meta: MXFPMeta, percentile: float = 1.0):
     assert x.dtype == torch.bfloat16
     B = mxfp_meta.block_size
     assert x.numel() % B == 0, (
@@ -20,7 +20,7 @@ def extract_mxfp_components(x: Tensor, mxfp_meta: MXFPMeta):
 
     x = x.flatten()
     x = x.reshape(n_blocks, B)  # [n_blocks, B]
-    per_block_max = x.abs().max(dim=1, keepdim=True).values + 1e-9
+    per_block_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True) + 1e-9
     scales = per_block_max.log2().ceil()
     scales = scales.clamp(min=-2**(mxfp_meta.scale_exp_bits - 1), max=2**(mxfp_meta.scale_exp_bits - 1) - 1)
 

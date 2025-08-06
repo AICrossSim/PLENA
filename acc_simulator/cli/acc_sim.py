@@ -29,16 +29,20 @@ from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experimen
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
+from cfl_tools.logger import get_logger, set_logging_verbosity
+
+logger = get_logger(__name__)
+set_logging_verbosity(logger, "INFO")
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
     model_name: str = "meta-llama/Meta-Llama-3-8B",
     tasks: Union[str, list[str]] = "wikitext",
     preset: Union[str, None] = "original",
-    preset_mxfp_X: Union[str, None] = None,
+    preset_X: Union[str, None] = None,
     preset_W: Union[str, None] = None,
-    preset_mxfp_Kv: Union[str, None] = None,
-    preset_minifloat_NL: Union[str, None] = None,
+    preset_Kv: Union[str, None] = None,
+    preset_NL: Union[str, None] = None,
     model_parallel: bool = True,
     log_dir: Union[str, None] = None,
     enable_eval_harness: bool = False,
@@ -57,10 +61,10 @@ def llama_eval(
         model_name (str): HuggingFace model ID.
         tasks (str or list): lm-eval task(s) to run.
         preset (str): Quantization preset, e.g., "XqWqBqKVqNLq" enables quantization of inputs (Xq), weights (Wq), biases (Bq), KV cache (KVq) and Non linear Ops(NLq). Use "original" to disable all quantization.
-        preset_mxfp_X (str): MXFP format for activations. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
-        preset_mxfp_W (str): MXFP format for weights. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
-        preset_mxfp_Kv (str): MXFP format for KV cache. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
-        preset_minifloat_NL (str): Minifloat format for nonlinear ops. Expected format: FP_E<exp>M<frac>[_B<bias>]
+        preset_X (str): Quantization format for activations. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_W (str): Quantization format for weights. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_Kv (str): Quantization format for KV cache. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_NL (str): Quantization format for nonlinear ops. Expected format: FP_E<exp>M<frac>[_B<bias>]
         model_parallel: Whether to auto-dispatch model across GPUs, will trigger Triton Kernel for mxfp quantization if set.
         log_dir: Directory to save logs and results.
         enable_eval_harness: Whether to run evaluation via EleutherAI lm-eval-harness.
@@ -72,15 +76,16 @@ def llama_eval(
         online_rotate: Whether to apply online inner layer activation rotation.
     """
     start_time = time.time()
-    preset_mxfp_X, preset_W, preset_mxfp_Kv, preset_minifloat_NL = validate_and_sanitize_quant_args(
+    preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
-        preset_mxfp_X,
+        preset_X,
         preset_W,
-        preset_mxfp_Kv,
-        preset_minifloat_NL
+        preset_Kv,
+        preset_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_mxfp_X, preset_W, preset_mxfp_Kv, preset_minifloat_NL, online_rotate)
+    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate)
+    logger.info(f"Quantization arguments: {quant_args}")
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)

@@ -8,7 +8,7 @@ from .meta import MXFPMeta, MXFPTensorMeta
 
 
 def extract_mxfp_components(
-    tensor: Tensor, block_dim: int, mxfp_meta: MXFPMeta
+    tensor: Tensor, block_dim: int, mxfp_meta: MXFPMeta, percentile: float = 1.0
 ) -> tuple[Tensor, Tensor, MXFPTensorMeta]:
     """
     Extracts the MXFP components from a tensor.
@@ -22,6 +22,8 @@ def extract_mxfp_components(
     :type block_dim: int
     :param mxfp_meta: The metadata for the MXFP format.
     :type mxfp_meta: MXFPMeta
+    :param percentile: The percentile to use for the quantization.
+    :type percentile: float, optional
 
     :returns: The extracted scales, elements, and tensor metadata.
     :rtype: tuple[torch.Tensor, torch.Tensor, MXFPTensorMeta]
@@ -39,11 +41,11 @@ def extract_mxfp_components(
     tensor = flatten_for_quantize(tensor, block_dim)
     if device == "cpu":
         scales, elements = mxfp_fake.extract_mxfp_components(
-            tensor, mxfp_meta=mxfp_meta
+            tensor, mxfp_meta=mxfp_meta, percentile=percentile
         )
     else:
         scales, elements = mxfp_fake.extract_mxfp_components(
-            tensor, mxfp_meta=mxfp_meta
+            tensor, mxfp_meta=mxfp_meta, percentile=percentile
         )
     tensor_meta = MXFPTensorMeta(
         device=device,
@@ -121,8 +123,16 @@ def mxfp_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
-
     if quantile_search:
+        out_dq = torch.zeros_like(tensor)
+        qtensor = tensor.flatten()
+        B = mxfp_meta.block_size
+
+        qtensor = qtensor.reshape(-1, B)  # [n_blocks, B]
+        best_err = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device)
+        best_scales, best_elements, tensor_meta = extract_mxfp_components(
+            tensor, block_dim, mxfp_meta, percentile=1.0
+        )
         percentiles = [
             1.0,
             0.999, 0.998, 0.997, 0.995, 0.993, 0.99,
@@ -135,17 +145,23 @@ def mxfp_quantizer_sim(
             scales, elements, tensor_meta = extract_mxfp_components(
                 tensor, block_dim, mxfp_meta, percentile=percentile
             )
-            tensor_dq = compose_mxfp_tensor(scales, elements, tensor_meta, dtype=dtype)
-            similarity = _get_similarity(tensor, tensor_dq, metric="l2norm").mean().abs()
-            out_dq = tensor_dq if similarity < min_similarity else out_dq
-            min_similarity = torch.minimum(min_similarity, similarity)
+            scale_bias = 2**(mxfp_meta.scale_exp_bits - 1) - 1
+            q = elements / 2**(mxfp_meta.scale_exp_bits - 1) * 2**(scales - scale_bias)
+
+            q -= qtensor
+            q.abs_()
+            q.pow_(2)
+            err = torch.sum(q, 1)
+            tmp = err < best_err
+            if torch.any(tmp):
+                best_err[tmp] = err[tmp]
+                best_scales[tmp] = scales[tmp]
+                best_elements[tmp] = elements[tmp]
     else:
         scales, elements, tensor_meta = extract_mxfp_components(
             tensor, block_dim, mxfp_meta, percentile=1.0
         )
-        out_dq = compose_mxfp_tensor(scales, elements, tensor_meta, dtype=dtype)
-    scales, elements, tensor_meta = extract_mxfp_components(
-        tensor, block_dim, mxfp_meta
-    )
-    tensor_dq = compose_mxfp_tensor(scales, elements, tensor_meta, dtype=dtype)
-    return tensor_dq
+        best_scales = scales
+        best_elements = elements
+    out_dq = compose_mxfp_tensor(best_scales, best_elements, tensor_meta)
+    return out_dq
