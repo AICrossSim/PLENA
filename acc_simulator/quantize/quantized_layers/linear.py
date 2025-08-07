@@ -1,9 +1,12 @@
-from typing import Literal
+from typing import Literal, Union
 
 import torch
 from torch import Tensor, nn
 
 from ..quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
+from ..quantizer.mxint import MXIntMeta, mxint_quantizer_sim
+from ..quantizer.minifloat import MinifloatMeta, minifloat_quantizer_sim
+from ..utils import quantize_tensor
 
 
 class MXFPLinearPTQ(nn.Module):
@@ -14,9 +17,9 @@ class MXFPLinearPTQ(nn.Module):
         self,
         weight: Tensor,
         bias: Tensor | None,
-        x_mxfp_meta: MXFPMeta | None,
-        w_mxfp_meta: MXFPMeta | None,
-        b_mxfp_meta: MXFPMeta | None,
+        x_meta: MXFPMeta | MXIntMeta | None,
+        w_meta: Union[MXFPMeta, MXIntMeta, None],
+        b_meta: MXFPMeta | MXIntMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ]
@@ -29,22 +32,23 @@ class MXFPLinearPTQ(nn.Module):
         in_features, out_features = weight.shape[1], weight.shape[0]
         self.in_features = in_features
         self.out_features = out_features
-        self.x_mxfp_meta = x_mxfp_meta
-        self.w_mxfp_meta = w_mxfp_meta
-        self.b_mxfp_meta = b_mxfp_meta
+        self.x_meta = x_meta
+        self.w_meta = w_meta
+        self.b_meta = b_meta
         self.layer_type = layer_type
 
         self.weight = None
         self.bias = None
 
         if "Wq" in self.layer_type:
-            self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mxfp_meta)
+            self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta)
+            # self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mx_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 
         if "Bq" in self.layer_type:
             if isinstance(bias, Tensor):
-                self.bias = mxfp_quantizer_sim(bias, block_dim=0, mxfp_meta=b_mxfp_meta)
+                self.bias = quantize_tensor(bias, block_dim=0, meta=b_meta)
         else:
             if bias is not None:
                 self.bias = nn.Parameter(bias, requires_grad=False)
@@ -52,7 +56,7 @@ class MXFPLinearPTQ(nn.Module):
     @torch.no_grad()
     def forward(self, input: Tensor) -> Tensor:
         if "Xq" in self.layer_type:
-            input = mxfp_quantizer_sim(input, block_dim=-1, mxfp_meta=self.x_mxfp_meta)
+            input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
 
         # print(f"[DEBUG] input dtype: {input.dtype}, weight dtype: {self.weight.dtype}, bias dtype: {self.bias.dtype if self.bias is not None else 'None'}")
         return torch.nn.functional.linear(input, self.weight, self.bias)
@@ -62,17 +66,17 @@ class MXFPLinearPTQ(nn.Module):
         return (
             f"in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, "
             f"layer_type={self.layer_type}, "
-            f"w_mxfp_meta={self.w_mxfp_meta}, x_mxfp_meta={self.x_mxfp_meta}, "
-            f"b_mxfp_meta={self.b_mxfp_meta}"
+            f"w_meta={self.w_meta}, x_meta={self.x_meta}, "
+            f"b_meta={self.b_meta}"
         )
 
     @classmethod
     def from_linear(
         cls,
         layer: nn.Linear,
-        x_mxfp_meta: MXFPMeta | None,
-        w_mxfp_meta: MXFPMeta | None,
-        b_mxfp_meta: MXFPMeta | None,
+        x_meta: MXFPMeta | MXIntMeta | None,
+        w_meta: Union[MXFPMeta, MXIntMeta, None],
+        b_meta: MXFPMeta | MXIntMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ]
@@ -85,8 +89,8 @@ class MXFPLinearPTQ(nn.Module):
             return cls(
                 weight=layer.weight.clone(),
                 bias=layer.bias.clone() if layer.bias is not None else None,
-                x_mxfp_meta=x_mxfp_meta,
-                w_mxfp_meta=w_mxfp_meta,
-                b_mxfp_meta=b_mxfp_meta,
+                x_meta=x_meta,
+                w_meta=w_meta,
+                b_meta=b_meta,
                 layer_type=layer_type
             )

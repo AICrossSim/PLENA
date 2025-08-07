@@ -3,8 +3,8 @@ from typing import Literal
 import torch
 from torch import Tensor
 
-from ..quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
-
+from ..quantizer.mxfp import MXFPMeta
+from ..utils import quantize_tensor
 
 def matmul_mxfp(
     input: Tensor,
@@ -15,10 +15,10 @@ def matmul_mxfp(
 ) -> Tensor:
     if "Xq" in func_type:
         assert input_meta is not None
-        input = mxfp_quantizer_sim(input, block_dim=-1, mxfp_meta=input_meta)
+        input = quantize_tensor(input, block_dim=-1, meta=input_meta)
     if "Wq" in func_type:
         assert other_meta is not None
-        other = mxfp_quantizer_sim(input, block_dim=-2, mxfp_meta=input_meta)
+        other = quantize_tensor(other, block_dim=-2, meta=other_meta)
 
     return torch.matmul(input, other)
 

@@ -1,4 +1,4 @@
-from .minifloat import minifloat_ieee_quantizer
 from .meta import MinifloatMeta
+from .minifloat import minifloat_quantizer_sim
 
-__all__ = ["minifloat_ieee_quantizer", "MinifloatMeta"]
+__all__ = ["MinifloatMeta"]

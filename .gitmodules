@@ -1,3 +1,6 @@
 [submodule "Llama_Experiments"]
 	path = doc/Llama_Experiments
 	url = https://github.com/ChengZhang-98/aria-llama-ops.git
+[submodule "acc_simulator/third_party/fast-hadamard-transform"]
+	path = acc_simulator/third_party/fast-hadamard-transform
+	url = git@github.com:Dao-AILab/fast-hadamard-transform.git

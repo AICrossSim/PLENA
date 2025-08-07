@@ -1,64 +1,125 @@
 import torch
 from torch import Tensor
 
-from .utils import my_clamp, my_round
-from .meta import MinifloatMeta
+from . import fake as minifloat_fake
+from .helpers import flatten_for_quantize, permute_for_dequantize
+from .meta import MinifloatMeta, MinifloatTensorMeta
 
 
-def _minifloat_ieee_quantize(x: Tensor, meta: MinifloatMeta) -> Tensor:
-    exponent_width = meta.element_exp_bits
-    mantissa_bits = meta.element_frac_bits
-    exponent_bias = meta.exponent_bias
+def extract_minifloat_components(
+    tensor: Tensor, block_dim: int, minifloat_meta: MinifloatMeta
+) -> tuple[Tensor, Tensor, MinifloatTensorMeta]:
+    """
+    Extracts the Minifloat components from a tensor.
 
-    exponent_max = 2 ** exponent_width - 1 - exponent_bias
-    exponent_min = -exponent_bias
-    shift = 2 ** mantissa_bits
-    shifted_mantissa_max = shift - 1
-    shifted_mantissa_min = 0
+    .. note::
+        The block for exponent sharing is a 1D vector instead of a 2D matrix.
 
-    sign = torch.sign(x + 1e-9)
-    value = torch.abs(x)
+    :param tensor: The input tensor to be quantized.
+    :type tensor: torch.Tensor
+    :param block_dim: The dimension to group the tensor elements into blocks.
+    :type block_dim: int
+    :param minifloat_meta: The metadata for the Minifloat format.
+    :type minifloat_meta: MinifloatMeta
 
-    # Calculate exponent and clamp
-    exponent = torch.floor(torch.log2(value + 1e-9))
-    exponent = my_clamp(exponent, exponent_min, exponent_max)
+    :returns: The extracted scales, elements, and tensor metadata.
+    :rtype: tuple[torch.Tensor, torch.Tensor, MinifloatTensorMeta]
+    """
+    device = str(tensor.device)
+    ori_shape = tuple(tensor.shape)
+    ori_dtype = str(tensor.dtype).removeprefix("torch.")
+    ndim = len(ori_shape)
+    assert block_dim < ndim and block_dim >= -ndim
 
-    mantissa = value / (2 ** exponent)
+    assert device.startswith("cpu") or device.startswith("cuda"), (
+        f"Unsupported device: {device}. Only 'cpu' and 'cuda' are supported."
+    )
+    tensor = tensor.to(torch.bfloat16)
+    tensor = flatten_for_quantize(tensor, block_dim)
+    if device == "cpu":
+        scales, elements = minifloat_fake.extract_minifloat_component(
+            tensor, minifloat_meta=minifloat_meta
+        )
+    else:
+        scales, elements = minifloat_fake.extract_minifloat_component(
+            tensor, minifloat_meta=minifloat_meta
+        )
+    tensor_meta = MinifloatTensorMeta(
+        device=device,
+        dtype=ori_dtype,
+        shape=ori_shape,
+        block_dim=block_dim,
+        meta=minifloat_meta,
+    )
+    return scales, elements, tensor_meta
 
-    if isinstance(exponent_bias, (int, float)):
-        exponent_bias = torch.tensor(
-            [exponent_bias], dtype=exponent.dtype, device=exponent.device
+
+def compose_minifloat_tensor(
+    scales,
+    elements,
+    tensor_meta: MinifloatTensorMeta,
+    dtype: torch.dtype | None = None,
+) -> Tensor:
+    """
+    Compose a tensor from Minifloat components.
+
+    :param scales: The shared scales for exponent sharing.
+    :type scales: torch.Tensor
+    :param elements: The elements of the tensor.
+    :type elements: torch.Tensor
+    :param tensor_meta: The metadata for the Minifloat tensor.
+    :type tensor_meta: MinifloatTensorMeta
+    :param dtype: The desired data type of the output tensor, by default None, which uses the dtype from tensor_meta.
+    :type dtype: torch.dtype, optional
+
+    :returns: The dequantized tensor.
+    :rtype: torch.Tensor
+    """
+    device = tensor_meta.device
+    dtype = getattr(torch, tensor_meta.dtype) if dtype is None else dtype
+
+    if device == "cpu":
+        tensor = minifloat_fake.compose_minifloat_tensor(
+            shared_scales=scales,
+            elements=elements,
+            minifloat_meta=tensor_meta.meta,
+        )
+    else:
+        tensor = minifloat_fake.compose_minifloat_tensor(
+            shared_scales=scales,
+            elements=elements,
+            minifloat_meta=tensor_meta.meta,
         )
 
-    is_normal = ~torch.isclose(exponent, -exponent_bias)
-    # Shifted mantissa depends on normal/subnormal form
-    shifted_mantissa = (
-        is_normal
-        * my_clamp(my_round(mantissa * shift - shift), shifted_mantissa_min, shifted_mantissa_max)
-        + (~is_normal)
-        * my_clamp(my_round(mantissa * shift / 2), shifted_mantissa_min, shifted_mantissa_max)
+    tensor = permute_for_dequantize(
+        tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim
     )
+    tensor = tensor.to(dtype=dtype)
+    return tensor
 
-    mantissa = (
-        is_normal * (1.0 + shifted_mantissa / shift)
-        + (~is_normal) * (shifted_mantissa / shift * 2)
+
+def minifloat_quantizer_sim(
+    tensor: Tensor,
+    block_dim: int,
+    minifloat_meta: MinifloatMeta,
+    dtype: torch.dtype | None = None,
+) -> Tensor:
+    """
+    Quantizes and dequantizes a tensor using the MXFP format.
+
+    :param tensor: The input tensor to be quantized.
+    :type tensor: torch.Tensor
+    :param block_dim: The dimension to group the tensor elements into blocks.
+    :type block_dim: int
+    :param minifloat_meta: The metadata for the Minifloat format.
+    :type minifloat_meta: MinifloatMeta
+    :param dtype: The desired data type of the output tensor, by default None, which uses the dtype from minifloat_meta.
+
+    :returns: The dequantized tensor.
+    :rtype: torch.Tensor
+    """
+    scales, elements, tensor_meta = extract_minifloat_components(
+        tensor, block_dim, minifloat_meta
     )
-
-    # Handle x == 0 explicitly to preserve gradient
-    is_zero = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))
-    quantized = (~is_zero) * (sign * (2 ** exponent) * mantissa) + is_zero * x
-    return quantized
-
-
-class MinifloatIEEEQuantize(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, x: Tensor, meta: MinifloatMeta) -> Tensor:
-        return _minifloat_ieee_quantize(x, meta)
-
-    @staticmethod
-    def backward(ctx, grad_output: Tensor):
-        return grad_output.clone(), None
-
-
-def minifloat_ieee_quantizer(x: Tensor, meta: MinifloatMeta) -> Tensor:
-    return MinifloatIEEEQuantize.apply(x, meta)
+    tensor_dq = compose_minifloat_tensor(scales, elements, tensor_meta, dtype=dtype)
+    return tensor_dq

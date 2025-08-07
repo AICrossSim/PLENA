@@ -4,6 +4,7 @@ import torch
 from torch import Tensor, nn
 
 from quantizer.mxint import MXIntMeta, extract_mxint_components, mxint_quantizer_sim
+from quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
 
 def test_extract_mxint_components():
     data = torch.randn(1024).to("cuda").bfloat16()
@@ -24,5 +25,12 @@ def test_mxint_quantizer_sim():
     print(dq)
     print(data)
 
+def test_mxfp_quantizer_sim():
+    torch.manual_seed(0)
+    data = torch.randn(32).bfloat16().to("cuda")
+    meta = MXFPMeta.from_string("MXFP_E1M2_B16_S8")
+    dq = mxfp_quantizer_sim(data, block_dim=0, mxfp_meta=meta)
+    print(dq)
+    print(data)
 if __name__ == "__main__":
-    test_mxint_quantizer_sim()
+    test_mxfp_quantizer_sim()

@@ -1,5 +1,8 @@
 from typing import Literal, Optional, Tuple
+import math
+import fast_hadamard_transform
 
+import torch
 from torch import Tensor, nn, LongTensor
 from transformers.models.llama.modeling_llama import (
     Cache,
@@ -31,8 +34,10 @@ class LlamaAttentionMXFP(LlamaAttention):
         softmax_func_type: Literal["X", "Xq"] | None,
         kv_cache_meta: MXFPMeta | None,
         kv_func_type: Literal["KV", "KVq"] | None,
+        online_rotate: bool
     ):
         super().__init__(config, layer_idx)
+        self.config = config
         self.qk_q_meta = qk_q_meta
         self.qk_k_meta = qk_k_meta
         self.qk_func_type = qk_func_type
@@ -45,6 +50,7 @@ class LlamaAttentionMXFP(LlamaAttention):
         self.softmax_func_type = softmax_func_type
         self.kv_cache_meta = kv_cache_meta
         self.kv_func_type = kv_func_type
+        self.online_rotate = online_rotate
 
     def forward(
         self,
@@ -55,9 +61,13 @@ class LlamaAttentionMXFP(LlamaAttention):
         cache_position: Optional[LongTensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[Tensor, Optional[Tensor], Optional[Tuple[Tensor]]]:
+        # [batch_size, seq_length]
         input_shape = hidden_states.shape[:-1]
+        # [batch_size, seq_length, num_heads, head_dim]
+        # -1 infers num_heads = hidden_dim // head_dim
         hidden_shape = (*input_shape, -1, self.head_dim)
 
+        # hidden_states.shape == [batch_size, seq_length, hidden_dim]
         # [batch_size, num_heads, seq_length, head_dim]
         query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
         key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)
@@ -108,7 +118,17 @@ class LlamaAttentionMXFP(LlamaAttention):
             **kwargs,
         )
 
+        # (batch_size, seq_len, num_heads, head_dim) → (batch_size, seq_len, num_heads * head_dim)
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+
+        # online hadamard here for activation before o_proj
+        if self.online_rotate:
+            init_shape = attn_output.shape
+            had_dim =  self.config.head_dim
+            attn_output = fast_hadamard_transform.hadamard_transform(attn_output.reshape(-1, init_shape[-1]//had_dim, had_dim).transpose(1, 2),
+                                                               scale=1/math.sqrt(init_shape[-1]//had_dim)).transpose(1, 2)
+            attn_output = attn_output.reshape(init_shape)
+        
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -128,6 +148,7 @@ class LlamaAttentionMXFP(LlamaAttention):
         softmax_func_type: Literal["X", "Xq"] | None,
         kv_cache_meta: MXFPMeta | None,
         kv_func_type: Literal["KV", "KVq"] | None,
+        online_rotate: bool
     ):
         new_attn = cls(
             config=attention.config,
@@ -143,7 +164,8 @@ class LlamaAttentionMXFP(LlamaAttention):
             softmax_meta=softmax_meta,
             softmax_func_type=softmax_func_type,
             kv_cache_meta=kv_cache_meta,
-            kv_func_type=kv_func_type
+            kv_func_type=kv_func_type,
+            online_rotate=online_rotate
         )
         device, dtype = next(attention.parameters()).device, next(attention.parameters()).dtype
         new_attn = new_attn.to(dtype=dtype, device=device)
@@ -175,15 +197,15 @@ def eager_attention_forward_mxfp(
     value_states = repeat_kv(value, module.num_key_value_groups)
 
     # *: quantized QK matmul if meta is not None
-    # attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
-    attn_weights = matmul_mxfp(
-        query,
-        key_states.transpose(2, 3),
-        input_meta=qk_q_meta,
-        other_meta=qk_k_meta,
-        func_type=qk_func_type
-    )
-    attn_weights = attn_weights * scaling
+    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
+    # attn_weights = matmul_mxfp(
+    #     query,
+    #     key_states.transpose(2, 3),
+    #     input_meta=qk_q_meta,
+    #     other_meta=qk_k_meta,
+    #     func_type=qk_func_type
+    # )
+    # attn_weights = attn_weights * scaling
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -199,14 +221,14 @@ def eager_attention_forward_mxfp(
         attn_weights, p=dropout, training=module.training
     )
     # *: quantized AV matmul if meta is not None
-    # attn_output = torch.matmul(attn_weights, value_states)
-    attn_output = matmul_mxfp(
-        attn_weights,
-        value_states,
-        input_meta=av_a_meta,
-        other_meta=av_v_meta,
-        func_type=av_func_type
-    )
+    attn_output = torch.matmul(attn_weights, value_states)
+    # attn_output = matmul_mxfp(
+    #     attn_weights,
+    #     value_states,
+    #     input_meta=av_a_meta,
+    #     other_meta=av_v_meta,
+    #     func_type=av_func_type
+    # )
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights

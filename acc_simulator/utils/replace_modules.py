@@ -32,6 +32,7 @@ def set_layer_by_name(module: torch.nn.Module, name: str, new_layer: torch.nn.Mo
     else:
         setattr(module, name, new_layer)
 
+
 def replace_modules(
     model: nn.Module,
     target_class: type,
@@ -60,7 +61,6 @@ def replace_modules(
             print(f"Skipping {label}: {name}")
             continue
 
-        t_layer = time.time()
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)
 
@@ -71,8 +71,6 @@ def replace_modules(
             gc.collect()
             torch.cuda.empty_cache()
 
-        # t_elapsed = time.time() - t_layer
-        # print(f"Replaced {label}: {name} in {t_elapsed:.2f}s")
         replaced += 1
 
     print(f"Replaced {replaced} {label}(s) in {time.time() - t_start:.2f}s")
