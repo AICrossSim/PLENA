@@ -24,7 +24,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     output logic        empty_in_progress,   
 
     // Matix - row-major order
-    input  logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]            m_element,
+    input  logic [MLEN-1:0] [(WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH):0]            m_element,
     input  logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                                  m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
@@ -121,7 +121,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     // -----------------------------
 
     // Data from Matrix SRAM Buffering
-    logic [MLEN-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]       stored_m_element;
+    logic [MLEN-1:0] [(WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH):0]       stored_m_element;
     logic [MLEN-1:0] [MXFP_SCALE_WIDTH-1:0]                             stored_m_scale;
     logic stored_m_in_ele_ready, stored_m_in_scale_ready;
     logic stored_m_in_ele_valid, stored_m_in_scale_valid;
@@ -139,7 +139,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     );
 
     register_slice #(
-        .DATA_WIDTH(MLEN * (WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH + 1))
+        .DATA_WIDTH(MLEN * (WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH + 1))
     ) matrix_element_buffer (
         .clk(clk),
         .rst(rst),
@@ -225,11 +225,11 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
     mx_systolic_mcu #(
         .FP_EXP_WIDTH       (V_FP_EXP_WIDTH),
         .FP_MANT_WIDTH      (V_FP_MANT_WIDTH),
-        .MXFP_T_EXP_WIDTH   (WT_MXFP_EXP_WIDTH),
-        .MXFP_T_MANT_WIDTH  (WT_MXFP_MANT_WIDTH),
-        .MXFP_L_EXP_WIDTH   (ACT_MXFP_EXP_WIDTH),
-        .MXFP_L_MANT_WIDTH  (ACT_MXFP_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+        .MX_T_EXP_WIDTH     (WT_MX_EXP_WIDTH),
+        .MX_T_MANT_WIDTH    (WT_MX_MANT_WIDTH),
+        .MX_L_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
+        .MX_L_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
+        .MX_SCALE_WIDTH     (MXFP_SCALE_WIDTH),
         .BLOCK_DIM          (BLOCK_DIM),
         .ACC_FP_EXP_WIDTH   (M_FP_EXP_WIDTH),
         .ACC_FP_MANT_WIDTH  (M_FP_MANT_WIDTH),
@@ -237,7 +237,8 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .M                  (BLEN),
         .K                  (MLEN),
         .N                  (BLEN),
-        .ACC_ADDR_WIDTH     (ACC_ADDR_WIDTH)
+        .ACC_ADDR_WIDTH     (ACC_ADDR_WIDTH),
+        .L_MX_INT_EN         (WT_MX_INT_ENABLE)
     ) matrix_compute_unit (
         .clk                (clk),
         .rst                (rst),

@@ -13,14 +13,14 @@ class fix_sram_pre_loader:
 
     def load(self):
         low_precision_stride_length = (self.ml_feature["hidden_size"] * self.architecture_feature["MLEN"] * 
-                         (self.precision_feature["WT_MXFP_MANT_WIDTH"] + self.precision_feature["WT_MXFP_MANT_WIDTH"])) // 8
+                         (self.precision_feature["WT_MX_MANT_WIDTH"] + self.precision_feature["WT_MX_MANT_WIDTH"])) // 8
         high_precision_stride_length = (self.ml_feature["hidden_size"] * self.architecture_feature["MLEN"] * 
                          (self.precision_feature["ACT_MXFP_MANT_WIDTH"] + self.precision_feature["ACT_MXFP_MANT_WIDTH"])) // 8
         
         MLEN = (self.architecture_feature["MLEN"])
         Q_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["ACT_MXFP_MANT_WIDTH"] + self.precision_feature["ACT_MXFP_MANT_WIDTH"])) // 8
-        KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["KV_MXFP_MANT_WIDTH"] + self.precision_feature["KV_MXFP_MANT_WIDTH"])) // 8
-        Weight_Size = (self.ml_feature["hidden_size"] * self.ml_feature["hidden_size"] * (self.precision_feature["WT_MXFP_MANT_WIDTH"] + self.precision_feature["WT_MXFP_MANT_WIDTH"])) // 8
+        KV_Size = (self.ml_feature["batchsize"] * self.ml_feature["hidden_size"] * self.ml_feature["max_position_embeddings"] * (self.precision_feature["KV_MX_MANT_WIDTH"] + self.precision_feature["KV_MX_MANT_WIDTH"])) // 8
+        Weight_Size = (self.ml_feature["hidden_size"] * self.ml_feature["hidden_size"] * (self.precision_feature["WT_MX_MANT_WIDTH"] + self.precision_feature["WT_MX_MANT_WIDTH"])) // 8
         Batch_Size = (self.ml_feature["batchsize"])
         Head_Dim = (self.ml_feature["hidden_size"] // self.ml_feature["num_attention_heads"])
         

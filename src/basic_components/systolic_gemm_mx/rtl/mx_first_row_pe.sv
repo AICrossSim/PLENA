@@ -6,7 +6,7 @@ Timing      : Sequential
 Description : This module is used to specifically support GEMV operations.
 */
 
-module mxfp_first_row_pe #(
+module mx_first_row_pe #(
     // MX-FP Data Format
     parameter MX_T_EXP_WIDTH      = 4,
     parameter MX_T_MANT_WIDTH     = 3,

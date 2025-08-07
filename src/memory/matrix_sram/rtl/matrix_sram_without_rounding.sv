@@ -12,8 +12,8 @@ Status      : Passed Simple Row/Col Read/Write Tests
 
 module matrix_sram_without_rounding #(
     // MX-FP Data Format
-    parameter WT_MXFP_EXP_WIDTH     = 4,
-    parameter WT_MXFP_MANT_WIDTH    = 3,
+    parameter WT_MX_EXP_WIDTH     = 4,
+    parameter WT_MX_MANT_WIDTH    = 3,
     parameter MXFP_SCALE_WIDTH      = 8,
     parameter ON_CHIP_ADDR_WIDTH    = 32,
 
@@ -36,14 +36,14 @@ module matrix_sram_without_rounding #(
     input   logic req,
     input   logic transposed_read,
     input   logic [ON_CHIP_ADDR_WIDTH-1:0] sram_raddr,   
-    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]    element_out,
+    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]    element_out,
     output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                scale_out,
 
     // Write Operation
     input   logic wen,
     output  logic write_response,
     input   logic [ON_CHIP_ADDR_WIDTH-1:0] sram_waddr,
-    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0]  element_in,
+    input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]  element_in,
     input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in,
 
     // Prefetch Status
@@ -113,7 +113,7 @@ end
 logic scale_write_response, element_write_response;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
-logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH : 0] loaded_element_out;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0] loaded_element_out;
 
 assign write_response = scale_write_response & element_write_response;
 
@@ -146,7 +146,7 @@ biaccess_sram #(
 
 // element storage
 biaccess_sram #(
-    .DataWidth      (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1),
+    .DataWidth      (WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH + 1),
     .SRAM_DEPTH     (SRAM_DEPTH),
     .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)

@@ -7,13 +7,13 @@ Description :
 Status      : Under Development
 */
 
-module mxfp_default_pe #(
+module mx_default_pe #(
     // MX-FP Data Format
-    parameter MXFP_T_EXP_WIDTH      = 4,
-    parameter MXFP_T_MANT_WIDTH     = 3,
-    parameter MXFP_L_EXP_WIDTH      = 4,
-    parameter MXFP_L_MANT_WIDTH     = 3,
-    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter MX_T_EXP_WIDTH        = 4,
+    parameter MX_T_MANT_WIDTH       = 3,
+    parameter MX_L_EXP_WIDTH        = 4,
+    parameter MX_L_MANT_WIDTH       = 3,
+    parameter MX_SCALE_WIDTH        = 8,
 
     // Accumulator Data Format
     parameter ACC_FP_EXP_WIDTH      = 8,
@@ -31,13 +31,13 @@ module mxfp_default_pe #(
     input logic clear_accumulator,
 
     // Input from Top
-    input  logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
-    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
+    input  logic [MX_T_MANT_WIDTH + MX_T_EXP_WIDTH : 0] in_top_element,
+    input  logic [MX_SCALE_WIDTH - 1 : 0] in_top_scale,
     input  logic system_top_valid,
 
     // Input from Left
-    input  logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
-    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
+    input  logic [MX_L_MANT_WIDTH + MX_L_EXP_WIDTH : 0] in_left_element,
+    input  logic [MX_SCALE_WIDTH - 1 : 0] in_left_scale,
     input  logic system_left_valid,
 
     // Mult Control
@@ -45,12 +45,12 @@ module mxfp_default_pe #(
     output  logic mult_ready,
 
     // Output to Bottom
-    output logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] out_bottom_element,
-    output logic [MXFP_SCALE_WIDTH - 1 : 0] out_bottom_scale,
+    output logic [MX_T_MANT_WIDTH + MX_T_EXP_WIDTH : 0] out_bottom_element,
+    output logic [MX_SCALE_WIDTH - 1 : 0] out_bottom_scale,
 
     // Output to Right
-    output logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] out_right_element,
-    output logic [MXFP_SCALE_WIDTH - 1 : 0] out_right_scale,
+    output logic [MX_L_MANT_WIDTH + MX_L_EXP_WIDTH : 0] out_right_element,
+    output logic [MX_SCALE_WIDTH - 1 : 0] out_right_scale,
 
     // Output Result
     output logic [ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
@@ -60,12 +60,12 @@ module mxfp_default_pe #(
     // ==============================================================================================
     // Declaration : registers, wires
     // ==============================================================================================
-    localparam SCALE_BIAS = (1 << (MXFP_SCALE_WIDTH - 1)) - 1;
+    localparam SCALE_BIAS = (1 << (MX_SCALE_WIDTH - 1)) - 1;
 
-    logic [MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0]    reg_top_element;
-    logic [MXFP_SCALE_WIDTH - 1 : 0]                    reg_top_scale;            
-    logic [MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0]    reg_left_element;
-    logic [MXFP_SCALE_WIDTH - 1 : 0]                    reg_left_scale;
+    logic [MX_T_MANT_WIDTH + MX_T_EXP_WIDTH : 0]    reg_top_element;
+    logic [MX_SCALE_WIDTH - 1 : 0]                    reg_top_scale;            
+    logic [MX_L_MANT_WIDTH + MX_L_EXP_WIDTH : 0]    reg_left_element;
+    logic [MX_SCALE_WIDTH - 1 : 0]                    reg_left_scale;
 
     // ==============================================================================================
     // STAGE 1: Pass Data from Top and Left to the Bottom and Right
@@ -73,10 +73,10 @@ module mxfp_default_pe #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            reg_top_element  <= {MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH + 1{1'b0}};
-            reg_top_scale    <= {MXFP_SCALE_WIDTH{1'b0}};
-            reg_left_element <= {MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH + 1{1'b0}};
-            reg_left_scale   <= {MXFP_SCALE_WIDTH{1'b0}};
+            reg_top_element  <= {MX_T_MANT_WIDTH + MX_T_EXP_WIDTH + 1{1'b0}};
+            reg_top_scale    <= {MX_SCALE_WIDTH{1'b0}};
+            reg_left_element <= {MX_L_MANT_WIDTH + MX_L_EXP_WIDTH + 1{1'b0}};
+            reg_left_scale   <= {MX_SCALE_WIDTH{1'b0}};
         end else begin
             if (system_top_valid) begin
                 reg_top_element <= in_top_element;
@@ -100,8 +100,8 @@ module mxfp_default_pe #(
     // STAGE 2: Multiplication of the elements from Top and Left, Scale Summation
     // ==============================================================================================
     // Note: Here we assum Left is higher precision.
-    logic [MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0] block_mult_result, reg_block_mul;
-    logic [MXFP_SCALE_WIDTH - 1 : 0] scale_sum_result, reg_scale_sum;
+    logic [MX_L_EXP_WIDTH + MX_L_MANT_WIDTH : 0] block_mult_result, reg_block_mul;
+    logic [MX_SCALE_WIDTH - 1 : 0] scale_sum_result, reg_scale_sum;
     logic block_mult_in_valid, block_mult_out_valid;
     logic block_mult_in_ready, block_mult_out_ready;
     logic scale_sum_in_valid, scale_sum_in_ready;
@@ -117,10 +117,10 @@ module mxfp_default_pe #(
     );  
 
     fp_cp_asym_mult #(
-        .EXP_WIDTH_A    (MXFP_T_EXP_WIDTH),
-        .MANT_WIDTH_A   (MXFP_T_MANT_WIDTH),
-        .EXP_WIDTH_B    (MXFP_L_EXP_WIDTH),
-        .MANT_WIDTH_B   (MXFP_L_MANT_WIDTH)
+        .EXP_WIDTH_A    (MX_T_EXP_WIDTH),
+        .MANT_WIDTH_A   (MX_T_MANT_WIDTH),
+        .EXP_WIDTH_B    (MX_L_EXP_WIDTH),
+        .MANT_WIDTH_B   (MX_L_MANT_WIDTH)
     ) element_mult (
         .clk(clk),
         .rst(rst),
@@ -137,7 +137,7 @@ module mxfp_default_pe #(
     
     // TODO: Replace
     fifo #(
-        .DATA_WIDTH(MXFP_SCALE_WIDTH),
+        .DATA_WIDTH(MX_SCALE_WIDTH),
         .DEPTH(3)
     ) buffer_scale_sum (
         .clk(clk),
@@ -167,9 +167,9 @@ module mxfp_default_pe #(
     );
 
     mx_fp_2_fp_unary #(
-        .MXFP_EXP_WIDTH     (MXFP_L_EXP_WIDTH),
-        .MXFP_MANT_WIDTH    (MXFP_L_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+        .MXFP_EXP_WIDTH     (MX_L_EXP_WIDTH),
+        .MXFP_MANT_WIDTH    (MX_L_MANT_WIDTH),
+        .MXFP_SCALE_WIDTH   (MX_SCALE_WIDTH),
         .FP_EXP_WIDTH       (ACC_FP_EXP_WIDTH),
         .FP_MANT_WIDTH      (ACC_FP_MANT_WIDTH)
     ) mx_fp_to_fp (

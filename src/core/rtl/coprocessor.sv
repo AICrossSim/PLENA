@@ -76,7 +76,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // HBM Control
     logic hbm_m_prefetch_valid, hbm_m_prefetch_en;
     logic hbm_v_prefetch_valid, hbm_v_prefetch_en;
-    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]          prefetch_m_element;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH):0]          prefetch_m_element;
     logic [M_BLOCK_NUM * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                         prefetch_m_scale;
     logic hbm_ready_to_write;
     logic hbm_m_prefetch_in_progress, hbm_v_prefetch_in_progress;
@@ -84,7 +84,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
 
     // Vector SRAM
     logic [VLEN-1:0] [(ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH):0]         v_high_precision_element_port_b_in;
-    logic [VLEN-1:0] [(KV_MXFP_MANT_WIDTH + KV_MXFP_EXP_WIDTH):0]           v_low_precision_element_port_b_in;
+    logic [VLEN-1:0] [(KV_MX_MANT_WIDTH + KV_MX_EXP_WIDTH):0]           v_low_precision_element_port_b_in;
     logic [V_BLOCK_NUM-1:0] [MXFP_SCALE_WIDTH-1:0]                          v_scale_port_b_in;
     
     // Scalar Machine Control
@@ -94,7 +94,7 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [1:0] m_write_request;
 
     // Matrix
-    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH):0]      fetched_m_element;
+    logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [(WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH):0]      fetched_m_element;
     logic [MLEN * Matrix_Parallel_Rd_Dim-1:0] [MXFP_SCALE_WIDTH-1:0]                            fetched_m_scale;
     logic [MLEN-1:0][S_FP_EXP_WIDTH + S_FP_MANT_WIDTH:0]                                        m_out_v_fp;
 
@@ -113,8 +113,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [INT_DATA_WIDTH - 1 : 0] v_sram_addr_a, v_sram_addr_b;
     logic [VLEN-1:0] v_sram_mask_a, v_sram_mask_b;
 
-    logic [VLEN-1:0]                [WT_MXFP_MANT_WIDTH + WT_MXFP_EXP_WIDTH:0]                      v_high_element_port_b_out;
-    logic [VLEN-1:0]                [KV_MXFP_MANT_WIDTH + KV_MXFP_EXP_WIDTH:0]                      v_low_element_port_b_out;
+    logic [VLEN-1:0]                [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]                      v_high_element_port_b_out;
+    logic [VLEN-1:0]                [KV_MX_MANT_WIDTH + KV_MX_EXP_WIDTH:0]                      v_low_element_port_b_out;
     logic [V_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                          v_scale_port_b_out;
     logic [MLEN-1:0]                [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]                    v_element_port_a_out;
     logic [M_BLOCK_NUM-1:0]         [MXFP_SCALE_WIDTH-1:0]                                          v_scale_port_a_out;
@@ -346,8 +346,8 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     // Matrix SRAM 
     assign m_prefetch_en = (exe_stage_op.h_op == PREFETCH_M_H || exe_stage_op.h_op == PREFETCH_M_L);
     matrix_sram_without_rounding #(
-        .WT_MXFP_EXP_WIDTH  (WT_MXFP_EXP_WIDTH),
-        .WT_MXFP_MANT_WIDTH (WT_MXFP_MANT_WIDTH),
+        .WT_MX_EXP_WIDTH  (WT_MX_EXP_WIDTH),
+        .WT_MX_MANT_WIDTH (WT_MX_MANT_WIDTH),
         .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
         .ON_CHIP_ADDR_WIDTH (ON_CHIP_ADDR_WIDTH),
         .MLEN               (MLEN),
@@ -376,10 +376,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     fp_vector_sram #(
         .ACT_MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
         .ACT_MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
-        .WT_MXFP_EXP_WIDTH      (WT_MXFP_EXP_WIDTH),
-        .WT_MXFP_MANT_WIDTH     (WT_MXFP_MANT_WIDTH),
-        .KV_MXFP_EXP_WIDTH      (KV_MXFP_EXP_WIDTH),
-        .KV_MXFP_MANT_WIDTH     (KV_MXFP_MANT_WIDTH),
+        .WT_MX_EXP_WIDTH      (WT_MX_EXP_WIDTH),
+        .WT_MX_MANT_WIDTH     (WT_MX_MANT_WIDTH),
+        .KV_MX_EXP_WIDTH      (KV_MX_EXP_WIDTH),
+        .KV_MX_MANT_WIDTH     (KV_MX_MANT_WIDTH),
         .MXFP_SCALE_WIDTH       (MXFP_SCALE_WIDTH),
         .EXP_WIDTH              (V_FP_EXP_WIDTH),
         .MANT_WIDTH             (V_FP_MANT_WIDTH),

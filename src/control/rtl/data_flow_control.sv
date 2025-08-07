@@ -100,7 +100,7 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
 
 
     // Memory Execution Control and Dependency Monitor
-    localparam MSRAM_BYTES_PER_ROW =  (WT_MXFP_EXP_WIDTH + WT_MXFP_MANT_WIDTH + 1) * MLEN * Matrix_Parallel_Rd_Dim / 8;
+    localparam MSRAM_BYTES_PER_ROW =  (WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH + 1) * MLEN * Matrix_Parallel_Rd_Dim / 8;
     localparam VSRAM_BYTES_PER_ROW =  (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) * VLEN / 8;
     OP_BUNDLE  mem_stage_op;
     MEM_WEN_INFO mem_stage_write_control;

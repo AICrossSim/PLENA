@@ -14,7 +14,7 @@
 ## Matrix Machine
 **Relevant Parameters:**
 - `MLEN`, `BLEN`: Define the size of the systolic MCU. Resource utilisation for the systolic array computation is expected to scale with `MLEN * BLEN`.
-- `WT_MXFP_MANT_WIDTH`, `WT_MXFP_EXP_WIDTH`, `ACT_MXFP_MANT_WIDTH`, `ACT_MXFP_EXP_WIDTH`: Define the bitwidth of the left and top inputs of the systolic array.
+- `WT_MX_MANT_WIDTH`, `WT_MX_EXP_WIDTH`, `ACT_MXFP_MANT_WIDTH`, `ACT_MXFP_EXP_WIDTH`: Define the bitwidth of the left and top inputs of the systolic array.
 - `MXFP_SCALE_WIDTH`: Determines the bitwidth of the MXFP scale input.
 - `BLOCK_DIM`: Controls the number of blocks (`MLEN / BLOCK_DIM`) in the systolic array, which also defines the number of input and output ports for MXFP scale.
 - `V_FP_EXP_WIDTH`, `V_FP_MANT_WIDTH`: Define the bitwidth of the systolic array output.
@@ -25,7 +25,7 @@
 ## Matrix SRAM
 **Relevant Parameters:**
 - `MLEN`
-- `WT_MXFP_EXP_WIDTH`, `WT_MXFP_MANT_WIDTH`, `MXFP_SCALE_WIDTH`: Define the bitwidth of the data stored in the Matrix SRAM.
+- `WT_MX_EXP_WIDTH`, `WT_MX_MANT_WIDTH`, `MXFP_SCALE_WIDTH`: Define the bitwidth of the data stored in the Matrix SRAM.
 - `BLOCK_DIM`: Can be ignored for SRAM sizing, as MXFP scales will be duplicated to match `MLEN`.
 - `SRAM_DEPTH`: Defines the depth of the Matrix SRAM.
 
@@ -42,7 +42,7 @@
 **Relevant Parameters:**
 - `VLEN`: Currently set equal to `MLEN`.
 - `V_FP_EXP_WIDTH`, `V_FP_MANT_WIDTH`: Define the bitwidth for storage in the Vector SRAM.
-- `WT_MXFP_MANT_WIDTH`, `WT_MXFP_EXP_WIDTH`, `ACT_MXFP_MANT_WIDTH`, `ACT_MXFP_EXP_WIDTH`, `KV_MXFP_EXP_WIDTH`, `KV_MXFP_MANT_WIDTH`: These parameters have only minor impact on resource utilisation for Vector SRAM, as they determine the input/output interface and will all be converted to the standard `V_FP_EXP_WIDTH` and `V_FP_MANT_WIDTH` bitwidths in SRAM.
+- `WT_MX_MANT_WIDTH`, `WT_MX_EXP_WIDTH`, `ACT_MXFP_MANT_WIDTH`, `ACT_MXFP_EXP_WIDTH`, `KV_MX_EXP_WIDTH`, `KV_MX_MANT_WIDTH`: These parameters have only minor impact on resource utilisation for Vector SRAM, as they determine the input/output interface and will all be converted to the standard `V_FP_EXP_WIDTH` and `V_FP_MANT_WIDTH` bitwidths in SRAM.
 
 ---
 

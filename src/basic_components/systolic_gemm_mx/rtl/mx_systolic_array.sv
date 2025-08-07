@@ -169,11 +169,11 @@ module mx_systolic_array #(
                     );
                 end else begin
                     mx_mini_systolic_array #(
-                        .MX_T_EXP_WIDTH   (MX_T_EXP_WIDTH),
-                        .MX_T_MANT_WIDTH  (MX_T_MANT_WIDTH),
-                        .MX_L_EXP_WIDTH   (MX_L_EXP_WIDTH),
-                        .MX_L_MANT_WIDTH  (MX_L_MANT_WIDTH),
-                        .MX_SCALE_WIDTH   (MX_SCALE_WIDTH),
+                        .MX_T_EXP_WIDTH     (MX_T_EXP_WIDTH),
+                        .MX_T_MANT_WIDTH    (MX_T_MANT_WIDTH),
+                        .MX_L_EXP_WIDTH     (MX_L_EXP_WIDTH),
+                        .MX_L_MANT_WIDTH    (MX_L_MANT_WIDTH),
+                        .MX_SCALE_WIDTH     (MX_SCALE_WIDTH),
                         .BLOCK_DIM          (BLOCK_DIM),
                         .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                         .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),

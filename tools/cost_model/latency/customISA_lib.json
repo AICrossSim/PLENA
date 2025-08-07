@@ -1,11 +1,11 @@
 {
-    "M_MM_IC" : {
+    "M_MM" : {
         "alone" : "6 + BLEN * 2 + 3",
         "pipelined" : "1 + BLEN + 3"
     },
 
-    "M_MM_PS" : {
-        "alone" : "6 + BLEN * 2 + SA_ACC_CYCLES + 3",
+    "M_TMM" : {
+        "alone" : "6 + BLEN * 2 + 3",
         "pipelined" : "1 + BLEN + 3"
     },
 
@@ -14,17 +14,12 @@
         "pipelined" : "1"
     },
 
-    "M_TMM_IC" : {
-        "alone" : "6 + BLEN * 2 + 3",
-        "pipelined" : "1 + BLEN + 3"
+    "M_MV" : {
+        "alone" : "6 + MLEN + 3",
+        "pipelined" : "1 + MLEN + 3"
     },
 
-    "M_TMM_PS" : {
-        "alone" : "6 + BLEN * 2 + SA_ACC_CYCLES + 3",
-        "pipelined" : "1 + BLEN + 3"
-    },
-
-    "M_MV_IC" : {
+    "M_TMV_IC" : {
         "alone" : "6 + MLEN + 3",
         "pipelined" : "1 + MLEN + 3"
     },
@@ -32,11 +27,6 @@
     "M_MV_WO" : {
         "alone" : "6 + MLEN",
         "pipelined" : "1"
-    },
-
-    "M_TMV_IC" : {
-        "alone" : "6 + MLEN + 3",
-        "pipelined" : "1 + MLEN + 3"
     },
 
     "V_ADD_VV" : {
@@ -70,6 +60,16 @@
     },
 
     "V_EXP_V" : {
+        "alone" : "6 + 3 + VECTOR_EXP_CYCLES + 1",
+        "pipelined" : "1 + VECTOR_EXP_CYCLES"
+    },
+    
+    "V_RECI_V" : {
+        "alone" : "6 + 3 + VECTOR_EXP_CYCLES + 1",
+        "pipelined" : "1 + VECTOR_EXP_CYCLES"
+    },
+
+    "V_BC_S" : {
         "alone" : "6 + 3 + VECTOR_EXP_CYCLES + 1",
         "pipelined" : "1 + VECTOR_EXP_CYCLES"
     },
@@ -119,11 +119,6 @@
         "pipelined" : "SCALAR_FP_SQRT_CYCLES"
     },
 
-    "S_MV_FP" : {
-        "alone" : "6 + 1",
-        "pipelined" : "1"
-    }, 
-
     "S_LD_FP" : {
         "alone" : "6 + 1",
         "pipelined" : "1"
@@ -134,47 +129,52 @@
         "pipelined" : "1"
     },
 
-    "S_ADD_FIX" : {
+    "S_ADD_INT" : {
         "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
         "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
     },
 
-    "S_ADDI_FIX" : {
+    "S_ADDI_INT" : {
         "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
         "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
     },
 
-    "S_SUB_FIX" : {
+    "S_SUB_INT" : {
         "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
         "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
     },
 
-    "S_MUL_FIX" : {
+    "S_MUL_INT" : {
         "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
         "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
     },
 
-    "LUI_FIX" : {
+    "S_LUI_INT" : {
         "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
         "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
     },
 
-    "MV_FIX" : {
-        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
-        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
-    },
-
-    "ACC_MULI" : {
-        "alone" : "2 + SCALAR_FIX_BASIC_CYCLES + 1",
-        "pipelined" : "SCALAR_FIX_BASIC_CYCLES"
-    },
-
-    "S_LD_FIX" : {
+    "S_LD_INT" : {
         "alone" : "2 + 2",
         "pipelined" : "1"
     },
 
-    "S_ST_FIX" : {
+    "S_ST_INT" : {
+        "alone" : "2 + 2",
+        "pipelined" : "1"
+    },
+
+    "H_PREFETCH_M" : {
+        "alone" : "2 + 2",
+        "pipelined" : "1"
+    },
+
+    "H_PREFETCH_V" : {
+        "alone" : "2 + 2",
+        "pipelined" : "1"
+    },
+
+    "H_STORE_V" : {
         "alone" : "2 + 2",
         "pipelined" : "1"
     },
@@ -184,12 +184,12 @@
         "pipelined" : "1"
     },
 
-    "C_SET_LUT" : {
+    "C_SET_SCALE_REG" : {
         "alone" : "6 + 1",
         "pipelined" : "1"
     },
 
-    "C_SET_STRIDE_REG" : {
+    "C_HADAMARD_TRANSFORM" : {
         "alone" : "6 + 1",
         "pipelined" : "1"
     }

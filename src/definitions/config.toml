@@ -180,28 +180,28 @@ ASIC = 5
 default = 4
 tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
 
-[PRECISION.KV_MXFP_MANT_WIDTH]
+[PRECISION.KV_MX_MANT_WIDTH]
 active = 8
 SIMULATION = 3
 ASIC = 4
 default = 3
 tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
 
-[PRECISION.KV_MXFP_EXP_WIDTH]
+[PRECISION.KV_MX_EXP_WIDTH]
 active = 4
 SIMULATION = 4
 ASIC = 5
 default = 4
 tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
 
-[PRECISION.WT_MXFP_MANT_WIDTH]
+[PRECISION.WT_MX_MANT_WIDTH]
 active = 3
 SIMULATION = 3
 ASIC = 3
 default = 3
 tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
 
-[PRECISION.WT_MXFP_EXP_WIDTH]
+[PRECISION.WT_MX_EXP_WIDTH]
 active = 4
 SIMULATION = 4
 ASIC = 4

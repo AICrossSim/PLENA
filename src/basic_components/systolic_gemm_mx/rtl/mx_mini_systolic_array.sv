@@ -11,11 +11,11 @@ Status      : Under Development
 
 module mx_mini_systolic_array #(
     // MX-FP Data Format
-    parameter MXFP_T_EXP_WIDTH      = 4,
-    parameter MXFP_T_MANT_WIDTH     = 3,
-    parameter MXFP_L_EXP_WIDTH      = 4,
-    parameter MXFP_L_MANT_WIDTH     = 3,
-    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter MX_T_EXP_WIDTH        = 4,
+    parameter MX_T_MANT_WIDTH       = 3,
+    parameter MX_L_EXP_WIDTH        = 4,
+    parameter MX_L_MANT_WIDTH       = 3,
+    parameter MX_SCALE_WIDTH        = 8,
     parameter BLOCK_DIM             = 4,
 
     // Accumulator Data Format
@@ -31,13 +31,13 @@ module mx_mini_systolic_array #(
     input logic clear_accumulator,
 
     // Input from Top
-    input  logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] in_top_element,
-    input  logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] in_top_scale,
+    input  logic [BLOCK_DIM - 1 : 0][MX_T_MANT_WIDTH + MX_T_EXP_WIDTH : 0] in_top_element,
+    input  logic [BLOCK_DIM - 1 : 0][MX_SCALE_WIDTH - 1 : 0] in_top_scale,
     input  logic system_top_valid,
 
     // Input from Left
-    input  logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] in_left_element,
-    input  logic [MXFP_SCALE_WIDTH - 1 : 0] in_left_scale,
+    input  logic [BLOCK_DIM - 1 : 0][MX_L_MANT_WIDTH + MX_L_EXP_WIDTH : 0] in_left_element,
+    input  logic [MX_SCALE_WIDTH - 1 : 0] in_left_scale,
     input  logic system_left_valid,
 
     // Mult Control
@@ -45,12 +45,12 @@ module mx_mini_systolic_array #(
     output  logic mult_ready,
 
     // Output to Bottom
-    output logic [BLOCK_DIM - 1 : 0][MXFP_T_MANT_WIDTH + MXFP_T_EXP_WIDTH : 0] out_bottom_element,
-    output logic [BLOCK_DIM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] out_bottom_scale,
+    output logic [BLOCK_DIM - 1 : 0][MX_T_MANT_WIDTH + MX_T_EXP_WIDTH : 0] out_bottom_element,
+    output logic [BLOCK_DIM - 1 : 0][MX_SCALE_WIDTH - 1 : 0] out_bottom_scale,
 
     // Output to Right
-    output logic [BLOCK_DIM - 1 : 0][MXFP_L_MANT_WIDTH + MXFP_L_EXP_WIDTH : 0] out_right_element,
-    output logic [MXFP_SCALE_WIDTH - 1 : 0] out_right_scale,
+    output logic [BLOCK_DIM - 1 : 0][MX_L_MANT_WIDTH + MX_L_EXP_WIDTH : 0] out_right_element,
+    output logic [MX_SCALE_WIDTH - 1 : 0] out_right_scale,
 
     // Output Result
     output logic [BLOCK_DIM - 1 : 0][BLOCK_DIM - 1 : 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] out_fp,
@@ -59,15 +59,15 @@ module mx_mini_systolic_array #(
 
 
 
-logic [BLOCK_DIM : 0][BLOCK_DIM - 1:0][MXFP_T_EXP_WIDTH + MXFP_T_MANT_WIDTH : 0]  vert_transfer_elem;
-logic [BLOCK_DIM : 0][BLOCK_DIM - 1:0][MXFP_SCALE_WIDTH - 1 : 0]                  vert_transfer_scale;
+logic [BLOCK_DIM : 0][BLOCK_DIM - 1:0][MX_T_EXP_WIDTH + MX_T_MANT_WIDTH : 0]  vert_transfer_elem;
+logic [BLOCK_DIM : 0][BLOCK_DIM - 1:0][MX_SCALE_WIDTH - 1 : 0]                  vert_transfer_scale;
 
-logic [BLOCK_DIM - 1:0][BLOCK_DIM :0][MXFP_L_EXP_WIDTH + MXFP_L_MANT_WIDTH : 0]   hori_transfer_elem;
-logic [BLOCK_DIM - 1:0][BLOCK_DIM :0][MXFP_SCALE_WIDTH - 1 : 0]                   hori_transfer_scale;
+logic [BLOCK_DIM - 1:0][BLOCK_DIM :0][MX_L_EXP_WIDTH + MX_L_MANT_WIDTH : 0]   hori_transfer_elem;
+logic [BLOCK_DIM - 1:0][BLOCK_DIM :0][MX_SCALE_WIDTH - 1 : 0]                   hori_transfer_scale;
 logic [BLOCK_DIM - 1:0][BLOCK_DIM - 1:0] pe_compute_ready;
 
-logic [BLOCK_DIM : 0][MXFP_SCALE_WIDTH - 1 : 0]  first_row_scale;
-logic [MXFP_SCALE_WIDTH - 1 : 0]  first_col_scale [BLOCK_DIM : 0];
+logic [BLOCK_DIM : 0][MX_SCALE_WIDTH - 1 : 0]  first_row_scale;
+logic [MX_SCALE_WIDTH - 1 : 0]  first_col_scale [BLOCK_DIM : 0];
 
 assign first_col_scale[0]   = in_left_scale;
 assign first_row_scale      = in_top_scale;
@@ -99,11 +99,11 @@ generate;
     for (genvar i = 0; i < BLOCK_DIM; i = i+1)begin : row_inx
         for (genvar j = 0; j < BLOCK_DIM; j = j + 1) begin : col_idx
             mxfp_default_pe #(
-                .MXFP_T_EXP_WIDTH   (MXFP_T_EXP_WIDTH),
-                .MXFP_T_MANT_WIDTH  (MXFP_T_MANT_WIDTH),
-                .MXFP_L_EXP_WIDTH   (MXFP_L_EXP_WIDTH),
-                .MXFP_L_MANT_WIDTH  (MXFP_L_MANT_WIDTH),
-                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .MX_T_EXP_WIDTH   (MX_T_EXP_WIDTH),
+                .MX_T_MANT_WIDTH  (MX_T_MANT_WIDTH),
+                .MX_L_EXP_WIDTH   (MX_L_EXP_WIDTH),
+                .MX_L_MANT_WIDTH  (MX_L_MANT_WIDTH),
+                .MX_SCALE_WIDTH   (MX_SCALE_WIDTH),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
                 .L_MX_INT_EN        (L_MX_INT_EN),

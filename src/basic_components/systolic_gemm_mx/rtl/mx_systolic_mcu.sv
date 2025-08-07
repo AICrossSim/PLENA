@@ -33,7 +33,9 @@ module mx_systolic_mcu #(
     parameter   N                     = 4,
     parameter   K                     = 8, 
     localparam  ROW_BLOCK_NUM         = K / BLOCK_DIM,
-    parameter   ACC_ADDR_WIDTH        = 8
+    parameter   ACC_ADDR_WIDTH        = 8,
+    parameter   L_MX_INT_EN           = 0,
+    parameter   T_MX_INT_EN           = 0 // Not implemented yet
 )(
     input   logic clk,
     input   logic rst,
@@ -396,7 +398,7 @@ module mx_systolic_mcu #(
                 .data_out_ready (array_left_in_ready[i])
             );
 
-            mxfp_systolic_array #(
+            mx_systolic_array #(
                 .MX_T_EXP_WIDTH       (MX_T_EXP_WIDTH),
                 .MX_T_MANT_WIDTH      (MX_T_MANT_WIDTH),
                 .MX_L_EXP_WIDTH       (MX_L_EXP_WIDTH),
