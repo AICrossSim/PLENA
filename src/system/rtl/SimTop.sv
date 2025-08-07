@@ -8,7 +8,7 @@ Module      : Sim Top Module
 */
 
 module SimTop import instruction_pkg::*; #(
-    parameter   INSTRUCTION_LENGTH = 32,
+    parameter           INSTRUCTION_LENGTH = 32,
     parameter string    FAKE_HBM_ELEMENT_INIT_FILE    = "",
     parameter string    FAKE_HBM_SCALE_INIT_FILE      = "",
     parameter string    FP_MEM_INIT_FILE              = "",

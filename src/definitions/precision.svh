@@ -26,8 +26,8 @@ package precision_pkg;
     parameter   V_FP_MANT_WIDTH = 8;
     parameter   M_FP_EXP_WIDTH  = 7;
     parameter   M_FP_MANT_WIDTH = 8;
-    parameter   S_FP_EXP_WIDTH  = 6;
-    parameter   S_FP_MANT_WIDTH = 5;
+    parameter   S_FP_EXP_WIDTH  = 7;
+    parameter   S_FP_MANT_WIDTH = 8;
     parameter   INT_DATA_WIDTH  = 32;
     // Compute Related Precision
     parameter   PRODUCT_EXT_EXP_WIDTH       = 0;

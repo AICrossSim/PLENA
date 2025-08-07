@@ -426,6 +426,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     //----------------------------//
     // Hadamard Transform Unit
     //----------------------------//
+`ifdef HADAMARD_EN
     per_tile_hadamard_transform #(
         .TILESIZE   (VLEN),
         .EXP_WIDTH  (V_FP_EXP_WIDTH),
@@ -438,5 +439,6 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
         .data_out_valid     (hadamard_transform_out_valid),
         .data_out           (hadamard_transform_v_out)
     );
+`endif
 
 endmodule

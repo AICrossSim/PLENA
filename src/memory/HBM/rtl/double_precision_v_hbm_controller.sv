@@ -223,7 +223,7 @@ module double_precision_v_hbm_controller #(
 
     register_slice #(
         .DATA_WIDTH(LOW_ELE_WIDTH)
-    ) low_precision_skid_buffer (
+    ) low_precision_element_buffer (
         .clk(clk),
         .rst(rst),
         .data_in_valid  (loaded_low_precision_element_valid),
@@ -279,9 +279,9 @@ module double_precision_v_hbm_controller #(
         `TL_CONNECT_HOST_PORT       (device,    adapted_high_precision_tl_element)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(HIGH_ELE_WIDTH)
-    ) high_precision_skid_buffer (
+    ) high_precision_element_buffer (
         .clk(clk),
         .rst(rst),
         .data_in_valid  (loaded_high_precision_element_valid),
@@ -340,9 +340,9 @@ module double_precision_v_hbm_controller #(
         `TL_CONNECT_HOST_PORT       (device, adapted_tl_scale)
     );
 
-    skid_buffer #(
+    register_slice #(
         .DATA_WIDTH(SCALE_WIDTH)
-    ) scale_skid_buffer (
+    ) scale_buffer (
         .clk(clk),
         .rst(rst),
         .data_in_valid  (loaded_scale_valid),

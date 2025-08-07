@@ -72,7 +72,7 @@ module fp_vector_sram #(
     input   logic [VLEN - 1 : 0]                                                    port_b_mask_in,
     // MX-FP Connection
     input   logic [VLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_b_high_precision_element_in,
-    input   logic [VLEN - 1 : 0]            [KV_MX_EXP_WIDTH  + KV_MX_MANT_WIDTH  : 0]      port_b_low_precision_element_in,
+    input   logic [VLEN - 1 : 0]            [KV_MX_EXP_WIDTH  + KV_MX_MANT_WIDTH  : 0]          port_b_low_precision_element_in,
     input   logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_in,
 
     input   logic [1:0] port_b_mxfp_req , // 0 for STALL, 1 for High Precision MXFP Load, 2 for Low Precision MXFP Load

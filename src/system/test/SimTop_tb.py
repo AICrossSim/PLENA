@@ -43,7 +43,7 @@ logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
 
 testcase_name = "matrix"
-INSTRUCTION_LENGTH = 16
+INSTRUCTION_LENGTH = 32
 set_excepthook()
 
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin, fp_2_bin

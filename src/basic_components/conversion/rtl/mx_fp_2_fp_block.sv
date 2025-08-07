@@ -31,17 +31,18 @@ module mx_fp_2_fp_block #(
         assert (MXFP_SCALE_WIDTH >= FP_EXP_WIDTH)
             else $error("MXFP_SCALE_WIDTH must be greater than or equal to FP_EXP_WIDTH");
     end
-    logic [BLOCK_DIM-1:0] split_data_in_valid, split_data_in_ready;
-    logic [BLOCK_DIM-1:0] converted_data_out_valid, converted_data_out_ready;
+    logic [BLOCK_DIM-1:0] split_data_in_ready;
+    logic [BLOCK_DIM-1:0] converted_data_out_valid;
 
-    split_n #(
-        .N(BLOCK_DIM)
-    ) split_input_signal_in (
-        .data_in_valid  (data_in_valid),
-        .data_in_ready  (data_in_ready),
-        .data_out_valid (split_data_in_valid),
-        .data_out_ready (split_data_in_ready)
-    );
+    // split_n #(
+    //     .N(BLOCK_DIM)
+    // ) split_input_signal_in (
+    //     .data_in_valid  (data_in_valid),
+    //     .data_in_ready  (data_in_ready),
+    //     .data_out_valid (split_data_in_valid),
+    //     .data_out_ready (split_data_in_ready)
+    // );
+    assign data_in_ready = &split_data_in_ready;
 
     for (genvar i = 0; i < BLOCK_DIM; i++) begin
         mx_fp_2_fp_unary #(
@@ -53,24 +54,25 @@ module mx_fp_2_fp_block #(
         ) mx_fp_2_fp_unary_inst (
             .clk(clk),
             .rst(rst),
-            .data_in_valid      (split_data_in_valid[i]),
+            .data_in_valid      (data_in_valid),
             .data_in_ready      (split_data_in_ready[i]),
             .element_data_in    (element_in[i]),
             .scale_data_in      (scale_in),
             .data_out_valid     (converted_data_out_valid[i]),
-            .data_out_ready     (converted_data_out_ready[i]),
+            .data_out_ready     (data_out_ready),
             .fp_out             (fp_out[i])
         );
     end
 
-    join_n #(
-        .NUM_HANDSHAKES(BLOCK_DIM)
-    ) join_output_signal_out (
-        .data_in_valid(converted_data_out_valid),
-        .data_in_ready(converted_data_out_ready),
-        .data_out_valid(data_out_valid),
-        .data_out_ready(data_out_ready)
-    );
+    assign data_out_valid = &converted_data_out_valid;
+    // join_n #(
+    //     .NUM_HANDSHAKES(BLOCK_DIM)
+    // ) join_output_signal_out (
+    //     .data_in_valid(converted_data_out_valid),
+    //     .data_in_ready(converted_data_out_ready),
+    //     .data_out_valid(data_out_valid),
+    //     .data_out_ready(data_out_ready)
+    // );
 
 
 endmodule

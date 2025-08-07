@@ -31,13 +31,13 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     input   logic prefetch_m_ready,
     output  logic prefetch_m_valid,
     output  logic [MLEN -1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]                prefetch_m_element,
-    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                              prefetch_m_scale,
+    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                          prefetch_m_scale,
 
     // Data to Vector SRAM
     input   logic prefetch_v_ready,
     output  logic prefetch_v_valid,
     output  logic [VLEN-1:0] [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]               prefetch_v_high_precision_element,
-    output  logic [VLEN-1:0] [KV_MX_MANT_WIDTH  + KV_MX_EXP_WIDTH:0]                prefetch_v_low_precision_element,
+    output  logic [VLEN-1:0] [KV_MX_MANT_WIDTH  + KV_MX_EXP_WIDTH:0]                    prefetch_v_low_precision_element,
     output  logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                               prefetch_v_scale,
 
     // Write Back to HBM
@@ -45,8 +45,8 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     input   logic                                 hbm_write_low_valid,
     output  logic                                 hbm_write_ready,
 
-    input   logic   [VLEN-1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]           hbm_write_high_element,
-    input   logic   [VLEN-1:0] [KV_MX_MANT_WIDTH + KV_MX_EXP_WIDTH:0]           hbm_write_low_element,
+    input   logic   [VLEN-1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]               hbm_write_high_element,
+    input   logic   [VLEN-1:0] [KV_MX_MANT_WIDTH + KV_MX_EXP_WIDTH:0]               hbm_write_low_element,
     input   logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                         hbm_write_scale,
 
     // Status Tracking
@@ -104,7 +104,34 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic [VLEN * (KV_MX_EXP_WIDTH + KV_MX_MANT_WIDTH + 1) - 1 : 0]     v_hbm_low_precision_element_out;
     logic [V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
 
+    logic [MLEN -1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]                stored_prefetch_m_element;
+    logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                          stored_prefetch_m_scale;
+    logic [VLEN-1:0] [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]           stored_prefetch_high_precision_v_element;   
+    logic [VLEN-1:0] [KV_MX_MANT_WIDTH  + KV_MX_EXP_WIDTH:0]                stored_prefetch_low_precision_v_element;
+    logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                           stored_prefetch_v_scale; 
+
     OP_BUNDLE mem_stage_op;
+
+
+    // -----------------------------
+    // HBM System Output Handling
+    // -----------------------------
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            prefetch_m_element <= 'b0;
+            prefetch_m_scale <= 'b0;
+            prefetch_v_high_precision_element <= 'b0;
+            prefetch_v_low_precision_element <= 'b0;
+            prefetch_v_scale <= 'b0;
+        end else begin
+            prefetch_m_element                  <= stored_prefetch_m_element;
+            prefetch_m_scale                    <= stored_prefetch_m_scale;
+            prefetch_v_high_precision_element   <= stored_prefetch_high_precision_v_element;
+            prefetch_v_low_precision_element    <= stored_prefetch_low_precision_v_element;
+            prefetch_v_scale                    <= stored_prefetch_v_scale;
+        end
+    end
+
 
     // -----------------------------
     // HBM System Control
@@ -319,7 +346,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .data_in            (m_hbm_element_out),
         .data_in_valid      (m_hbm_prefetch_valid),
         .data_in_ready      (prefetch_m_element_ready),
-        .data_out           (prefetch_m_element),
+        .data_out           (stored_prefetch_m_element),
         .data_out_valid     (stored_prefetch_m_element_valid),
         .data_out_ready     (stored_prefetch_m_element_ready)
     );
@@ -332,7 +359,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .data_in            (m_hbm_scale_out),
         .data_in_valid      (m_hbm_prefetch_valid),
         .data_in_ready      (prefetch_m_scale_ready),
-        .data_out           (prefetch_m_scale),
+        .data_out           (stored_prefetch_m_scale),
         .data_out_valid     (stored_prefetch_m_scale_valid),
         .data_out_ready     (stored_prefetch_m_scale_ready)
     );
@@ -372,9 +399,9 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .precision_select                   (v_controller_precision_select),
         .stride_offset                      (stride_size),
         .scale_offset                       (stored_v_scale_offset),
-        .prefetch_high_precision_element    (prefetch_v_high_precision_element),
-        .prefetch_low_precision_element     (prefetch_v_low_precision_element),
-        .prefetch_scale                     (prefetch_v_scale),
+        .prefetch_high_precision_element    (stored_prefetch_high_precision_v_element),
+        .prefetch_low_precision_element     (stored_prefetch_low_precision_v_element),
+        .prefetch_scale                     (stored_prefetch_v_scale),
         .prefetch_data_valid                (prefetch_v_valid),
         .prefetch_data_ready                (prefetch_v_ready),
         .hbm_prefetch_en                    (v_hbm_prefetch_en),
