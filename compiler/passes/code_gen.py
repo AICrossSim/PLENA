@@ -8,7 +8,7 @@ into assembly code using predefined templates for different operation types.
 import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-from tools import load_svh_settings
+
 from asm_templates import (
     projection_asm,
     flash_attn_asm,
@@ -130,7 +130,7 @@ def _generate_elementwise_add_code(node: Dict[str, Any]) -> str:
     return code.strip()
 
 
-def _generate_node_code(node: Dict[str, Any]) -> str:
+def _generate_node_code(node: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for a single symbolic graph node."""
     operation_type = node["operation_type"]
     node_name = node["name"]
@@ -170,7 +170,7 @@ def _generate_program_footer() -> str:
 """
 
 
-def code_gen_pass(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any]) -> str:
+def code_gen_pass(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], hardware_config: Dict[str, Any]) -> str:
     """
     Transform the complete symbolic graph into assembly code.
 

@@ -117,7 +117,7 @@ In *low precision*, bias shape is `(hidden,)`.
 
 ---
 
-### Region for Q Cache (Prefill)
+### Region for Q storage (Prefill)
 
 > **Offset in HBM**
 > ```
@@ -128,12 +128,12 @@ In *low precision*, bias shape is `(hidden,)`.
 
 In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 
-- **Element for Q Cache:**
+- **Element for Q Storage:**
   ```
   0 - batch * s * num_attention_heads * head_dim * (data_size // 8)
   ```
 
-- **Scale for Q Cache:**
+- **Scale for Q Storage:**
   ```
   batch * s * num_attention_heads * head_dim * (data_size // 8)
   -
@@ -166,7 +166,7 @@ In **low precision**, shape is `(batch, s + s_out, num_key_value_heads, head_dim
 
 ---
 
-### Region for O Cache (Prefill)
+### Region for O Storage (Prefill)
 
 > **Offset in HBM:**
 > ```
@@ -177,12 +177,12 @@ In **low precision**, shape is `(batch, s + s_out, num_key_value_heads, head_dim
 
 In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 
-- **Element for O Cache:**
+- **Element for O Storage:**
   ```
   0 - batch * s * num_attention_heads * head_dim * (data_size // 8)
   ```
 
-- **Scale for O Cache:**
+- **Scale for O Storage:**
   ```
   batch * s * num_attention_heads * head_dim * (data_size // 8)
   -
@@ -207,9 +207,9 @@ In **high precision**, shape is `(batch, s, num_attention_heads, head_dim)`.
 - O_Old (Head_Dim, MLEN)
 
 
-## FIXED SRAM Layout
+## INT SRAM Layout
 - 0: Q_INNER_BLOCK_SIZE (MLEN * BLEN * (ACTIVATION_PRECISION_BLOCK_SIZE // 8))          (Tr * Tc * HEAD_DIM/MLEN)
-- 1: K_INEER_BLOCK_SIZE (MLEN * BLEN * (KV_PRECISION_BLOCK_SIZE // 8))                  (Tr * Tc * HEAD_DIM/MLEN)
+- 1: K_INNER_BLOCK_SIZE (MLEN * BLEN * (KV_PRECISION_BLOCK_SIZE // 8))                  (Tr * Tc * HEAD_DIM/MLEN)
 - 2: V_SRAM_S_OFFSET    (HEAD_DIM * MLEN)                                               (Tr)
 - 3: FULL_BUFFER_SIZE:Q_SIZE_FOR_ONE_FULL_BUFFER_ITR  (HEAD_DIM * BLEN * (ACTIVATION_PRECISION_BLOCK_SIZE // 8))      (Tr)
 - 4: K_SIZE_FOR_ONE_FULL_BUFFER_ITR (HEAD_DIM * BLEN * (KV_PRECISION_BLOCK_SIZE // 8))  (Tr * Tc)
