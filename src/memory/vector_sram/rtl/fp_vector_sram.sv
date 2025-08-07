@@ -78,8 +78,8 @@ module fp_vector_sram #(
     input   logic [1:0] port_b_mxfp_req , // 0 for STALL, 1 for High Precision MXFP Load, 2 for Low Precision MXFP Load
     output  logic port_b_mxfp_high_out_valid,
     output  logic port_b_mxfp_low_out_valid,
-    output  logic [VLEN - 1 : 0]            [WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]        port_b_high_element_out,
-    output  logic [VLEN - 1 : 0]            [KV_MX_EXP_WIDTH + KV_MX_MANT_WIDTH : 0]        port_b_low_element_out,
+    output  logic [VLEN - 1 : 0]            [WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]            port_b_high_element_out,
+    output  logic [VLEN - 1 : 0]            [KV_MX_EXP_WIDTH + KV_MX_MANT_WIDTH : 0]            port_b_low_element_out,
     output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_out,
 
     // Status Tracking for Prefetch
@@ -377,7 +377,8 @@ module fp_vector_sram #(
 // Storage 
 // -----------------------------
     logic test_port_a_req;
-    assign test_port_a_req = 1'b1;
+    assign test_port_a_req = 1'b1; // Temporarily set to 1'b1 for testing purposes
+
     prim_generic_ram_2p #(
         .Width((EXP_WIDTH + MANT_WIDTH + 1) * VLEN),
         .Depth(SRAM_DEPTH),
@@ -394,7 +395,7 @@ module fp_vector_sram #(
         .a_wdata_i      (port_a_fp_in_internal),
         .a_wmask_i      (port_a_mask_in),
         .a_rdata_o      (port_a_fp_out_internal),
-        .b_req_i        (port_b_req || port_b_mxfp_req),
+        .b_req_i        (port_b_req || port_b_mxfp_req || delayed_port_b_write_en_internal[MXFP_FP_DELAY_CYCLES - 1]),
         .b_write_i      (delayed_port_b_write_en_internal[MXFP_FP_DELAY_CYCLES - 1]),
         .b_addr_i       (delayed_port_b_addr_internal[MXFP_FP_DELAY_CYCLES - 1]),
         .b_wdata_i      (port_b_fp_in_internal),

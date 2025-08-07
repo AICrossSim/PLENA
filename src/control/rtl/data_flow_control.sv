@@ -541,7 +541,6 @@ module data_flow_control import precision_pkg::*; import configuration_pkg::*; #
                 v_sram_req_b            <= 1'b0;
                 v_sram_wen_b            <= 1'b0;
                 s_map_v_ready           <= 1'b0;
-                select_write_data_b     <= 2'b0;
             end
             recorded_v_load_addr_1  <= exe_stage_op.addr_1;
             recorded_v_load_addr_2  <= exe_stage_op.addr_2;
