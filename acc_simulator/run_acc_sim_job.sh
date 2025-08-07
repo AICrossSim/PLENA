@@ -8,15 +8,16 @@ echo $MODEL_NAME
 echo "original with rotation 8B MXFP6"
 CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
   --model_name="$MODEL_NAME" \
-  --preset XWqBKVNL \
-  --preset_X MXFP_E4M3_B16_S8 \
-  --preset_W MXFP_E1M2_B16_S8 \
+  --preset XWqBqKVNL \
+  --preset_X MXINT_4_B64_S8 \
+  --preset_W MXINT_4_B16_S8 \
   --model_parallel True \
-  --use_gptq False\
+  --use_gptq False \
   --offline_rotate False \
   --online_rotate False \
   # > acc_simulator/rotation2.out 2>&1
 
+# --preset_X MXFP_E3M4_B16_S8 \
 # echo "Running XWqBKVNL linear weights only GPTQ"
 # CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
 #   --model_name="$MODEL_NAME" \

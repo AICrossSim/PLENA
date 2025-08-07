@@ -32,7 +32,7 @@ from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
 from cfl_tools.logger import get_logger, set_logging_verbosity
 
 logger = get_logger(__name__)
-set_logging_verbosity(logger, "INFO")
+set_logging_verbosity("INFO")
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
