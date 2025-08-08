@@ -7,12 +7,9 @@ from pathlib import Path
 def embedding_asm(
     vlen: int,
     batch: int,
-    hidden_size: int,
     alive_registers: List[int],
     voc_table_row_size: int,
-    stored_activation_base_address: int,
     activation_base_address: int,
-    result_base_address: int,
     voc_table_base_addr_reg_index: int,
     input_ids: list[int]
 ) -> str:

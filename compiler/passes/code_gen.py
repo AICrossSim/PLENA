@@ -31,7 +31,7 @@ def _load_template(template_name: str) -> str:
         return f.read()
 
 
-def _generate_embedding_code(node: Dict[str, Any]) -> str:
+def _generate_embedding_code(node: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for embedding operations."""
     vocab_size = node["dimensions"]["num_embeddings"]
     embedding_dim = node["dimensions"]["embedding_dim"]
@@ -41,13 +41,18 @@ def _generate_embedding_code(node: Dict[str, Any]) -> str:
     ; Input: token_ids, Output: embedded_vectors
     """
     code += embedding_asm(
-        batch=dim.get("batch", 1),
-        hidden_size=dim["embedding_dim"]
+        vlen    =hardware_config.get("vlen", 16),
+        batch   =dim.get("batch", 1),
+        alive_registers=hardware_config.get("alive_registers", [0, 1, 2]),
+        voc_table_row_size=dim["vocab_size"],
+        activation_base_address=scheduler.get("activation_base_address", 0),
+        input_ids = [1]
     )
+    breakpoint
     return code.strip()
 
 
-def _generate_attention_code(node: Dict[str, Any]) -> str:
+def _generate_attention_code(node: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for attention operations."""
     projection_template = projection_asm(
         head_dim=head_dim
@@ -75,7 +80,7 @@ def _generate_attention_code(node: Dict[str, Any]) -> str:
     return code.strip()
 
 
-def _generate_ffn_code(node: Dict[str, Any]) -> str:
+def _generate_ffn_code(node: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for FFN/MLP operations."""
     template = _load_template("projection")
 
@@ -96,7 +101,7 @@ def _generate_ffn_code(node: Dict[str, Any]) -> str:
     return code.strip()
 
 
-def _generate_normalization_code(node: Dict[str, Any]) -> str:
+def _generate_normalization_code(node: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for normalization operations."""
 
     dims = node["dimensions"]
@@ -115,7 +120,7 @@ def _generate_normalization_code(node: Dict[str, Any]) -> str:
     return code.strip()
 
 
-def _generate_elementwise_add_code(node: Dict[str, Any]) -> str:
+def _generate_elementwise_add_code(node: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for elementwise addition (residual connections)."""
     dims = node["dimensions"]
     shape = dims["shape"]
@@ -138,7 +143,7 @@ def _generate_node_code(node: Dict[str, Any], hardware_config: Dict[str, Any], s
     header = f"\n; === {node_name} ({operation_type}) ===\n"
 
     if operation_type == "embedding":
-        return header + _generate_embedding_code(node)
+        return header + _generate_embedding_code(node, hardware_config, scheduler)
     elif operation_type == "attention":
         return header + _generate_attention_code(node)
     elif operation_type == "ffn":
@@ -170,7 +175,7 @@ def _generate_program_footer() -> str:
 """
 
 
-def code_gen_pass(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], hardware_config: Dict[str, Any]) -> str:
+def code_gen_pass(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """
     Transform the complete symbolic graph into assembly code.
 
@@ -195,7 +200,7 @@ def code_gen_pass(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], ha
     for node_name in execution_order:
         if node_name in node_map:
             node = node_map[node_name]
-            node_code = _generate_node_code(node)
+            node_code = _generate_node_code(node, hardware_config, scheduler)
             asm_code.append(node_code)
 
     # Add program footer

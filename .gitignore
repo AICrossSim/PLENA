@@ -39,6 +39,7 @@ src/basic_components/synopsis/
 *.message
 
 *.pt
+*.asm
 
 acc_simulator/third_party/
 analyzed/

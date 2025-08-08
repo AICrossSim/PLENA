@@ -1,7 +1,7 @@
 import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-from parser import load_hardware_config_settings
+from parser import HardwareParser
 '''
 VAddVv { rd: u8, rs1: u8, rs2: u8 },
     VAddVf { rd: u8, rs1: u8, rs2: u8 },
@@ -106,7 +106,7 @@ def _load_hardware_config() -> str:
     if not template_path.exists():
         raise FileNotFoundError(f"configuration.svh not found in {templates_dir}")
 
-    return load_hardware_config_settings(config_path)
+    return HardwareParser(config_path)
 
 def _generate_vin_vin_vout_op(op_name: str, reg_in_0: str, reg_in_1: str, reg_out: str, loops: int) -> str:
     code = f"""
