@@ -6,12 +6,13 @@
 
     "fp_sram": {
         "infinity" : { "content": "", "addr": "0" },
-        "eps"      : { "content": "", "addr": "1" }
+        "eps"      : { "content": "", "addr": "1" },
+        "hid_reciprocal" : { "content": "", "addr": "2" }
     },
 
     "vector_sram_addr": {
         "block1" : "batch_size * (hidden_size // MLEN)",
-        "block2" : "MLEN",
+        "block2" : "hidden_size // MLEN",
         "block3" : "batch_size * (hidden_size // MLEN)",
         "block4" : "batch_size * (hidden_size // MLEN)"
     },

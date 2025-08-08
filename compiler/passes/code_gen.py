@@ -38,52 +38,57 @@ def _generate_embedding_code(node: Dict[str, Any], model_info: Dict[str, Any], h
     dim = node["dimensions"]
 
     code = f"""
-    ; Embedding lookup: vocab_size={vocab_size}, embedding_dim={embedding_dim}
-    ; Input: token_ids, Output: embedded_vectors
-    """
+; Embedding lookup: vocab_size={vocab_size}, embedding_dim={embedding_dim}
+; Input: token_ids, Output: embedded_vectors
+"""
     code += embedding_asm(
         vlen    = hardware_config.get("vlen", 16),
-        batch   = dim.get("batch", 1),
-        alive_registers         = hardware_config.get("alive_registers", [0, 1, 2]),
+        batch   = model_info.get("batch", 1),
+        alive_registers         = hardware_config.get("alive_registers", [1, 2, 3]),
         voc_table_row_size      = vocab_size,
         activation_base_address = scheduler.get("activation_base_address", 0),
         voc_table_base_addr_reg_index = scheduler.get("register_assignment", {}).get("token_table_offset", 0),
         input_ids = [1]
     )
+
     return code.strip()
 
 
 def _generate_attention_code(node: Dict[str, Any], model_info: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for attention operations."""
-    projection_template = projection_asm(
-        head_dim=head_dim
-    )
+
 
     dims = node["dimensions"]
     hidden_size = dims["hidden_size"]
     num_heads = dims["num_attention_heads"]
     head_dim = dims["head_dim"]
 
-    flash_attention_template = flash_attn_asm(
-        head_dim=head_dim
-    )
+    # projection_template = projection_asm(
+    #     head_dim=head_dim
+    # )
 
-    # TODO: break flash attention down into multiple smaller templates for loop
-    # TODO: Templates in asm_templates/flash_attention_tr_loop.asm + asm_templates/flash_attention_tc_loop.asm
+    # flash_attention_template = flash_attn_asm(
+    #     head_dim=head_dim
+    # )
+
+    # # TODO: break flash attention down into multiple smaller templates for loop
+    # # TODO: Templates in asm_templates/flash_attention_tr_loop.asm + asm_templates/flash_attention_tc_loop.asm
     code = f"""
-; Self-attention: hidden_size={hidden_size}, num_heads={num_heads}, head_dim={head_dim}
-; Q, K, V projections and attention computation
-{projection_template}
+    # ; Self-attention: hidden_size={hidden_size}, num_heads={num_heads}, head_dim={head_dim}
+    # ; Q, K, V projections and attention computation
+    # """
 
-; Flash Attention Implementation
-{flash_attention_template}
-"""
+    # code += f"""
+    # # {projection_template}
+    # # ; Flash Attention Implementation
+    # # {flash_attention_template}
+    # # """
+    
     return code.strip()
 
 
 def _generate_ffn_code(node: Dict[str, Any], model_info: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for FFN/MLP operations."""
-    template = _load_template("projection")
 
     dims = node["dimensions"]
     hidden_size = dims["hidden_size"]
@@ -94,11 +99,11 @@ def _generate_ffn_code(node: Dict[str, Any], model_info: Dict[str, Any], hardwar
     ; FFN/MLP: hidden_size={hidden_size}, intermediate_size={intermediate_size}, activation={activation}
     ; Gate and Up projections
     """
-    code += ffn_asm(
-        hidden_size=hidden_size,
-        intermediate_size=intermediate_size,
-        activation=activation
-    )
+    # code += ffn_asm(
+    #     hidden_size=hidden_size,
+    #     intermediate_size=intermediate_size,
+    #     activation=activation
+    # )
     return code.strip()
 
 
@@ -106,18 +111,23 @@ def _generate_normalization_code(node: Dict[str, Any], model_info: Dict[str, Any
     """Generate assembly code for normalization operations."""
 
     dims = node["dimensions"]
-    hidden_size = dims["hidden_size"]
-    intermediate_size = dims["intermediate_size"]
-    activation = dims["activation"]
+    hidden_size = dims["normalized_shape"]
+    eps_offset = scheduler.get("fp_sram", {}).get("eps", {}).get("addr", 0)
+    reci_hid_offset = scheduler.get("fp_sram", {}).get("hid_reciprocal", {}).get("addr", 0)
     code = f"""
-    ; Normalization: hidden_size={hidden_size}
-    ; Layer normalization
-    """
+; Normalization: hidden_size={hidden_size}`
+; Layer normalization
+"""
     code += rms_norm_asm(
-        hidden_size=hidden_size,
-        intermediate_size=intermediate_size,
-        activation=activation
+        _eps_offset = eps_offset,
+        reci_hid_offset = reci_hid_offset,
+        alive_registers = [1, 2, 3],
+        activation_base_address = scheduler.get("vector_sram_addr", {}).get("block1", 0),
+        scratchpad_base_address = scheduler.get("vector_sram_addr", {}).get("block2", 0),
+        vlen = hardware_config.get("vlen", 16),
+        hidden_dim = hidden_size
     )
+
     return code.strip()
 
 
@@ -129,10 +139,10 @@ def _generate_elementwise_add_code(node: Dict[str, Any], model_info: Dict[str, A
     code = f"""
     ; Elementwise addition (residual connection): shape={shape}
     """
-    code += elementwise_add_asm(
-        batch=dims.get("batch", 1),
-        hidden_size=dims["hidden_size"]
-    )
+    # code += elementwise_add_asm(
+    #     batch=dims.get("batch", 1),
+    #     hidden_size=dims["hidden_size"]
+    # )
     return code.strip()
 
 
@@ -146,13 +156,13 @@ def _generate_node_code(node: Dict[str, Any], model_info: Dict[str, Any], hardwa
     if operation_type == "embedding":
         return header + _generate_embedding_code(node, model_info, hardware_config, scheduler)
     elif operation_type == "attention":
-        return header + _generate_attention_code(node)
+        return header + _generate_attention_code(node, model_info, hardware_config, scheduler)
     elif operation_type == "ffn":
-        return header + _generate_ffn_code(node)
+        return header + _generate_ffn_code(node, model_info, hardware_config, scheduler)
     elif operation_type == "normalization":
-        return header + _generate_normalization_code(node)
+        return header + _generate_normalization_code(node, model_info, hardware_config, scheduler)
     elif operation_type == "elementwise_add":
-        return header + _generate_elementwise_add_code(node)
+        return header + _generate_elementwise_add_code(node, model_info, hardware_config, scheduler)
     else:
         raise ValueError(f"Unknown operation type: {operation_type}")
 
@@ -205,6 +215,6 @@ def code_gen_pass(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], ha
             asm_code.append(node_code)
 
     # Add program footer
+    
     asm_code.append(_generate_program_footer())
-
     return "\n".join(asm_code)
