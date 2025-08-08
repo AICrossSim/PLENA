@@ -27,8 +27,8 @@ def generate_mem_layout(
     for cat, vals in mem_layout.items():
         out[cat] = {}
         for k, v in vals.items():
-            if isinstance(v, dict) and "content" in v:
-                expr = v["content"].strip()
+            if isinstance(v, dict) and "addr" in v:
+                expr = v["addr"].strip()
                 out[cat][k] = try_eval(expr, ref_info) if expr else None
             elif isinstance(v, str):
                 expr = v.strip()

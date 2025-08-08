@@ -47,6 +47,7 @@ def run():
         "context_length" : dimensions.get("max_position_embeddings", "Unknown"),
         "vocab_size": dimensions.get("vocab_size", "Unknown"),
         "hidden_size": dimensions.get("hidden_size", "Unknown"),
+        "intermediate_size": dimensions.get("ffn", {}).get("intermediate_size", 4096),
         "num_key_value_heads": dimensions.get("attention", {}).get("num_key_value_heads", "Unknown"),
         "num_attention_heads": dimensions.get("attention", {}).get("num_attention_heads", "Unknown"),
         "num_layers": dimensions.get("num_hidden_layers", "Unknown"),

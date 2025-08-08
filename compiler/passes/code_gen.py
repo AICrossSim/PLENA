@@ -47,7 +47,7 @@ def _generate_embedding_code(node: Dict[str, Any], model_info: Dict[str, Any], h
         alive_registers         = hardware_config.get("alive_registers", [1, 2, 3]),
         voc_table_row_size      = vocab_size,
         activation_base_address = scheduler.get("activation_base_address", 0),
-        voc_table_base_addr_reg_index = scheduler.get("register_assignment", {}).get("token_table_offset", 0),
+        voc_table_base_addr_reg_index = scheduler.get("register_assignment", {}).get("hbm_addr_reg", {}).get("token_table_offset", 0),
         input_ids = [1]
     )
 
@@ -63,26 +63,58 @@ def _generate_attention_code(node: Dict[str, Any], model_info: Dict[str, Any], h
     num_heads = dims["num_attention_heads"]
     head_dim = dims["head_dim"]
 
-    # projection_template = projection_asm(
-    #     head_dim=head_dim
-    # )
-
-    # flash_attention_template = flash_attn_asm(
-    #     head_dim=head_dim
-    # )
-
     # # TODO: break flash attention down into multiple smaller templates for loop
     # # TODO: Templates in asm_templates/flash_attention_tr_loop.asm + asm_templates/flash_attention_tc_loop.asm
     code = f"""
     # ; Self-attention: hidden_size={hidden_size}, num_heads={num_heads}, head_dim={head_dim}
     # ; Q, K, V projections and attention computation
     # """
+    code += projection_asm(
+        mlen = hardware_config.get("MLEN", 16),
+        blen = hardware_config.get("BLEN", 16),
+        batch = model_info.get("batch", 1),
+        hidden_size = hidden_size,
+        alive_registers = [1,2,3,4,5,6,7,8],
+        head_dim = head_dim,
+        w_base_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("q_weight_offset", 0),
+        rope_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("rope_params_offset", 0),
+        rope_on_chip_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block3", 0),
+        activation_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block1", 0),
+        result_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block2", 0),
+        rope_enabled = True
+    )
 
-    # code += f"""
-    # # {projection_template}
-    # # ; Flash Attention Implementation
-    # # {flash_attention_template}
-    # # """
+    code += projection_asm(
+        mlen = hardware_config.get("MLEN", 16),
+        blen = hardware_config.get("BLEN", 16),
+        batch = model_info.get("batch", 1),
+        hidden_size = hidden_size,
+        alive_registers = [1,2,3,4,5,6,7,8],
+        head_dim = head_dim,
+        w_base_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("k_weight_offset", 0),
+        rope_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("rope_params_offset", 0),
+        rope_on_chip_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block3", 0),
+        activation_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block1", 0),
+        result_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block2", 0),
+        rope_enabled = True
+    )
+
+    code += projection_asm(
+        mlen = hardware_config.get("MLEN", 16),
+        blen = hardware_config.get("BLEN", 16),
+        batch = model_info.get("batch", 1),
+        hidden_size = hidden_size,
+        alive_registers = [1,2,3,4,5,6,7,8],
+        head_dim = head_dim,
+        w_base_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("v_weight_offset", 0),
+        rope_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("rope_params_offset", 0),
+        rope_on_chip_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block3", 0),
+        activation_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block1", 0),
+        result_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block2", 0),
+        rope_enabled = False
+    )
+    
+    # code += flash_attn_asm()
     
     return code.strip()
 
@@ -99,11 +131,19 @@ def _generate_ffn_code(node: Dict[str, Any], model_info: Dict[str, Any], hardwar
     ; FFN/MLP: hidden_size={hidden_size}, intermediate_size={intermediate_size}, activation={activation}
     ; Gate and Up projections
     """
-    # code += ffn_asm(
-    #     hidden_size=hidden_size,
-    #     intermediate_size=intermediate_size,
-    #     activation=activation
-    # )
+
+    code += ffn_asm(
+        mlen = hardware_config.get("MLEN", 16),
+        blen = hardware_config.get("BLEN", 16),
+        batch = model_info.get("batch", 1),
+        hidden_size = hidden_size,
+        alive_registers = [1, 2, 3, 4, 5, 6],
+        weight_hbm_offset_reg = scheduler["register_assignment"].get("hbm_addr_reg", {}).get("ffn_weight_offset", 0),
+        intermediate_size = model_info.get("intermediate_size", 4096),
+        activation_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block1", 0),
+        const_address = scheduler["memory_layout"].get("fp_sram", {}).get("silu_e", 0),
+        result_base_address = scheduler["memory_layout"].get("vector_sram_addr", {}).get("block5", 0),
+    )
     return code.strip()
 
 
@@ -112,8 +152,8 @@ def _generate_normalization_code(node: Dict[str, Any], model_info: Dict[str, Any
 
     dims = node["dimensions"]
     hidden_size = dims["normalized_shape"]
-    eps_offset = scheduler.get("fp_sram", {}).get("eps", {}).get("addr", 0)
-    reci_hid_offset = scheduler.get("fp_sram", {}).get("hid_reciprocal", {}).get("addr", 0)
+    eps_offset = scheduler.get("fp_sram", {}).get("eps", 0)
+    reci_hid_offset = scheduler.get("fp_sram", {}).get("hid_reciprocal", 0)
     code = f"""
 ; Normalization: hidden_size={hidden_size}`
 ; Layer normalization
@@ -139,10 +179,15 @@ def _generate_elementwise_add_code(node: Dict[str, Any], model_info: Dict[str, A
     code = f"""
     ; Elementwise addition (residual connection): shape={shape}
     """
-    # code += elementwise_add_asm(
-    #     batch=dims.get("batch", 1),
-    #     hidden_size=dims["hidden_size"]
-    # )
+    code += elementwise_add_asm(
+        vlen=hardware_config.get("VLEN", 16),
+        hidden_size=model_info["hidden_size"],
+        batch=model_info.get("batch", 1),
+        alive_registers=hardware_config.get("alive_registers", [1, 2, 3]),
+        stored_activation_base_address=scheduler.get("vector_sram_addr", {}).get("block1", 0),
+        previous_activation_base_address=scheduler.get("vector_sram_addr", {}).get("block2", 0),
+        previous_act_on_chip_addr_reg_index=scheduler["register_assignment"].get("hbm_addr_reg", {}).get("previous_activation_offset", 0)
+    )
     return code.strip()
 
 
