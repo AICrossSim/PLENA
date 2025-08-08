@@ -1,0 +1,5 @@
+{
+    "hbm_addr_reg":{
+        "token_table_offset" : 1
+    }
+}

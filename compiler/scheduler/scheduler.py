@@ -38,7 +38,8 @@ def generate_mem_layout(
 def gen_scheduler(
     hardware_config: dict,
     model_config: dict,
-    mem_layout_lib: str = "mem_layout_lib.json"
+    mem_layout_lib: str = "mem_layout_lib.json",
+    reg_assignment_lib: str = "reg_assignment_lib.json"
 ) -> dict:
     """
     Generate scheduler based on hardware and model configurations.
@@ -52,9 +53,12 @@ def gen_scheduler(
         dict: Generated scheduler configuration.
     """
     mem_layout = generate_mem_layout(hardware_config, model_config, mem_layout_lib)
-    
+    with open(reg_assignment_lib, "r") as f:
+        register_assignment = json.load(f)
+
     scheduler = {
-        "memory_layout": mem_layout
+        "memory_layout": mem_layout,
+        "register_assignment": register_assignment
     }
     
     return scheduler

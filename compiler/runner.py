@@ -18,6 +18,7 @@ def run():
     hardware_config_path = Path(__file__).resolve().parents[1] / "src" / "definitions" / "configuration.svh"
     precision_config_path = Path(__file__).resolve().parents[1] / "src" / "definitions" / "precision.svh"
     mem_layout_lib_path = Path(__file__).resolve().parents[0] / "scheduler" / "mem_layout_lib.json"
+    reg_assignment_lib_path = Path(__file__).resolve().parents[0] / "scheduler" / "reg_assignment_lib.json"
     # Validate that output file ends with .asm
     if not output_file.endswith(".asm"):
         print("Error: Output file must end with .asm extension")
@@ -38,7 +39,6 @@ def run():
     # Print detailed symbolic graph
     parser.print_symbolic_graph_details()
 
-    print(f"dimensions: {dimensions}")
     # Prepare model info for code generation
     model_info = {
         "model_name": model_path,
@@ -51,11 +51,11 @@ def run():
         "num_attention_heads": dimensions.get("attention", {}).get("num_attention_heads", "Unknown"),
         "num_layers": dimensions.get("num_hidden_layers", "Unknown"),
         "head_dim" : dimensions.get("hidden_size", "Unknown") // dimensions.get("num_attention_heads", 1),
-        "eps": dimensions.get("rms_norm", {}).get("eps", 1e-6),
+        "eps": dimensions.get("rms_norm", {}).get("eps", 1e-6)
     }
 
     hardware_config = HardwareParser(hardware_config_path, precision_config_path)
-    scheduler = gen_scheduler(hardware_config, model_info, mem_layout_lib_path)
+    scheduler = gen_scheduler(hardware_config, model_info, mem_layout_lib_path, reg_assignment_lib_path)
     # Run code generation pass
     print(f"\nRunning code generation pass...")
     generated_asm = code_gen_pass(symbolic_graph, model_info, hardware_config, scheduler)
