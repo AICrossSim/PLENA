@@ -12,9 +12,9 @@ Status      : Passed Simple Row/Col Read/Write Tests
 
 module matrix_sram_without_rounding #(
     // MX-FP Data Format
-    parameter WT_MX_EXP_WIDTH     = 4,
-    parameter WT_MX_MANT_WIDTH    = 3,
-    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter WT_MX_EXP_WIDTH       = 4,
+    parameter WT_MX_MANT_WIDTH      = 3,
+    parameter MX_SCALE_WIDTH        = 8,
     parameter ON_CHIP_ADDR_WIDTH    = 32,
 
     // Dimension

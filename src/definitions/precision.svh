@@ -14,11 +14,11 @@ package precision_pkg;
     parameter   ACT_MXFP_EXP_WIDTH  = 4;
     parameter   KV_MX_MANT_WIDTH    = 2;
     parameter   KV_MX_EXP_WIDTH     = 1;
-    parameter   KV_MX_INT_ENABLE    = 0;
+    parameter   KV_MX_INT_ENABLE    = 0;    // Currently not used.
     parameter   WT_MX_MANT_WIDTH    = 3;
     parameter   WT_MX_EXP_WIDTH     = 4;
     parameter   WT_MX_INT_ENABLE    = 0;
-    parameter   MXFP_SCALE_WIDTH    = 8;
+    parameter   MX_SCALE_WIDTH      = 8;
     
     parameter   BLOCK_DIM = 4;
     // Per Unit Precision

@@ -8,11 +8,13 @@ import os
 
 colors = {
     "turq": tuple(i / 255 for i in (40, 161, 151)),
-    "darkblue": tuple(i / 255 for i in (18, 67, 109)),
+    "light_blue": tuple(i / 255 for i in (158, 193, 228)),
+    "light_green": tuple(i / 255 for i in (158, 209, 123)),
+    "mid_blue": tuple(i / 255 for i in (83, 120, 157)),
     "dark_pink": tuple(i / 255 for i in (128, 22, 80)),
     "orange": tuple(i / 255 for i in (244, 106, 37)),
     "dark_green": tuple(i / 255 for i in (61, 159, 60)),
-    "dark_blue": tuple(i / 255 for i in (54, 125, 176)),
+    "dark_blue": tuple(i / 255 for i in (37, 66, 112)),
 }
 
 # HBM Settings
@@ -141,7 +143,7 @@ if __name__ == "__main__":
     model_config_path   = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-70b.json")
     model_config        = load_json(model_config_path)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 2), sharey=True)
-    tick_positions = [1, 2, 4, 8, 16, 32, 64, 128]
+    tick_positions = [1, 2, 4, 8, 16, 32, 64]
 
     # Plot TPU Performance
     tpu_model   = DeviceModel(operate_freq=TPU_Params["Operate_Freq"], M=TPU_Params["M"], K=TPU_Params["K"], N=TPU_Params["N"], data_width=TPU_Params["DataWidth"], hbm_bandwidth=TPU_Params["HBM_Bandwidth"], hbm_capacity=TPU_Params["HBM_Capacity"])
@@ -159,105 +161,125 @@ if __name__ == "__main__":
 
     ax1.set_xscale('log')
     ax1.set_yscale('log')
-    ax1.set_ylabel('Attainable GFLOPs/s')
-    ax1.set_xlabel('Batch Size')
+    ax1.set_ylabel('Attainable GFLOPs/s', fontsize=5)
+    ax1.set_xlabel('Batch Size', fontsize=5)
     ax1.set_xticks(tick_positions)
-    ax1.set_xticklabels([str(t) for t in tick_positions])
+    ax1.set_xticklabels([str(t) for t in tick_positions], fontsize=5)
     ax1.set_yticks([1e2, 1e3, 1e4, 1e5])
-    ax1.set_yticklabels(['$10^2$', '$10^3$', '$10^4$', '$10^5$'])
+    ax1.set_yticklabels(['$10^2$', '$10^3$', '$10^4$', '$10^5$'], fontsize=5)
     ax1.minorticks_off()
     ax1.set_ylim(1e2, 1e5)
-    ax1.set_xlim(1, 256)
-    ax1.set_title('Normal Model')
+    ax1.set_xlim(1, 64)
+    ax1.set_title('LLaMA 2 4K Context Length Model', fontsize=5)
     
-    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='PLENA W/O Memory Wall', color="grey", linewidth=1, linestyle='--')
+    ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='Theoretical PLENA Performance', color=colors["light_blue"], linewidth=0.8, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax1.plot(
         list(tpu_roofline_performance.keys()),
         [v for v in tpu_roofline_performance.values()],
-        label='TPU W/O Memory Wall',
+        label='Theoretical Square Systolic Array Performance',
         linewidth=0.8, linestyle='--',
-        color='grey'
+         color=colors["light_green"]
     )
     
     ax1.plot(
         list(tpu_actual_performance_normal.keys()),
-        [v for v in tpu_actual_performance_normal.values()],
-        label='TPU',
-        color=colors["dark_pink"],
+        [0.8 * v for v in tpu_actual_performance_normal.values()],
+        label='Square Systolic Array Performance',
+        color=colors["dark_green"],
         linewidth=2
     )
 
-    ax1.vlines(soft_optimised_normal_batch_bound, 1e2, 1e5, color = 'grey', linestyle='--', linewidth=0.5)
+    ax1.vlines(16, 1e2, 1e5, color = 'grey', linestyle='--', linewidth=0.5)
 
     ax1.plot(
         list(plena_actual_performance_normal.keys()),
-        [v for v in plena_actual_performance_normal.values()],
-        label='PLENA W/O Quantisation',
-        color=colors["dark_green"],
+        [0.8 * v for v in plena_actual_performance_normal.values()],
+        label='PLENA W/O Quantization',
+        color=colors["mid_blue"],
         linewidth=2
     )
 
     ax1.hlines(max(plena_actual_performance_normal.values()), max(plena_actual_performance_normal.keys()), plena_normal_batch_bound, color=colors["dark_green"], linewidth=2)
 
+    x_data = list(soft_optimised_actual_performance_normal.keys())
+    y_data = list(soft_optimised_actual_performance_normal.values())
+
+    # Choose stopping point
+    x_stop = 16
+    x_data_section = [x for x in x_data if x <= x_stop]
+    y_data_section = [0.8 * y for y in y_data[:len(x_data_section)]]
+
+
     ax1.plot(
-        list(soft_optimised_actual_performance_normal.keys()),
-        [v for v in soft_optimised_actual_performance_normal.values()],
-        label='PLENA W Quantisation',
-        color= colors["dark_blue"],
+        x_data_section,
+        y_data_section,
+        label='PLENA W Quantization',
+        color=colors["turq"],
         linewidth=2
     )
 
-    ax1.hlines(max(soft_optimised_actual_performance_normal.values()), max(soft_optimised_actual_performance_normal.keys()), soft_optimised_normal_batch_bound, color=colors["dark_blue"], linewidth=2)
+    ax1.hlines(max(soft_optimised_actual_performance_normal.values()) * 0.8, max(soft_optimised_actual_performance_normal.keys()), 16, color=colors["turq"], linewidth=2)
 
 
     # Plot Reasoninng
     ax2.set_xscale('log')
     ax2.set_yscale('log')
-    ax2.set_ylabel('Attainable GFLOPs/s')
-    ax2.set_xlabel('Batch Size')
+    ax2.set_ylabel('Attainable GFLOPs/s', fontsize=5)
+    ax2.set_xlabel('Batch Size', fontsize=5 )
     ax2.set_ylim(1e2, 1e5)
     ax2.set_xticks(tick_positions)
-    ax2.set_xticklabels([str(t) for t in tick_positions])
-    ax2.set_xlim(1, 256)
+    ax2.set_xticklabels([str(t) for t in tick_positions], fontsize=5)
+    ax2.set_xlim(1, 64)
+    ax2.set_yticks([1e2, 1e3, 1e4, 1e5])
+    ax2.set_yticklabels(['$10^2$', '$10^3$', '$10^4$', '$10^5$'], fontsize=5)
     ax2.minorticks_off()
-    ax2.set_title('Reasoning Model')
+    ax2.set_title('LLaMA 3 128K Context Length Model', fontsize=5)
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
-    ax2.vlines(soft_optimised_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
+    ax2.vlines(4, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 
-    ax2.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), color="grey", linewidth=1, linestyle='--')
+    ax2.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), color=colors["light_blue"], linewidth=0.8, linestyle='--')
     
     ax2.plot(
         list(tpu_roofline_performance.keys()),
-        [v for v in tpu_roofline_performance.values()],
+        [ v for v in tpu_roofline_performance.values()],
         linewidth=0.8, linestyle='--',
-        color='grey'
+        color=colors["light_green"]
     )
     
     ax2.plot(
         list(tpu_actual_performance_reasoning.keys()),
-        [v for v in tpu_actual_performance_reasoning.values()],
-        color=colors["dark_pink"],
+        [0.8 * v for v in tpu_actual_performance_reasoning.values()],
+        color=colors["dark_green"],
         linewidth=2
     )
     
     ax2.plot(
         list(plena_actual_performance_reasoning.keys()),
-        [v for v in plena_actual_performance_reasoning.values()],
-        color=colors["dark_green"],
+        [0.8 * v for v in plena_actual_performance_reasoning.values()],
+        color=colors["mid_blue"],
         linewidth=2
     )
 
-    ax2.hlines(max(plena_actual_performance_reasoning.values()), max(plena_actual_performance_reasoning.keys()), plena_reasoning_batch_bound, color=colors["dark_green"], linewidth=2)
+    # ax2.hlines(max(plena_actual_performance_reasoning.values()), max(plena_actual_performance_reasoning.keys()), plena_reasoning_batch_bound, color=colors["dark_green"], linewidth=2)
+
+    x_data = list(soft_optimised_actual_performance_normal.keys())
+    y_data = list(soft_optimised_actual_performance_normal.values())
+
+    # Choose stopping point
+    x_stop = 4
+    x_data_section = [x for x in x_data if x <= x_stop]
+    y_data_section = [0.8 * y for y in y_data[:len(x_data_section)]]
+
 
     ax2.plot(
-        list(soft_optimised_actual_performance_reasoning.keys()),
-        [ v for v in soft_optimised_actual_performance_reasoning.values()],
-        color=colors["dark_blue"],
+        x_data_section,
+        y_data_section,
+        color=colors["turq"],
         linewidth=2
     )
 
-    ax2.hlines(max(soft_optimised_actual_performance_reasoning.values()), max(soft_optimised_actual_performance_reasoning.keys()), soft_optimised_reasoning_batch_bound, color=colors["dark_blue"], linewidth=2)
+    # ax2.hlines(max(soft_optimised_actual_performance_reasoning.values()), max(soft_optimised_actual_performance_reasoning.keys()), soft_optimised_reasoning_batch_bound, color=colors["dark_blue"], linewidth=2)
 
     # ---- LEGEND ----
     from math import ceil
@@ -270,11 +292,11 @@ if __name__ == "__main__":
             legend_dict[l] = h
     print("Legend Dictionary:", legend_dict)# --- Custom legend order, TPU-related last ---
     custom_order = [
-        'TPU W/O Memory Wall',
-        'TPU',
-        'PLENA W/O Memory Wall',
-        'PLENA W/O Quantisation',
-        'PLENA W Quantisation'
+        'Theoretical Square Systolic Array Performance',
+        'Square Systolic Array Performance',
+        'Theoretical PLENA Performance',
+        'PLENA W/O Quantization',
+        'PLENA W Quantization'
     ]
 
     # Reconstruct handles/labels in the order you want
@@ -286,9 +308,9 @@ if __name__ == "__main__":
         custom_handles, custom_labels,
         loc='lower center',
         bbox_to_anchor=(0.5, -0.1),  # Adjust for spacing
-        fontsize=5, frameon=False,
+        fontsize=4, frameon=False,
         ncol=3
     )
     fig.subplots_adjust(bottom=0.28)
     plt.tight_layout()
-    plt.savefig('fc_sa_comparison_1x4.png', bbox_inches='tight', dpi=300)
+    plt.savefig('fc_sa_comparison.png', bbox_inches='tight', dpi=300)

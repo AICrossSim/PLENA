@@ -20,7 +20,7 @@ module fp_vector_sram #(
     parameter   WT_MX_MANT_WIDTH      = 3,
     parameter   KV_MX_EXP_WIDTH       = 4,
     parameter   KV_MX_MANT_WIDTH      = 3,
-    parameter   MXFP_SCALE_WIDTH        = 8,
+    parameter   MX_SCALE_WIDTH        = 8,
 
     // FP Data Format
     parameter   EXP_WIDTH               = 8,                                  
@@ -59,7 +59,7 @@ module fp_vector_sram #(
     output  logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0]                port_a_v_fp_out,
 
     output  logic [MLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_a_element_out,
-    output  logic [M_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_a_scale_out,
+    output  logic [M_BLOCK_NUM - 1 : 0]     [MX_SCALE_WIDTH - 1 : 0]                          port_a_scale_out,
 
     // Port B
     input   logic port_b_req,
@@ -73,14 +73,14 @@ module fp_vector_sram #(
     // MX-FP Connection
     input   logic [VLEN - 1 : 0]            [ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH : 0]      port_b_high_precision_element_in,
     input   logic [VLEN - 1 : 0]            [KV_MX_EXP_WIDTH  + KV_MX_MANT_WIDTH  : 0]          port_b_low_precision_element_in,
-    input   logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_in,
+    input   logic [V_BLOCK_NUM - 1 : 0]     [MX_SCALE_WIDTH - 1 : 0]                          port_b_scale_in,
 
     input   logic [1:0] port_b_mxfp_req , // 0 for STALL, 1 for High Precision MXFP Load, 2 for Low Precision MXFP Load
     output  logic port_b_mxfp_high_out_valid,
     output  logic port_b_mxfp_low_out_valid,
     output  logic [VLEN - 1 : 0]            [WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]            port_b_high_element_out,
     output  logic [VLEN - 1 : 0]            [KV_MX_EXP_WIDTH + KV_MX_MANT_WIDTH : 0]            port_b_low_element_out,
-    output  logic [V_BLOCK_NUM - 1 : 0]     [MXFP_SCALE_WIDTH - 1 : 0]                          port_b_scale_out,
+    output  logic [V_BLOCK_NUM - 1 : 0]     [MX_SCALE_WIDTH - 1 : 0]                          port_b_scale_out,
 
     // Status Tracking for Prefetch
     input   logic prefetch_en,
@@ -103,8 +103,8 @@ module fp_vector_sram #(
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] port_b_fp_out_internal;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_high_fp_in;
     logic [VLEN - 1 : 0]        [EXP_WIDTH + MANT_WIDTH : 0] converted_b_low_fp_in;
-    logic [V_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]   port_b_high_scale_out;
-    logic [V_BLOCK_NUM - 1 : 0] [MXFP_SCALE_WIDTH - 1 : 0]   port_b_low_scale_out;
+    logic [V_BLOCK_NUM - 1 : 0] [MX_SCALE_WIDTH - 1 : 0]   port_b_high_scale_out;
+    logic [V_BLOCK_NUM - 1 : 0] [MX_SCALE_WIDTH - 1 : 0]   port_b_low_scale_out;
     logic port_a_write_en_internal;
     logic port_a_req_internal;
 
@@ -191,7 +191,7 @@ module fp_vector_sram #(
             .FP_EXP_WIDTH       (EXP_WIDTH),
             .MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
             .MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
-            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+            .MXFP_SCALE_WIDTH   (MX_SCALE_WIDTH)
         ) fp_2_mx_port_a_convert_init(
             .clk(clk),
             .rst(rst),
@@ -259,7 +259,7 @@ module fp_vector_sram #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .MXFP_MANT_WIDTH    (ACT_MXFP_MANT_WIDTH),
                 .MXFP_EXP_WIDTH     (ACT_MXFP_EXP_WIDTH),
-                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .MXFP_SCALE_WIDTH   (MX_SCALE_WIDTH),
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
             ) port_b_mx_fp_2_fp_high_precision_convert (
@@ -277,7 +277,7 @@ module fp_vector_sram #(
                 .BLOCK_DIM          (BLOCK_DIM),
                 .MXFP_MANT_WIDTH    (KV_MX_MANT_WIDTH),
                 .MXFP_EXP_WIDTH     (KV_MX_EXP_WIDTH),
-                .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH),
+                .MXFP_SCALE_WIDTH   (MX_SCALE_WIDTH),
                 .FP_MANT_WIDTH      (MANT_WIDTH),
                 .FP_EXP_WIDTH       (EXP_WIDTH)
             ) port_b_mx_fp_2_fp_low_precision_convert (
@@ -320,7 +320,7 @@ module fp_vector_sram #(
             .FP_EXP_WIDTH       (EXP_WIDTH),
             .MXFP_MANT_WIDTH    (WT_MX_MANT_WIDTH),
             .MXFP_EXP_WIDTH     (WT_MX_EXP_WIDTH),
-            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+            .MXFP_SCALE_WIDTH   (MX_SCALE_WIDTH)
         ) fp_2_mx_high_port_b_convert_init(
             .clk(clk),
             .rst(rst),
@@ -341,7 +341,7 @@ module fp_vector_sram #(
             .FP_EXP_WIDTH       (EXP_WIDTH),
             .MXFP_MANT_WIDTH    (KV_MX_MANT_WIDTH),
             .MXFP_EXP_WIDTH     (KV_MX_EXP_WIDTH),
-            .MXFP_SCALE_WIDTH   (MXFP_SCALE_WIDTH)
+            .MXFP_SCALE_WIDTH   (MX_SCALE_WIDTH)
         ) fp_2_mx_low_port_b_convert_init(
             .clk(clk),
             .rst(rst),

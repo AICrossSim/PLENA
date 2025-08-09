@@ -60,7 +60,7 @@
     "Testcase 4": {
         "Config" : {
             "MLEN" : 128,
-            "BLEN" : 32,
+            "BLEN" : 4,
             "WT_MX_MANT_WIDTH": 1,
             "WT_MX_EXP_WIDTH": 2,
             "ACT_MXFP_MANT_WIDTH": 1,
