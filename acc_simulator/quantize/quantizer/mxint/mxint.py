@@ -123,7 +123,7 @@ def mxint_quantizer_sim(
         B = mxint_meta.block_size
 
         qtensor = qtensor.reshape(-1, B)  # [n_blocks, B]
-        best_err = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device)
+        best_err = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device, dtype=torch.bfloat16)
         best_scales, best_elements, tensor_meta = extract_mxint_components(
             tensor, block_dim, mxint_meta, percentile=1.0
         )

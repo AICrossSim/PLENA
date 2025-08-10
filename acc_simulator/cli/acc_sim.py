@@ -30,6 +30,11 @@ from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
 
+<<<<<<< HEAD
+=======
+logger = get_logger(__name__)
+set_logging_verbosity("INFO")
+>>>>>>> cx/acc-sim
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB

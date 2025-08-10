@@ -24,8 +24,20 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta, percentile: float
     x = x.flatten()
     x = x.reshape(n_blocks, B)  # [n_blocks, B]
 
-    x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True)
-    scale = x_max.log2().ceil()
+    scaling_bit_width = 4
+    x_max = x.abs().max()
+    x_max = x.round().clamp(min=1, max=2**scaling_bit_width-1)
+    scale = x_max
+
+    qx = x / scale # [0,1]
+    mantisa_x = qx * (2**(scaling_bit_width - 1))
+
+    
+
+    
+    
+    # x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True)
+    # scale = x_max.log2().ceil()
     scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
     x = x / 2**scale
     x_mant = x * 2**(mxint_meta.element_bits - 1)

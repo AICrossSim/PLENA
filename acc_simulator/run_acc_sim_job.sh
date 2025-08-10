@@ -18,6 +18,7 @@ CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim 
   --online_rotate True \
   # > acc_simulator/rotation2.out 2>&1
 
+# --preset_X MXFP_E3M4_B16_S8 \
 # echo "Running XWqBKVNL linear weights only GPTQ"
 # CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
 #   --model_name="$MODEL_NAME" \
