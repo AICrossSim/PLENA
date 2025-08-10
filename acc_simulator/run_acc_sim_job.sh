@@ -8,9 +8,10 @@ echo $MODEL_NAME
 echo "original with rotation 8B MXFP6"
 CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
   --model_name="$MODEL_NAME" \
-  --preset XWqBqKVNL \
-  --preset_X MXINT_4_B64_S8 \
-  --preset_W MXINT_4_B16_S8 \
+  --preset XWBKVqNL \
+  --preset_X MXINT_4_B16_S8 \
+  --preset_W MXFP_E1M4_B16_S8 \
+  --preset_Kv MXFP_E2M3_B16_S8 \
   --model_parallel True \
   --use_gptq False \
   --offline_rotate False \
