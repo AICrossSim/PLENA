@@ -1,0 +1,154 @@
+
+import torch
+import torch.nn as nn
+import utils
+import logging
+
+from .utils import find_qlayers, cleanup_memory
+from .gptq import GPTQ
+
+
+@torch.no_grad()
+def quantize_model_gptq(model, dataloader, dev, args):
+    '''
+    Adapting From Quarot/GPTQ repo 
+    '''
+    logging.info('-----GPTQ Quantization-----')
+    
+    # disable kv cache for efficiency 
+    use_cache = model.config.use_cache
+    model.config.use_cache = False
+
+    layers = model.model.layers
+
+    model.model.embed_tokens = model.model.embed_tokens.to(dev)
+    model.model.norm = model.model.norm.to(dev)
+    # layers[0] is the first transfomer block
+    layers[0] = layers[0].to(dev)
+
+    dtype = next(iter(model.parameters())).dtype
+    inps = torch.zeros(
+        (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+    )
+
+    # Each entry inps[i] will hold the activation going into layers[0] for one calibration sample.
+    # i keeps track of the calibrated sample that it has seen
+    cache = {'i': 0, 'attention_mask': None}
+
+    class Catcher(nn.Module):
+        def __init__(self, module):
+            super().__init__()
+            self.module = module
+        def forward(self, inp, **kwargs):
+            # The input tensor inp (shape (2048, 4096)) is stored into inps[cache['i']]. 
+            # sequence length and hidden size
+
+            inps[cache['i']] = inp
+            cache['i'] += 1
+            cache['attention_mask'] = kwargs['attention_mask']
+            cache['position_ids'] = kwargs['position_ids']
+            raise ValueError
+    layers[0] = Catcher(layers[0])
+    # breakpoint()
+    # this is iterating over a list (not a PyTorch DataLoader), and each batch is just one sample. tuple (ids, labels)
+    for batch in dataloader:
+        try:
+            # only pass in Input token IDs (to feed into the model),[0] is input ids, [1] is mask
+            model(batch[0].to(dev))
+            # this calls the forward method and stores the data in inps
+        except ValueError:
+            pass
+
+    layers[0] = layers[0].module
+    # replace modules back after catchers
+
+
+
+    torch.cuda.empty_cache()
+
+
+    outs = torch.zeros_like(inps)
+    attention_mask = cache['attention_mask']
+    position_ids = cache['position_ids']
+
+    quantizers = {}
+    sequential = [
+                ['self_attn.k_proj.module', 'self_attn.v_proj.module', 'self_attn.q_proj.module'],
+                ['self_attn.o_proj.module'],
+                ['mlp.up_proj.module', 'mlp.gate_proj.module'],
+                ['mlp.down_proj.module']
+            ]
+    # looping through each decoder block
+    for i in range(len(layers)):
+        print(f'\nLayer {i}:', flush=True, end=' ')
+        layer = layers[i].to(dev)
+        full = find_qlayers(layer, layers=[torch.nn.Linear])
+        for names in sequential:
+            # ['self_attn.k_proj.module', 'self_attn.v_proj.module', 'self_attn.q_proj.module']
+            subset = {n: full[n] for n in names}
+
+            gptq = {}
+            for name in subset:
+                print(f'{name}', end='  ', flush=True)
+                gptq[name] = GPTQ(subset[name])
+    
+            pre_act = []
+            def make_pre_hook():
+                def pre_hook(_, inp):
+                    pre_act.append(inp[0])    
+                return pre_hook
+
+            def add_batch(name):
+                def tmp(_, inp, out):
+                    # given each batch is only one sample , [0] here represents only input ids.
+                    gptq[name].add_batch(inp[0].data, out.data)
+                return tmp
+            
+            handles = []
+            for name in subset:
+                handles.append(subset[name].register_forward_hook(add_batch(name)))
+            
+            handles.append(subset[name].register_forward_pre_hook(make_pre_hook()))
+
+            for j in range(args.nsamples):
+                # layer is the decoder block 
+                # now feeds in smaples into each decoder block, each time only one sample (sqeunce, hidden)
+                # This feeds one sample at a time (shape [1, seqlen, hidden]) through the current transformer block.
+                #  The hooks are triggered inside this call, note we have two types of hooks
+                outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+            
+            pre_act = torch.cat(pre_act, dim=0)
+
+            for h in handles:
+                h.remove()
+
+            for name in subset:
+                # TODO: Return qunatized weights here to create a linear layer in place
+                gptq[name].fasterquant(
+                    activation = pre_act, 
+                    blocksize=32, 
+                    percdamp=args.percdamp
+                )
+                # quantizers['model.layers.%d.%s' % (i, name)] = gptq[name].quantizer
+                gptq[name].free()
+
+        # You forward all inps through the quantized decoder layer and save the result into outs
+        for j in range(args.nsamples):
+            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+
+        layers[i] = layer.cpu()
+        del layer
+        del gptq 
+        torch.cuda.empty_cache()
+
+        inps, outs = outs, inps
+
+    # reset to enable kv cache
+    model.config.use_cache = use_cache
+    cleanup_memory(verbos=True)
+    logging.info('-----GPTQ Quantization Done-----\n')
+    # TODO: dont return quantizers, repalce linear inplace
+    return quantizers
+
+
+

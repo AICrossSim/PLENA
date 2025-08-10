@@ -22,7 +22,8 @@ class MXFPLinearPTQ(nn.Module):
         b_meta: MXFPMeta | MXIntMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
-        ]
+        ],
+        w_pre_quantized: bool = False
     ):
         super().__init__()
         assert weight.ndim == 2
@@ -36,13 +37,13 @@ class MXFPLinearPTQ(nn.Module):
         self.w_meta = w_meta
         self.b_meta = b_meta
         self.layer_type = layer_type
+        self.w_pre_quantized = w_pre_quantized
 
         self.weight = None
         self.bias = None
 
-        if "Wq" in self.layer_type:
+        if "Wq" in self.layer_type and not w_pre_quantized:
             self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta)
-            # self.weight = mxfp_quantizer_sim(weight, block_dim=1, mxfp_meta=w_mx_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 
@@ -75,7 +76,7 @@ class MXFPLinearPTQ(nn.Module):
         cls,
         layer: nn.Linear,
         x_meta: MXFPMeta | MXIntMeta | None,
-        w_meta: Union[MXFPMeta, MXIntMeta, None],
+        w_meta: MXFPMeta | MXIntMeta | None,
         b_meta: MXFPMeta | MXIntMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
@@ -93,4 +94,32 @@ class MXFPLinearPTQ(nn.Module):
                 w_meta=w_meta,
                 b_meta=b_meta,
                 layer_type=layer_type
+            )
+    
+    @classmethod
+    def from_quantized(
+        cls,
+        layer: nn.Linear,
+        weight_q: Tensor,
+        x_meta: MXFPMeta | MXIntMeta | None,
+        w_meta: MXFPMeta | MXIntMeta | None,
+        b_meta: MXFPMeta | MXIntMeta | None,
+        layer_type: Literal[
+            "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
+        ],
+    ):
+        """
+        Create an MXFPLinearPTQ instance from a PyTorch Linear layer.
+        Takes in pre-quantized weights, e.g., from GPTQ.
+        """
+        assert isinstance(layer, nn.Linear), "layer must be an instance of nn.Linear"
+        with torch.no_grad():
+            return cls(
+                weight=weight_q,
+                bias=layer.bias.clone() if layer.bias is not None else None,                               
+                x_meta=x_meta,
+                w_meta=w_meta,                           
+                b_meta=b_meta,
+                layer_type=layer_type,
+                w_pre_quantized=True
             )

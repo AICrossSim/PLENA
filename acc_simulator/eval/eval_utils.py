@@ -228,6 +228,7 @@ def quantize_model(
     )
     
     # Replace linear layers (always included)
+    # TODO: adapt gptq, where layers are created with precomputed weights 
     replace_modules(
         model,
         target_class=nn.Linear,
