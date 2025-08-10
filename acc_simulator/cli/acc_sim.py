@@ -29,10 +29,7 @@ from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experimen
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
-from cfl_tools.logger import get_logger, set_logging_verbosity
 
-logger = get_logger(__name__)
-set_logging_verbosity(logger, "INFO")
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -85,7 +82,7 @@ def llama_eval(
     )
 
     quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_KV, preset_NL, online_rotate)
-    logger.info(f"Quantization arguments: {quant_args}")
+    # logger.info(f"Quantization arguments: {quant_args}")
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)
