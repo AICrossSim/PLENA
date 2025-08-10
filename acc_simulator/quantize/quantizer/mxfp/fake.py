@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 
-from quant.quantizer.minifloat import minifloat_denorm_quantizer
+# from quant.quantizer.minifloat import minifloat_denorm_quantizer
 from ..minifloat.minifloat_fake import minifloat_denorm_quantizer
 from ..minifloat.fake import (
     compose_minifloat_component,

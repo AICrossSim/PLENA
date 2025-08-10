@@ -41,7 +41,7 @@ def llama_eval(
     preset: Union[str, None] = "original",
     preset_X: Union[str, None] = None,
     preset_W: Union[str, None] = None,
-    preset_Kv: Union[str, None] = None,
+    preset_KV: Union[str, None] = None,
     preset_NL: Union[str, None] = None,
     model_parallel: bool = True,
     log_dir: Union[str, None] = None,
@@ -63,7 +63,7 @@ def llama_eval(
         preset (str): Quantization preset, e.g., "XqWqBqKVqNLq" enables quantization of inputs (Xq), weights (Wq), biases (Bq), KV cache (KVq) and Non linear Ops(NLq). Use "original" to disable all quantization.
         preset_X (str): Quantization format for activations. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
         preset_W (str): Quantization format for weights. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
-        preset_Kv (str): Quantization format for KV cache. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
+        preset_KV (str): Quantization format for KV cache. Expected format: MXFP_E<exp>M<frac>_B<block>_S<scale>
         preset_NL (str): Quantization format for nonlinear ops. Expected format: FP_E<exp>M<frac>[_B<bias>]
         model_parallel: Whether to auto-dispatch model across GPUs, will trigger Triton Kernel for mxfp quantization if set.
         log_dir: Directory to save logs and results.
@@ -76,15 +76,15 @@ def llama_eval(
         online_rotate: Whether to apply online inner layer activation rotation.
     """
     start_time = time.time()
-    preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
+    preset_X, preset_W, preset_KV, preset_NL = validate_and_sanitize_quant_args(
         preset,
         preset_X,
         preset_W,
-        preset_Kv,
+        preset_KV,
         preset_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate)
+    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_KV, preset_NL, online_rotate)
     logger.info(f"Quantization arguments: {quant_args}")
 
     if log_dir:

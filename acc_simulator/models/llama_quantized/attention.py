@@ -84,6 +84,20 @@ class LlamaAttentionMXFP(LlamaAttention):
                                                   self.rope_meta, 
                                                   self.rope_func_type)
 
+        # Post_Rope rotation on Q K here
+        q_shape_before = query_states.shape
+        k_shape_before = key_states.shape
+
+        ori_dtype = query_states.dtype
+        query_states = fast_hadamard_transform.hadamard_transform(query_states.float(), scale=1/math.sqrt(query_states.shape[-1])).to(ori_dtype)
+        key_states = fast_hadamard_transform.hadamard_transform(key_states.float(), scale=1/math.sqrt(key_states.shape[-1])).to(ori_dtype)
+
+        # Assert shapes match
+        assert query_states.shape == q_shape_before, \
+            f"Query shape changed from {q_shape_before} to {query_states.shape}"
+        assert key_states.shape == k_shape_before, \
+            f"Key shape changed from {k_shape_before} to {key_states.shape}"
+
         if past_key_value is not None:
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
