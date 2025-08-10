@@ -14,7 +14,6 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta, percentile: float
     Returns:
         tuple[Tensor, Tensor]: A tuple containing the scale (shape = [num_blocks, 1]) and element tensors (shape = [num_blocks, block_size]).
     """
-    assert x.dtype == torch.bfloat16
     B = mxint_meta.block_size
     assert x.numel() % B == 0, (
         f"Input tensor size {x.numel()} is not divisible by block size {B}."
