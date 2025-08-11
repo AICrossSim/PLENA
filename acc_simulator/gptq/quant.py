@@ -11,7 +11,7 @@ from ..utils import set_layer_by_name
 
 
 @torch.no_grad()
-def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048):
+def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False):
     '''
     Adapting From Quarot/GPTQ repo 
     '''
@@ -131,21 +131,27 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
                     percdamp=percdamp
                 )
 
-                # replace linear here with from_quantize()
-                new_layer = MXFPLinearPTQ.from_quantized(
-                    layer=gptq[name].layer,
-                    weight_q=quantized_linear_w,
-                    x_meta=quant_args["fc_kwargs"]["x_meta"],
-                    w_meta=quant_args["fc_kwargs"]["w_meta"],
-                    b_meta=quant_args["fc_kwargs"]["b_meta"],
-                    layer_type=quant_args["fc_kwargs"]["layer_type"],
-                    online_rotate=quant_args["fc_kwargs"]["online_rotate"]
-                )
+                if save_q_model:
+                    assert quantized_linear_w.shape == gptq[name].layer.weight.shape
+                    # replace the qunatized weights inline, more friendly for saving the model
+                    gptq[name].layer.weight.data.copy_(quantized_linear_w)
+             
+                else:
+                    # replace linear here with from_quantize()
+                    new_layer = MXFPLinearPTQ.from_quantized(
+                        layer=gptq[name].layer,
+                        weight_q=quantized_linear_w,
+                        x_meta=quant_args["fc_kwargs"]["x_meta"],
+                        w_meta=quant_args["fc_kwargs"]["w_meta"],
+                        b_meta=quant_args["fc_kwargs"]["b_meta"],
+                        layer_type=quant_args["fc_kwargs"]["layer_type"],
+                        online_rotate=quant_args["fc_kwargs"]["online_rotate"]
+                    )
 
-                def to_abs_name(i: int, rel: str) -> str:
-                    return f"model.layers.{i}.{rel}"
+                    def to_abs_name(i: int, rel: str) -> str:
+                        return f"model.layers.{i}.{rel}"
 
-                set_layer_by_name(model, to_abs_name(i, name), new_layer)
+                    set_layer_by_name(model, to_abs_name(i, name), new_layer)
                 gptq[name].free()
 
         # Prepare inps for next decoder block

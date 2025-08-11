@@ -20,12 +20,14 @@ Usage:
 """
 
 from typing import Union
+from pathlib import Path
 import time
+import logging
 
 import torch
 import transformers
 
-from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model, move_to_gpu
+from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model, move_to_gpu, load_gptq, save_gptq
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
@@ -40,7 +42,8 @@ def llama_eval(
     preset_W: Union[str, None] = None,
     preset_Kv: Union[str, None] = None,
     preset_NL: Union[str, None] = None,
-    model_parallel: bool = True,
+    device_id: str = None,
+    model_parallel: bool = False,
     log_dir: Union[str, None] = None,
     enable_eval_harness: bool = False,
     use_gptq: bool = False,
@@ -48,6 +51,7 @@ def llama_eval(
     online_rotate: bool = False,
     clip_search_y: bool = False,
     seqlen: int = 2048,
+    save_gptq_model: bool = False,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -99,7 +103,8 @@ def llama_eval(
         print("Using original parameters, no quantization applied.")
 
     transformers.set_seed(0)
-    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16)
+    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16, 
+                                   device=device_id if not model_parallel else None)
 
     model.eval()
     # rotation done on gpu
@@ -111,8 +116,6 @@ def llama_eval(
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
-            ori_device = model.device
-            model.to("cpu")
             # TODO: deal with args later on
             trainloader = get_loaders(
                 "wikitext2", nsamples=128,
@@ -122,9 +125,28 @@ def llama_eval(
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
-            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=ori_device)
+            if clip_search_y:
+                cp = "ckpts_y_search"
+            else:
+                cp = "ckpts_w_search"
+            ckpt_dir = Path(cp) / model_name.replace('/', '_')
+            ckpt_file = ckpt_dir / "model.safetensors"
+            if ckpt_file.exists():
+                model=load_gptq(model, ckpt_dir)
+                logging.info('-----Loaded GPTQ-----\n')
+            else:
+                ori_device = model.device
+                model.to("cpu")
+                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=ori_device, save_q_model=True)
+                if save_gptq_model and not ckpt_file.exists():
+                    ckpt_dir.mkdir(parents=True, exist_ok=True)
+                    save_gptq(model, ckpt_dir)
+                    logging.info('-----Saved GPTQ-----\n')
+                else:
+                    logging.info('-----Didnt save due to pre-existing GPTQ ckpt-----\n')
+            
             model=move_to_gpu(model, model_parallel)
-            # replace the rest
+            # quantize and replace the rest
             quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
