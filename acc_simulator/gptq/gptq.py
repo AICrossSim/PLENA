@@ -1,9 +1,8 @@
 import math
 import tqdm
 import torch
-import torch.nn as nn
-import utils
 
+from .utils import cleanup_memory
 from ..quantize.quantizer.mxint import MXIntMeta, mxint_quantizer_sim
 
 
@@ -41,9 +40,10 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(
-        self, activation, blocksize=32, percdamp=.01
+        self, activation, blocksize=32, percdamp=.01, w_meta = None
     ):
-        # activation = activation.float()      
+        # activation = activation.float()  
+        original_shape = self.layer.weight.shape
         W = self.layer.weight.data.clone()
         # W = W.float()
 
@@ -77,7 +77,8 @@ class GPTQ:
             Losses1 = torch.zeros_like(W1)
 
             # TODO: replace this layer with the system's qunatization flow, with manual config rn
-            meta = MXIntMeta(block_size=32, scale_bits=16, element_bits=4)
+            if w_meta == None:
+                meta = MXIntMeta(block_size=32, scale_bits=16, element_bits=4)
             # TODO: qunatizer will take in Activation later on, Act1
             Q1 = mxint_quantizer_sim(W1, block_dim=1, mxint_meta=meta)
             
@@ -90,12 +91,19 @@ class GPTQ:
 
             W[:, i2:] -= Err1.matmul(Hinv[i1:i2, i2:])
 
-        # TODO: replace here with created new layer, or return such weights W for creating a linear layer PTO with quantized W.
-        self.layer.weight.data = Q.reshape(self.layer.weight.shape).to(self.layer.weight.data.dtype)
 
+        # TODO: replace here with created new layer, or return such weights W for creating a linear layer PTO with quantized W.
+        # self.layer.weight.data = Q.reshape(self.layer.weight.shape).to(self.layer.weight.data.dtype)
+
+        # Assert W shape matching 
+        assert Q.shape == original_shape, \
+            f"Shape mismatch: {Q.shape} != {original_shape}"
+        
+        return Q
+    
     def free(self):
         self.H = None
         self.Losses = None
         torch.cuda.empty_cache()
-        utils.cleanup_memory(verbos=False)
+        cleanup_memory(verbos=False)
         

@@ -29,10 +29,7 @@ from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experimen
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
-from cfl_tools.logger import get_logger, set_logging_verbosity
-
-logger = get_logger(__name__)
-set_logging_verbosity(logger, "INFO")
+from ..gptq import quantize_model_gptq, get_loaders
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -85,7 +82,6 @@ def llama_eval(
     )
 
     quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate)
-    logger.info(f"Quantization arguments: {quant_args}")
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)
@@ -109,18 +105,27 @@ def llama_eval(
         fuse_rms_norms(model)
         replace_rms_norms(model)
         rotate_llama(model, online_rotate) 
-        if online_rotate:
-            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
-    
-    quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
+    #     if online_rotate:
+    #         quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
+    # if not offline_rotate and not online_rotate:
+    #     quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
     
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
-            pass
+            # TODO: deal with args later on
+            trainloader = get_loaders(
+                "wikitext2", nsamples=128,
+                seed=0, model=model_name,
+                seqlen=2048, eval_mode=False
+            )
+            # first quantize and repalce linear 
+            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args)
+            # replace the rest
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
         else:
-            # Cast without GPTQ
-            pass
+            # Direct cast without GPTQ, round-to-nearest mode
+            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
 
 
     if enable_eval_harness:

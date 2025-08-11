@@ -1,15 +1,17 @@
 
 import torch
 import torch.nn as nn
-import utils
 import logging
 
 from .utils import find_qlayers, cleanup_memory
 from .gptq import GPTQ
 
+from ..quantize.quantized_layers import MXFPLinearPTQ
+from ..utils import replace_modules, set_layer_by_name
+
 
 @torch.no_grad()
-def quantize_model_gptq(model, dataloader, dev, args):
+def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp = 0.01, seqlen=2048):
     '''
     Adapting From Quarot/GPTQ repo 
     '''
@@ -21,18 +23,12 @@ def quantize_model_gptq(model, dataloader, dev, args):
 
     layers = model.model.layers
 
-    model.model.embed_tokens = model.model.embed_tokens.to(dev)
-    model.model.norm = model.model.norm.to(dev)
-    # layers[0] is the first transfomer block
-    layers[0] = layers[0].to(dev)
-
     dtype = next(iter(model.parameters())).dtype
-    inps = torch.zeros(
-        (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
-    )
+    dev = next(iter(model.parameters())).device
 
-    # Each entry inps[i] will hold the activation going into layers[0] for one calibration sample.
-    # i keeps track of the calibrated sample that it has seen
+    inps = torch.zeros(
+        (nsamples, seqlen, model.config.hidden_size), dtype=dtype, device=dev
+    )
     cache = {'i': 0, 'attention_mask': None}
 
     class Catcher(nn.Module):
@@ -61,9 +57,6 @@ def quantize_model_gptq(model, dataloader, dev, args):
 
     layers[0] = layers[0].module
     # replace modules back after catchers
-
-
-
     torch.cuda.empty_cache()
 
 
@@ -71,17 +64,16 @@ def quantize_model_gptq(model, dataloader, dev, args):
     attention_mask = cache['attention_mask']
     position_ids = cache['position_ids']
 
-    quantizers = {}
     sequential = [
-                ['self_attn.k_proj.module', 'self_attn.v_proj.module', 'self_attn.q_proj.module'],
-                ['self_attn.o_proj.module'],
-                ['mlp.up_proj.module', 'mlp.gate_proj.module'],
-                ['mlp.down_proj.module']
+                ['self_attn.k_proj', 'self_attn.v_proj', 'self_attn.q_proj'],
+                ['self_attn.o_proj'],
+                ['mlp.up_proj', 'mlp.gate_proj'],
+                ['mlp.down_proj']
             ]
     # looping through each decoder block
     for i in range(len(layers)):
         print(f'\nLayer {i}:', flush=True, end=' ')
-        layer = layers[i].to(dev)
+        layer = layers[i]
         full = find_qlayers(layer, layers=[torch.nn.Linear])
         for names in sequential:
             # ['self_attn.k_proj.module', 'self_attn.v_proj.module', 'self_attn.q_proj.module']
@@ -110,12 +102,21 @@ def quantize_model_gptq(model, dataloader, dev, args):
             
             handles.append(subset[name].register_forward_pre_hook(make_pre_hook()))
 
-            for j in range(args.nsamples):
+            for j in range(nsamples):
                 # layer is the decoder block 
                 # now feeds in smaples into each decoder block, each time only one sample (sqeunce, hidden)
                 # This feeds one sample at a time (shape [1, seqlen, hidden]) through the current transformer block.
                 #  The hooks are triggered inside this call, note we have two types of hooks
-                outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+                x = inps[j].unsqueeze(0) 
+                # breakpoint()
+                # For newer hf attention interface
+                cos, sin = model.model.rotary_emb(x, position_ids)
+                outs[j] = layer(
+                    x,
+                    attention_mask=attention_mask,
+                    position_embeddings=(cos, sin)
+                )[0]
+                # outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
             
             pre_act = torch.cat(pre_act, dim=0)
 
@@ -124,17 +125,37 @@ def quantize_model_gptq(model, dataloader, dev, args):
 
             for name in subset:
                 # TODO: Return qunatized weights here to create a linear layer in place
-                gptq[name].fasterquant(
+                quantized_linear_w = gptq[name].fasterquant(
                     activation = pre_act, 
                     blocksize=32, 
-                    percdamp=args.percdamp
+                    percdamp=percdamp
                 )
-                # quantizers['model.layers.%d.%s' % (i, name)] = gptq[name].quantizer
+
+                # replace linear here with from_quantize()
+                new_layer = MXFPLinearPTQ.from_quantized(
+                    layer=gptq[name].layer,
+                    weight_q=quantized_linear_w,
+                    x_meta=quant_args["fc_kwargs"]["x_meta"],
+                    w_meta=quant_args["fc_kwargs"]["w_meta"],
+                    b_meta=quant_args["fc_kwargs"]["b_meta"],
+                    layer_type=quant_args["fc_kwargs"]["layer_type"],
+                )
+
+                def to_abs_name(i: int, rel: str) -> str:
+                    return f"model.layers.{i}.{rel}"
+
+                set_layer_by_name(model, to_abs_name(i, name), new_layer)
                 gptq[name].free()
 
         # You forward all inps through the quantized decoder layer and save the result into outs
-        for j in range(args.nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+        for j in range(nsamples):
+            x = inps[j].unsqueeze(0) 
+            cos, sin = model.model.rotary_emb(x, position_ids)
+            outs[j] = layer(
+                x,
+                attention_mask=attention_mask,
+                position_embeddings=(cos, sin)
+            )[0]
 
         layers[i] = layer.cpu()
         del layer
@@ -148,7 +169,7 @@ def quantize_model_gptq(model, dataloader, dev, args):
     cleanup_memory(verbos=True)
     logging.info('-----GPTQ Quantization Done-----\n')
     # TODO: dont return quantizers, repalce linear inplace
-    return quantizers
+    # return quantizers
 
 
 

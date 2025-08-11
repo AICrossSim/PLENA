@@ -194,7 +194,8 @@ def setup_model(model_name, model_parallel, dtype):
 def quantize_model(
     model: nn.Module,
     quant_args: dict,
-    linear_only: bool = False,
+    linear_quantized: bool = False,
+    full_system_sim: bool = False,
     skip_lm_head: bool = True
 ):
     """
@@ -206,7 +207,17 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
-    # Order matters
+    if not linear_quantized: 
+        replace_modules(
+            model,
+            target_class=nn.Linear,
+            replacement_class=MXFPLinearPTQ,
+            factory_fn=MXFPLinearPTQ.from_linear,
+            kwargs=quant_args.get("fc_kwargs", {}),
+            label="MXFPLinearPTQ",
+            skip_names=["lm_head"] if skip_lm_head else None
+        )
+
     # Replace MLP activations (e.g., SiLU)
     replace_modules(
         model,
@@ -226,21 +237,8 @@ def quantize_model(
         kwargs=quant_args.get("attn_kwargs", {}),
         label="LlamaAttention"
     )
-    
-    # Replace linear layers (always included)
-    # TODO: adapt gptq, where layers are created with precomputed weights 
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args.get("fc_kwargs", {}),
-        label="MXFPLinearPTQ",
-        skip_names=["lm_head"] if skip_lm_head else None
-    )
 
-    # TODO: set flag properly laterx
-    if linear_only:
+    if not full_system_sim:
         return
 
     # Replace embedding layers
