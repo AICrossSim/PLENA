@@ -107,7 +107,7 @@ def mxfp_quantizer_sim(
     block_dim: int,
     mxfp_meta: MXFPMeta,
     dtype: torch.dtype | None = None,
-    quantile_search: bool = True,
+    quantile_search: bool = False,
 ) -> Tensor:
     """
     Quantizes and dequantizes a tensor using the MXFP format.

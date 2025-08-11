@@ -88,7 +88,7 @@ def mxint_quantizer_sim(
     mxint_meta: MXIntMeta,
     act_tensor: Tensor | None = None,
     dtype: torch.dtype | None = None,
-    quantile_search: bool = True,
+    quantile_search: bool = False,
 ) -> Tensor:
     out_dq = torch.zeros_like(tensor)
     if quantile_search:

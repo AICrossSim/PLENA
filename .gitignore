@@ -40,6 +40,7 @@ src/basic_components/synopsis/
 
 *.pt
 *.asm
+acc_simulator/results/
 
 acc_simulator/third_party/
 analyzed/
