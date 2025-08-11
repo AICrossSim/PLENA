@@ -71,7 +71,8 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                 ['mlp.down_proj']
             ]
     # looping through each decoder block
-    for i in range(len(layers)):
+    # for i in range(len(layers)):
+    for i in range(2):
         print(f'\nLayer {i}:', flush=True, end=' ')
         layer = layers[i]
         full = find_qlayers(layer, layers=[torch.nn.Linear])
@@ -157,7 +158,7 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                 position_embeddings=(cos, sin)
             )[0]
 
-        layers[i] = layer.cpu()
+        layers[i] = layer
         del layer
         del gptq 
         torch.cuda.empty_cache()
