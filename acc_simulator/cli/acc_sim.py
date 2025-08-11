@@ -25,7 +25,7 @@ import time
 import torch
 import transformers
 
-from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model
+from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model, move_to_gpu
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
@@ -45,7 +45,9 @@ def llama_eval(
     enable_eval_harness: bool = False,
     use_gptq: bool = False,
     offline_rotate: bool = False,
-    online_rotate: bool = False
+    online_rotate: bool = False,
+    clip_search_y: bool = False,
+    seqlen: int = 2048,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -71,8 +73,8 @@ def llama_eval(
             Defaults to True.
         offline_rotate: Whether to apply offline hadamard rotation.
         online_rotate: Whether to apply online inner layer activation rotation.
+        clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
     """
-    start_time = time.time()
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
         preset_X,
@@ -81,7 +83,7 @@ def llama_eval(
         preset_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate)
+    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate, clip_search_y)
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)
@@ -96,36 +98,37 @@ def llama_eval(
     else:
         print("Using original parameters, no quantization applied.")
 
-    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16)
-    
-    # TODO: set seed properly later, also seed the calibration samples
     transformers.set_seed(0)
+    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16)
+
     model.eval()
+    # rotation done on gpu
     if offline_rotate:
         fuse_rms_norms(model)
         replace_rms_norms(model)
         rotate_llama(model, online_rotate) 
-    #     if online_rotate:
-    #         quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
-    # if not offline_rotate and not online_rotate:
-    #     quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
     
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
+            ori_device = model.device
+            model.to("cpu")
             # TODO: deal with args later on
             trainloader = get_loaders(
                 "wikitext2", nsamples=128,
                 seed=0, model=model_name,
-                seqlen=2048, eval_mode=False
+                seqlen=seqlen, eval_mode=False
             )
-            # first quantize and repalce linear 
-            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args)
+            # GPTQ first quantize and repalce linear, 
+            # move each decoder block on gpu to quantize, 
+            # disable model parallel for gptq for now, hence use model's device rn.
+            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=ori_device)
+            model=move_to_gpu(model, model_parallel)
             # replace the rest
             quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, skip_lm_head=False)
 
 
     if enable_eval_harness:
@@ -133,7 +136,7 @@ def llama_eval(
             model=model, 
             tokenizer=tokenizer, 
             tasks=tasks, 
-            max_length=2048, 
+            max_length=seqlen, 
             batch_size="auto", 
             log_samples=False)
     else:
@@ -141,14 +144,12 @@ def llama_eval(
             model=model, 
             tokenizer=tokenizer, 
             dataset_name=tasks, 
-            max_length=2048,
+            max_length=seqlen,
             verbose=True)
 
     if log_dir:
         save_results(log_dir, results)
 
-    total_time = time.time() - start_time
-    print(f"\n[INFO] Total workload time: {total_time:.2f} seconds")
     return results
 
 if __name__ == "__main__":

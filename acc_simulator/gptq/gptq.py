@@ -18,7 +18,6 @@ class GPTQ:
         self.nsamples = 0
 
     def add_batch(self, inp, out):
-        # breakpoint()
         if len(inp.shape) == 2:
             inp = inp.unsqueeze(0)
         # the input are already unsqueezed at (0)
@@ -40,12 +39,9 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(
-        self, activation, blocksize=32, percdamp=.01, w_meta = None
-    ):
-        # activation = activation.float()  
-        original_shape = self.layer.weight.shape
+        self, activation, w_meta, percdamp=.01
+    ): 
         W = self.layer.weight.data.clone()
-        # W = W.float()
 
         H = self.H
         del self.H
@@ -63,24 +59,19 @@ class GPTQ:
         H = torch.cholesky_inverse(H)
         H = torch.linalg.cholesky(H, upper=True)
         Hinv = H
-        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=True):
-        # for i1 in range(0, self.columns, blocksize):
+
+        # set blocksize in gptq to be the same as the mx block from meta
+        blocksize = w_meta.block_size
+        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=False):
             i2 = min(i1 + blocksize, self.columns)
-            # count = i2 - i1
-            # breakpoint()
+
             W1 = W[:, i1:i2].clone()
             
-            Act1 = activation[:, :, i1:i2].clone()
-           
-            Q1 = torch.zeros_like(W1)
-            Err1 = torch.zeros_like(W1)
-            Losses1 = torch.zeros_like(W1)
-
-            # TODO: replace this layer with the system's qunatization flow, with manual config rn
-            if w_meta == None:
-                meta = MXIntMeta(block_size=32, scale_bits=16, element_bits=4)
-            # TODO: qunatizer will take in Activation later on, Act1
-            Q1 = mxint_quantizer_sim(W1, block_dim=1, mxint_meta=meta)
+            if activation != None:
+                Act1 = activation[:, :, i1:i2].clone()
+                Q1 = mxint_quantizer_sim(W1, act_tensor=Act1, block_dim=1, mxint_meta=w_meta)
+            else:
+                Q1 = mxint_quantizer_sim(W1, block_dim=1, mxint_meta=w_meta)
             
             Hinv1 = Hinv[i1:i2, i1:i2]
             Err1 = (W1 - Q1) / torch.diag(Hinv1).unsqueeze(0)
@@ -92,12 +83,8 @@ class GPTQ:
             W[:, i2:] -= Err1.matmul(Hinv[i1:i2, i2:])
 
 
-        # TODO: replace here with created new layer, or return such weights W for creating a linear layer PTO with quantized W.
-        # self.layer.weight.data = Q.reshape(self.layer.weight.shape).to(self.layer.weight.data.dtype)
-
-        # Assert W shape matching 
-        assert Q.shape == original_shape, \
-            f"Shape mismatch: {Q.shape} != {original_shape}"
+        assert Q.shape == W.shape, \
+            f"Shape mismatch: {Q.shape} != {W.shape}"
         
         return Q
     

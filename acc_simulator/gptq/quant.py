@@ -7,11 +7,11 @@ from .utils import find_qlayers, cleanup_memory
 from .gptq import GPTQ
 
 from ..quantize.quantized_layers import MXFPLinearPTQ
-from ..utils import replace_modules, set_layer_by_name
+from ..utils import set_layer_by_name
 
 
 @torch.no_grad()
-def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp = 0.01, seqlen=2048):
+def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048):
     '''
     Adapting From Quarot/GPTQ repo 
     '''
@@ -23,8 +23,14 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
 
     layers = model.model.layers
 
+    # Move the first decoder block on to device 
+    model.model.embed_tokens = model.model.embed_tokens.to(dev)
+    model.model.norm = model.model.norm.to(dev)
+    rope = model.model.rotary_emb
+    rope = rope.to(next(model.parameters()).device)
+    layers[0] = layers[0].to(dev)
+
     dtype = next(iter(model.parameters())).dtype
-    dev = next(iter(model.parameters())).device
 
     inps = torch.zeros(
         (nsamples, seqlen, model.config.hidden_size), dtype=dtype, device=dev
@@ -45,7 +51,6 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
             cache['position_ids'] = kwargs['position_ids']
             raise ValueError
     layers[0] = Catcher(layers[0])
-    # breakpoint()
     # this is iterating over a list (not a PyTorch DataLoader), and each batch is just one sample. tuple (ids, labels)
     for batch in dataloader:
         try:
@@ -59,7 +64,6 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
     # replace modules back after catchers
     torch.cuda.empty_cache()
 
-
     outs = torch.zeros_like(inps)
     attention_mask = cache['attention_mask']
     position_ids = cache['position_ids']
@@ -70,14 +74,12 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                 ['mlp.up_proj', 'mlp.gate_proj'],
                 ['mlp.down_proj']
             ]
-    # looping through each decoder block
-    # for i in range(len(layers)):
-    for i in range(2):
+    for i in range(len(layers)):
         print(f'\nLayer {i}:', flush=True, end=' ')
-        layer = layers[i]
+        layer = layers[i].to(dev)
         full = find_qlayers(layer, layers=[torch.nn.Linear])
         for names in sequential:
-            # ['self_attn.k_proj.module', 'self_attn.v_proj.module', 'self_attn.q_proj.module']
+
             subset = {n: full[n] for n in names}
 
             gptq = {}
@@ -100,7 +102,7 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
             handles = []
             for name in subset:
                 handles.append(subset[name].register_forward_hook(add_batch(name)))
-            
+            # Inps are the same across subset
             handles.append(subset[name].register_forward_pre_hook(make_pre_hook()))
 
             for j in range(nsamples):
@@ -109,15 +111,13 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                 # This feeds one sample at a time (shape [1, seqlen, hidden]) through the current transformer block.
                 #  The hooks are triggered inside this call, note we have two types of hooks
                 x = inps[j].unsqueeze(0) 
-                # breakpoint()
-                # For newer hf attention interface
-                cos, sin = model.model.rotary_emb(x, position_ids)
+                # For newer hf attention interface, get rope first 
+                cos, sin = rope(x, position_ids)
                 outs[j] = layer(
                     x,
                     attention_mask=attention_mask,
                     position_embeddings=(cos, sin)
                 )[0]
-                # outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
             
             pre_act = torch.cat(pre_act, dim=0)
 
@@ -125,10 +125,9 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                 h.remove()
 
             for name in subset:
-                # TODO: Return qunatized weights here to create a linear layer in place
                 quantized_linear_w = gptq[name].fasterquant(
-                    activation = pre_act, 
-                    blocksize=32, 
+                    activation = pre_act if quant_args["fc_kwargs"]["clip_search_y"] else None, 
+                    w_meta = quant_args["fc_kwargs"]["w_meta"],
                     percdamp=percdamp
                 )
 
@@ -140,6 +139,7 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                     w_meta=quant_args["fc_kwargs"]["w_meta"],
                     b_meta=quant_args["fc_kwargs"]["b_meta"],
                     layer_type=quant_args["fc_kwargs"]["layer_type"],
+                    online_rotate=quant_args["fc_kwargs"]["online_rotate"]
                 )
 
                 def to_abs_name(i: int, rel: str) -> str:
@@ -148,17 +148,19 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
                 set_layer_by_name(model, to_abs_name(i, name), new_layer)
                 gptq[name].free()
 
-        # You forward all inps through the quantized decoder layer and save the result into outs
+        # Prepare inps for next decoder block
         for j in range(nsamples):
             x = inps[j].unsqueeze(0) 
+            
             cos, sin = model.model.rotary_emb(x, position_ids)
             outs[j] = layer(
                 x,
                 attention_mask=attention_mask,
                 position_embeddings=(cos, sin)
             )[0]
-
-        layers[i] = layer
+        
+        # move back to cpu to save space
+        layers[i] = layer.cpu()
         del layer
         del gptq 
         torch.cuda.empty_cache()
@@ -169,8 +171,7 @@ def quantize_model_gptq(model, dataloader, quant_args, nsamples = 128, percdamp 
     model.config.use_cache = use_cache
     cleanup_memory(verbos=True)
     logging.info('-----GPTQ Quantization Done-----\n')
-    # TODO: dont return quantizers, repalce linear inplace
-    # return quantizers
+
 
 
 

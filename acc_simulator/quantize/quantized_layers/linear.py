@@ -7,6 +7,7 @@ from ..quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
 from ..quantizer.mxint import MXIntMeta, mxint_quantizer_sim
 from ..quantizer.minifloat import MinifloatMeta, minifloat_quantizer_sim
 from ..utils import quantize_tensor
+from ...rotation.hadamard import OnlineHadamardQuantization
 
 
 class MXFPLinearPTQ(nn.Module):
@@ -23,7 +24,8 @@ class MXFPLinearPTQ(nn.Module):
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
-        w_pre_quantized: bool = False
+        w_pre_quantized: bool = False,
+        online_rotate: bool = False
     ):
         super().__init__()
         assert weight.ndim == 2
@@ -38,6 +40,7 @@ class MXFPLinearPTQ(nn.Module):
         self.b_meta = b_meta
         self.layer_type = layer_type
         self.w_pre_quantized = w_pre_quantized
+        self.online_rotate = online_rotate
 
         self.weight = None
         self.bias = None
@@ -53,11 +56,17 @@ class MXFPLinearPTQ(nn.Module):
         else:
             if bias is not None:
                 self.bias = nn.Parameter(bias, requires_grad=False)
+        
+        if self.online_rotate:
+            self.online_rotate = OnlineHadamardQuantization(in_features, block_dim=-1, meta=self.x_meta)
 
     @torch.no_grad()
     def forward(self, input: Tensor) -> Tensor:
         if "Xq" in self.layer_type:
-            input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
+            if self.online_rotate:
+                input = self.online_rotate(input)
+            else:
+                input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
 
         # print(f"[DEBUG] input dtype: {input.dtype}, weight dtype: {self.weight.dtype}, bias dtype: {self.bias.dtype if self.bias is not None else 'None'}")
         return torch.nn.functional.linear(input, self.weight, self.bias)
@@ -80,7 +89,8 @@ class MXFPLinearPTQ(nn.Module):
         b_meta: MXFPMeta | MXIntMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
-        ]
+        ],
+        online_rotate: bool
     ):
         """
         Create an MXFPLinearPTQ instance from a PyTorch Linear layer.
@@ -93,7 +103,8 @@ class MXFPLinearPTQ(nn.Module):
                 x_meta=x_meta,
                 w_meta=w_meta,
                 b_meta=b_meta,
-                layer_type=layer_type
+                layer_type=layer_type,
+                online_rotate=online_rotate
             )
     
     @classmethod
@@ -107,6 +118,7 @@ class MXFPLinearPTQ(nn.Module):
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
+        online_rotate: bool
     ):
         """
         Create an MXFPLinearPTQ instance from a PyTorch Linear layer.
@@ -121,5 +133,6 @@ class MXFPLinearPTQ(nn.Module):
                 w_meta=w_meta,                           
                 b_meta=b_meta,
                 layer_type=layer_type,
-                w_pre_quantized=True
+                w_pre_quantized=True,
+                online_rotate=online_rotate
             )

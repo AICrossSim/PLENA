@@ -187,9 +187,21 @@ def setup_model(model_name, model_parallel, dtype):
             model = dispatch_model(model, device_map=device_map)
         else: 
             device = "cuda" if torch.cuda.is_available() else "cpu"
+            # device = "cuda:1"
             model = model.to(device)
         return tokenizer, model
-    
+
+def move_to_gpu(model, model_parallel=True):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device =="cpu":
+        return model
+    if model_parallel:
+        device_map = create_device_map(model, "auto-balanced")
+        model = dispatch_model(model, device_map=device_map)
+    else:
+        model = model.to(device)
+    return model
+
 
 def quantize_model(
     model: nn.Module,
@@ -207,17 +219,6 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
-    if not linear_quantized: 
-        replace_modules(
-            model,
-            target_class=nn.Linear,
-            replacement_class=MXFPLinearPTQ,
-            factory_fn=MXFPLinearPTQ.from_linear,
-            kwargs=quant_args.get("fc_kwargs", {}),
-            label="MXFPLinearPTQ",
-            skip_names=["lm_head"] if skip_lm_head else None
-        )
-
     # Replace MLP activations (e.g., SiLU)
     replace_modules(
         model,
@@ -237,6 +238,17 @@ def quantize_model(
         kwargs=quant_args.get("attn_kwargs", {}),
         label="LlamaAttention"
     )
+
+    if not linear_quantized: 
+        replace_modules(
+            model,
+            target_class=nn.Linear,
+            replacement_class=MXFPLinearPTQ,
+            factory_fn=MXFPLinearPTQ.from_linear,
+            kwargs=quant_args.get("fc_kwargs", {}),
+            label="MXFPLinearPTQ",
+            skip_names=["lm_head"] if skip_lm_head else None
+        )
 
     if not full_system_sim:
         return
