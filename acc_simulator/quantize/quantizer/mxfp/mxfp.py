@@ -101,6 +101,7 @@ def compose_mxfp_tensor(
     return tensor
 
 
+from cfl_tools.debugger import _get_similarity
 def mxfp_quantizer_sim(
     tensor: Tensor,
     block_dim: int,

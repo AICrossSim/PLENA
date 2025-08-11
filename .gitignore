@@ -35,7 +35,7 @@ src/basic_components/synopsis/
 .nfs*
 
 *.mem
-
+*.ipynb
 *.message
 
 *.pt

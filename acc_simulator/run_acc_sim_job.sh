@@ -4,15 +4,22 @@ MODEL_NAME="meta-llama/Meta-Llama-3-8B"
 # --preset XWqBKVNL \
 echo $MODEL_NAME
 echo "original with rotation 8B MXFP6"
-CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
-  --model_name="$MODEL_NAME" \
-  --preset XWqBKVNL \
-  --preset_W MXINT_4_B16_S8 \
-  --model_parallel False \
-  --use_gptq True\
-  --offline_rotate False \
-  --online_rotate False \
-  --clip_search_y False \
+
+for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
+  for w_config in MXINT_4_B16_S8; do
+    CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
+      --model_name="$MODEL_NAME" \
+      --preset XWqBKVNL \
+      --preset_W $w_config \
+      --preset_X $x_kv_config \
+      --preset_Kv $x_kv_config \
+      --model_parallel False \
+      --use_gptq False\
+      --offline_rotate False \
+      --online_rotate False 
+      # --clip_search_y False 
+  done
+done
   # > acc_simulator/offline_rotate_only_with_gptq.out 2>&1
 
 # echo "Running XWqBKVNL linear weights only GPTQ"
