@@ -1,145 +1,34 @@
-import os
-from typing import Dict, List, Any, Optional
+import matplotlib.pyplot as plt
 
-def _report_flash_attn_utilization(node: Dict[str, Any], model_info: Dict[str, Any], mode: str, input_seq_len: int, M: int, N: int, K: int) -> None:
-    """
-    Report the utilization of flash attention for a given node.
-    """
-    dims = node["dimensions"]
-    batch_size = model_info.get("batch", 1),
-    hidden_size = dims["hidden_size"]
-    num_attn_heads = dims["num_attention_heads"]
-    num_kv_heads = dims["num_kv_heads"]
+llama_gemm_utilization = {'operations': {'embedding': 4096, 'attention': 262144, 'ffn': 1376256, 'lm_head': 128256}, 'attainable_FLOPS': {'embedding': 134217728, 'attention': 8589934592, 'ffn': 45097156608, 'lm_head': 4202692608}, 'theoretical_FLOPS': {'embedding': 1073741824, 'attention': 188978561024, 'ffn': 360777252864, 'lm_head': 33621540864}}
 
-    head_dim = dims["head_dim"]
-    input_token_size = input_seq_len
-    theoretical_operation = 0
-    attainable_operation = 0
-    
-    if mode == "prefilling":
-        # Projection
-        operation_amount = (hidden_size // M) * ((head_dim * num_attn_heads) // K) * (input_token_size // N) * batch_size + (hidden_size // M) * ((head_dim * num_kv_heads) // K) * (input_token_size // N) * batch_size
-        attainable_operation    += operation_amount * (M * K)
-        theoretical_operation   += operation_amount * (M * K)
+# Data
+ops = llama_gemm_utilization['operations']
+att = llama_gemm_utilization['attainable_FLOPS']
+theo = llama_gemm_utilization['theoretical_FLOPS']
 
-        # QKT
-        operation_amount = num_attn_heads * (head_dim // K) * (input_token_size // N) * (input_token_size // N) * batch_size
-        attainable_operation    += operation_amount * (M * K)
-        if K > head_dim:
-            operation_amount *= (K // head_dim)
-        
-        theoretical_operation   += operation_amount * (M * K)
-    
-    else:
-        # Decoding
-        # Projection
-        operation_amount = ((head_dim * num_attn_heads)  // M) * ( hidden_size // K) + ((head_dim * num_kv_heads) // M) * ( hidden_size// K) * 2
-        attainable_operation    += operation_amount * (M * K * batch_size)
-        theoretical_operation   += operation_amount * (M * K * N)
+labels = list(ops.keys())
+sizes = [ops[k] for k in labels]
+ratios = [att[k] / theo[k] if theo[k] != 0 else 0 for k in labels]
 
-        # QKT
-        operation_amount =  batch_size * num_attn_heads * (head_dim // K) * (input_token_size // N)
-        attainable_operation    += operation_amount * (M * K * batch_size)
-        theoretical_operation   += operation_amount * (M * K * N)
+# Create side-by-side plots
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
-        # PV
-        operation_amount =  batch_size * num_attn_heads * (input_token_size // K) * (head_dim // N)
-        attainable_operation    += operation_amount * (M * K * batch_size)
-        theoretical_operation   += operation_amount * (M * K * N)
-    
-    return [operation_amount, attainable_operation, theoretical_operation]
+# Left: Pie chart
+ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+ax1.set_title('Operation Distribution by Type')
+ax1.axis('equal')
 
+# Right: Bar chart
+bars = ax2.bar(range(len(labels)), ratios, tick_label=labels)
+ax2.set_ylabel('Attainable / Theoretical')
+ax2.set_title('Performance Ratio by Operator')
+ax2.axhline(1.0, linestyle='--', color='red', linewidth=1)
 
+# Annotate bars
+for i, b in enumerate(bars):
+    height = b.get_height()
+    ax2.text(b.get_x() + b.get_width()/2, height, f'{height*100:.2f}%', ha='center', va='bottom', fontsize=9)
 
-def _report_embedding_utilization(node: Dict[str, Any], model_info: Dict[str, Any], mode: str, input_seq_len: int, M: int, N: int, K: int) -> None:
-    """
-    Report the utilization of flash attention for a given node.
-    """
-
-    dims = node["dimensions"]
-    batch_size = model_info.get("batch", 1)
-    hidden_size = dims["hidden_size"]
-    theoretical_operation = 0
-    attainable_operation = 0
-
-    # Assuming Decoding only
-    operation_amount = (hidden_size // M) * (hidden_size // K)
-    attainable_operation += operation_amount * (M * K * batch_size)
-    theoretical_operation += operation_amount * (M * K * N)
-
-    return [operation_amount, attainable_operation, theoretical_operation]
-
-
-
-def _report_ffn_utilization(node: Dict[str, Any], model_info: Dict[str, Any], mode: str, input_seq_len: int, M: int, N: int, K: int) -> None:
-    """
-    Report the utilization of flash attention for a given node.
-    """
-
-    dims = node["dimensions"]
-    batch_size = model_info.get("batch", 1)
-    hidden_size = dims["hidden_size"]
-    intermediate_size = dims["intermediate_size"]
-    theoretical_operation = 0
-    attainable_operation = 0
-
-    # Up Projection
-    operation_amount = (intermediate_size // M) * (hidden_size // K)
-    attainable_operation += operation_amount * (M * K * batch_size)
-    theoretical_operation += operation_amount * (M * K * N)
-
-    # Down Projection
-    operation_amount = (hidden_size // M) * (intermediate_size // K)
-    attainable_operation += operation_amount * (M * K * batch_size)
-    theoretical_operation += operation_amount * (M * K * N)
-
-    return [operation_amount, attainable_operation, theoretical_operation]
-
-
-def _report_utilization(node: Dict[str, Any], model_info: Dict[str, Any], M: int, K: int, N: int) -> str:
-    """Generate assembly code for a single symbolic graph node."""
-    operation_type = node["operation_type"]
-    node_name = node["name"]
-    gemm_operation = 0
-
-    if operation_type == "embedding":
-        return _report_embedding_utilization(node, model_info, M, K, N)
-    elif operation_type == "attention":
-        return _report_flash_attn_utilization(node, model_info, M, K, N)
-    elif operation_type == "ffn":
-        return _report_ffn_utilization(node, model_info, M, K, N)
-    else:
-        raise ValueError(f"Unknown operation type: {operation_type}")
-    
-
-
-def analyse_overall_utilization(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], M: int, K: int, N: int) -> str:
-    """
-    Transform the complete symbolic graph into assembly code.
-
-    Args:
-        symbolic_graph: The symbolic graph from LLMModelParser
-        model_info: Model metadata for header generation
-
-    Returns:
-        Complete assembly program as string
-    """
-    # Process each node in execution order
-    nodes = symbolic_graph["nodes"]
-    execution_order = symbolic_graph["execution_order"]
-
-    # Create a mapping from node names to nodes for efficient lookup
-    node_map = {node["name"]: node for node in nodes}
-
-    overall_opertions = 0
-    overall_attainable_FLOPS = 0
-    overall_theoretical_FLOPS = 0
-
-    # Generate code for each node in execution order
-    for node_name in execution_order:
-        if node_name in node_map:
-            node = node_map[node_name]
-            single_op_operation = _report_utilization(node, model_info, M, K, N)
-            overall_operations += single_op_operation[0]
-            overall_attainable_FLOPS += single_op_operation[1]
-            overall_theoretical_FLOPS += single_op_operation[2]
+plt.tight_layout()
+plt.show()

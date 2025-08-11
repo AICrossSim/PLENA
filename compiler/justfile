@@ -1,4 +1,4 @@
 format:
 	uv run --dev ruff format
 run:
-	uv run python runner.py utilization meta-llama/Meta-Llama-3-8B test_output.asm
+	uv run python runner.py utilization unsloth/Meta-Llama-3.1-8B test_output.asm

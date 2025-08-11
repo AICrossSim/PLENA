@@ -44,7 +44,7 @@ def run():
     model_info = {
         "model_name": model_path,
         "architecture": getattr(parser.config, "architectures", ["Unknown"])[0] if parser.config else "Unknown",
-        "batch_size": 1,
+        "batch_size": 8,
         "context_length" : dimensions.get("max_position_embeddings", "Unknown"),
         "vocab_size": dimensions.get("vocab_size", "Unknown"),
         "hidden_size": dimensions.get("hidden_size", "Unknown"),
@@ -56,16 +56,20 @@ def run():
         "eps": dimensions.get("rms_norm", {}).get("eps", 1e-6)
     }
 
-    hardware_config = HardwareParser(hardware_config_path, precision_config_path)
-    scheduler = gen_scheduler(hardware_config, model_info, mem_layout_lib_path, reg_assignment_lib_path)
+
+
     # Run code generation pass
     if mode == "utilization":
-        M = 64, K = 64, N = 64
+        M = 64
+        K = 64
+        N = 64
         print(f"\nRunning utilization analysis...")
-        utilization_report = analyse_overall_utilization(symbolic_graph, model_info, hardware_config["M"], hardware_config["K"], hardware_config["N"])
+        utilization_report = analyse_overall_utilization(symbolic_graph, model_info, M, K, N)
         print(f"Utilization Report:\n{utilization_report}")
         return
     
+    hardware_config = HardwareParser(hardware_config_path, precision_config_path)
+    scheduler = gen_scheduler(hardware_config, model_info, mem_layout_lib_path, reg_assignment_lib_path)
     print(f"\nRunning code generation pass...")
     generated_asm = code_gen_pass(symbolic_graph, model_info, hardware_config, scheduler)
 
