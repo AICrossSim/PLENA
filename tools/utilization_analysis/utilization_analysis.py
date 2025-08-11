@@ -33,14 +33,113 @@ def _report_flash_attn_utilization(node: Dict[str, Any], model_info: Dict[str, A
     else:
         # Decoding
         # Projection
-        operation_amount = (hidden_size // M) * ((head_dim * num_attn_heads) // K) * batch_size + (hidden_size // M) * ((head_dim * num_kv_heads) // K) * batch_size
-        attainable_operation    += operation_amount * (batch_size * K)
-        theoretical_operation   += operation_amount * (M * K)
+        operation_amount = ((head_dim * num_attn_heads)  // M) * ( hidden_size // K) + ((head_dim * num_kv_heads) // M) * ( hidden_size// K) * 2
+        attainable_operation    += operation_amount * (M * K * batch_size)
+        theoretical_operation   += operation_amount * (M * K * N)
 
         # QKT
-        operation_amount = num_attn_heads * (head_dim // K) * batch_size * batch_size
-        attainable_operation    += operation_amount * (M * K)
-        if K > head_dim:
-            operation_amount *= (K // head_dim)
+        operation_amount =  batch_size * num_attn_heads * (head_dim // K) * (input_token_size // N)
+        attainable_operation    += operation_amount * (M * K * batch_size)
+        theoretical_operation   += operation_amount * (M * K * N)
 
-        theoretical_operation   += operation_amount * (M * K)
+        # PV
+        operation_amount =  batch_size * num_attn_heads * (input_token_size // K) * (head_dim // N)
+        attainable_operation    += operation_amount * (M * K * batch_size)
+        theoretical_operation   += operation_amount * (M * K * N)
+    
+    return [operation_amount, attainable_operation, theoretical_operation]
+
+
+
+def _report_embedding_utilization(node: Dict[str, Any], model_info: Dict[str, Any], mode: str, input_seq_len: int, M: int, N: int, K: int) -> None:
+    """
+    Report the utilization of flash attention for a given node.
+    """
+
+    dims = node["dimensions"]
+    batch_size = model_info.get("batch", 1)
+    hidden_size = dims["hidden_size"]
+    theoretical_operation = 0
+    attainable_operation = 0
+
+    # Assuming Decoding only
+    operation_amount = (hidden_size // M) * (hidden_size // K)
+    attainable_operation += operation_amount * (M * K * batch_size)
+    theoretical_operation += operation_amount * (M * K * N)
+
+    return [operation_amount, attainable_operation, theoretical_operation]
+
+
+
+def _report_ffn_utilization(node: Dict[str, Any], model_info: Dict[str, Any], mode: str, input_seq_len: int, M: int, N: int, K: int) -> None:
+    """
+    Report the utilization of flash attention for a given node.
+    """
+
+    dims = node["dimensions"]
+    batch_size = model_info.get("batch", 1)
+    hidden_size = dims["hidden_size"]
+    intermediate_size = dims["intermediate_size"]
+    theoretical_operation = 0
+    attainable_operation = 0
+
+    # Up Projection
+    operation_amount = (intermediate_size // M) * (hidden_size // K)
+    attainable_operation += operation_amount * (M * K * batch_size)
+    theoretical_operation += operation_amount * (M * K * N)
+
+    # Down Projection
+    operation_amount = (hidden_size // M) * (intermediate_size // K)
+    attainable_operation += operation_amount * (M * K * batch_size)
+    theoretical_operation += operation_amount * (M * K * N)
+
+    return [operation_amount, attainable_operation, theoretical_operation]
+
+
+def _report_utilization(node: Dict[str, Any], model_info: Dict[str, Any], M: int, K: int, N: int) -> str:
+    """Generate assembly code for a single symbolic graph node."""
+    operation_type = node["operation_type"]
+    node_name = node["name"]
+    gemm_operation = 0
+
+    if operation_type == "embedding":
+        return _report_embedding_utilization(node, model_info, M, K, N)
+    elif operation_type == "attention":
+        return _report_flash_attn_utilization(node, model_info, M, K, N)
+    elif operation_type == "ffn":
+        return _report_ffn_utilization(node, model_info, M, K, N)
+    else:
+        raise ValueError(f"Unknown operation type: {operation_type}")
+    
+
+
+def analyse_overall_utilization(symbolic_graph: Dict[str, Any], model_info: Dict[str, Any], M: int, K: int, N: int) -> str:
+    """
+    Transform the complete symbolic graph into assembly code.
+
+    Args:
+        symbolic_graph: The symbolic graph from LLMModelParser
+        model_info: Model metadata for header generation
+
+    Returns:
+        Complete assembly program as string
+    """
+    # Process each node in execution order
+    nodes = symbolic_graph["nodes"]
+    execution_order = symbolic_graph["execution_order"]
+
+    # Create a mapping from node names to nodes for efficient lookup
+    node_map = {node["name"]: node for node in nodes}
+
+    overall_opertions = 0
+    overall_attainable_FLOPS = 0
+    overall_theoretical_FLOPS = 0
+
+    # Generate code for each node in execution order
+    for node_name in execution_order:
+        if node_name in node_map:
+            node = node_map[node_name]
+            single_op_operation = _report_utilization(node, model_info, M, K, N)
+            overall_operations += single_op_operation[0]
+            overall_attainable_FLOPS += single_op_operation[1]
+            overall_theoretical_FLOPS += single_op_operation[2]

@@ -36,7 +36,7 @@ def _generate_embedding_code(node: Dict[str, Any], model_info: Dict[str, Any], h
     vocab_size = model_info["vocab_size"]
     embedding_dim = node["dimensions"]["embedding_dim"]
     dim = node["dimensions"]
-
+    # TODO need to add a dot product at the end.
     code = f"""
 ; Embedding lookup: vocab_size={vocab_size}, embedding_dim={embedding_dim}
 ; Input: token_ids, Output: embedded_vectors

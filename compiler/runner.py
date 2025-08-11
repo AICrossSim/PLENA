@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from parser import LLMModelParser, HardwareParser
 from passes.code_gen import code_gen_pass
+from passes.utilization_report import analyse_overall_utilization
 from scheduler import gen_scheduler
 
 
@@ -12,9 +13,9 @@ def run():
         print("Usage: python runner.py <model_name_or_path> <output_file.asm>")
         print("Example: python runner.py AICrossSim/clm-60m output.asm")
         return
-
-    model_path = sys.argv[1]
-    output_file = sys.argv[2]
+    mode = sys.argv[1]
+    model_path = sys.argv[2]
+    output_file = sys.argv[3]
     hardware_config_path = Path(__file__).resolve().parents[1] / "src" / "definitions" / "configuration.svh"
     precision_config_path = Path(__file__).resolve().parents[1] / "src" / "definitions" / "precision.svh"
     mem_layout_lib_path = Path(__file__).resolve().parents[0] / "scheduler" / "mem_layout_lib.json"
@@ -58,6 +59,13 @@ def run():
     hardware_config = HardwareParser(hardware_config_path, precision_config_path)
     scheduler = gen_scheduler(hardware_config, model_info, mem_layout_lib_path, reg_assignment_lib_path)
     # Run code generation pass
+    if mode == "utilization":
+        M = 64, K = 64, N = 64
+        print(f"\nRunning utilization analysis...")
+        utilization_report = analyse_overall_utilization(symbolic_graph, model_info, hardware_config["M"], hardware_config["K"], hardware_config["N"])
+        print(f"Utilization Report:\n{utilization_report}")
+        return
+    
     print(f"\nRunning code generation pass...")
     generated_asm = code_gen_pass(symbolic_graph, model_info, hardware_config, scheduler)
 
