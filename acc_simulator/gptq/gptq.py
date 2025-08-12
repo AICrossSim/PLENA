@@ -62,16 +62,16 @@ class GPTQ:
 
         # set blocksize in gptq to be the same as the mx block from meta
         blocksize = w_meta.block_size
-        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=False):
+        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=True):
             i2 = min(i1 + blocksize, self.columns)
 
             W1 = W[:, i1:i2].clone()
             
             if activation != None:
                 Act1 = activation[:, :, i1:i2].clone()
-                Q1 = mxint_quantizer_sim(W1, act_tensor=Act1, block_dim=1, mxint_meta=w_meta)
+                Q1 = mxint_quantizer_sim(W1, act_tensor=Act1, block_dim=1, mxint_meta=w_meta, quantile_search=True)
             else:
-                Q1 = mxint_quantizer_sim(W1, block_dim=1, mxint_meta=w_meta)
+                Q1 = mxint_quantizer_sim(W1, block_dim=1, mxint_meta=w_meta, quantile_search=True)
             
             Hinv1 = Hinv[i1:i2, i1:i2]
             Err1 = (W1 - Q1) / torch.diag(Hinv1).unsqueeze(0)

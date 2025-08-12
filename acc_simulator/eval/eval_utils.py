@@ -18,6 +18,7 @@ from transformers.models.llama.modeling_llama import (
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import dispatch_model
 
+from safetensors.torch import save_file, load_file
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
@@ -170,7 +171,7 @@ def validate_and_sanitize_quant_args(
     return preset_X, preset_W, preset_Kv, preset_NL
 
 
-def setup_model(model_name, model_parallel, dtype):
+def setup_model(model_name, model_parallel, dtype, device):
         # set tokenizer like this for now
         if "meta" in model_name:
             tokenizer = AutoTokenizer.from_pretrained(
@@ -186,9 +187,11 @@ def setup_model(model_name, model_parallel, dtype):
             device_map = create_device_map(model, "auto-balanced")
             model = dispatch_model(model, device_map=device_map)
         else: 
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            # device = "cuda:1"
-            model = model.to(device)
+            if device:
+                model = model.to(device)
+            else:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                model = model.to(device)
         return tokenizer, model
 
 def move_to_gpu(model, model_parallel=True):
@@ -287,3 +290,16 @@ def plot_activation_distribution(tensor, title: str, step: int = 0, save_path: s
     plt.tight_layout()
     plt.savefig(f"{save_path}_{step}.png")
     plt.close()
+
+def save_gptq(model, out_dir: str):
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    sd = model.to("cpu").state_dict()
+    save_file(sd, f"{out_dir}/model.safetensors")
+
+def load_gptq(model, ckpt_dir: str):
+    sd = load_file(f"{ckpt_dir}/model.safetensors")
+    model.load_state_dict(sd, strict=True)  # requires same arch/vocab
+    model.eval()
+    try: model.tie_weights()
+    except Exception: pass
+    return model
