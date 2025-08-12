@@ -46,13 +46,13 @@ class MXFPLinearPTQ(nn.Module):
         self.bias = None
 
         if "Wq" in self.layer_type and not w_pre_quantized:
-            self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta, quantile_search=False)
+            self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta, quantile_search=True)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 
         if "Bq" in self.layer_type:
             if isinstance(bias, Tensor):
-                self.bias = quantize_tensor(bias, block_dim=0, meta=b_meta, quantile_search=False)
+                self.bias = quantize_tensor(bias, block_dim=0, meta=b_meta, quantile_search=True)
         else:
             if bias is not None:
                 self.bias = nn.Parameter(bias, requires_grad=False)
