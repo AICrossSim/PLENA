@@ -5,6 +5,7 @@ MODEL_NAME="meta-llama/Meta-Llama-3-8B"
 echo $MODEL_NAME
 echo "original with rotation 8B MXFP6"
 
+experiment_name=$1
 for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
   for w_config in MXINT_4_B16_S8; do
     CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
@@ -16,9 +17,9 @@ for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
       --model_parallel False \
       --use_gptq False\
       --offline_rotate False \
-      --online_rotate False \
+      --online_rotate True \
       --clip_search_y False \
-      --log_dir results/w_${w_config}_x_${x_kv_config}
+      --log_dir results/${experiment_name}/w_${w_config}_x_${x_kv_config}
   done
 done
   # > acc_simulator/offline_rotate_only_with_gptq.out 2>&1

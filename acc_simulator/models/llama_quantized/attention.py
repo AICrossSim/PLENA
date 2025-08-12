@@ -91,7 +91,8 @@ class LlamaAttentionMXFP(LlamaAttention):
             _key_states, _value_states = kv_cache_mxfp(key_states, 
                                                        value_states, 
                                                        self.kv_cache_meta, 
-                                                       self.kv_func_type)
+                                                       self.kv_func_type,
+                                                       self.online_rotate)
 
             key_states, value_states = past_key_value.update(
                 _key_states, _value_states, self.layer_idx, cache_kwargs
@@ -115,6 +116,7 @@ class LlamaAttentionMXFP(LlamaAttention):
             av_func_type=self.av_func_type,
             softmax_meta=self.softmax_meta,
             softmax_func_type=self.softmax_func_type,
+            online_rotate=self.online_rotate,
             **kwargs,
         )
 
