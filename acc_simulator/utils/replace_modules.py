@@ -61,11 +61,10 @@ def replace_modules(
             print(f"Skipping {label}: {name}")
             continue
         
-        if target_class == nn.Linear and "down_proj" not in name:
+        # Only rotate activation in down-projection
+        if target_class == nn.Linear and "down_proj" not in name and kwargs["online_rotate"] == True:
             kwargs["online_rotate"] = False
 
-        if "down_proj" in name:
-            kwargs["online_rotate"] = True
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)
 

@@ -26,8 +26,7 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
     # Move the first decoder block on to device 
     model.model.embed_tokens = model.model.embed_tokens.to(dev)
     model.model.norm = model.model.norm.to(dev)
-    rope = model.model.rotary_emb
-    rope = rope.to(next(model.parameters()).device)
+    rope = model.model.rotary_emb.to(dev)
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
@@ -59,7 +58,6 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
             # this calls the forward method and stores the data in inps
         except ValueError:
             pass
-
     layers[0] = layers[0].module
     # replace modules back after catchers
     torch.cuda.empty_cache()
@@ -69,8 +67,8 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
     position_ids = cache['position_ids']
 
     sequential = [
-                ['self_attn.k_proj', 'self_attn.v_proj', 'self_attn.q_proj'],
-                ['self_attn.o_proj'],
+                # ['self_attn.k_proj', 'self_attn.v_proj', 'self_attn.q_proj'],
+                # ['self_attn.o_proj'],
                 ['mlp.up_proj', 'mlp.gate_proj'],
                 ['mlp.down_proj']
             ]
@@ -125,6 +123,7 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
                 h.remove()
 
             for name in subset:
+                breakpoint()
                 quantized_linear_w = gptq[name].fasterquant(
                     activation = pre_act if quant_args["fc_kwargs"]["clip_search_y"] else None, 
                     w_meta = quant_args["fc_kwargs"]["w_meta"],

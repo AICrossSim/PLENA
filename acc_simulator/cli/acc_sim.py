@@ -139,7 +139,7 @@ def llama_eval(
             else:
                 ori_device = model.device
                 model.to("cpu")
-                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=ori_device, save_q_model=True)
+                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True)
                 if save_gptq_model and not ckpt_file.exists():
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
                     save_gptq(model, ckpt_dir)

@@ -112,7 +112,7 @@ def mxint_quantizer_sim(
             scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
             q = elements / 2**(mxint_meta.element_bits - 1) * 2**(scales - scale_bias)
 
-            BATCH_SIZE = 32
+            BATCH_SIZE = 1
             # search clipping based on output XW 
             if act_tensor != None:
                 # act_tensor is of shape [num_calibrations, sequnce_len, blocksize]
