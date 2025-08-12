@@ -38,7 +38,7 @@ class LlamaMLPActFP(LlamaMLP):
         #     x = matmul_hadU_cuda(x, had_K_t, K_t).to(x_dtype)
         #     plot_activation_distribution(x, title="After Hadamard", step=0, save_path="after_hadamard")
         
-        down_proj = self.don_proj(x)
+        down_proj = self.down_proj(x)
         
         return down_proj
     
