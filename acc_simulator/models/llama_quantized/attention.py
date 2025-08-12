@@ -88,14 +88,14 @@ class LlamaAttentionMXFP(LlamaAttention):
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
 
-            _key_states, _value_states = kv_cache_mxfp(key_states, 
+            key_states, value_states = kv_cache_mxfp(key_states, 
                                                        value_states, 
                                                        self.kv_cache_meta, 
                                                        self.kv_func_type,
                                                        self.online_rotate)
 
             key_states, value_states = past_key_value.update(
-                _key_states, _value_states, self.layer_idx, cache_kwargs
+                key_states, value_states, self.layer_idx, cache_kwargs
             )
 
         attention_interface: callable = eager_attention_forward_mxfp
@@ -200,7 +200,6 @@ def eager_attention_forward_mxfp(
     value_states = repeat_kv(value, module.num_key_value_groups)
 
     # *: quantized QK matmul if meta is not None
-
     attn_weights = matmul_mxfp(
         query,
         key_states.transpose(2, 3),

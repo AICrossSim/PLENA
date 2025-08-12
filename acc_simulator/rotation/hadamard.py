@@ -26,7 +26,7 @@ class OnlineHadamardQuantization(torch.nn.Module):
         if self.fp32_had:
             x = x.float()
         x = matmul_hadU_cuda(x, self.had_rem_dim, self.rem_dim)
-        x = quantize_tensor(x, block_dim=self.block_dim, meta=self.meta)
+        x = quantize_tensor(x, block_dim=self.block_dim, meta=self.meta, quantile_search=False)
         x = matmul_hadU_cuda(x, self.had_rem_dim_t, self.rem_dim_t)
         x = x.to(x_dtype)
         return x

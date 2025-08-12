@@ -211,7 +211,8 @@ def quantize_model(
     quant_args: dict,
     linear_quantized: bool = False,
     full_system_sim: bool = False,
-    skip_lm_head: bool = True
+    skip_lm_head: bool = True, 
+    skip_down_proj: bool = True
 ):
     """
     Replaces specific modules in the model with their quantized counterparts based on preset.
@@ -222,27 +223,33 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
-    # Replace MLP activations (e.g., SiLU)
-    replace_modules(
-        model,
-        target_class=LlamaMLP,
-        replacement_class=LlamaMLPActFP,
-        factory_fn=LlamaMLPActFP.from_mlp,
-        kwargs=quant_args.get("mlp_kwargs", {}),
-        label="LlamaMLP"
-    )
+    # # Replace MLP activations (e.g., SiLU)
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaMLP,
+    #     replacement_class=LlamaMLPActFP,
+    #     factory_fn=LlamaMLPActFP.from_mlp,
+    #     kwargs=quant_args.get("mlp_kwargs", {}),
+    #     label="LlamaMLP"
+    # )
 
-    # Replace attention (e.g., softmax, rope, matmul)
-    replace_modules(
-        model,
-        target_class=LlamaAttention,
-        replacement_class=LlamaAttentionMXFP,
-        factory_fn=LlamaAttentionMXFP.from_attention,
-        kwargs=quant_args.get("attn_kwargs", {}),
-        label="LlamaAttention"
-    )
+    # # Replace attention (e.g., softmax, rope, matmul)
+    # replace_modules(
+    #     model,
+    #     target_class=LlamaAttention,
+    #     replacement_class=LlamaAttentionMXFP,
+    #     factory_fn=LlamaAttentionMXFP.from_attention,
+    #     kwargs=quant_args.get("attn_kwargs", {}),
+    #     label="LlamaAttention"
+    # )
 
     if not linear_quantized: 
+        linear_skip_names = []
+        if skip_lm_head:
+            linear_skip_names.append("lm_head")
+        if skip_down_proj:
+            linear_skip_names.append("down_proj")
+
         replace_modules(
             model,
             target_class=nn.Linear,
@@ -250,7 +257,7 @@ def quantize_model(
             factory_fn=MXFPLinearPTQ.from_linear,
             kwargs=quant_args.get("fc_kwargs", {}),
             label="MXFPLinearPTQ",
-            skip_names=["lm_head"] if skip_lm_head else None
+            skip_names=linear_skip_names
         )
 
     if not full_system_sim:

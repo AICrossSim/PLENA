@@ -1,11 +1,12 @@
 from typing import Literal
 
 from torch import Tensor
+import torch
 from transformers.models.llama.modeling_llama import LlamaMLP
 
 from ...quantize.quantized_functions import silu_minifloat
 from ...quantize.quantizer.minifloat import MinifloatMeta
-from ...rotation import matmul_hadU_cuda, get_hadK
+from ...rotation import matmul_hadU_cuda, get_hadK, OnlineHadamardQuantization
 
 
 class LlamaMLPActFP(LlamaMLP):
@@ -29,13 +30,15 @@ class LlamaMLPActFP(LlamaMLP):
         # plot_activation_distribution(x, title="Before Hadamard", step=0, save_path="before_hadamard")
 
         # rotate activation on-line here, before down_projection after nonlinear
-        if self.online_rotate:
-            x_dtype = x.dtype
-            had_K, K = get_hadK(self.config.intermediate_size)
-            x = matmul_hadU_cuda(x, had_K, K).to(x_dtype)
+        # if self.online_rotate:
+        #     x_dtype = x.dtype
+        #     had_K, K = get_hadK(self.config.intermediate_size)
+        #     had_K_t, K_t = get_hadK(self.config.intermediate_size, transpose=True)
+        #     x = matmul_hadU_cuda(x, had_K, K).to(x_dtype)
+        #     x = matmul_hadU_cuda(x, had_K_t, K_t).to(x_dtype)
         #     plot_activation_distribution(x, title="After Hadamard", step=0, save_path="after_hadamard")
         
-        down_proj = self.down_proj(x)
+        down_proj = self.don_proj(x)
         
         return down_proj
     

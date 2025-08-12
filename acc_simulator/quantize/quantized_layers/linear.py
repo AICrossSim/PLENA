@@ -9,7 +9,6 @@ from ..quantizer.minifloat import MinifloatMeta, minifloat_quantizer_sim
 from ..utils import quantize_tensor
 from ...rotation.hadamard import OnlineHadamardQuantization
 
-
 class MXFPLinearPTQ(nn.Module):
     in_features: int
     out_features: int
@@ -57,14 +56,15 @@ class MXFPLinearPTQ(nn.Module):
             if bias is not None:
                 self.bias = nn.Parameter(bias, requires_grad=False)
         
+        self.online_rotate_quant = None
         if self.online_rotate:
-            self.online_rotate = OnlineHadamardQuantization(in_features, block_dim=-1, meta=self.x_meta)
+            self.online_rotate_quant = OnlineHadamardQuantization(in_features, block_dim=-1, meta=self.x_meta)
 
     @torch.no_grad()
     def forward(self, input: Tensor) -> Tensor:
         if "Xq" in self.layer_type:
-            if self.online_rotate:
-                input = self.online_rotate(input)
+            if self.online_rotate_quant is not None:
+                input = self.online_rotate_quant(input)
             else:
                 input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
 

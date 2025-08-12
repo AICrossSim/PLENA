@@ -113,6 +113,8 @@ def llama_eval(
         replace_rms_norms(model)
         rotate_llama(model, online_rotate) 
     
+    skip_lm_head = False
+    skip_down_proj = online_rotate
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
@@ -147,10 +149,10 @@ def llama_eval(
             
             model=move_to_gpu(model, model_parallel)
             # quantize and replace the rest
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, skip_lm_head=skip_lm_head, skip_down_proj=skip_down_proj)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, skip_lm_head=False)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, skip_lm_head=skip_lm_head, skip_down_proj=skip_down_proj)
 
 
     if enable_eval_harness:
