@@ -103,7 +103,7 @@ def llama_eval(
         print("Using original parameters, no quantization applied.")
 
     transformers.set_seed(0)
-    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16, 
+    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.bfloat16, 
                                    device=device_id if not model_parallel else None)
 
     model.eval()
