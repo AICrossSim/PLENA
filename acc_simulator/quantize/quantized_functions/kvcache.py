@@ -19,8 +19,8 @@ def kv_cache_mxfp(
         assert kv_cache_meta is not None
         if online_rotate:
             rotate_quant = OnlineHadamardQuantization(key_states.shape[-1], block_dim=-1, meta=kv_cache_meta)
-            key_states = rotate_quant(key_states)
-            value_states = rotate_quant(value_states)
+            key_states_q = rotate_quant(key_states)
+            value_states_q = rotate_quant(value_states)
         else:
             key_states_q = quantize_tensor(key_states, block_dim=-1, meta=kv_cache_meta, quantile_search=False)
             value_states_q = quantize_tensor(value_states, block_dim=-1, meta=kv_cache_meta, quantile_search=False)
