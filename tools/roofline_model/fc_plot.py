@@ -20,9 +20,9 @@ colors = {
 # HBM Settings
 Operate_Freq = 1e9      # 1 GHz
 DataWidth = 2           # 1 byte per element
-HBM_Bandwidth = 800e9   # 800 GB/s
-HBM_Capacity = 160      # 128 GB
-SEQ_LENGTH_NORM =  3000
+HBM_Bandwidth = 512     # 800 GB/s
+HBM_Capacity = 144      # 128 GB
+SEQ_LENGTH_NORM =  5000
 SEQ_LENGTH_REASONING = 6500
 
 B200_Params = {
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     ax1.minorticks_off()
     ax1.set_ylim(1e2, 1e5)
     ax1.set_xlim(1, 64)
-    ax1.set_title('LLaMA 2 4K Context Length Model', fontsize=5)
+    # ax1.set_title('LLaMA 3 50K Context Length Model', fontsize=5)
     
     ax1.plot(list(plena_roofline_performance.keys()), list(plena_roofline_performance.values()), label='Theoretical PLENA Performance', color=colors["light_blue"], linewidth=0.8, linestyle='--')
     ax1.vlines(tpu_normal_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     ax2.set_yticks([1e2, 1e3, 1e4, 1e5])
     ax2.set_yticklabels(['$10^2$', '$10^3$', '$10^4$', '$10^5$'], fontsize=5)
     ax2.minorticks_off()
-    ax2.set_title('LLaMA 3 128K Context Length Model', fontsize=5)
+    # ax2.set_title('LLaMA 3 128K Context Length Model', fontsize=5)
     ax2.vlines(plena_reasoning_batch_bound, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
     ax2.vlines(4, 1e2, 1e5, color='grey', linestyle='--', linewidth=0.5)
 

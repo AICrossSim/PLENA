@@ -15,12 +15,12 @@ package precision_pkg;
     parameter   KV_MX_MANT_WIDTH    = 2;
     parameter   KV_MX_EXP_WIDTH     = 1;
     parameter   KV_MX_INT_ENABLE    = 0;    // Currently not used.
-    parameter   WT_MX_MANT_WIDTH    = 3;
-    parameter   WT_MX_EXP_WIDTH     = 4;
+    parameter   WT_MX_MANT_WIDTH    = 2;
+    parameter   WT_MX_EXP_WIDTH     = 1;
     parameter   WT_MX_INT_ENABLE    = 0;
     parameter   MX_SCALE_WIDTH      = 8;
     
-    parameter   BLOCK_DIM = 4;
+    parameter   BLOCK_DIM = 16;
     // Per Unit Precision
     parameter   V_FP_EXP_WIDTH  = 7;
     parameter   V_FP_MANT_WIDTH = 8;
