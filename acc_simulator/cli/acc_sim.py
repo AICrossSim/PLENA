@@ -52,6 +52,7 @@ def llama_eval(
     clip_search_y: bool = False,
     seqlen: int = 2048,
     save_gptq_model: bool = False,
+    cali_batch_size: int = 32,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -78,6 +79,7 @@ def llama_eval(
         offline_rotate: Whether to apply offline hadamard rotation.
         online_rotate: Whether to apply online inner layer activation rotation.
         clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
+        cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
     """
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
@@ -103,18 +105,12 @@ def llama_eval(
         print("Using original parameters, no quantization applied.")
 
     transformers.set_seed(0)
-    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.bfloat16, 
+    # TODO: set the model path to the models checkpoints already stored inside .data/models/hw1020/
+    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16, 
                                    device=device_id if not model_parallel else None)
 
     model.eval()
-    # rotation done on gpu
-    if offline_rotate:
-        fuse_rms_norms(model)
-        replace_rms_norms(model)
-        rotate_llama(model, online_rotate) 
-    
-    skip_lm_head = False
-    skip_down_proj = online_rotate
+
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
@@ -127,32 +123,26 @@ def llama_eval(
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
-            if clip_search_y:
-                cp = "ckpts_y_search"
-            else:
-                cp = "ckpts_w_search"
+            cp = "/data/models/hw1020/ckpts_y_search"
             ckpt_dir = Path(cp) / model_name.replace('/', '_')
             ckpt_file = ckpt_dir / "model.safetensors"
             if ckpt_file.exists():
                 model=load_gptq(model, ckpt_dir)
-                logging.info('-----Loaded GPTQ-----\n')
             else:
-                ori_device = model.device
+                # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
                 model.to("cpu")
-                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True)
+                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size)
+                # right now always save the weights after gptq, and not rewrite
                 if save_gptq_model and not ckpt_file.exists():
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
                     save_gptq(model, ckpt_dir)
-                    logging.info('-----Saved GPTQ-----\n')
-                else:
-                    logging.info('-----Didnt save due to pre-existing GPTQ ckpt-----\n')
-            
+            # could move back to parallel for eval but kept this false on tiamat
             model=move_to_gpu(model, model_parallel)
             # quantize and replace the rest
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, skip_lm_head=skip_lm_head, skip_down_proj=skip_down_proj)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, skip_lm_head=skip_lm_head, skip_down_proj=skip_down_proj)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False)
 
 
     if enable_eval_harness:

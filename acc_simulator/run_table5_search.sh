@@ -4,23 +4,7 @@ CUDA_DEVICE="cuda:1"
 # --preset XWqBKVNL \
 echo $MODEL_NAME
 echo $CUDA_DEVICE
-echo "original with rotation 8B MXFP6"
 
-# CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 \
-# python -m acc_simulator.cli.acc_sim \
-#   --model_name="$MODEL_NAME" \
-#   --preset XqWqBqKVqNL \
-#   --preset_X MXINT_4_B16_S8 \
-#   --preset_W MXINT_4_B16_S8 \
-#   --preset_Kv MXINT_4_B16_S8 \
-#   --device_id "$CUDA_DEVICE" \
-#   --use_gptq True \
-#   --offline_rotate False \
-#   --online_rotate False \
-#   --clip_search_y True \
-#   --log_dir results \
-#   --save_gptq True \
-#   > save_8b_gptq.log 2>&1
 
 for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
   for w_config in MXINT_4_B16_S8; do
@@ -32,8 +16,7 @@ for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
       --preset_Kv $x_kv_config \
       --device_id "$CUDA_DEVICE" \
       --use_gptq True\
-      --offline_rotate False \
-      --online_rotate False \
+      --online_rotate True  \
       --clip_search_y True \
       --save_gptq True \
       --log_dir results/w_${w_config}_x_${x_kv_config}

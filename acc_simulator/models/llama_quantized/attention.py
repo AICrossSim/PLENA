@@ -1,7 +1,4 @@
 from typing import Literal, Optional, Tuple
-import math
-import fast_hadamard_transform
-
 import torch
 from torch import Tensor, nn, LongTensor
 from transformers.models.llama.modeling_llama import (
@@ -123,14 +120,6 @@ class LlamaAttentionMXFP(LlamaAttention):
         # (batch_size, seq_len, num_heads, head_dim) → (batch_size, seq_len, num_heads * head_dim)
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
 
-        # online hadamard here for activation before o_proj
-        # if self.online_rotate:
-            # init_shape = attn_output.shape
-            # had_dim =  self.config.head_dim
-            # attn_output = fast_hadamard_transform.hadamard_transform(attn_output.reshape(-1, init_shape[-1]//had_dim, had_dim).transpose(1, 2),
-            #                                                    scale=1/math.sqrt(init_shape[-1]//had_dim)).transpose(1, 2)
-            # attn_output = attn_output.reshape(init_shape)
-        
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -199,6 +188,7 @@ def eager_attention_forward_mxfp(
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
+    # attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
     # *: quantized QK matmul if meta is not None
     attn_weights = matmul_mxfp(
         query,
@@ -209,6 +199,8 @@ def eager_attention_forward_mxfp(
         online_rotate=online_rotate
     )
     attn_weights = attn_weights * scaling
+
+
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -232,6 +224,7 @@ def eager_attention_forward_mxfp(
         func_type=av_func_type,
         online_rotate=online_rotate
     )
+    # attn_output = torch.matmul(attn_weights, value_states)
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights

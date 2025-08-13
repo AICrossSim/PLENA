@@ -183,6 +183,7 @@ def setup_model(model_name, model_parallel, dtype, device):
         model = AutoModelForCausalLM.from_pretrained(
             model_name, torch_dtype=dtype, attn_implementation="eager"
         )
+        # Temp, load on cpu only
         return tokenizer, model
         if model_parallel:
             device_map = create_device_map(model, "auto-balanced")
@@ -212,8 +213,7 @@ def quantize_model(
     quant_args: dict,
     linear_quantized: bool = False,
     full_system_sim: bool = False,
-    skip_lm_head: bool = True, 
-    skip_down_proj: bool = True
+    skip_lm_head: bool = True
 ):
     """
     Replaces specific modules in the model with their quantized counterparts based on preset.
@@ -244,14 +244,17 @@ def quantize_model(
         label="LlamaAttention"
     )
 
-    if not linear_quantized: 
-        linear_skip_names = []
-        if skip_lm_head:
-            linear_skip_names.append("lm_head")
-            # TODO:
-        if skip_down_proj:
-            linear_skip_names.append("down_proj")
-
+    if linear_quantized: 
+        replace_modules(
+            model,
+            target_class=nn.Linear,
+            replacement_class=MXFPLinearPTQ,
+            factory_fn=MXFPLinearPTQ.from_linear_gptq,
+            kwargs=quant_args.get("fc_kwargs", {}),
+            label="MXFPLinearPTQ",
+            skip_names=["lm_head"] if skip_lm_head else None
+        )
+    else:
         replace_modules(
             model,
             target_class=nn.Linear,
@@ -259,7 +262,7 @@ def quantize_model(
             factory_fn=MXFPLinearPTQ.from_linear,
             kwargs=quant_args.get("fc_kwargs", {}),
             label="MXFPLinearPTQ",
-            skip_names=linear_skip_names
+            skip_names=["lm_head"] if skip_lm_head else None
         )
 
     if not full_system_sim:
@@ -284,21 +287,6 @@ def quantize_model(
         kwargs=quant_args.get("rms_kwargs", {}),
         label="FPRMSNormPTQ"
     )
-
-
-def plot_activation_distribution(tensor, title: str, step: int = 0, save_path: str = "act_hist.png"):
-    data = tensor.detach().cpu().flatten().numpy()
-
-    plt.figure(figsize=(6, 4))
-    plt.hist(data, bins=100, alpha=0.7)
-    plt.title(title)
-    plt.xlabel("Activation value")
-    plt.ylabel("Frequency")
-    plt.xlim(-0.1, 0.1)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(f"{save_path}_{step}.png")
-    plt.close()
 
 def save_gptq(model, out_dir: str):
     Path(out_dir).mkdir(parents=True, exist_ok=True)

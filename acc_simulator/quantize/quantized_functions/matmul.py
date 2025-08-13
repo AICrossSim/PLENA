@@ -22,10 +22,6 @@ def matmul_mxfp(
             input = rotate_quant(input)
         else:
             input = quantize_tensor(input, block_dim=-1, meta=input_meta)
-        
-    # if "Wq" in func_type:
-    #     assert other_meta is not None
-    #     other = quantize_tensor(other, block_dim=-2, meta=other_meta)
 
     return torch.matmul(input, other)
 

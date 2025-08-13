@@ -109,6 +109,36 @@ class MXFPLinearPTQ(nn.Module):
             )
     
     @classmethod
+    def from_linear_gptq(
+        cls,
+        layer: nn.Linear,
+        x_meta: MXFPMeta | MXIntMeta | None,
+        w_meta: MXFPMeta | MXIntMeta | None,
+        b_meta: MXFPMeta | MXIntMeta | None,
+        layer_type: Literal[
+            "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
+        ],
+        online_rotate: bool,
+        clip_search_y: bool = False,
+    ):
+        """
+        Create an MXFPLinearPTQ instance from a PyTorch Linear layer.
+        """
+        assert isinstance(layer, nn.Linear), "layer must be an instance of nn.Linear"
+        with torch.no_grad():
+            return cls(
+                weight=layer.weight.clone(),
+                bias=layer.bias.clone() if layer.bias is not None else None,
+                x_meta=x_meta,
+                w_meta=w_meta,
+                b_meta=b_meta,
+                layer_type=layer_type,
+                w_pre_quantized=True,
+                online_rotate=online_rotate
+            )
+    
+    
+    @classmethod
     def from_quantized(
         cls,
         layer: nn.Linear,

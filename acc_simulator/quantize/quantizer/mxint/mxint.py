@@ -89,6 +89,7 @@ def mxint_quantizer_sim(
     act_tensor: Tensor | None = None,
     dtype: torch.dtype | None = None,
     quantile_search: bool = False,
+    cali_batch_size: int = 32,
 ) -> Tensor:
     out_dq = torch.zeros_like(tensor)
     if quantile_search:
@@ -112,9 +113,9 @@ def mxint_quantizer_sim(
             scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
             q = elements / 2**(mxint_meta.element_bits - 1) * 2**(scales - scale_bias)
 
-            BATCH_SIZE = 1
             # search clipping based on output XW 
             if act_tensor != None:
+                BATCH_SIZE = cali_batch_size
                 # act_tensor is of shape [num_calibrations, sequnce_len, blocksize]
                 last_dim = act_tensor.shape[-1]
                 if last_dim != B:
@@ -122,8 +123,6 @@ def mxint_quantizer_sim(
                     act_tensor = act_tensor.view(*act_tensor.shape[:-1], last_dim // B, B)
 
                 total_batches = act_tensor.shape[0]
-                # out_after_quant_list = []
-                # out_before_quant_list = []
 
                 err = torch.zeros(qtensor.shape[0], device=tensor.device, dtype=tensor.dtype)
 
@@ -134,18 +133,9 @@ def mxint_quantizer_sim(
                         out_orig = torch.matmul(act_b, qtensor.T)
                         err += torch.norm(out_q - out_orig, p=2, dim=(0, 1))
 
-                        # out_after_quant_list.append(out_q)
-                        # out_before_quant_list.append(out_orig)
-                        # Free up memory
                         del act_b, out_q, out_orig
                         torch.cuda.empty_cache()
-                # Combine all outputs
-                # out_after_quant = torch.cat(out_after_quant_list, dim=0)
-                # out_before_quant = torch.cat(out_before_quant_list, dim=0)
-                # diff = (out_after_quant - out_before_quant)
-                # l2_per_block = torch.norm(diff, p=2, dim=(0, 1))  # shape [out_features]
-                # err = l2_per_block
-                # del out_after_quant, out_before_quant
+
                 torch.cuda.empty_cache()
             else:
                 q -= qtensor

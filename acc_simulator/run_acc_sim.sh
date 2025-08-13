@@ -15,9 +15,9 @@ python -m acc_simulator.cli.acc_sim \
   --preset_Kv MXINT_4_B16_S8 \
   --device_id "$CUDA_DEVICE" \
   --use_gptq True \
-  --offline_rotate False \
-  --online_rotate False \
+  --online_rotate True \
   --clip_search_y True \
   --log_dir results \
   --save_gptq True \
+  --cali_batch_size 32 \
 #   > save_8b_gptq.log 2>&1
