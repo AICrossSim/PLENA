@@ -117,9 +117,12 @@ def mxint_quantizer_sim(
         x = x.flatten()
         x = x.reshape(n_blocks, B)  # [n_blocks, B]
 
-        ori_dtype = x.dtype
+        tem_dtype = x.dtype
         # quantile need fp32
-        x_max = x.abs().to(torch.float32).quantile(percentiles, dim=1, keepdim=True).to(ori_dtype)
+        # x_max = x.abs().to(torch.float32).quantile(percentiles, dim=1, keepdim=True).to(tem_dtype)
+        x_max = x.abs().max(dim=1, keepdim=True).values
+        x_max = x_max * percentiles[:, None, None]
+        
 
         scale = x_max.log2().ceil()
         scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
@@ -131,6 +134,7 @@ def mxint_quantizer_sim(
 
         quant_tensor = x_mant / 2**(mxint_meta.element_bits - 1) * 2**(scale - scale_bias)
         quant_tensor = quant_tensor.reshape(len(percentiles), n_blocks, B)
+
         if act_tensor is None:
             err = torch.norm(quant_tensor - qtensor, p=2, dim=-1)
             min_err_idx = torch.argmin(err, dim=0).reshape(-1)
@@ -141,7 +145,9 @@ def mxint_quantizer_sim(
                 act_tensor = act_tensor.view(*act_tensor.shape[:-1], last_dim // B, B)
             
             out_orig = torch.matmul(act_tensor, qtensor.T)
-            out_q = torch.matmul(act_tensor, quant_tensor.T)
+            # out_q = torch.matmul(act_tensor, quant_tensor.T)# hope to generate a value with [len(percentiles), seq_len, n_blocks*hidden]
+            breakpoint()
+            out_q = torch.einsum('sb,phb->psh', act_tensor, quant_tensor)
             err = torch.norm(out_q - out_orig, p=2, dim=(1, 2))
             min_err_idx = torch.argmin(err, dim=0)
 
