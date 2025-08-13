@@ -3,8 +3,8 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 
-
-def embedding_asm(
+# TODO: not completed yet.
+def lm_head_asm(
     mlen: int,
     blen: int,
     batch: int,

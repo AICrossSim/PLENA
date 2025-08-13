@@ -39,7 +39,7 @@ set dir_list [list \
     "basic_components/cast/rtl" \
     "basic_components/buffer/rtl" \
     "basic_components/gemv/rtl" \
-    "basic_components/systolic_gemm_mxfp/rtl" \
+    "basic_components/systolic_gemm_mx/rtl" \
     "basic_components/int_operation/rtl" \
     "basic_components/synopsis_ip_inst/rtl" \
     "basic_components/synopsis/rtl" \

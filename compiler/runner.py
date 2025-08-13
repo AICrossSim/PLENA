@@ -44,7 +44,7 @@ def run():
     model_info = {
         "model_name": model_path,
         "architecture": getattr(parser.config, "architectures", ["Unknown"])[0] if parser.config else "Unknown",
-        "batch_size": 8,
+        "batch_size": 4,
         "context_length" : dimensions.get("max_position_embeddings", "Unknown"),
         "vocab_size": dimensions.get("vocab_size", "Unknown"),
         "hidden_size": dimensions.get("hidden_size", "Unknown"),
@@ -55,8 +55,6 @@ def run():
         "head_dim" : dimensions.get("hidden_size", "Unknown") // dimensions.get("num_attention_heads", 1),
         "eps": dimensions.get("rms_norm", {}).get("eps", 1e-6)
     }
-
-
 
     # Run code generation pass
     if mode == "utilization":

@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "fp_cp_mult"
+set top_design "matrix_machine_v2"
 
 #------------------------------
 # Setup DC logging paths
@@ -66,7 +66,7 @@ lappend search_path  ${src}
 #---------------------------------------
 set top_clk_name    "clk"
 set reset           "rst"
-set clk_period      "1000"
+set clk_period      "666"
 
 #--------------------------
 # Read RTL files

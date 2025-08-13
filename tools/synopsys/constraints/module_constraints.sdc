@@ -1,5 +1,5 @@
 # Define system clock period
-set clk_period 1000
+set clk_period 666
 set clk_name clk
 create_clock -period $clk_period clk
 set_drive 0 clk

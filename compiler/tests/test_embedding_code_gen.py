@@ -7,15 +7,15 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from passes.code_gen import _generate_attention_code
+from passes.code_gen import _generate_embedding_code
 
-def test_attention_code_generation():
-    """Test the attention code generation function"""
-    
+def test_embeddings_code_generation():
+    """Test the embeddings code generation function"""
+
     # Test node with LLaMA-3.1 8B parameters
     test_node = {
-        "name": "attention_layer_0",
-        "operation_type": "attention",
+        "name": "embeddings",
+        "operation_type": "embeddings",
         "dimensions": {
             "hidden_size": 4096,
             "num_attention_heads": 32,
@@ -23,12 +23,32 @@ def test_attention_code_generation():
             "num_key_value_heads": 8
         }
     }
-    
-    
+    hardware_config = {
+        "mlen" : 256,
+        "blen" : 4
+    }
+    model_info = {
+        "batch_size" : 4,
+        "vocab_size" : 128256
+    }
+    scheduler = {
+        "activation_base_address": 0,
+        "register_assignment": {
+            "hbm_addr_reg": {
+                "token_table_offset": 0
+            }
+        }
+    }
+
     # Generate the assembly code
-    generated_code = _generate_attention_code(test_node)
-    
-    print("Generated Flash Attention Assembly Code:")
+    generated_code = _generate_embedding_code(
+        test_node,
+        model_info=model_info,
+        hardware_config=hardware_config,
+        scheduler=scheduler
+    )
+
+    print("Generated Embedding Assembly Code:")
     print("=" * 50)
     print(generated_code)
     print("=" * 50)
@@ -44,4 +64,4 @@ def test_attention_code_generation():
     print("✅ All tests passed! The attention code generation is working correctly.")
 
 if __name__ == "__main__":
-    test_attention_code_generation() 
+    test_embeddings_code_generation() 

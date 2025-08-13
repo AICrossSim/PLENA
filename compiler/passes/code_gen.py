@@ -11,7 +11,7 @@ from pathlib import Path
 
 from asm_templates import (
     projection_asm,
-    flash_attn_asm,
+    # flash_attn_asm,
     ffn_asm,
     rms_norm_asm,
     elementwise_add_asm,
@@ -34,21 +34,22 @@ def _load_template(template_name: str) -> str:
 def _generate_embedding_code(node: Dict[str, Any], model_info: Dict[str, Any], hardware_config: Dict[str, Any], scheduler: Dict[str, Any]) -> str:
     """Generate assembly code for embedding operations."""
     vocab_size = model_info["vocab_size"]
-    embedding_dim = node["dimensions"]["embedding_dim"]
     dim = node["dimensions"]
     # TODO need to add a dot product at the end.
     code = f"""
-; Embedding lookup: vocab_size={vocab_size}, embedding_dim={embedding_dim}
+; Embedding lookup: vocab_size={vocab_size}
 ; Input: token_ids, Output: embedded_vectors
 """
     code += embedding_asm(
-        vlen    = hardware_config.get("vlen", 16),
-        batch   = model_info.get("batch", 1),
-        alive_registers         = hardware_config.get("alive_registers", [1, 2, 3]),
+        mlen    = hardware_config.get("mlen", 16),
+        blen    = hardware_config.get("blen", 16),
+        batch                   = model_info.get("batch_size", 1),
+        hidden_size             = dim["hidden_size"],
+        alive_registers         = hardware_config.get("alive_registers", [1, 2, 3, 4]),
         voc_table_row_size      = vocab_size,
         activation_base_address = scheduler.get("activation_base_address", 0),
         voc_table_base_addr_reg_index = scheduler.get("register_assignment", {}).get("hbm_addr_reg", {}).get("token_table_offset", 0),
-        input_ids = [1]
+        input_ids = [1 for _ in range(model_info.get("batch_size", 1))]
     )
 
     return code.strip()
