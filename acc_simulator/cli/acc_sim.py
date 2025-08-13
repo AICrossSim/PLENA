@@ -139,10 +139,10 @@ def llama_eval(
             # could move back to parallel for eval but kept this false on tiamat
             model=move_to_gpu(model, model_parallel)
             # quantize and replace the rest
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate)
 
 
     if enable_eval_harness:

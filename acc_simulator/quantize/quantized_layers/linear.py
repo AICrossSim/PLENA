@@ -64,7 +64,7 @@ class MXFPLinearPTQ(nn.Module):
     def forward(self, input: Tensor) -> Tensor:
         if "Xq" in self.layer_type:
             if self.online_rotate_quant is not None:
-                input = self.online_rotate_quant(input)
+                qinput = self.online_rotate_quant(input)
             else:
                 input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
 
