@@ -71,7 +71,9 @@ module mx_systolic_mcu #(
 
     localparam SYS_ARRAY_AMOUNT = K / M;
     localparam COMPUTE_DIM = M;
-    localparam BLOCK_NUM_PER_ARRAY = ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT;
+    // If the BLOCK_DIM is larger than BLEN 
+    localparam BLOCK_NUM_PER_ARRAY = (M < BLOCK_DIM) ? 1 : M / BLOCK_DIM;
+    localparam DUPLICATE_BLOCK_NUM = (M < BLOCK_DIM) ? BLOCK_DIM / M : 1; 
 
     // -----------------------------
     // Data Wires Declaration
@@ -360,7 +362,7 @@ module mx_systolic_mcu #(
                 .MX_EXP_WIDTH       (MX_T_EXP_WIDTH),
                 .MX_MANT_WIDTH      (MX_T_MANT_WIDTH),
                 .MX_SCALE_WIDTH     (MX_SCALE_WIDTH),
-                .BLOCK_DIM          (BLOCK_DIM),
+                .BLOCK_DIM          (BLOCK_DIM / DUPLICATE_BLOCK_NUM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
                 .COMPUTE_DIM        (COMPUTE_DIM)
@@ -381,7 +383,7 @@ module mx_systolic_mcu #(
                 .MX_EXP_WIDTH       (MX_L_EXP_WIDTH),
                 .MX_MANT_WIDTH      (MX_L_MANT_WIDTH),
                 .MX_SCALE_WIDTH     (MX_SCALE_WIDTH),
-                .BLOCK_DIM          (BLOCK_DIM),
+                .BLOCK_DIM          (BLOCK_DIM / DUPLICATE_BLOCK_NUM),
                 .ACC_FP_EXP_WIDTH   (ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH  (ACC_FP_MANT_WIDTH),
                 .COMPUTE_DIM        (COMPUTE_DIM)
@@ -389,7 +391,7 @@ module mx_systolic_mcu #(
                 .clk(clk),
                 .rst(rst),
                 .data_elem_in   (v2_element[i * M +: M]),
-                .data_scale_in  (v2_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
+                .data_scale_in  (v2_scale[i / DUPLICATE_BLOCK_NUM]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
                 .data_in_ready  (v2_data_for_mm_in_ready[i]),
                 .data_elem_out  (array_left_in_element[i]),
@@ -404,7 +406,7 @@ module mx_systolic_mcu #(
                 .MX_L_EXP_WIDTH       (MX_L_EXP_WIDTH),
                 .MX_L_MANT_WIDTH      (MX_L_MANT_WIDTH),
                 .MX_SCALE_WIDTH       (MX_SCALE_WIDTH),
-                .BLOCK_DIM            (BLOCK_DIM),
+                .BLOCK_DIM            (BLOCK_DIM / DUPLICATE_BLOCK_NUM),
                 .ACC_FP_EXP_WIDTH     (ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH    (ACC_FP_MANT_WIDTH),
                 .COMPUTE_DIM          (COMPUTE_DIM)

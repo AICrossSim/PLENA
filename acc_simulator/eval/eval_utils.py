@@ -213,7 +213,8 @@ def quantize_model(
     quant_args: dict,
     linear_quantized: bool = False,
     full_system_sim: bool = False,
-    skip_lm_head: bool = True
+    skip_lm_head: bool = True,
+    online_rotate: bool = False,
 ):
     """
     Replaces specific modules in the model with their quantized counterparts based on preset.
@@ -252,7 +253,8 @@ def quantize_model(
             factory_fn=MXFPLinearPTQ.from_linear_gptq,
             kwargs=quant_args.get("fc_kwargs", {}),
             label="MXFPLinearPTQ",
-            skip_names=["lm_head"] if skip_lm_head else None
+            skip_names=["lm_head"] if skip_lm_head else None,
+            online_rotate=online_rotate
         )
     else:
         replace_modules(
@@ -262,7 +264,8 @@ def quantize_model(
             factory_fn=MXFPLinearPTQ.from_linear,
             kwargs=quant_args.get("fc_kwargs", {}),
             label="MXFPLinearPTQ",
-            skip_names=["lm_head"] if skip_lm_head else None
+            skip_names=["lm_head"] if skip_lm_head else None,
+            online_rotate=online_rotate
         )
 
     if not full_system_sim:

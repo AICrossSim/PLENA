@@ -50,7 +50,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_INT"]:
+        elif instruction.opcode in ["S_LUI_INT", "M_MM_WO", "M_MV_WO"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +
