@@ -51,3 +51,6 @@ kube/
 *.out
 temp/
 ckpts_*
+*.db
+*.db-journal
+co_design/interface/config.toml
