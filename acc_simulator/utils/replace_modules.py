@@ -40,7 +40,8 @@ def replace_modules(
     factory_fn: Callable[..., nn.Module],
     kwargs: dict,
     skip_names: Optional[list[str]] = None,
-    label: str = "layer"
+    label: str = "layer", 
+    online_rotate: bool = False,
 ) -> nn.Module:
     assert isinstance(model, LlamaForCausalLM)
     replaced = 0
@@ -62,8 +63,11 @@ def replace_modules(
             continue
         
         # Only rotate activation in down-projection
-        if target_class == nn.Linear and "down_proj" not in name and kwargs["online_rotate"] == True:
-            kwargs["online_rotate"] = False
+        if target_class == nn.Linear:
+            if "down_proj" not in name:
+                kwargs["online_rotate"] = online_rotate
+            else:
+                kwargs["online_rotate"] = False
 
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)
