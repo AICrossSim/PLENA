@@ -53,7 +53,7 @@ def llama_eval(
     clip_search_y: bool = False,
     seqlen: int = 2048,
     save_gptq_model: bool = False,
-    cali_batch_size: int = 32,
+    cali_batch_size: int = 64,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -130,6 +130,7 @@ def llama_eval(
                 cp = f"{save_dir}/ckpts_w_search"
             ckpt_dir = Path(cp) / model_name.replace('/', '_')
             ckpt_file = ckpt_dir / "model.safetensors"
+            print(f"Loading GPTQ model from {ckpt_file}")
             if ckpt_file.exists():
                 model=load_gptq(model, ckpt_dir)
             else:
