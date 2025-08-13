@@ -1,4 +1,4 @@
-MODEL_NAME_LIST=("meta-llama/Llama-2-70b-hf" "meta-llama/Meta-Llama-3-70B")
+MODEL_NAME_LIST=("meta-llama/Meta-Llama-3-70B")
 
 
 
@@ -14,7 +14,7 @@ for model_name in "${MODEL_NAME_LIST[@]}"; do
     for w_config in MXINT_4_B16_S8; do
       CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
         --model_name="$model_name" \
-        --preset XWqBqKVNL \
+        --preset XqWqBqKVqNL \
         --preset_W $w_config \
         --preset_X $x_kv_config \
         --preset_Kv $x_kv_config \
@@ -23,6 +23,7 @@ for model_name in "${MODEL_NAME_LIST[@]}"; do
         --online_rotate True \
         --clip_search_y True \
         --save_gptq True \
+        --save_dir ${CX_DATA_HOME}/saved_models \
         --log_dir results/w_${w_config}_x_${x_kv_config}_${model_name}
     done
   done

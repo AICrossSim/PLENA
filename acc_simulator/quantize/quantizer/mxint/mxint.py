@@ -104,7 +104,7 @@ def mxint_quantizer_sim(
             tensor, block_dim, mxint_meta, percentile=1.0
         )
 
-        percentiles=[1.0, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.80, 0.70, 0.60, 0.50]
+        percentiles=[1.0, 0.999, 0.995, 0.99, 0.97]
         for percentile in percentiles:
             # this scales is float(), need to fix later
             scales, elements, tensor_meta = extract_mxint_components(
@@ -115,26 +115,32 @@ def mxint_quantizer_sim(
 
             # search clipping based on output XW 
             if act_tensor != None:
-                BATCH_SIZE = cali_batch_size
+                # BATCH_SIZE = cali_batch_size
                 # act_tensor is of shape [num_calibrations, sequnce_len, blocksize]
+                out_orig = torch.matmul(act_tensor, qtensor.T)
                 last_dim = act_tensor.shape[-1]
                 if last_dim != B:
                     assert last_dim % B == 0, "Last dimension must be divisible by block size for GPTQ Clip output search"
                     act_tensor = act_tensor.view(*act_tensor.shape[:-1], last_dim // B, B)
 
-                total_batches = act_tensor.shape[0]
+                # total_batches = act_tensor.shape[0]
 
-                err = torch.zeros(qtensor.shape[0], device=tensor.device, dtype=tensor.dtype)
 
                 with torch.no_grad():
-                    for _, b in enumerate(tqdm(range(0, total_batches, BATCH_SIZE), desc="Batching quant output", disable = True)):
-                        act_b = act_tensor[b : b + BATCH_SIZE]  # [B, seq_len, hidden]
-                        out_q = torch.matmul(act_b, q.T )
-                        out_orig = torch.matmul(act_b, qtensor.T)
-                        err += torch.norm(out_q - out_orig, p=2, dim=(0, 1))
+                    out_q = torch.matmul(act_tensor, q.T)
+                    err = torch.norm(out_q - out_orig, p=2, dim=(0, 1))
+                    del out_q
+                    # torch.cuda.empty_cache()
 
-                        del act_b, out_q, out_orig
-                        torch.cuda.empty_cache()
+                    # breakpoint()
+                    # for _, b in enumerate(tqdm(range(0, total_batches, BATCH_SIZE), desc="Batching quant output", disable = True)):
+                    #     act_b = act_tensor[b : b + BATCH_SIZE]  # [B, seq_len, hidden]
+                    #     out_q = torch.matmul(act_b, q.T )
+                    #     out_orig = torch.matmul(act_b, qtensor.T)
+                    #     err += torch.norm(out_q - out_orig, p=2, dim=(0, 1))
+
+                    #     del act_b, out_q, out_orig
+                    #     torch.cuda.empty_cache()
 
                 torch.cuda.empty_cache()
             else:

@@ -1,5 +1,5 @@
 MODEL_NAME="meta-llama/Meta-Llama-3-8B"
-CUDA_DEVICE="cuda:1"
+CUDA_DEVICE="cuda:0"
 # --preset XWqBKVNL \
 echo $MODEL_NAME
 echo $CUDA_DEVICE
@@ -15,9 +15,10 @@ for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
       --preset_Kv $x_kv_config \
       --device_id "$CUDA_DEVICE" \
       --use_gptq True\
-      --online_rotate True \
+      --online_rotate False \
       --clip_search_y False \
       --save_gptq True \
+      --save_dir ${CX_DATA_HOME}/saved_config/${x_kv_config} \
       --log_dir results/w_${w_config}_x_${x_kv_config}
   done
 done
