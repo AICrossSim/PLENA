@@ -5,9 +5,10 @@ Test script for attention code generation
 
 import sys
 import os
+from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from passes.code_gen import _generate_embedding_code
+from assembler import AssemblyToBinary
 
 def test_embeddings_code_generation():
     """Test the embeddings code generation function"""
@@ -48,20 +49,21 @@ def test_embeddings_code_generation():
         scheduler=scheduler
     )
 
-    print("Generated Embedding Assembly Code:")
-    print("=" * 50)
-    print(generated_code)
-    print("=" * 50)
-    
-    # Basic validation
-    # assert "Flash Attention Implementation" in generated_code
-    # assert "S_LD_FIX i1, i0, 11" in generated_code
-    # assert "M_TMM_IC 0, i1, i2" in generated_code
-    # assert "M_TMM_PS i7, i1, i2" in generated_code
-    # assert "M_MM_WO i1, 0, 0" in generated_code
-    # assert "Flash Attention Implementation Template" in generated_code
-    
+    # Write out assembly
+    with open("generated_embedding_assembly.asm", "w") as f:
+        f.write(generated_code)
+
+    # Write out machine code
+    config_parent_path = Path(__file__).resolve().parents[2]
+    print(f"Config parent path: {config_parent_path}")
+
     print("✅ All tests passed! The attention code generation is working correctly.")
 
+
 if __name__ == "__main__":
-    test_embeddings_code_generation() 
+    test_embeddings_code_generation()
+    config_path = Path(__file__).resolve().parents[2] / "src" / "definitions" / "configuration.svh"
+    isa_def_path = Path(__file__).resolve().parents[2] / "src" / "definitions" / "operation.svh"
+    assembler = AssemblyToBinary(isa_def_path, config_path)
+    assembler.generate_binary("generated_embedding_assembly.asm", "generated_embedding_assembly.mem")
+    

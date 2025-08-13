@@ -71,7 +71,9 @@ module mx_systolic_mcu #(
 
     localparam SYS_ARRAY_AMOUNT = K / M;
     localparam COMPUTE_DIM = M;
-    localparam BLOCK_NUM_PER_ARRAY = ROW_BLOCK_NUM / SYS_ARRAY_AMOUNT;
+    // If the BLOCK_DIM is larger than BLEN 
+    localparam BLOCK_NUM_PER_ARRAY = if (M / BLOCK_DIM > 1) ? M / BLOCK_DIM : 1;
+    localparam DUPLICATE_BLOCK_NUM = if (M / BLOCK_DIM > 1) ? BLOCK_DIM / M : 1; 
 
     // -----------------------------
     // Data Wires Declaration
@@ -389,7 +391,7 @@ module mx_systolic_mcu #(
                 .clk(clk),
                 .rst(rst),
                 .data_elem_in   (v2_element[i * M +: M]),
-                .data_scale_in  (v2_scale[i * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
+                .data_scale_in  (v2_scale[(i / DUPLICATE_BLOCK_NUM) * BLOCK_NUM_PER_ARRAY +: BLOCK_NUM_PER_ARRAY]),
                 .data_in_valid  (v2_data_for_mm_in_valid[i]),
                 .data_in_ready  (v2_data_for_mm_in_ready[i]),
                 .data_elem_out  (array_left_in_element[i]),
