@@ -10,7 +10,7 @@ package configuration_pkg;
     parameter   BLEN = 4;
     parameter   MLEN = 128;
     parameter   Matrix_Parallel_Rd_Dim = 1;
-    parameter   VLEN = MLEN;
+    parameter   VLEN = 128;
     parameter   INST_BUFF_DEPTH = 16;
     parameter   ON_CHIP_ADDR_WIDTH = precision_pkg::INT_DATA_WIDTH;
     parameter   SourceWidth = 1;
