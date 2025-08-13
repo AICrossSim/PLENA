@@ -1,7 +1,4 @@
 from typing import Literal, Optional, Tuple
-import math
-import fast_hadamard_transform
-
 import torch
 from torch import Tensor, nn, LongTensor
 from transformers.models.llama.modeling_llama import (
@@ -88,13 +85,14 @@ class LlamaAttentionMXFP(LlamaAttention):
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
 
-            _key_states, _value_states = kv_cache_mxfp(key_states, 
+            key_states, value_states = kv_cache_mxfp(key_states, 
                                                        value_states, 
                                                        self.kv_cache_meta, 
-                                                       self.kv_func_type)
+                                                       self.kv_func_type,
+                                                       self.online_rotate)
 
             key_states, value_states = past_key_value.update(
-                _key_states, _value_states, self.layer_idx, cache_kwargs
+                key_states, value_states, self.layer_idx, cache_kwargs
             )
 
         attention_interface: callable = eager_attention_forward_mxfp
@@ -115,20 +113,13 @@ class LlamaAttentionMXFP(LlamaAttention):
             av_func_type=self.av_func_type,
             softmax_meta=self.softmax_meta,
             softmax_func_type=self.softmax_func_type,
+            online_rotate=self.online_rotate,
             **kwargs,
         )
 
         # (batch_size, seq_len, num_heads, head_dim) → (batch_size, seq_len, num_heads * head_dim)
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
 
-        # online hadamard here for activation before o_proj
-        if self.online_rotate:
-            init_shape = attn_output.shape
-            had_dim =  self.config.head_dim
-            attn_output = fast_hadamard_transform.hadamard_transform(attn_output.reshape(-1, init_shape[-1]//had_dim, had_dim).transpose(1, 2),
-                                                               scale=1/math.sqrt(init_shape[-1]//had_dim)).transpose(1, 2)
-            attn_output = attn_output.reshape(init_shape)
-        
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -191,21 +182,25 @@ def eager_attention_forward_mxfp(
     softmax_meta: MinifloatMeta | None = None,
     softmax_func_type: Literal["X", "Xq"] | None = None,
     av_func_type: Literal["XW", "XqW", "XWq", "XqWq"] | None = None,
+    online_rotate: bool = False,
     **kwargs,
 ):
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
+    # attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
     # *: quantized QK matmul if meta is not None
-    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
-    # attn_weights = matmul_mxfp(
-    #     query,
-    #     key_states.transpose(2, 3),
-    #     input_meta=qk_q_meta,
-    #     other_meta=qk_k_meta,
-    #     func_type=qk_func_type
-    # )
-    # attn_weights = attn_weights * scaling
+    attn_weights = matmul_mxfp(
+        query,
+        key_states.transpose(2, 3),
+        input_meta=qk_q_meta,
+        other_meta=qk_k_meta,
+        func_type=qk_func_type,
+        online_rotate=online_rotate
+    )
+    attn_weights = attn_weights * scaling
+
+
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -221,14 +216,15 @@ def eager_attention_forward_mxfp(
         attn_weights, p=dropout, training=module.training
     )
     # *: quantized AV matmul if meta is not None
-    attn_output = torch.matmul(attn_weights, value_states)
-    # attn_output = matmul_mxfp(
-    #     attn_weights,
-    #     value_states,
-    #     input_meta=av_a_meta,
-    #     other_meta=av_v_meta,
-    #     func_type=av_func_type
-    # )
+    attn_output = matmul_mxfp(
+        attn_weights,
+        value_states,
+        input_meta=av_a_meta,
+        other_meta=av_v_meta,
+        func_type=av_func_type,
+        online_rotate=online_rotate
+    )
+    # attn_output = torch.matmul(attn_weights, value_states)
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights

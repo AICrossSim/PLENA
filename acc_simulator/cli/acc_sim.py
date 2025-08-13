@@ -20,19 +20,18 @@ Usage:
 """
 
 from typing import Union
+from pathlib import Path
 import time
+import logging
 
 import torch
 import transformers
 
-from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model
+from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model, move_to_gpu, load_gptq, save_gptq
 from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
-from cfl_tools.logger import get_logger, set_logging_verbosity
-
-logger = get_logger(__name__)
-set_logging_verbosity(logger, "INFO")
+from ..gptq import quantize_model_gptq, get_loaders
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -43,12 +42,17 @@ def llama_eval(
     preset_W: Union[str, None] = None,
     preset_Kv: Union[str, None] = None,
     preset_NL: Union[str, None] = None,
-    model_parallel: bool = True,
+    device_id: str = None,
+    model_parallel: bool = False,
     log_dir: Union[str, None] = None,
     enable_eval_harness: bool = False,
     use_gptq: bool = False,
     offline_rotate: bool = False,
-    online_rotate: bool = False
+    online_rotate: bool = False,
+    clip_search_y: bool = False,
+    seqlen: int = 2048,
+    save_gptq_model: bool = False,
+    cali_batch_size: int = 32,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -74,8 +78,9 @@ def llama_eval(
             Defaults to True.
         offline_rotate: Whether to apply offline hadamard rotation.
         online_rotate: Whether to apply online inner layer activation rotation.
+        clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
+        cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
     """
-    start_time = time.time()
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
         preset_X,
@@ -84,8 +89,7 @@ def llama_eval(
         preset_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate)
-    logger.info(f"Quantization arguments: {quant_args}")
+    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate, clip_search_y)
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)
@@ -100,27 +104,45 @@ def llama_eval(
     else:
         print("Using original parameters, no quantization applied.")
 
-    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16)
-    
-    # TODO: set seed properly later, also seed the calibration samples
     transformers.set_seed(0)
+    # TODO: set the model path to the models checkpoints already stored inside .data/models/hw1020/
+    tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16, 
+                                   device=device_id if not model_parallel else None)
+
     model.eval()
-    if offline_rotate:
-        fuse_rms_norms(model)
-        replace_rms_norms(model)
-        rotate_llama(model, online_rotate) 
-        if online_rotate:
-            quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
-    
-    quantize_model(model=model, quant_args=quant_args, linear_only=True, skip_lm_head=False)
-    
+
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
-            pass
+            # TODO: deal with args later on
+            trainloader = get_loaders(
+                "wikitext2", nsamples=128,
+                seed=0, model=model_name,
+                seqlen=seqlen, eval_mode=False
+            )
+            # GPTQ first quantize and repalce linear, 
+            # move each decoder block on gpu to quantize, 
+            # disable model parallel for gptq for now, hence use model's device rn.
+            cp = "/data/models/hw1020/ckpts_y_search"
+            ckpt_dir = Path(cp) / model_name.replace('/', '_')
+            ckpt_file = ckpt_dir / "model.safetensors"
+            if ckpt_file.exists():
+                model=load_gptq(model, ckpt_dir)
+            else:
+                # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
+                model.to("cpu")
+                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size)
+                # right now always save the weights after gptq, and not rewrite
+                if save_gptq_model and not ckpt_file.exists():
+                    ckpt_dir.mkdir(parents=True, exist_ok=True)
+                    save_gptq(model, ckpt_dir)
+            # could move back to parallel for eval but kept this false on tiamat
+            model=move_to_gpu(model, model_parallel)
+            # quantize and replace the rest
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False)
         else:
-            # Cast without GPTQ
-            pass
+            # Direct cast without GPTQ, round-to-nearest mode
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False)
 
 
     if enable_eval_harness:
@@ -128,7 +150,7 @@ def llama_eval(
             model=model, 
             tokenizer=tokenizer, 
             tasks=tasks, 
-            max_length=2048, 
+            max_length=seqlen, 
             batch_size="auto", 
             log_samples=False)
     else:
@@ -136,14 +158,12 @@ def llama_eval(
             model=model, 
             tokenizer=tokenizer, 
             dataset_name=tasks, 
-            max_length=2048,
+            max_length=seqlen,
             verbose=True)
 
     if log_dir:
         save_results(log_dir, results)
 
-    total_time = time.time() - start_time
-    print(f"\n[INFO] Total workload time: {total_time:.2f} seconds")
     return results
 
 if __name__ == "__main__":

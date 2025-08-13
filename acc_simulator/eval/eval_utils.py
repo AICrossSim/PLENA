@@ -18,6 +18,7 @@ from transformers.models.llama.modeling_llama import (
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import dispatch_model
 
+from safetensors.torch import save_file, load_file
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
@@ -170,7 +171,7 @@ def validate_and_sanitize_quant_args(
     return preset_X, preset_W, preset_Kv, preset_NL
 
 
-def setup_model(model_name, model_parallel, dtype):
+def setup_model(model_name, model_parallel, dtype, device):
         # set tokenizer like this for now
         if "meta" in model_name:
             tokenizer = AutoTokenizer.from_pretrained(
@@ -182,19 +183,36 @@ def setup_model(model_name, model_parallel, dtype):
         model = AutoModelForCausalLM.from_pretrained(
             model_name, torch_dtype=dtype, attn_implementation="eager"
         )
+        # Temp, load on cpu only
+        return tokenizer, model
         if model_parallel:
             device_map = create_device_map(model, "auto-balanced")
             model = dispatch_model(model, device_map=device_map)
         else: 
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            model = model.to(device)
+            if device:
+                model = model.to(device)
+            else:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                model = model.to(device)
         return tokenizer, model
-    
+
+def move_to_gpu(model, model_parallel=True):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device =="cpu":
+        return model
+    if model_parallel:
+        device_map = create_device_map(model, "auto-balanced")
+        model = dispatch_model(model, device_map=device_map)
+    else:
+        model = model.to(device)
+    return model
+
 
 def quantize_model(
     model: nn.Module,
     quant_args: dict,
-    linear_only: bool = False,
+    linear_quantized: bool = False,
+    full_system_sim: bool = False,
     skip_lm_head: bool = True
 ):
     """
@@ -206,7 +224,6 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
-    # Order matters
     # Replace MLP activations (e.g., SiLU)
     replace_modules(
         model,
@@ -226,20 +243,29 @@ def quantize_model(
         kwargs=quant_args.get("attn_kwargs", {}),
         label="LlamaAttention"
     )
-    
-    # Replace linear layers (always included)
-    replace_modules(
-        model,
-        target_class=nn.Linear,
-        replacement_class=MXFPLinearPTQ,
-        factory_fn=MXFPLinearPTQ.from_linear,
-        kwargs=quant_args.get("fc_kwargs", {}),
-        label="MXFPLinearPTQ",
-        skip_names=["lm_head"] if skip_lm_head else None
-    )
 
-    # TODO: set flag properly laterx
-    if linear_only:
+    if linear_quantized: 
+        replace_modules(
+            model,
+            target_class=nn.Linear,
+            replacement_class=MXFPLinearPTQ,
+            factory_fn=MXFPLinearPTQ.from_linear_gptq,
+            kwargs=quant_args.get("fc_kwargs", {}),
+            label="MXFPLinearPTQ",
+            skip_names=["lm_head"] if skip_lm_head else None
+        )
+    else:
+        replace_modules(
+            model,
+            target_class=nn.Linear,
+            replacement_class=MXFPLinearPTQ,
+            factory_fn=MXFPLinearPTQ.from_linear,
+            kwargs=quant_args.get("fc_kwargs", {}),
+            label="MXFPLinearPTQ",
+            skip_names=["lm_head"] if skip_lm_head else None
+        )
+
+    if not full_system_sim:
         return
 
     # Replace embedding layers
@@ -262,17 +288,15 @@ def quantize_model(
         label="FPRMSNormPTQ"
     )
 
+def save_gptq(model, out_dir: str):
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    sd = model.to("cpu").state_dict()
+    save_file(sd, f"{out_dir}/model.safetensors")
 
-def plot_activation_distribution(tensor, title: str, step: int = 0, save_path: str = "act_hist.png"):
-    data = tensor.detach().cpu().flatten().numpy()
-
-    plt.figure(figsize=(6, 4))
-    plt.hist(data, bins=100, alpha=0.7)
-    plt.title(title)
-    plt.xlabel("Activation value")
-    plt.ylabel("Frequency")
-    plt.xlim(-0.1, 0.1)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(f"{save_path}_{step}.png")
-    plt.close()
+def load_gptq(model, ckpt_dir: str):
+    sd = load_file(f"{ckpt_dir}/model.safetensors")
+    model.load_state_dict(sd, strict=True)  # requires same arch/vocab
+    model.eval()
+    try: model.tie_weights()
+    except Exception: pass
+    return model
