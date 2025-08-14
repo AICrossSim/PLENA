@@ -44,5 +44,7 @@ This approach enables flexible, fine-grained control over build configurations f
 - `FP_SRAM_DEPTH`     >= `3 * MLEN + FP_CONSTANT_NUM`
 - `HBM_M_Prefetch_Amount` >= `BLEN`
 - `HBM_V_Prefetch_Amount` >= `BLEN`
+- `(MLEN * ACT_ELEMENT_WIDTH + (MLEN // BLOCK_DIM) * ACT_SCALE_WIDTH) < 1007` Assuming 1GHz, 1TB/s bandwidth
+- `(VLEN * ACT_ELEMENT_WIDTH + (VLEN // BLOCK_DIM) * ACT_SCALE_WIDTH) < 1007` Assuming 1GHz, 1TB/s bandwidth
 
 ### Precision Parameters

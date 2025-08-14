@@ -10,6 +10,7 @@ def rms_norm_asm(
     activation_base_address: int,
     scratchpad_base_address: int,
     vlen: int,
+    batch_size: int,
     hidden_dim: int
 ) -> str:
     """
@@ -27,33 +28,32 @@ def rms_norm_asm(
     generated_code += "S_ADD_FP f2, f0, f0 \n"
     # Load the 1/ hidden_dim into f3
     generated_code += f"S_LD_FP f3, gp0, {reci_hid_offset} \n"
+    for batch in range(batch_size):
+        for i in range(hidden_dim // vlen):
+            # Compute square of the activation vector and summation
+            generated_code += f"V_MUL_VV gp{scratchpad_addr}, gp{act_addr}, gp{act_addr} \n"
+            generated_code += f"V_RED_SUM f2, gp{scratchpad_addr} \n"
 
-    for i in range(hidden_dim // vlen):
+            # Move to next vector
+            generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen} \n"
+        
+        # Taking the avg
+        generated_code += f"S_MUL_FP f2, f2, f3 \n"
 
-        # Compute square of the activation vector and summation
-        generated_code += f"V_MUL_VV gp{scratchpad_addr}, gp{act_addr}, gp{act_addr} \n"
-        generated_code += f"V_RED_SUM f2, gp{scratchpad_addr} \n"
+        # Plus epsilon
+        generated_code += f"S_ADD_FP f2, f2, f1 \n"
 
-        # Move to next vector
-        generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen} \n"
-    
-    # Taking the avg
-    generated_code += f"S_MUL_FP f2, f2, f3 \n"
+        # Compute square root
+        generated_code += "S_SQRT_FP f2, f2 \n"
 
-    # Plus epsilon
-    generated_code += f"S_ADD_FP f2, f2, f1 \n"
+        # Compute reciprocal
+        generated_code += "S_RECI_FP f2, f2 \n"
 
-    # Compute square root
-    generated_code += "S_SQRT_FP f2, f2 \n"
+        for i in range(hidden_dim // vlen):
+            # Normalize the activation vector
+            generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f2 \n"
 
-    # Compute reciprocal
-    generated_code += "S_RECI_FP f2, f2 \n"
-
-    for i in range(hidden_dim // vlen):
-        # Normalize the activation vector
-        generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f2 \n"
-
-        # Move to next vector
-        generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen} \n"
+            # Move to next vector
+            generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen} \n"
 
     return generated_code
