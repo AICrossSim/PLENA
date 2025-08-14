@@ -62,7 +62,7 @@ class GPTQ:
 
         # set blocksize in gptq to be the same as the mx block from meta
         blocksize = w_meta.block_size
-        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=False):
+        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=True):
             i2 = min(i1 + blocksize, self.columns)
 
             W1 = W[:, i1:i2].clone()

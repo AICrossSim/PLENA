@@ -123,10 +123,7 @@ def llama_eval(
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
-            if clip_search_y:
-                cp = "/data/models/hw1020/ckpts_y_search"
-            else:
-                cp = "/data/models/hw1020/ckpts_w_search"
+            cp = "ckpts_y_search"
             ckpt_dir = Path(cp) / model_name.replace('/', '_')
             ckpt_file = ckpt_dir / "model.safetensors"
             print(f"Loading GPTQ model from {ckpt_file}")
