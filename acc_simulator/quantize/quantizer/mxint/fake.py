@@ -25,7 +25,8 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta, percentile: float
 
     ori_dtype = x.dtype
     # quantile need fp32
-    x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True).to(ori_dtype)
+    # x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True).to(ori_dtype)
+    x_max = x.abs().max(dim=1, keepdim=True).values
 
     scale = x_max.log2().ceil()
     scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
