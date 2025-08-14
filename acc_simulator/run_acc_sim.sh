@@ -1,10 +1,11 @@
-MODEL_NAME="meta-llama/Meta-Llama-3-70B"
+# MODEL_NAME="meta-llama/Meta-Llama-3-8B"
 # MODEL_NAME="meta-llama/Llama-2-7b-hf"
-CUDA_DEVICE="cuda:1"
+MODEL_NAME="meta-llama/Llama-3.2-1B"
+
+CUDA_DEVICE="cuda:0"
 # --preset XWqBKVNL \
 echo $MODEL_NAME
 echo $CUDA_DEVICE
-echo "original with rotation 8B MXFP6"
 
 CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 \
 python -m acc_simulator.cli.acc_sim \

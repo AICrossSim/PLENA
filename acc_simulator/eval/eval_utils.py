@@ -18,7 +18,7 @@ from transformers.models.llama.modeling_llama import (
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import dispatch_model
 
-from safetensors.torch import save_file, load_file
+from safetensors.torch import save_file, load_file, save_model
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
@@ -293,8 +293,9 @@ def quantize_model(
 
 def save_gptq(model, out_dir: str):
     Path(out_dir).mkdir(parents=True, exist_ok=True)
-    sd = model.to("cpu").state_dict()
-    save_file(sd, f"{out_dir}/model.safetensors")
+    # sd = model.to("cpu").state_dict()
+    # save_file(sd, f"{out_dir}/model.safetensors")
+    save_model(model, f"{out_dir}/model.safetensors")
 
 def load_gptq(model, ckpt_dir: str):
     sd = load_file(f"{ckpt_dir}/model.safetensors")

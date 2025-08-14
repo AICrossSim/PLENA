@@ -5,10 +5,10 @@ from ...acc_simulator.cli.acc_sim import llama_eval
 from .utils import parse_precision_config, build_llama_eval_kwargs
 
 SAMPELED_CONFIG_TOML = "config/config_sampled.toml"
-UNIT_INFO_FILE = "simulators/coproc_llama/tools/cost_model/utilisation/individual_units_lib.json"
+UNIT_INFO_FILE = "tools/cost_model/utilisation/individual_units_lib.json"
 CONFIG_PATH_SVH = "config/configuration.svh"
-CUSTOM_ISA_PATH = "simulators/coproc_llama/tools/cost_model/latency/customISA_lib.json"
-MODEL_CONFIG_PATH = "simulators/coproc_llama/doc/Model_Lib/llama-3.1-8b.json"
+CUSTOM_ISA_PATH = "tools/cost_model/latency/customISA_lib.json"
+MODEL_CONFIG_PATH = "doc/Model_Lib/llama-3.1-8b.json"
 
 def get_area():
     config_path = SAMPELED_CONFIG_TOML
@@ -39,6 +39,8 @@ def get_latency():
     
 
 def get_accuracy():
+    # TODO: set up gptq checkpoints
+    model_path = ""
     precision = parse_precision_config(SAMPELED_CONFIG_TOML)
     kwargs = build_llama_eval_kwargs(precision)
 
