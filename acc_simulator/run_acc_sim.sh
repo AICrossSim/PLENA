@@ -20,5 +20,5 @@ python -m acc_simulator.cli.acc_sim \
   --clip_search_y True \
   --log_dir results \
   --save_gptq True \
-  --cali_batch_size 32 \
+  --cali_batch_size 128 \
 #   > save_8b_gptq.log 2>&1

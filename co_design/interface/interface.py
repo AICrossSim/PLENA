@@ -5,9 +5,9 @@ from ...acc_simulator.cli.acc_sim import llama_eval
 from .utils import parse_precision_config, build_llama_eval_kwargs
 
 SAMPELED_CONFIG_TOML = "config/config_sampled.toml"
-UNIT_INFO_FILE = "tools/cost_model/utilisation/individual_units_lib.json"
-CONFIG_PATH_SVH = "config/configuration.svh"
-CUSTOM_ISA_PATH = "tools/cost_model/latency/customISA_lib.json"
+UNIT_INFO_FILE = "/tools/cost_model/utilisation/individual_units_lib.json"
+CONFIG_PATH_SVH = "/config/configuration.svh"
+CUSTOM_ISA_PATH = "/tools/cost_model/latency/customISA_lib.json"
 MODEL_CONFIG_PATH = "doc/Model_Lib/llama-3.1-8b.json"
 
 def get_area():
@@ -31,6 +31,8 @@ def get_latency():
         svh_path=config_path)
     
     custom_isa_path  = CUSTOM_ISA_PATH
+    # TODO: no need to a spefici config path, call model config directly, llam3.config 
+    model_config_path = 
     model_config_path = MODEL_CONFIG_PATH
     model = instr_latency_model(config_path, custom_isa_path, model_config_path)
     overall_latency = model.obtain_overall_latency()
