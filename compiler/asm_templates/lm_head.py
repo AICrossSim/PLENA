@@ -9,6 +9,7 @@ def lm_head_asm(
     blen: int,
     batch: int,
     hidden_size: int,
+    vocab_size: int,
     alive_registers: List[int],
     voc_table_row_size: int,
     activation_base_address: int,
@@ -33,7 +34,7 @@ def lm_head_asm(
 
     # Need to perform dot product with dim (hidden_size, hidden_size) @ (hidden_size, batch_size)
     for m in range(hidden_size // blen):
-        for j in range(hidden_size // mlen):
+        for j in range(vocab_size // mlen):
             for i in range(blen):
                 if m == 0:
                     # Load to on-chip memory

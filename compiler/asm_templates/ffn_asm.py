@@ -51,6 +51,7 @@ def ffn_asm(
     increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {mlen} \n"
 
     row_loop_over_hid = intermediate_size // blen
+    vect_loop_over_hid = intermediate_size // vlen
     col_loop_over_hid = hidden_size // mlen
     generated_code += set_w_base_register
     generated_code += set_a_base_address
@@ -71,7 +72,7 @@ def ffn_asm(
     generated_code += "; SILU Generation \n"
     fp_const_reg = "f1"
     generated_code += f"S_LD_FP {fp_const_reg}, gp0, {const_address} \n"
-    for i in range(row_loop_over_hid):
+    for i in range(vect_loop_over_hid):
         generated_code += f"; <---- per VLEN block {i} ----> \n"
         generated_code += f"V_SUB_VV {intermediate_register}, {intermediate_register}, {result_register} \n"
         generated_code += f"V_EXP_V  {intermediate_register}, {intermediate_register} \n"
