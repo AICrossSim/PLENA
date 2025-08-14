@@ -146,8 +146,7 @@ def mxint_quantizer_sim(
             
             out_orig = torch.matmul(act_tensor, qtensor.T)
             # out_q = torch.matmul(act_tensor, quant_tensor.T)# hope to generate a value with [len(percentiles), seq_len, n_blocks*hidden]
-            breakpoint()
-            out_q = torch.einsum('sb,phb->psh', act_tensor, quant_tensor)
+            out_q = torch.einsum('asb,phb->pash', act_tensor, quant_tensor.to(act_tensor.dtype))
             err = torch.norm(out_q - out_orig, p=2, dim=(1, 2))
             min_err_idx = torch.argmin(err, dim=0)
 
