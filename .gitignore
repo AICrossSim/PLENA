@@ -40,7 +40,7 @@ src/basic_components/synopsis/
 
 *.pt
 *.asm
-*.specific.sh
+specific.sh
 acc_simulator/results/
 
 acc_simulator/third_party/

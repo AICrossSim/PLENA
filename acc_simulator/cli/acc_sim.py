@@ -142,10 +142,17 @@ def llama_eval(
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
                     save_gptq(model, ckpt_dir)
             # could move back to parallel for eval but kept this false on tiamat
-            model=move_to_gpu(model, model_parallel)
+            if model_parallel:
+                model=move_to_gpu(model, model_parallel)
+            else:
+                model.to(device_id)
             # quantize and replace the rest
             quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate)
         else:
+            if model_parallel:
+                model=move_to_gpu(model, model_parallel)
+            else:
+                model.to(device_id)
             # Direct cast without GPTQ, round-to-nearest mode
             quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate)
 
