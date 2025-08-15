@@ -184,7 +184,7 @@ def setup_model(model_name, model_parallel, dtype, device):
             model_name, torch_dtype=dtype, attn_implementation="eager"
         )
         # Temp, load on cpu only
-        return tokenizer, model
+        # return tokenizer, model
         if model_parallel:
             device_map = create_device_map(model, "auto-balanced")
             model = dispatch_model(model, device_map=device_map)

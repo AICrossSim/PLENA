@@ -13,12 +13,14 @@ def parse_precision_config(config_path: str) -> dict:
     return extracted
 
 def build_llama_eval_kwargs(precision: dict, preset: str = "XqWqBqKVqNLq", minifloat: str = None) -> dict:
-    # Build MXFP suffix from scale and block
-    scale = precision["MXFP_SCALE_WIDTH"]
-    block = precision["BLOCK_DIM"]
+    # Build MX suffix from scale and block
+    scale = 8
+    block = 16
     suffix = f"B{block}_S{scale}"
+    breakpoint()
 
     # Prepare the kwargs
+    # TODO: big interface changes now.
     return {
         "model_name": "meta-llama/Llama-3.2-1B",
         "preset": preset,
