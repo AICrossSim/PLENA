@@ -8,14 +8,19 @@ from optuna.samplers import RandomSampler, TPESampler
 from optuna.integration.botorch import BoTorchSampler
 
 from ..interface.interface import get_accuracy, get_area, get_latency
-from ..interface.utils import load_toml_config, write_active_config_to_toml, get_bit_width
-from .utils import is_power_of_two, normalize_objective, post_search
+from ..interface.utils import load_toml_config, get_bit_width
+from .utils import is_power_of_two, normalize_objective, post_search, check_constraints
 
 
 LAT_MIN, LAT_MAX = 0, 2
 AREA_MIN, AREA_MAX = 0, 169718611.76
 
-def objective(trial: optuna.Trial, tunables: Dict[str, Any], gpu_id: int, set_constraints: bool = True, normalize: bool = False) -> tuple[float, float, float]:
+def objective(trial: optuna.Trial, 
+              tunables: Dict[str, Any], 
+              gpu_id: int, 
+              set_constraints: bool = True, 
+              normalize: bool = False,
+              model_name: str = None) -> tuple[float, float, float]:
     config = {}
 
     for key, values in tunables.items():
@@ -32,20 +37,14 @@ def objective(trial: optuna.Trial, tunables: Dict[str, Any], gpu_id: int, set_co
     config_hw = config.copy()
     config_hw["ACT_ELEMENT_WIDTH"] = get_bit_width(config["ACT_ELEMENT_WIDTH"])
     config_hw["KV_ELEMENT_WIDTH"] = get_bit_width(config["KV_ELEMENT_WIDTH"])
-    # setting simple parameter constraints, precision related for now
-    # TODO: add more constraints here
-    try:
-        sum_nl = config["FP_EXP_WIDTH"] + config["FP_MANT_WIDTH"]+1
-    except KeyError as e:
-        raise optuna.TrialPruned()  # Missing expected keys → prune
 
-    if not (is_power_of_two(sum_nl) and sum_nl <= 16):
+    if not check_constraints(config_hw, model_name=model_name):
         raise optuna.TrialPruned()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     # Now the simulator shoudld takes in the config dictionary instead of mnanually reading from the file paths
-    accuracy, latency, area = run_simulation(config_hw, config_acc, model_name="meta-llama/Llama-3.2-1B")
+    accuracy, latency, area = run_simulation(config_hw, config_acc, model_name=model_name)
 
     if set_constraints:
         # store raw metrics for constraints_func
@@ -84,6 +83,7 @@ def trial_worker(trial_index: int, tunables: Dict[str, Any], study_name: str, st
 
 
 def search(
+    model_name: str = "meta-llama/Llama-3.2-1B",
     config_path: str = "src/definitions/config.toml",
     n_trials: int = 300,
     visualize: bool = False,
@@ -92,7 +92,7 @@ def search(
     trials_per_gpu: int = 1,
     normalize: bool = False,
     set_constraints: bool = False,
-    parallel: bool = True
+    parallel: bool = False
 ):
     tunables = load_toml_config(config_path, mode="tunable_range")
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
@@ -131,7 +131,7 @@ def search(
             with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
                 futures = [
                     executor.submit(
-                        trial_worker, i, tunables, study_name, storage, num_gpus, set_constraints
+                        trial_worker, i, tunables, study_name, storage, num_gpus, set_constraints, model_name=model_name, normalize=normalize
                     )
                     for i in range(n_trials)
                 ]
@@ -146,7 +146,7 @@ def search(
         study = optuna.load_study(study_name=study_name, storage=storage)
         for i in range(n_trials):
             gpu_id = i % num_gpus
-            study.optimize(lambda trial: objective(trial, tunables, gpu_id, set_constraints),
+            study.optimize(lambda trial: objective(trial, tunables, gpu_id, set_constraints, model_name=model_name, normalize=normalize),
                            n_trials=1)
             
     post_search(study_name, storage, normalize=normalize, visualize=visualize)
