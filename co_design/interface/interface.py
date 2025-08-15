@@ -12,9 +12,10 @@ CUSTOM_ISA_PATH = "tools/cost_model/latency/customISA_lib.json"
 MODEL_CONFIG_LIB = {"meta-llama/Llama-3.2-1B": "doc/Model_Lib/llama-3.1-8b.json",
          "meta-llama/Meta-Llama-3-8B": "doc/Model_Lib/llama-3-8b.json"}
 
+GPTQ_MODEL_CKPT_PATH = "ckpts"
 
 
-def get_area(config_dict: dict = None):
+def get_area(config_dict: dict) -> float:
     utilisation = utilisation_model(CONFIG_PATH, PRECISION_PATH, UNIT_INFO_PATH)
     # test_from_toml = load_toml_config(TOML_PATH, "active")
     area = utilisation.obtain_resource_utilisation(config_dict)
@@ -22,8 +23,8 @@ def get_area(config_dict: dict = None):
     return area
 
 
-def get_latency(config_dict: dict = None, 
-                model_name: str = "meta-llama/Llama-3.2-1B"):
+def get_latency(config_dict: dict, 
+                model_name: str = "meta-llama/Llama-3.2-1B") -> float:
     model = instr_latency_model(CONFIG_PATH, CUSTOM_ISA_PATH, MODEL_CONFIG_LIB[model_name])
     # test_from_toml = load_toml_config(toml_path, "active")
     overall_latency = model.obtain_overall_latency(config_dict)
@@ -31,14 +32,14 @@ def get_latency(config_dict: dict = None,
     return overall_latency
     
 
-def get_accuracy(config_dict: dict = None,
-                 model_name: str = "meta-llama/Llama-3.2-1B"):
+def get_accuracy(config_dict: dict,
+                 model_name: str = "meta-llama/Llama-3.2-1B") -> float:
     # TODO: set up gptq checkpoints
-    # model_path = ""
-    breakpoint()
-    precision = parse_precision_config(TOML_PATH)
-    breakpoint()
-    kwargs = build_llama_eval_kwargs(precision)
+    kwargs = build_llama_eval_kwargs(precision=config_dict, 
+                                     preset="XqWqBqKVqNL", 
+                                     model_name=model_name,
+                                     full_system_sim=False,
+                                     gptq_ckpt_dir=GPTQ_MODEL_CKPT_PATH)
 
     # print("Calling llama_eval with arguments:")
     # for k, v in kwargs.items():

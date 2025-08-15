@@ -1,5 +1,26 @@
 import toml
 
+def get_bit_width(fmt: str) -> int:
+    fmt = fmt.upper()
+
+    if fmt.startswith("MXFP"):
+        # Example: MXFP_E5M2 → exponent=5, mantissa=2
+        # Remove the "MXFP_" prefix
+        fmt_body = fmt.split("_")[1]  # "E5M2"
+        # Remove leading 'E', then split by 'M'
+        exp_str, mant_str = fmt_body[1:].split("M")  # "5", "2"
+        exp = int(exp_str)
+        mant = int(mant_str)
+        return exp + mant + 1 
+
+    elif fmt.startswith("MXINT"):
+        # Example: MXINT8 → 8 bits total
+        bits = int(fmt.replace("MXINT_", ""))
+        return bits
+    else:
+        raise ValueError(f"Unknown format: {fmt}")
+
+
 def parse_precision_config(config_path: str) -> dict:
     """Parse TOML and extract relevant 'active' values from PRECISION section."""
     toml_data = toml.load(config_path)
@@ -12,24 +33,35 @@ def parse_precision_config(config_path: str) -> dict:
     # print(extracted)
     return extracted
 
-def build_llama_eval_kwargs(precision: dict, preset: str = "XqWqBqKVqNLq", minifloat: str = None) -> dict:
+def build_llama_eval_kwargs(precision: dict, 
+                            model_name,
+                            gptq_ckpt_dir,
+                            preset: str = "XqWqBqKVqNLq", 
+                            full_system_sim: bool = True) -> dict:
     # Build MX suffix from scale and block
     scale = 8
     block = 16
     suffix = f"B{block}_S{scale}"
-    breakpoint()
+    
+    if full_system_sim:
+        minifloat = f"FP_E{precision['FP_EXP_WIDTH']}M{precision['FP_MANT_WIDTH']}"
+    else:
+        minifloat = None
 
     # Prepare the kwargs
-    # TODO: big interface changes now.
     return {
-        "model_name": "meta-llama/Llama-3.2-1B",
+        "model_name": model_name,
         "preset": preset,
-        "preset_mxfp_X": f"MXFP_E{precision['ACT_MXFP_EXP_WIDTH']}M{precision['ACT_MXFP_MANT_WIDTH']}_{suffix}",
-        "preset_mxfp_W": f"MXFP_E{precision['WT_MXFP_EXP_WIDTH']}M{precision['WT_MXFP_MANT_WIDTH']}_{suffix}",
-        "preset_mxfp_Kv": f"MXFP_E{precision['KV_MXFP_EXP_WIDTH']}M{precision['KV_MXFP_MANT_WIDTH']}_{suffix}",
-        "preset_minifloat_NL": minifloat or f"FP_E{precision['V_FP_EXP_WIDTH']}M{precision['V_FP_MANT_WIDTH']}",
+        "preset_X": f"{precision['ACT_ELEMENT_WIDTH']}_{suffix}",
+        "preset_W": f"MXINT_4_{suffix}",
+        "preset_Kv": f"{precision['KV_ELEMENT_WIDTH']}_{suffix}",
+        "preset_NL": minifloat,
         "model_parallel": False,
         "enable_eval_harness": False,
+        "use_gptq": True,
+        "online_rotate": True,
+        "full_system_sim": full_system_sim,
+        "gptq_ckpt_dir": gptq_ckpt_dir,
     }
 
 def write_active_config_to_toml(config_path: str, updated_values: dict, output_path: str = None):

@@ -45,8 +45,8 @@ class instr_latency_model:
         self.instr_model = build_instr_model(hardware_settings_file, custom_isa_lib_file)
         self.model_config_file = model_config_file
         self.hardware_config = load_svh_settings(hardware_settings_file)
-        print(f"hardware config: {self.hardware_config}")
-        print(f"model config: {self.model_config_file}")
+        # print(f"hardware config: {self.hardware_config}")
+        # print(f"model config: {self.model_config_file}")
 
     def get_instr_info(self, instr_name):
         return self.model.get(instr_name, None)

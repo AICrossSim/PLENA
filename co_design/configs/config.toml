@@ -3,91 +3,21 @@ active = 8
 SIMULATION = 8
 ASIC = 8
 default = 4
-tunable_range = [ 2, 4, 8, 16, 32, 64, 128,]
+tunable_range = [ 2, 4, 8, 16, 32]
 
 [CONFIG.MLEN]
 active = 16
 SIMULATION = 128
 ASIC = 16
 default = 8
-tunable_range = [ 2, 4, 8, 16, 32, 64, 128, 256,]
+tunable_range = [ 2, 4, 8, 16, 32, 64, 128, 256, 512]
 
 [CONFIG.VLEN]
 active = 16
 SIMULATION = 128
 ASIC = 16
 default = 8
-tunable_range = [ 2, 4, 8, 16, 32, 64, 128, 256,]
-
-[CONFIG.Matrix_Parallel_Rd_Dim]
-active = 1
-SIMULATION = 1
-ASIC = 1
-default = 1
-tunable_range = [ 1,]
-
-[CONFIG.INST_BUFF_DEPTH]
-active = 16
-SIMULATION = 8
-ASIC = 16
-default = 8
-tunable_range = [ 4, 5, 6, 7, 8,]
-
-[CONFIG.HBM_ADDR_WIDTH]
-active = 128
-SIMULATION = 64
-ASIC = 128
-default = 64
-tunable_range = [ 32, 64, 128, 256,]
-
-[CONFIG.SourceWidth]
-active = 1
-SIMULATION = 1
-ASIC = 1
-default = 1
-tunable_range = [ 1, 2, 3, 4,]
-
-[CONFIG.SinkWidth]
-active = 1
-SIMULATION = 1
-ASIC = 1
-default = 1
-tunable_range = [ 1, 2, 3, 4,]
-
-[CONFIG.MATRIX_ACC_ADR_DEPTH]
-active = 8
-SIMULATION = 8
-ASIC = 8
-default = 8
-tunable_range = [ 4, 5, 6, 7, 8,]
-
-[CONFIG.MATRIX_SRAM_DEPTH]
-active = 256
-SIMULATION = 128
-ASIC = 256
-default = 128
-tunable_range = [ 64, 128, 256, 512,]
-
-[CONFIG.VECTOR_SRAM_DEPTH]
-active = 256
-SIMULATION = 128
-ASIC = 256
-default = 128
-tunable_range = [ 64, 128, 256, 512, 1024, 2048,]
-
-[CONFIG.INT_SRAM_DEPTH]
-active = 32
-SIMULATION = 32
-ASIC = 32
-default = 32
-tunable_range = [ 32, 64, 128, 256, 512,]
-
-[CONFIG.FP_SRAM_DEPTH]
-active = 32
-SIMULATION = 32
-ASIC = 32
-default = 32
-tunable_range = [ 32, 64, 128, 256, 512,]
+tunable_range = [ 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
 [CONFIG.HBM_M_Prefetch_Amount]
 active = 16
@@ -110,205 +40,38 @@ ASIC = 16
 default = 8
 tunable_range = [ 2, 4, 8, 16, 32, 64, 128, 256,]
 
-[CONFIG.HBM_ELE_WIDTH]
-active = 512
-SIMULATION = 256
-ASIC = 512
-default = 256
-tunable_range = [ 128, 256, 512, 1024, 2048, 4096,]
+[PRECISION.ACT_ELEMENT_WIDTH]
+active = 8
+SIMULATION = 8
+ASIC = 8
+default = 8
+tunable_range = [ "MXINT_2", "MXINT_4", "MXINT_8", "MXFP_E3M4", "MXFP_E4M3", "MXFP_E5M2"]
 
-[CONFIG.HBM_SCALE_WIDTH]
-active = 512
-SIMULATION = 256
-ASIC = 512
-default = 256
-tunable_range = [ 128, 256, 512, 1024, 2048, 4096,]
+[PRECISION.KV_ELEMENT_WIDTH]
+active = 8
+SIMULATION = 8
+ASIC = 8
+default = 8
+tunable_range = [ "MXINT_2", "MXINT_4", "MXINT_8", "MXFP_E3M4", "MXFP_E4M3", "MXFP_E5M2"]
 
-[INSTR.FP_OPERAND_WIDTH]
-active = 3
-SIMULATION = 3
-ASIC = 3
-default = 3
-tunable_range = [ 1, 2, 3, 4, 5,]
-
-[INSTR.OPERAND_WIDTH]
-active = 3
-SIMULATION = 3
-ASIC = 3
-default = 3
-tunable_range = [ 1, 2, 3, 4, 5,]
-
-[INSTR.HBM_ADR_OPERAND_WIDTH]
-active = 3
-SIMULATION = 3
-ASIC = 3
-default = 3
-tunable_range = [ 1, 2, 3,]
-
-[INSTR.IMM_WIDTH]
+[PRECISION.FP_EXP_WIDTH]
 active = 7
 SIMULATION = 7
+ASIC = 8
+default = 7
+tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
+
+[PRECISION.FP_MANT_WIDTH]
+active = 8
+SIMULATION = 8
 ASIC = 7
-default = 7
-tunable_range = [ 1, 2, 3, 4, 5, 6, 7,]
-
-[INSTR.IMM_2_WIDTH]
-active = 7
-SIMULATION = 7
-ASIC = 7
-default = 7
-tunable_range = [ 1, 2, 3, 4,]
-
-[INSTR.INT_OPERAND_WIDTH]
-active = 8
-SIMULATION = 3
-ASIC = 4
-default = 3
-tunable_range = [ 2, 3, 4, 5]
-
-[PRECISION.ACT_MXFP_MANT_WIDTH]
-active = 7
-SIMULATION = 4
-ASIC = 5
-default = 4
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.ACT_MXFP_EXP_WIDTH]
-active = 8
-SIMULATION = 4
-ASIC = 5
-default = 4
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.KV_MX_MANT_WIDTH]
-active = 8
-SIMULATION = 3
-ASIC = 4
-default = 3
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
-
-[PRECISION.KV_MX_EXP_WIDTH]
-active = 4
-SIMULATION = 4
-ASIC = 5
-default = 4
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.WT_MX_MANT_WIDTH]
-active = 3
-SIMULATION = 3
-ASIC = 3
-default = 3
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
-
-[PRECISION.WT_MX_EXP_WIDTH]
-active = 4
-SIMULATION = 4
-ASIC = 4
-default = 4
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.MX_SCALE_WIDTH]
-active = 8
-SIMULATION = 8
-ASIC = 8
 default = 8
-tunable_range = [ 4, 8, 16,]
-
-[PRECISION.BLOCK_DIM]
-active = 4
-SIMULATION = 4
-ASIC = 8
-default = 4
-tunable_range = [ 4, 8, 16, 32, 64,]
-
-[PRECISION.V_FP_EXP_WIDTH]
-active = 7
-SIMULATION = 7
-ASIC = 8
-default = 7
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.V_FP_MANT_WIDTH]
-active = 8
-SIMULATION = 8
-ASIC = 10
-default = 8
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
-
-[PRECISION.M_FP_EXP_WIDTH]
-active = 7
-SIMULATION = 8
-ASIC = 10
-default = 8
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.M_FP_MANT_WIDTH]
-active = 8
-SIMULATION = 23
-ASIC = 24
-default = 23
 tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
 
 [PRECISION.INT_DATA_WIDTH]
-active = 16
+active = 32
 SIMULATION = 32
 ASIC = 32
 default = 32
 tunable_range = [ 16, 32, 64,]
 
-[PRECISION.PRODUCT_EXT_EXP_WIDTH]
-active = 0
-SIMULATION = 0
-ASIC = 0
-default = 0
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.PRODUCT_EXT_MANT_WIDTH]
-active = 0
-SIMULATION = 0
-ASIC = 0
-default = 0
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.BLOCK_ADD_EXT_EXP_WIDTH]
-active = 1
-SIMULATION = 1
-ASIC = 1
-default = 1
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.BLOCK_ADD_EXT_MANT_WIDTH]
-active = 0
-SIMULATION = 0
-ASIC = 0
-default = 0
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.FP_ADD_EXT_EXP_WIDTH]
-active = 1
-SIMULATION = 1
-ASIC = 1
-default = 1
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.FP_ADD_EXT_MANT_WIDTH]
-active = 0
-SIMULATION = 0
-ASIC = 0
-default = 0
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.ROUND_FP_EXP_WIDTH]
-active = 4
-SIMULATION = 4
-ASIC = 4
-default = 4
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
-
-[PRECISION.ROUND_FP_MANT_WIDTH]
-active = 3
-SIMULATION = 3
-ASIC = 3
-default = 3
-tunable_range = [ 0, 1, 2, 3, 4, 5, 6, 7,]
