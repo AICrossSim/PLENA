@@ -34,28 +34,26 @@ def extract_minifloat_components(
     assert device.startswith("cpu") or device.startswith("cuda"), (
         f"Unsupported device: {device}. Only 'cpu' and 'cuda' are supported."
     )
-    tensor = tensor.to(torch.bfloat16)
+    # tensor = tensor.to(torch.bfloat16)
     tensor = flatten_for_quantize(tensor, block_dim)
     if device == "cpu":
-        scales, elements = minifloat_fake.extract_minifloat_component(
+        elements = minifloat_fake.extract_minifloat_component(
             tensor, minifloat_meta=minifloat_meta
         )
     else:
-        scales, elements = minifloat_fake.extract_minifloat_component(
+        elements = minifloat_fake.extract_minifloat_component(
             tensor, minifloat_meta=minifloat_meta
         )
     tensor_meta = MinifloatTensorMeta(
         device=device,
         dtype=ori_dtype,
         shape=ori_shape,
-        block_dim=block_dim,
         meta=minifloat_meta,
     )
-    return scales, elements, tensor_meta
+    return elements, tensor_meta
 
 
 def compose_minifloat_tensor(
-    scales,
     elements,
     tensor_meta: MinifloatTensorMeta,
     dtype: torch.dtype | None = None,
@@ -80,13 +78,11 @@ def compose_minifloat_tensor(
 
     if device == "cpu":
         tensor = minifloat_fake.compose_minifloat_tensor(
-            shared_scales=scales,
             elements=elements,
             minifloat_meta=tensor_meta.meta,
         )
     else:
         tensor = minifloat_fake.compose_minifloat_tensor(
-            shared_scales=scales,
             elements=elements,
             minifloat_meta=tensor_meta.meta,
         )
@@ -118,8 +114,8 @@ def minifloat_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
-    scales, elements, tensor_meta = extract_minifloat_components(
+    elements, tensor_meta = extract_minifloat_components(
         tensor, block_dim, minifloat_meta
     )
-    tensor_dq = compose_minifloat_tensor(scales, elements, tensor_meta, dtype=dtype)
+    tensor_dq = compose_minifloat_tensor(elements, tensor_meta, dtype=dtype)
     return tensor_dq

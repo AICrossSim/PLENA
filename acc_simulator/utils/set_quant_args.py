@@ -11,19 +11,18 @@ def get_preset_info(preset):
         return MXIntMeta.from_string(preset)
     elif "MXFP" in preset:
         return MXFPMeta.from_string(preset)
-    elif "MINIFLOAT" in preset:
+    elif "MXFP" not in preset and "FP" in preset:
         return MinifloatMeta.from_string(preset)
     else:
         raise Warning(f"None preset: {preset}")
 
-def setup_linear_args(preset, preset_x, preset_w, online_rotate, clip_search_y):
+def setup_linear_args(preset, preset_x, preset_w, online_rotate):
     linear_kwargs = {
         "x_meta": None,
         "w_meta": None,
         "b_meta": None,
         "layer_type": "XWB",
-        "online_rotate": online_rotate,
-        "clip_search_y": clip_search_y,
+        "online_rotate": online_rotate
     }
     if preset != "original":
         if "Xq" in preset:
@@ -128,7 +127,6 @@ def setup_args_linear_nonlinear(
     preset_Kv: str | None,
     preset_NL: str | None,
     online_rotate: bool,
-    clip_search_y : bool
 ) -> dict:
     kwargs = {
         "preset": preset,
@@ -137,11 +135,10 @@ def setup_args_linear_nonlinear(
         "preset_Kv": preset_Kv,
         "preset_NL": preset_NL,
         "online_rotate": online_rotate,
-        "clip_search_y": clip_search_y
     }
 
     return {
-        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "online_rotate", "clip_search_y"])),
+        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "online_rotate"])),
         "embed_kwargs": setup_embed_args(**filter_kwargs(kwargs, ["preset", "preset_w"])),
         "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "preset_Kv", "preset_NL", "online_rotate"])),
         "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_NL"])),

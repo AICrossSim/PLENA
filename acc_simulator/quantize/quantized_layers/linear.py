@@ -90,8 +90,7 @@ class MXFPLinearPTQ(nn.Module):
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
-        online_rotate: bool,
-        clip_search_y: bool = False,
+        online_rotate: bool
     ):
         """
         Create an MXFPLinearPTQ instance from a PyTorch Linear layer.
@@ -118,8 +117,7 @@ class MXFPLinearPTQ(nn.Module):
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
-        online_rotate: bool,
-        clip_search_y: bool = False,
+        online_rotate: bool
     ):
         """
         Create an MXFPLinearPTQ instance from a PyTorch Linear layer.

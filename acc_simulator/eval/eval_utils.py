@@ -225,6 +225,9 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
+    if full_system_sim:
+        skip_lm_head = False  # Always quantize lm_head for full system simulation
+
     # Replace MLP activations (e.g., SiLU)
     replace_modules(
         model,
@@ -297,9 +300,9 @@ def save_gptq(model, out_dir: str):
     # save_file(sd, f"{out_dir}/model.safetensors")
     save_model(model, f"{out_dir}/model.safetensors")
 
-def load_gptq(model, ckpt_dir: str):
-    sd = load_file(f"{ckpt_dir}/model.safetensors")
-    model.load_state_dict(sd, strict=True)  # requires same arch/vocab
+def load_gptq(model, ckpt_file: str, strict: bool = True):
+    sd = load_file(ckpt_file)
+    model.load_state_dict(sd, strict)  # requires same arch/vocab
     model.eval()
     try: model.tie_weights()
     except Exception: pass

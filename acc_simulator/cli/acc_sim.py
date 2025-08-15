@@ -53,6 +53,9 @@ def llama_eval(
     seqlen: int = 2048,
     save_gptq_model: bool = False,
     cali_batch_size: int = 64,
+    full_system_sim: bool = False,
+    gptq_ckpt_dir: Union[str, None] = None,
+    verbos: bool = False,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -80,6 +83,8 @@ def llama_eval(
         online_rotate: Whether to apply online inner layer activation rotation.
         clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
         cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
+        full_system_sim: Whether to run full system simulation, which includes RMSNorm, ROPE, And Nonlinear quantization alongside with the 9 GEMM quantization.
+        gptq_ckpt_dir: Directory to load GPTQ checkpoints from, if available. Will only be used if use_gptq is True.
     """
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
@@ -89,7 +94,7 @@ def llama_eval(
         preset_NL
     )
 
-    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate, clip_search_y)
+    quant_args = setup_args_linear_nonlinear(preset, preset_X, preset_W, preset_Kv, preset_NL, online_rotate)
 
     if log_dir:
         log_dir = create_experiment_log_dir(log_dir)
@@ -98,9 +103,11 @@ def llama_eval(
         save_args(log_dir, full_args)
 
     if preset != "original":
-        print(f"Using preset {preset}, which sets the following parameters:\n")
-        # for k, v in quant_args.items():
-        #     print(f"{k}:\n{pformat(v)}")
+        print(f"Using preset {preset}, quantizing...\n")
+        if verbos:
+            from pprint import pformat
+            print("Quantization arguments:")
+            print(pformat(quant_args))
     else:
         print("Using original parameters, no quantization applied.")
 
@@ -113,27 +120,32 @@ def llama_eval(
     model.eval()
 
     if preset != "original":
-        # TODO: Quantization Holder
         if use_gptq:
             # TODO: deal with args later on
-            trainloader = get_loaders(
-                "wikitext2", nsamples=128,
-                seed=0, model=model_name,
-                seqlen=seqlen, eval_mode=False
-            )
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
-            cp = "/workspace/ckpts_y_search"
-            ckpt_dir = Path(cp) / model_name.replace('/', '_')
-            ckpt_file = ckpt_dir / "model.safetensors"
-            print(f"Loading GPTQ model from {ckpt_file}")
-            if ckpt_file.exists():
-                model=load_gptq(model, ckpt_dir)
+            
+            ckpt_dir = Path(gptq_ckpt_dir) / model_name.replace('/', '_')
+            if ckpt_dir.exists():
+                # TODO: temporarily hardcode the 1b checkpoint file name
+                if model_name == "meta-llama/Llama-3.2-1B":
+                    ckpt_file = ckpt_dir / "checkpoint.safetensors"
+                    if ckpt_file.exists():
+                        model=load_gptq(model, ckpt_file, strict=False)
+                else:
+                    ckpt_file = ckpt_dir / "model.safetensors"
+                    if ckpt_file.exists():
+                        model=load_gptq(model, ckpt_file, strict=True)
+                print(f"Loading GPTQ model from {ckpt_file}")
             else:
+                trainloader = get_loaders(
+                                    "wikitext2", nsamples=128,
+                                    seed=0, model=model_name,
+                                    seqlen=seqlen, eval_mode=False)
                 # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
                 model.to("cpu")
-                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size)
+                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, clip_search_y=clip_search_y)
                 # right now always save the weights after gptq, and not rewrite
                 if save_gptq_model and not ckpt_file.exists():
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -141,10 +153,10 @@ def llama_eval(
             # could move back to parallel for eval but kept this false on tiamat
             model=move_to_gpu(model, model_parallel)
             # quantize and replace the rest
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=full_system_sim, online_rotate=online_rotate)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, full_system_sim=full_system_sim, online_rotate=online_rotate)
 
 
     if enable_eval_harness:

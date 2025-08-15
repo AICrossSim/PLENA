@@ -11,7 +11,7 @@ from ..utils import set_layer_by_name
 
 
 @torch.no_grad()
-def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False, cali_batch_size=32):
+def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False, cali_batch_size=32, clip_search_y=False):
     '''
     Adapting From Quarot/GPTQ repo 
     '''
@@ -124,7 +124,7 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
 
             for name in subset:
                 quantized_linear_w = gptq[name].fasterquant(
-                    activation = pre_act if quant_args["fc_kwargs"]["clip_search_y"] else None, 
+                    activation = pre_act if clip_search_y else None, 
                     w_meta = quant_args["fc_kwargs"]["w_meta"],
                     percdamp=percdamp, 
                     cali_batch_size=cali_batch_size
