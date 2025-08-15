@@ -91,13 +91,14 @@ def mxint_quantizer_sim(
     quantile_search: bool = False,
     cali_batch_size: int = 32,
 ) -> Tensor:
+    tensor_dtype = tensor.dtype
     if quantile_search:
         qtensor = tensor.flatten()
         B = mxint_meta.block_size
 
         qtensor = qtensor.reshape(-1, B)  
 
-        percentiles=torch.tensor([1.0, 0.999, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.80, 0.70, 0.60], device=tensor.device, dtype=torch.float32)
+        percentiles=torch.tensor([1.0, 0.999, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.85, 0.8, 0.75, 0.70, 0.5, 0.60, 0.50, 0.40], device=tensor.device, dtype=torch.float32)
 
         device = str(tensor.device)
         ori_shape = tuple(tensor.shape)
@@ -187,7 +188,7 @@ def mxint_quantizer_sim(
         tensor = permute_for_dequantize(
             quant_tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim
         )
-        out_dq = tensor.to(dtype=dtype)
+        out_dq = tensor.to(tensor_dtype)
 
     else:
         scales, elements, tensor_meta = extract_mxint_components(

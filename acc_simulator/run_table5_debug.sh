@@ -1,10 +1,10 @@
-MODEL_NAME="meta-llama/Meta-Llama-3-8B"
+MODEL_NAME="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 CUDA_DEVICE="cuda:0"
 echo $MODEL_NAME
 echo $CUDA_DEVICE
 
 
-for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
+for x_kv_config in MXINT_4_B16_S8; do
   for w_config in MXINT_4_B16_S8; do
     CUDA_LAUNCH_BLOCKING=1 PYTHONFAULTHANDLER=1 python -m acc_simulator.cli.acc_sim \
       --model_name="$MODEL_NAME" \

@@ -1,9 +1,9 @@
 # MODEL_NAME_LIST=( "meta-llama/Llama-2-13b" "meta-llama/Meta-Llama-3-8B")
 
 # model_name="meta-llama/Llama-2-7b-hf"
-# model_name="meta-llama/Meta-Llama-3-8B"
-model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-CUDA_DEVICE="cuda:1"
+model_name="meta-llama/Meta-Llama-3-8B"
+# model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+CUDA_DEVICE="cuda:0"
 echo $CUDA_DEVICE
 
 for x_kv_config in MXINT_4_B16_S8; do
@@ -15,8 +15,8 @@ for x_kv_config in MXINT_4_B16_S8; do
       --preset_X $x_kv_config \
       --preset_Kv $x_kv_config \
       --device_id "$CUDA_DEVICE" \
-      --use_gptq False\
       --online_rotate False \
+      --use_gptq False \
       --clip_search_y False \
       --save_gptq False \
       --save_dir ${CX_DATA_HOME}/saved_models \

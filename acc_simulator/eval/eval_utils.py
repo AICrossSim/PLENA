@@ -226,24 +226,24 @@ def quantize_model(
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
     # Replace MLP activations (e.g., SiLU)
-    # replace_modules(
-    #     model,
-    #     target_class=LlamaMLP,
-    #     replacement_class=LlamaMLPActFP,
-    #     factory_fn=LlamaMLPActFP.from_mlp,
-    #     kwargs=quant_args.get("mlp_kwargs", {}),
-    #     label="LlamaMLP"
-    # )
+    replace_modules(
+        model,
+        target_class=LlamaMLP,
+        replacement_class=LlamaMLPActFP,
+        factory_fn=LlamaMLPActFP.from_mlp,
+        kwargs=quant_args.get("mlp_kwargs", {}),
+        label="LlamaMLP"
+    )
 
     # # Replace attention (e.g., softmax, rope, matmul)
-    # replace_modules(
-    #     model,
-    #     target_class=LlamaAttention,
-    #     replacement_class=LlamaAttentionMXFP,
-    #     factory_fn=LlamaAttentionMXFP.from_attention,
-    #     kwargs=quant_args.get("attn_kwargs", {}),
-    #     label="LlamaAttention"
-    # )
+    replace_modules(
+        model,
+        target_class=LlamaAttention,
+        replacement_class=LlamaAttentionMXFP,
+        factory_fn=LlamaAttentionMXFP.from_attention,
+        kwargs=quant_args.get("attn_kwargs", {}),
+        label="LlamaAttention"
+    )
 
     if linear_quantized: 
         replace_modules(
