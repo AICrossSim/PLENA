@@ -173,7 +173,7 @@ def llama_eval(
             tokenizer=tokenizer, 
             dataset_name=tasks, 
             max_length=seqlen,
-            verbose=True)
+            verbose=False)
 
     if log_dir:
         save_results(log_dir, results)

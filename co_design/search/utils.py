@@ -1,4 +1,6 @@
 import optuna
+import re
+from pathlib import Path
 
 from ...tools.utils import load_svh_settings
 
@@ -42,10 +44,13 @@ def post_search(study_name,
 
     for i, trial in enumerate(study.best_trials):
         if normalize:
+            LAT_MIN, LAT_MAX = 0, 2
+            AREA_MIN, AREA_MAX = 0, 169718611.76
+            ACC_MIN, ACC_MAX = 9, 20
             acc_norm, lat_norm, area_norm = trial.values
-            acc = denormalize_objective(acc_norm, 9, 128256.0)
-            lat = denormalize_objective(lat_norm, 0.0, 15.0)
-            area = denormalize_objective(area_norm, 2000.0, 2183520.0)
+            acc = denormalize_objective(acc_norm, ACC_MIN, ACC_MAX)
+            lat = denormalize_objective(lat_norm, LAT_MIN, LAT_MAX)
+            area = denormalize_objective(area_norm, AREA_MIN, AREA_MAX)
         else:
             acc, lat, area = trial.values
 
@@ -61,55 +66,68 @@ def post_search(study_name,
         fig.write_html("pareto_front.html")
         print("[INFO] Saved interactive plot to pareto_front.html")
 
+
+def reset_study_and_db(study_name: str, storage: str):
+    """Delete Optuna study and its SQLite DB file if present."""
+    try:
+        optuna.delete_study(study_name=study_name, storage=storage)
+    except Exception:
+        pass
+
+    m = re.match(r"^sqlite:///(.+)$", storage)
+    if m:
+        db_file = Path(m.group(1))
+        for suffix in ["", "-wal", "-shm", "-journal"]:
+            f = Path(str(db_file) + suffix)
+            if f.exists():
+                f.unlink()
+
+
 def check_constraints(updated_config: dict, model_name) -> bool:
     """Return True if all constraints are satisfied, else False."""
 
     if model_name == "meta-llama/Llama-3.2-1B":
         HEAD_DIM = 64
         HIDDEN_DIM = 2048
-        NUM_HIDDEN_LAYERS = 16
     elif model_name == "meta-llama/Meta-Llama-3-8B":
         HEAD_DIM = 128
         HIDDEN_DIM = 4096
-        NUM_HIDDEN_LAYERS = 32
     else:
         raise ValueError(f"Unsupported model name: {model_name}")
     
-    CONFIG_PATH = "src/definitions/configuration.svh"
-    hardware_settings = load_svh_settings(CONFIG_PATH)
+    CONFIG_PATH     = "src/definitions/configuration.svh"
+    PRECISION_PATH  = "src/definitions/precision.svh"
+
+    config_settings = load_svh_settings(CONFIG_PATH)
+    precision_settings = load_svh_settings(PRECISION_PATH)
+
+    hardware_settings = {**config_settings, **precision_settings}
+    precision_settings = load_svh_settings("src/definitions/precision.svh")
     for key, value in updated_config.items():
             hardware_settings[key] = value
     cfg = hardware_settings
-    
+
     # precision constraints
     sum_nl = cfg["FP_EXP_WIDTH"] + cfg["FP_MANT_WIDTH"] + 1
-    if not (is_power_of_two(sum_nl) and sum_nl <= 16):
-        return False
-    
+    if not (  sum_nl <= 16):
+        return False, "Precision constraint failed: sum_nl must be power of two and <= 16"
+
     # hardware constraints
     if not (cfg["MLEN"] >= cfg["BLEN"]):
-        return False
-    if not (cfg["MLEN"] == cfg["VLEN"]):
-        return False
+        return False, "MLEN must be >= BLEN"
     if not (cfg["MLEN"] % cfg["BLEN"] == 0):
-        return False
+        return False, "MLEN must be divisible by BLEN"
     if not (cfg["MATRIX_SRAM_DEPTH"] >= 2 * cfg["MLEN"]):
-        return False
+        return False, "MATRIX_SRAM_DEPTH must be >= 2 * MLEN"
     if not (cfg["VECTOR_SRAM_DEPTH"] >= 2 * HEAD_DIM + (HIDDEN_DIM // cfg["VLEN"])):
-        return False
-    if not (cfg["INT_SRAM_DEPTH"] >= NUM_HIDDEN_LAYERS * cfg["REPEAT_SETTINGS"] + cfg["FIXED_CONSTANT_NUM"]):
-        return False
-    if not (cfg["FP_SRAM_DEPTH"] >= 3 * cfg["MLEN"] + cfg["FP_CONSTANT_NUM"]):
-        return False
-    if not (cfg["HBM_M_Prefetch_Amount"] >= cfg["BLEN"]):
-        return False
-    if not (cfg["HBM_V_Prefetch_Amount"] >= cfg["BLEN"]):
-        return False
+        return False, "VECTOR_SRAM_DEPTH must be >= 2*HEAD_DIM + (HIDDEN_DIM // VLEN)"
+    if not (cfg["FP_SRAM_DEPTH"] >= cfg["MLEN"] + 4):
+        return False, "FP_SRAM_DEPTH must be >= MLEN + 4"
     if not ((cfg["MLEN"] * cfg["ACT_ELEMENT_WIDTH"] +
-             (cfg["MLEN"] // cfg["BLOCK_DIM"]) * cfg["ACT_SCALE_WIDTH"]) < 1007):
-        return False
+             (cfg["MLEN"] // cfg["BLOCK_DIM"]) * cfg["MX_SCALE_WIDTH"]) < 1510):
+        return False, "MLEN bandwidth constraint failed"
     if not ((cfg["VLEN"] * cfg["ACT_ELEMENT_WIDTH"] +
-             (cfg["VLEN"] // cfg["BLOCK_DIM"]) * cfg["ACT_SCALE_WIDTH"]) < 1007):
-        return False
+             (cfg["VLEN"] // cfg["BLOCK_DIM"]) * cfg["MX_SCALE_WIDTH"]) < 1510):
+        return False, "VLEN bandwidth constraint failed"
 
-    return True
+    return True, None

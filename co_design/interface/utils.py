@@ -12,7 +12,12 @@ def get_bit_width(fmt: str) -> int:
         exp = int(exp_str)
         mant = int(mant_str)
         return exp + mant + 1 
-
+    elif fmt.startswith("FP_"):
+        fmt_body = fmt.split("_")[1]
+        exp_str, mant_str = fmt_body[1:].split("M")
+        exp = int(exp_str)
+        mant = int(mant_str)
+        return exp, mant
     elif fmt.startswith("MXINT"):
         # Example: MXINT8 → 8 bits total
         bits = int(fmt.replace("MXINT_", ""))
@@ -44,7 +49,7 @@ def build_llama_eval_kwargs(precision: dict,
     suffix = f"B{block}_S{scale}"
     
     if full_system_sim:
-        minifloat = f"FP_E{precision['FP_EXP_WIDTH']}M{precision['FP_MANT_WIDTH']}"
+        minifloat = precision["FP_SETTING"]
     else:
         minifloat = None
 
