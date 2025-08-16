@@ -13,10 +13,10 @@ for x_kv_config in MXINT_4_B16_S8 MXFP_E1M2_B16_S8 MXFP_E2M1_B16_S8; do
       --preset_X $x_kv_config \
       --preset_Kv $x_kv_config \
       --device_id "$CUDA_DEVICE" \
-      --use_gptq False\
+      --use_gptq True\
       --online_rotate False \
       --clip_search_y False \
-      --save_gptq False \
+      --save_gptq True \
       --save_dir ${CX_DATA_HOME}/saved_config/${x_kv_config} \
       --log_dir results/w_${w_config}_x_${x_kv_config}
   done
