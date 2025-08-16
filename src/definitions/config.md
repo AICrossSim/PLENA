@@ -40,11 +40,9 @@ This approach enables flexible, fine-grained control over build configurations f
 - `MLEN` % `BLEN` == 0
 - `MATRIX_SRAM_DEPTH` >= `2 * MLEN`
 - `VECTOR_SRAM_DEPTH` >= `2* head_dim + (hidden_dim // VLEN)`
-- `INT_SRAM_DEPTH`  >= `num_hidden_layers * REPEAT_SETTINGS + FIXED_CONSTANT_NUM`
+- `INT_SRAM_DEPTH`  >= `16`
 - `FP_SRAM_DEPTH`     >= `3 * MLEN + FP_CONSTANT_NUM`
-- `HBM_M_Prefetch_Amount` >= `BLEN`
-- `HBM_V_Prefetch_Amount` >= `BLEN`
-- `(MLEN * ACT_ELEMENT_WIDTH + (MLEN // BLOCK_DIM) * ACT_SCALE_WIDTH) < 1007` Assuming 1GHz, 1TB/s bandwidth
-- `(VLEN * ACT_ELEMENT_WIDTH + (VLEN // BLOCK_DIM) * ACT_SCALE_WIDTH) < 1007` Assuming 1GHz, 1TB/s bandwidth
+- `(MLEN * ACT_ELEMENT_WIDTH + (MLEN // BLOCK_DIM) * ACT_SCALE_WIDTH) < 1510` Assuming 1GHz, 1.5TB/s bandwidth
+- `(VLEN * ACT_ELEMENT_WIDTH + (VLEN // BLOCK_DIM) * ACT_SCALE_WIDTH) < 1510` Assuming 1GHz, 1.5TB/s bandwidth
 
 ### Precision Parameters
