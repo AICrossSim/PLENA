@@ -129,6 +129,7 @@ def mxint_quantizer_sim(
                 with torch.no_grad():
                     for _, b in enumerate(tqdm(range(0, total_batches, BATCH_SIZE), desc="Batching quant output", disable = True)):
                         act_b = act_tensor[b : b + BATCH_SIZE]  # [B, seq_len, hidden]
+                        breakpoint()
                         out_q = torch.matmul(act_b, q.T )
                         out_orig = torch.matmul(act_b, qtensor.T)
                         err += torch.norm(out_q - out_orig, p=2, dim=(0, 1))
