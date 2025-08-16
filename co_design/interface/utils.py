@@ -64,7 +64,7 @@ def build_llama_eval_kwargs(precision: dict,
         "model_parallel": False,
         "enable_eval_harness": False,
         "use_gptq": True,
-        "online_rotate": True,
+        "online_rotate": False,
         "full_system_sim": full_system_sim,
         "gptq_ckpt_dir": gptq_ckpt_dir,
     }

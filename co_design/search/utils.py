@@ -1,19 +1,27 @@
 import optuna
 import re
 from pathlib import Path
+import numpy as np
 
 from ...tools.utils import load_svh_settings
 
 def is_power_of_two(n: int) -> bool:
     return n > 0 and (n & (n - 1)) == 0
 
-def normalize_objective(val, min_val, max_val, sym=True):
+
+def log_scale(val):
+    """Log scaling function: log10(1+x)."""
+    return np.log1p(val) / np.log(10)
+
+def normalize_objective(val, min_val, max_val, sym=True, use_log=True):
     """
-    Normalize an objective value to either:
-    - [0, 1]   if sym=False
-    - [-1, 1]  if sym=True
-    With Clipping.
+    Normalize an objective value with optional log scaling.
     """
+    if use_log:
+        val = log_scale(val)
+        min_val = log_scale(min_val)
+        max_val = log_scale(max_val)
+
     if not sym:
         norm = (val - min_val) / (max_val - min_val + 1e-8)
         return max(0.0, min(1.0, norm))
@@ -21,14 +29,25 @@ def normalize_objective(val, min_val, max_val, sym=True):
         norm = 2 * (val - min_val) / (max_val - min_val + 1e-8) - 1
         return max(-1.0, min(1.0, norm))
 
-def denormalize_objective(val, min_val, max_val, sym=True):
+def denormalize_objective(val, min_val, max_val, sym=True, use_log=True):
     """
     Denormalize an objective value from normalized space back to original scale.
+    Inverse of normalize_objective (approximate if log scaling applied).
     """
+    if use_log:
+        min_val = log_scale(min_val)
+        max_val = log_scale(max_val)
+
     if not sym:
-        return val * (max_val - min_val + 1e-8) + min_val
+        raw = val * (max_val - min_val + 1e-8) + min_val
     else:
-        return (val + 1) / 2 * (max_val - min_val + 1e-8) + min_val
+        raw = (val + 1) / 2 * (max_val - min_val + 1e-8) + min_val
+
+    if use_log:
+        # Inverse of log_scale: x = 10^raw - 1
+        return np.power(10, raw) - 1
+    return raw
+
 
 def post_search(study_name, 
                 storage, 
@@ -43,10 +62,11 @@ def post_search(study_name,
     print(f"[INFO] Number of successfully completed (non-pruned) trials: {len(complete_trials)}")
 
     for i, trial in enumerate(study.best_trials):
+        # print(trail.value)
         if normalize:
-            LAT_MIN, LAT_MAX = 0, 2
-            AREA_MIN, AREA_MAX = 0, 169718611.76
             ACC_MIN, ACC_MAX = 9, 20
+            LAT_MIN, LAT_MAX = 0, 10
+            AREA_MIN, AREA_MAX = 120246991, 500000000
             acc_norm, lat_norm, area_norm = trial.values
             acc = denormalize_objective(acc_norm, ACC_MIN, ACC_MAX)
             lat = denormalize_objective(lat_norm, LAT_MIN, LAT_MAX)
@@ -57,6 +77,8 @@ def post_search(study_name,
         print(f"\n[Trial {i}]")
         print(f"  Normalized Objectives: accuracy={acc_norm:.4f}, latency={lat_norm:.4f}, area={area_norm:.4f}")
         print(f"  Denormalized Objectives: accuracy={acc:.2f}, latency={lat:.4f}, area={area:.2f}")
+        # print(f"  Normalized Objectives: accuracy={acc_norm:.4f}, latency={lat_norm:.4f}")
+        # print(f"  Denormalized Objectives: accuracy={acc:.2f}, latency={lat:.4f}")
         print("  Parameters:")
         for key, value in trial.params.items():
             print(f"    {key}: {value}")

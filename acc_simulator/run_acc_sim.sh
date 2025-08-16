@@ -1,6 +1,6 @@
-MODEL_NAME="meta-llama/Meta-Llama-3-8B"
+# MODEL_NAME="meta-llama/Meta-Llama-3-8B"
 # MODEL_NAME="meta-llama/Llama-2-7b-hf"
-# MODEL_NAME="meta-llama/Llama-3.2-1B"
+MODEL_NAME="meta-llama/Llama-3.2-1B"
 
 CUDA_DEVICE="cuda:0"
 # --preset XWqBKVNL \

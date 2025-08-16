@@ -45,14 +45,14 @@ active = 8
 SIMULATION = 8
 ASIC = 8
 default = 8
-tunable_range = [ "MXINT_2", "MXINT_4", "MXINT_8", "MXFP_E3M4", "MXFP_E4M3", "MXFP_E5M2"]
+tunable_range = [ "MXINT_2", "MXINT_3", "MXINT_4", "MXINT_8", "MXFP_E1M2", "MXFP_E2M1", "MXFP_E3M4", "MXFP_E4M3", "MXFP_E5M2"]
 
 [PRECISION.KV_ELEMENT_WIDTH]
 active = 8
 SIMULATION = 8
 ASIC = 8
 default = 8
-tunable_range = [ "MXINT_2", "MXINT_4", "MXINT_8", "MXFP_E3M4", "MXFP_E4M3", "MXFP_E5M2"]
+tunable_range = [ "MXINT_2", "MXINT_3", "MXINT_4", "MXINT_8", "MXFP_E1M2", "MXFP_E2M1", "MXFP_E3M4", "MXFP_E4M3", "MXFP_E5M2"]
 
 [PRECISION.FP_SETTING]
 active = 7
@@ -61,19 +61,6 @@ ASIC = 8
 default = 7
 tunable_range = [ "FP_E6M5", "FP_E5M6", "FP_E4M7", "FP_E8M5"]
 
-[PRECISION.FP_EXP_WIDTH]
-active = 7
-SIMULATION = 7
-ASIC = 8
-default = 7
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
-
-[PRECISION.FP_MANT_WIDTH]
-active = 8
-SIMULATION = 8
-ASIC = 7
-default = 8
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
 
 [PRECISION.INT_DATA_WIDTH]
 active = 32

@@ -12,9 +12,9 @@ from ..interface.utils import load_toml_config, get_bit_width
 from .utils import normalize_objective, post_search, check_constraints, reset_study_and_db
 
 
-LAT_MIN, LAT_MAX = 0, 2
-AREA_MIN, AREA_MAX = 0, 169718611.76
 ACC_MIN, ACC_MAX = 9, 20
+LAT_MIN, LAT_MAX = 0, 10
+AREA_MIN, AREA_MAX = 120246991, 500000000
 
 
 def objective(
@@ -25,6 +25,7 @@ def objective(
     normalize: bool = False,
     model_name: str | None = None,
 ) -> tuple[float, float, float]:
+    
     config: Dict[str, Any] = {}
 
     # Suggest values
@@ -118,7 +119,7 @@ def trial_worker(
 def search(
     model_name: str = "meta-llama/Llama-3.2-1B",
     config_path: str = "src/definitions/config.toml",
-    n_trials: int = 50,
+    n_trials: int = 80,
     visualize: bool = False,
     sampler_type: Union[str, None] = "botorch",
     num_gpus: int = 8,
@@ -126,34 +127,42 @@ def search(
     normalize: bool = True,
     set_constraints: bool = False,
     parallel: bool = False,
+    seed: int = 42,
+    restart_study: bool = True,
+    gpu_id: int =0,
+    study_name: str = None
 ):
     tunables = load_toml_config(config_path, mode="tunable_range")
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
-
-    study_name = f"{sampler_type}_search"
+    if not study_name:
+        study_name = f"{sampler_type}_search_with_area"
     db_path = Path("co_design") / f"{study_name}.db"
     storage = f"sqlite:///{db_path.resolve()}"
 
     # Choose sampler
     if sampler_type == "botorch":
-        sampler = BoTorchSampler()
+        sampler = BoTorchSampler(n_startup_trials=20, seed=seed, consider_running_trials=True)
     elif sampler_type == "tpe":
-        sampler = TPESampler()
+        sampler = TPESampler(seed=seed)
     elif sampler_type == "random":
-        sampler = RandomSampler()
+        sampler = RandomSampler(seed=seed)
     else:
         raise ValueError(f"Unknown sampler type: {sampler_type}")
     print(sampler)
 
+    if restart_study:
     # Fresh study
-    reset_study_and_db(study_name, storage)
+        reset_study_and_db(study_name, storage)
+        load_if_exists = False
+    else:
+        load_if_exists = True
 
     study = optuna.create_study(
         directions=["minimize", "minimize", "minimize"],
         study_name=study_name,
         sampler=sampler,
         storage=storage,
-        load_if_exists=False,
+        load_if_exists=load_if_exists,
     )
     print("Validating", study.sampler)
 
@@ -198,6 +207,7 @@ def search(
                 ),
                 n_trials=1,
             )
+            print(study.sampler)
 
     post_search(study_name, storage, normalize=normalize, visualize=visualize)
 
