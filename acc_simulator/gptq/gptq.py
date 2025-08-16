@@ -39,7 +39,7 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(
-        self, activation, w_meta, percdamp=.01, cali_batch_size=32
+        self, activation, w_meta, percdamp=.01, cali_batch_size=32, layer_name=None
     ): 
         W = self.layer.weight.data.clone()
 
@@ -62,7 +62,7 @@ class GPTQ:
 
         # set blocksize in gptq to be the same as the mx block from meta
         blocksize = w_meta.block_size
-        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc=f"Quantizing blocks {self.layer.name}", disable=False):
+        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc=f"Quantizing blocks {layer_name}", disable=False):
             i2 = min(i1 + blocksize, self.columns)
 
             W1 = W[:, i1:i2].clone()

@@ -98,8 +98,8 @@ def mxint_quantizer_sim(
 
         qtensor = qtensor.reshape(-1, B)  
 
-        percentiles=torch.tensor([1.0, 0.999, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.85, 0.8, 0.75, 0.70, 0.5, 0.60, 0.50, 0.40], device=tensor.device, dtype=torch.float32)
-
+        # percentiles=torch.tensor([1.0, 0.999, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.85, 0.8, 0.75, 0.70, 0.5, 0.60, 0.50, 0.40], device=tensor.device, dtype=torch.float32)
+        percentiles=torch.tensor([1.0, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.80, 0.70, 0.60, 0.50], device=tensor.device, dtype=torch.float32)
         device = str(tensor.device)
         ori_shape = tuple(tensor.shape)
         ori_dtype = str(tensor.dtype).removeprefix("torch.")
@@ -119,9 +119,9 @@ def mxint_quantizer_sim(
 
         tem_dtype = x.dtype
         # quantile need fp32
-        # x_max = x.abs().to(torch.float32).quantile(percentiles, dim=1, keepdim=True).to(tem_dtype)
-        x_max = x.abs().max(dim=1, keepdim=True).values
-        x_max = x_max * percentiles[:, None, None]
+        x_max = x.abs().to(torch.float32).quantile(percentiles, dim=1, keepdim=True).to(tem_dtype)
+        # x_max = x.abs().max(dim=1, keepdim=True).values
+        # x_max = x_max * percentiles[:, None, None]
         
         scale = x_max.log2().ceil()
         scale_bias = 2**(mxint_meta.scale_bits - 1) - 1

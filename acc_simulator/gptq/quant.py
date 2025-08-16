@@ -127,7 +127,8 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
                     activation = pre_act if quant_args["fc_kwargs"]["clip_search_y"] else None, 
                     w_meta = quant_args["fc_kwargs"]["w_meta"],
                     percdamp=percdamp, 
-                    cali_batch_size=cali_batch_size
+                    cali_batch_size=cali_batch_size,
+                    layer_name=f"layers{i}.{name}"
                 )
 
                 if save_q_model:
