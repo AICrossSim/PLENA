@@ -85,9 +85,6 @@ def compose_minifloat_tensor(
             dtype
         )
 
-    # tensor = permute_for_dequantize(
-    #     tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim
-    # )
     tensor = tensor.to(dtype=dtype)
     return tensor
 
