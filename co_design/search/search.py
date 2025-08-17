@@ -127,7 +127,8 @@ def search(
     normalize: bool = True,
     set_constraints: bool = False,
     parallel: bool = False,
-    seed: int = 42,
+    seed: int = 42, 
+    # 1213, 2025, 42, 442
     restart_study: bool = True,
     gpu_id: int =0,
     study_name: str = None

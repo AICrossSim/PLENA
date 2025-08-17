@@ -10,9 +10,9 @@ class MinifloatMeta:
     @classmethod
     def from_string(cls, name: str) -> "MinifloatMeta":
         # Strict format: MINIFLOAT_E<exp>M<frac>, e.g:MINIFLOAT_E4M3
-        match = re.fullmatch(r"MINIFLOAT_E(\d+)M(\d+)", name)
+        match = re.fullmatch(r"FP_E(\d+)M(\d+)", name)
         if not match:
-            raise ValueError(f"Invalid MinifloatMeta string: {name} (expected format: MINIFLOAT_E<exp>M<frac>)")
+            raise ValueError(f"Invalid MinifloatMeta string: {name} (expected format: FP_E<exp>M<frac>)")
 
         element_exp_bits = int(match.group(1))
         element_frac_bits = int(match.group(2))

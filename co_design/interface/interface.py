@@ -34,18 +34,13 @@ def get_latency(config_dict: dict,
 
 def get_accuracy(config_dict: dict,
                  model_name: str = "meta-llama/Llama-3.2-1B") -> float:
-    # TODO: set up gptq checkpoints
     kwargs = build_llama_eval_kwargs(precision=config_dict, 
-                                     preset="XqWqBqKVqNL", 
+                                     preset="XqWqBqKVqNLq", 
                                      model_name=model_name,
-                                     full_system_sim=False,
+                                     full_system_sim=True,
                                      gptq_ckpt_dir=GPTQ_MODEL_CKPT_PATH)
 
-    # print("Calling llama_eval with arguments:")
-    # for k, v in kwargs.items():
-    #     print(f"  {k} = {v}")
-
     accuracy = llama_eval(**kwargs)
-    # Assume eval_harness is not enabled for now
+    # Assume eval_harness is not enabled for now, only searching over ppl for prefilling 
     return accuracy["ppl"]
 

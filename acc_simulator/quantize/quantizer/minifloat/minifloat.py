@@ -73,19 +73,21 @@ def compose_minifloat_tensor(
     dtype = getattr(torch, tensor_meta.dtype) if dtype is None else dtype
 
     if device == "cpu":
-        tensor = minifloat_fake.compose_minifloat_tensor(
-            elements=elements,
-            minifloat_meta=tensor_meta.meta,
+        tensor = minifloat_fake.compose_minifloat_component(
+            elements,
+            tensor_meta.meta,
+            dtype
         )
     else:
-        tensor = minifloat_fake.compose_minifloat_tensor(
-            elements=elements,
-            minifloat_meta=tensor_meta.meta,
+        tensor = minifloat_fake.compose_minifloat_component(
+            elements,
+            tensor_meta.meta,
+            dtype
         )
 
-    tensor = permute_for_dequantize(
-        tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim
-    )
+    # tensor = permute_for_dequantize(
+    #     tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim
+    # )
     tensor = tensor.to(dtype=dtype)
     return tensor
 
@@ -111,6 +113,6 @@ def minifloat_quantizer_sim(
     :rtype: torch.Tensor
     """
     tensor_meta = extract_minifloat_components(tensor, minifloat_meta)
-    tensor_dq = compose_minifloat_tensor(tensor_meta, dtype=dtype)
+    tensor_dq = compose_minifloat_tensor(tensor, tensor_meta, dtype=dtype)
     return tensor_dq
 
