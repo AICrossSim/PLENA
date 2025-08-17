@@ -33,11 +33,11 @@ def extract_minifloat_components(
     )
     tensor = tensor.to(torch.bfloat16)
     if device == "cpu":
-        minifloat_fake.extract_minifloat_component(
+        tensor = minifloat_fake.extract_minifloat_component(
             tensor, minifloat_meta=minifloat_meta
         )
     else:
-        minifloat_fake.extract_minifloat_component(
+        tensor = minifloat_fake.extract_minifloat_component(
             tensor, minifloat_meta=minifloat_meta
         )
     tensor_meta = MinifloatTensorMeta(
@@ -46,7 +46,7 @@ def extract_minifloat_components(
         shape=ori_shape,
         meta=minifloat_meta,
     )
-    return tensor_meta
+    return tensor, tensor_meta
 
 
 def compose_minifloat_tensor(
@@ -112,7 +112,7 @@ def minifloat_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
-    tensor_meta = extract_minifloat_components(tensor, minifloat_meta)
+    tensor, tensor_meta = extract_minifloat_components(tensor, minifloat_meta)
     tensor_dq = compose_minifloat_tensor(tensor, tensor_meta, dtype=dtype)
     return tensor_dq
 
