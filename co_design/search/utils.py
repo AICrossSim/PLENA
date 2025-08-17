@@ -13,7 +13,7 @@ def log_scale(val):
     """Log scaling function: log10(1+x)."""
     return np.log1p(val) / np.log(10)
 
-def normalize_objective(val, min_val, max_val, sym=True, use_log=True):
+def normalize_objective(val, min_val, max_val, sym=True, use_log=False):
     """
     Normalize an objective value with optional log scaling.
     """
@@ -29,7 +29,7 @@ def normalize_objective(val, min_val, max_val, sym=True, use_log=True):
         norm = 2 * (val - min_val) / (max_val - min_val + 1e-8) - 1
         return max(-1.0, min(1.0, norm))
 
-def denormalize_objective(val, min_val, max_val, sym=True, use_log=True):
+def denormalize_objective(val, min_val, max_val, sym=True, use_log=False):
     """
     Denormalize an objective value from normalized space back to original scale.
     Inverse of normalize_objective (approximate if log scaling applied).
