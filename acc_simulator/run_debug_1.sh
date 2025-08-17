@@ -1,8 +1,8 @@
 MODEL_NAME_LIST=("meta-llama/Meta-Llama-3-70B")
 
 # model_name="meta-llama/Llama-2-7b-hf"
-model_name="meta-llama/Meta-Llama-3-70B"
-# model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+# model_name="meta-llama/Meta-Llama-3-70B"
+model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 CUDA_DEVICE="cuda:0"
 echo $CUDA_DEVICE
 
@@ -20,6 +20,8 @@ for x_kv_config in MXINT_4_B16_S8; do
       --clip_search_y True \
       --save_gptq True \
       --save_dir ${CX_DATA_HOME}/saved_models \
+      --resume_from_checkpoint True \
+      --checkpoint_layers 1 \
       --log_dir results/w_${w_config}_x_${x_kv_config}_${model_name}
   done
 done

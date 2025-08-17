@@ -47,13 +47,15 @@ def llama_eval(
     log_dir: Union[str, None] = None,
     enable_eval_harness: bool = False,
     use_gptq: bool = False,
-    save_dir: str = None,
     offline_rotate: bool = False,
     online_rotate: bool = False,
     clip_search_y: bool = False,
     seqlen: int = 2048,
     save_gptq_model: bool = False,
     cali_batch_size: int = 8,
+    save_dir: str = None,
+    resume_from_checkpoint: Union[str, None] = None,
+    checkpoint_layers: Union[str, int, list, None] = None,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -81,6 +83,13 @@ def llama_eval(
         online_rotate: Whether to apply online inner layer activation rotation.
         clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
         cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
+        save_dir (str): Directory to save/load quantization checkpoints. Enables automatic checkpoint saving after each layer.
+        resume_from_checkpoint (str): Resume quantization from checkpoint. Use 'latest' to automatically find the latest checkpoint, or provide a specific checkpoint file path.
+        checkpoint_layers: Controls checkpoint frequency to minimize disk usage:
+                          - None: Save checkpoint after every layer (default)
+                          - "last": Only save checkpoint after the final layer 
+                          - int: Save checkpoint every N layers (e.g., 5 = every 5 layers)
+                          Note: When saving a new checkpoint, ALL previous checkpoints are deleted
     """
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
@@ -125,22 +134,22 @@ def llama_eval(
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
             if clip_search_y:
-                cp = f"{save_dir}/ckpts_y_search"
+                checkpoint_dir = f"{save_dir}/ckpts_y_search/{model_name.replace('/', '_')}"
             else:
-                cp = f"{save_dir}/ckpts_w_search"
-            ckpt_dir = Path(cp) / model_name.replace('/', '_')
-            ckpt_file = ckpt_dir / "model.safetensors"
-            if ckpt_file.exists():
-                print(f"Loading GPTQ model from {ckpt_file}")
-                model=load_gptq(model, ckpt_dir)
-            else:
+                checkpoint_dir = f"{save_dir}/ckpts_w_search/{model_name.replace('/', '_')}"
+            # ckpt_dir = Path(checkpoint_dir) / model_name.replace('/', '_')
+            # ckpt_file = ckpt_dir / "model.safetensors"
+            # if ckpt_file.exists():
+            #     print(f"Loading GPTQ model from {ckpt_file}")
+            #     model=load_gptq(model, ckpt_dir)
+            # else:
                 # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
-                model.to("cpu")
-                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size)
-                # right now always save the weights after gptq, and not rewrite
-                if save_gptq_model and not ckpt_file.exists():
-                    ckpt_dir.mkdir(parents=True, exist_ok=True)
-                    save_gptq(model, ckpt_dir)
+            model.to("cpu")
+            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint, checkpoint_layers=checkpoint_layers)
+            # right now always save the weights after gptq, and not rewrite
+            # if save_gptq_model and not ckpt_file.exists():
+            #     ckpt_dir.mkdir(parents=True, exist_ok=True)
+            #     save_gptq(model, ckpt_dir)
             # could move back to parallel for eval but kept this false on tiamat
             if model_parallel:
                 model=move_to_gpu(model, model_parallel)
