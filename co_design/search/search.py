@@ -4,12 +4,12 @@ from typing import Dict, Any, Union
 import concurrent.futures
 
 import optuna
-from optuna.samplers import RandomSampler, TPESampler
+from optuna.samplers import RandomSampler, TPESampler, NSGAIISampler
 from optuna.integration.botorch import BoTorchSampler
 
 from ..interface.interface import get_accuracy, get_area, get_latency
 from ..interface.utils import load_toml_config, get_bit_width
-from .utils import normalize_objective, post_search, check_constraints, reset_study_and_db
+from .utils import normalize_objective, post_search, check_constraints, reset_study_and_db, append_from_random
 
 
 ACC_MIN, ACC_MAX = 9, 20
@@ -135,6 +135,11 @@ def search(
 ):
     tunables = load_toml_config(config_path, mode="tunable_range")
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
+    
+    random_study_name = "Random_42_1b"
+    random_db_path = Path("co_design") / f"{random_study_name}.db"
+    random_storage = f"sqlite:///{random_db_path.resolve()}"
+
     if not study_name:
         study_name = f"{sampler_type}_search_with_area"
     db_path = Path("co_design") / f"{study_name}.db"
@@ -142,11 +147,14 @@ def search(
 
     # Choose sampler
     if sampler_type == "botorch":
-        sampler = BoTorchSampler(n_startup_trials=20, seed=seed, consider_running_trials=True)
+        sampler = BoTorchSampler(seed=seed, consider_running_trials=True)
     elif sampler_type == "tpe":
         sampler = TPESampler(seed=seed)
     elif sampler_type == "random":
         sampler = RandomSampler(seed=seed)
+    elif sampler_type == "ns":
+        sampler = NSGAIISampler(seed=seed)
+
     else:
         raise ValueError(f"Unknown sampler type: {sampler_type}")
     print(sampler)
@@ -158,6 +166,9 @@ def search(
     else:
         load_if_exists = True
 
+    # load the first 10 random trails from random sampler study to the study
+
+
     study = optuna.create_study(
         directions=["minimize", "minimize", "minimize"],
         study_name=study_name,
@@ -165,6 +176,14 @@ def search(
         storage=storage,
         load_if_exists=load_if_exists,
     )
+    if sampler_type != "random" and restart_study:
+        append_from_random(
+            random_storage=random_storage,
+            random_study_name=random_study_name,
+            target_study=study,
+            tunables=tunables,
+            n=10,
+            )
     print("Validating", study.sampler)
 
     max_workers = num_gpus * trials_per_gpu
