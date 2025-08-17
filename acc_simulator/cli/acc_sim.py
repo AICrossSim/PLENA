@@ -55,7 +55,6 @@ def llama_eval(
     cali_batch_size: int = 8,
     save_dir: str = None,
     resume_from_checkpoint: Union[str, None] = None,
-    checkpoint_layers: Union[str, int, list, None] = None,
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -85,11 +84,6 @@ def llama_eval(
         cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
         save_dir (str): Directory to save/load quantization checkpoints. Enables automatic checkpoint saving after each layer.
         resume_from_checkpoint (str): Resume quantization from checkpoint. Use 'latest' to automatically find the latest checkpoint, or provide a specific checkpoint file path.
-        checkpoint_layers: Controls checkpoint frequency to minimize disk usage:
-                          - None: Save checkpoint after every layer (default)
-                          - "last": Only save checkpoint after the final layer 
-                          - int: Save checkpoint every N layers (e.g., 5 = every 5 layers)
-                          Note: When saving a new checkpoint, ALL previous checkpoints are deleted
     """
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
@@ -145,7 +139,7 @@ def llama_eval(
             # else:
                 # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
             model.to("cpu")
-            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint, checkpoint_layers=checkpoint_layers)
+            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint)
             # right now always save the weights after gptq, and not rewrite
             # if save_gptq_model and not ckpt_file.exists():
             #     ckpt_dir.mkdir(parents=True, exist_ok=True)

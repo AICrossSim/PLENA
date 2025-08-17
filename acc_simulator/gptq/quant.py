@@ -13,67 +13,59 @@ from ..quantize.quantized_layers import MXFPLinearPTQ
 from ..utils import set_layer_by_name
 
 
-def save_checkpoint(model, layer_idx, checkpoint_dir, model_name="quantized_model", checkpoint_layers=None):
+def save_layer_checkpoint(model, layer_idx, checkpoint_dir, model_name="quantized_model"):
     """
-    Save model checkpoint after quantizing a specific layer and delete all previous checkpoints.
+    Save only the specific quantized layer instead of the entire model.
     
     Args:
         model: The model being quantized
         layer_idx: Index of the layer that was just quantized
         checkpoint_dir: Directory to save checkpoints
         model_name: Name prefix for the checkpoint files
-        checkpoint_layers: Number of layers to process before saving a checkpoint (e.g., 5 = every 5 layers)
-                          or "last" to only save the final layer
-                          or None to save every layer (default)
     """
     if checkpoint_dir is None:
-        return
-    
-    # Determine if we should save this layer
-    should_save = False
-
-    try:
-        checkpoint_layers = int(checkpoint_layers)
-    except:
-        pass
-    
-    if checkpoint_layers is None:
-        # Default behavior: save every layer
-        should_save = True
-    elif isinstance(checkpoint_layers, str) and checkpoint_layers == "last":
-        # Only save the last layer
-        total_layers = len(model.model.layers)
-        should_save = (layer_idx == total_layers - 1)
-    elif isinstance(checkpoint_layers, int):
-        # Save every N layers + always save the final layer
-        total_layers = len(model.model.layers)
-        should_save = ((layer_idx + 1) % checkpoint_layers == 0) or (layer_idx == total_layers - 1)
-
-    breakpoint()
-    
-    if not should_save:
         return
         
     checkpoint_path = Path(checkpoint_dir)
     checkpoint_path.mkdir(parents=True, exist_ok=True)
     
-    # Create checkpoint filename with layer index
-    checkpoint_file = checkpoint_path / f"{model_name}_layer_{layer_idx}.safetensors"
+    # Create checkpoint file for this specific layer
+    layer_checkpoint_file = checkpoint_path / f"{model_name}_layer_{layer_idx}.safetensors"
     
-    logging.info(f"Saving checkpoint after layer {layer_idx} to {checkpoint_file}")
+    # Remove any existing directory with the same name (fix for I/O error)
+    if layer_checkpoint_file.exists() and layer_checkpoint_file.is_dir():
+        import shutil
+        shutil.rmtree(layer_checkpoint_file)
+        logging.info(f"Removed existing directory: {layer_checkpoint_file}")
     
-    # Save model state dict
+    logging.info(f"Saving layer {layer_idx} checkpoint to {layer_checkpoint_file}")
+    
     try:
-        # Option 1: Direct save (faster, but may use more GPU memory)
-        state_dict = model.state_dict()
-        save_file(state_dict, str(checkpoint_file))
+        # Extract only the specific layer's state dict
+        layer_state_dict = {}
+        layer_prefix = f"model.layers.{layer_idx}."
         
-        # Also save metadata about the checkpoint
+        for name, param in model.named_parameters():
+            if name.startswith(layer_prefix):
+                # Save with relative layer name (remove the model.layers.X. prefix)
+                relative_name = name[len(layer_prefix):]
+                layer_state_dict[relative_name] = param.detach().cpu()
+        
+        if not layer_state_dict:
+            logging.warning(f"No parameters found for layer {layer_idx} with prefix {layer_prefix}")
+            return
+        
+        # Save only this layer's parameters
+        save_file(layer_state_dict, str(layer_checkpoint_file))
+        
+        # Save metadata about the checkpoint
         metadata = {
             "layer_idx": layer_idx,
             "total_layers": len(model.model.layers),
-            "checkpoint_file": str(checkpoint_file),
-            "model_name": model_name
+            "checkpoint_file": str(layer_checkpoint_file),
+            "model_name": model_name,
+            "num_parameters": len(layer_state_dict),
+            "parameter_names": list(layer_state_dict.keys())
         }
         
         metadata_file = checkpoint_path / f"{model_name}_layer_{layer_idx}_metadata.json"
@@ -81,88 +73,155 @@ def save_checkpoint(model, layer_idx, checkpoint_dir, model_name="quantized_mode
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
             
-        logging.info(f"Checkpoint saved successfully for layer {layer_idx}")
-        
-        # Delete ALL previous checkpoints to save disk space
-        delete_all_previous_checkpoints(checkpoint_dir, layer_idx, model_name)
+        logging.info(f"Layer {layer_idx} checkpoint saved successfully ({len(layer_state_dict)} parameters)")
         
     except Exception as e:
-        logging.error(f"Failed to save checkpoint for layer {layer_idx}: {e}")
+        logging.error(f"Failed to save layer {layer_idx} checkpoint: {e}")
 
 
-def delete_all_previous_checkpoints(checkpoint_dir, current_layer_idx, model_name="quantized_model"):
+# Keep the old function for backward compatibility
+def save_checkpoint(model, layer_idx, checkpoint_dir, model_name="quantized_model"):
+    """Backward compatibility wrapper"""
+    return save_layer_checkpoint(model, layer_idx, checkpoint_dir, model_name)
+
+
+def detect_quantized_layers(checkpoint_dir, model_name="quantized_model"):
     """
-    Delete ALL previous checkpoints to save disk space, keeping only the current one.
+    Detect which layers have been quantized based on available checkpoints.
     
     Args:
-        checkpoint_dir: Directory containing checkpoints
-        current_layer_idx: Index of the current layer that was just saved
-        model_name: Name prefix for the checkpoint files
+        checkpoint_dir: Directory containing layer checkpoints
+        model_name: Name prefix for checkpoint files
+    
+    Returns:
+        dict: {layer_idx: checkpoint_file_path} for all available quantized layers
     """
-    if checkpoint_dir is None:
-        return
+    if checkpoint_dir is None or not os.path.exists(checkpoint_dir):
+        return {}
     
     checkpoint_path = Path(checkpoint_dir)
-    if not checkpoint_path.exists():
-        return
-    
-    # Find all existing checkpoints
     checkpoints = list(checkpoint_path.glob(f"{model_name}_layer_*.safetensors"))
     
-    if len(checkpoints) <= 1:
-        return  # Only one checkpoint, nothing to delete
-    
-    # Delete all checkpoints except the current one
+    quantized_layers = {}
     for checkpoint in checkpoints:
         try:
             layer_idx = int(checkpoint.stem.split('_layer_')[-1])
-            if layer_idx != current_layer_idx:
-                # Delete this checkpoint
-                os.remove(checkpoint)
-                logging.info(f"Deleted previous checkpoint: {checkpoint}")
-                
-                # Also delete the metadata file
-                metadata_file = checkpoint_path / f"{model_name}_layer_{layer_idx}_metadata.json"
-                if metadata_file.exists():
-                    os.remove(metadata_file)
-                    logging.info(f"Deleted previous metadata: {metadata_file}")
-                    
+            quantized_layers[layer_idx] = str(checkpoint)
         except ValueError:
-            # Skip files that don't match the expected pattern
             continue
-        except Exception as e:
-            logging.error(f"Failed to delete checkpoint {checkpoint}: {e}")
+    
+    return quantized_layers
 
 
-def load_checkpoint(model, checkpoint_file):
+def load_layer_checkpoint(model, layer_idx, checkpoint_file):
     """
-    Load model checkpoint from file.
+    Load a specific layer's quantized weights into the model.
+    
+    Args:
+        model: The model to load the layer into
+        layer_idx: Index of the layer to load
+        checkpoint_file: Path to the layer checkpoint file
+    
+    Returns:
+        bool: True if successfully loaded, False otherwise
+    """
+    if not os.path.exists(checkpoint_file):
+        logging.error(f"Layer checkpoint file {checkpoint_file} not found")
+        return False
+    
+    try:
+        # Load the layer state dict
+        layer_state_dict = load_file(checkpoint_file)
+        
+        # Load into the specific layer
+        layer_prefix = f"model.layers.{layer_idx}."
+        model_state_dict = {}
+        
+        for param_name, param_value in layer_state_dict.items():
+            full_param_name = layer_prefix + param_name
+            model_state_dict[full_param_name] = param_value
+        
+        # Load the parameters into the model
+        model.load_state_dict(model_state_dict, strict=False)
+        
+        logging.info(f"Successfully loaded layer {layer_idx} from checkpoint")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Failed to load layer {layer_idx} checkpoint: {e}")
+        return False
+
+
+def auto_load_quantized_layers(model, checkpoint_dir, model_name="quantized_model"):
+    """
+    Automatically detect and load all available quantized layers.
+    
+    Args:
+        model: The model to load layers into
+        checkpoint_dir: Directory containing layer checkpoints
+        model_name: Name prefix for checkpoint files
+    
+    Returns:
+        int: Number of layers successfully loaded, or highest layer index if resuming
+    """
+    quantized_layers = detect_quantized_layers(checkpoint_dir, model_name)
+    
+    if not quantized_layers:
+        logging.info("No quantized layer checkpoints found")
+        return 0
+    
+    loaded_count = 0
+    max_layer_idx = -1
+    
+    for layer_idx in sorted(quantized_layers.keys()):
+        checkpoint_file = quantized_layers[layer_idx]
+        if load_layer_checkpoint(model, layer_idx, checkpoint_file):
+            loaded_count += 1
+            max_layer_idx = layer_idx
+        else:
+            logging.warning(f"Failed to load layer {layer_idx}, stopping auto-load")
+            break
+    
+    logging.info(f"Auto-loaded {loaded_count} quantized layers (up to layer {max_layer_idx})")
+    return max_layer_idx
+
+
+from transformers import AutoModelForCausalLM
+
+def load_checkpoint(model, checkpoint_dir_path):
+    """
+    Load model checkpoint from directory.
     
     Args:
         model: The model to load weights into
-        checkpoint_file: Path to the checkpoint file
+        checkpoint_dir_path: Path to the checkpoint directory
     
     Returns:
-        layer_idx: The layer index this checkpoint corresponds to
+        (model, layer_idx): The loaded model and layer index
     """
-    if not os.path.exists(checkpoint_file):
-        raise FileNotFoundError(f"Checkpoint file {checkpoint_file} not found")
+    if not os.path.exists(checkpoint_dir_path):
+        raise FileNotFoundError(f"Checkpoint directory {checkpoint_dir_path} not found")
     
-    logging.info(f"Loading checkpoint from {checkpoint_file}")
+    logging.info(f"Loading checkpoint from {checkpoint_dir_path}")
     
     try:
-        state_dict = load_file(checkpoint_file)
-        model.load_state_dict(state_dict)
+        # Load model from the checkpoint directory
+        loaded_model = AutoModelForCausalLM.from_pretrained(
+            checkpoint_dir_path,
+            torch_dtype="auto",        
+            low_cpu_mem_usage=True,    
+            device_map="auto",         
+        )
         
-        # Extract layer index from filename
-        filename = Path(checkpoint_file).stem
-        layer_idx = int(filename.split('_layer_')[-1])
+        # Extract layer index from directory name
+        dirname = Path(checkpoint_dir_path).name
+        layer_idx = int(dirname.split('_layer_')[-1])
         
         logging.info(f"Checkpoint loaded successfully for layer {layer_idx}")
-        return layer_idx
+        return loaded_model, layer_idx
         
     except Exception as e:
-        logging.error(f"Failed to load checkpoint {checkpoint_file}: {e}")
+        logging.error(f"Failed to load checkpoint {checkpoint_dir_path}: {e}")
         raise
 
 
@@ -172,53 +231,49 @@ def find_latest_checkpoint(checkpoint_dir, model_name="quantized_model"):
     
     Args:
         checkpoint_dir: Directory containing checkpoints
-        model_name: Name prefix for the checkpoint files
+        model_name: Name prefix for the checkpoint directories
     
     Returns:
-        (checkpoint_file, layer_idx): Path to latest checkpoint and its layer index,
-                                     or (None, -1) if no checkpoints found
+        (checkpoint_dir_path, layer_idx): Path to latest checkpoint directory and its layer index,
+                                         or (None, -1) if no checkpoints found
     """
     if checkpoint_dir is None or not os.path.exists(checkpoint_dir):
         return None, -1
     
     checkpoint_path = Path(checkpoint_dir)
-    checkpoints = list(checkpoint_path.glob(f"{model_name}_layer_*.safetensors"))
+    # Look for checkpoint directories instead of files
+    checkpoint_dirs = [d for d in checkpoint_path.iterdir() if d.is_dir() and d.name.startswith(f"{model_name}_layer_")]
     
-    if not checkpoints:
+    if not checkpoint_dirs:
         return None, -1
     
     # Sort by layer index to find the latest
-    latest_checkpoint = max(checkpoints, key=lambda x: int(x.stem.split('_layer_')[-1]))
-    layer_idx = int(latest_checkpoint.stem.split('_layer_')[-1])
+    latest_checkpoint = max(checkpoint_dirs, key=lambda x: int(x.name.split('_layer_')[-1]))
+    layer_idx = int(latest_checkpoint.name.split('_layer_')[-1])
     
     return str(latest_checkpoint), layer_idx
 
 @torch.no_grad()
-def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False, cali_batch_size=32, checkpoint_dir=None, resume_from_checkpoint=None, checkpoint_layers=None):
+def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False, cali_batch_size=32, checkpoint_dir=None, resume_from_checkpoint=None):
     '''
     Adapting From Quarot/GPTQ repo 
     
     Args:
         checkpoint_dir: Directory to save/load checkpoints from
         resume_from_checkpoint: Specific checkpoint file to resume from, or 'latest' to auto-find latest
-        checkpoint_layers: Controls checkpoint frequency to minimize disk usage:
-                          - None: Save checkpoint after every layer (default)
-                          - "last": Only save checkpoint after the final layer
-                          - int: Save checkpoint every N layers (e.g., 5 = every 5 layers)
-                          Note: When saving a new checkpoint, ALL previous checkpoints are deleted
     '''
     logging.info('-----GPTQ Quantization-----')
     
     # Handle checkpoint resuming
     start_layer = 0
-    if resume_from_checkpoint:
-        checkpoint_file, layer_idx = find_latest_checkpoint(checkpoint_dir)
-        if checkpoint_file is not None:
-            load_checkpoint(model, checkpoint_file)
-            start_layer = layer_idx + 1
-            logging.info(f"Resuming quantization from layer {start_layer}")
+    if resume_from_checkpoint and checkpoint_dir:
+        # Auto-load all available quantized layers
+        max_quantized_layer = auto_load_quantized_layers(model, checkpoint_dir)
+        if max_quantized_layer >= 0:
+            start_layer = max_quantized_layer + 1
+            logging.info(f"Resuming quantization from layer {start_layer} (loaded {max_quantized_layer + 1} layers)")
         else:
-            logging.info("No checkpoint found, starting from beginning")
+            logging.info("No layer checkpoints found, starting from beginning")
 
     
     # disable kv cache for efficiency 
@@ -379,7 +434,7 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
         
         # Save checkpoint after completing this layer
         if checkpoint_dir is not None:
-            save_checkpoint(model, i, checkpoint_dir, checkpoint_layers=checkpoint_layers)
+            save_checkpoint(model, i, checkpoint_dir)
 
     # reset to enable kv cache
     model.config.use_cache = use_cache
