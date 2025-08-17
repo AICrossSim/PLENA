@@ -7,8 +7,8 @@ from .meta import MinifloatMeta, MinifloatTensorMeta
 
 
 def extract_minifloat_components(
-    tensor: Tensor, block_dim: int, minifloat_meta: MinifloatMeta
-) -> tuple[Tensor, Tensor, MinifloatTensorMeta]:
+    tensor: Tensor, minifloat_meta: MinifloatMeta
+) -> MinifloatTensorMeta:
     """
     Extracts the Minifloat components from a tensor.
 
@@ -17,8 +17,6 @@ def extract_minifloat_components(
 
     :param tensor: The input tensor to be quantized.
     :type tensor: torch.Tensor
-    :param block_dim: The dimension to group the tensor elements into blocks.
-    :type block_dim: int
     :param minifloat_meta: The metadata for the Minifloat format.
     :type minifloat_meta: MinifloatMeta
 
@@ -29,19 +27,17 @@ def extract_minifloat_components(
     ori_shape = tuple(tensor.shape)
     ori_dtype = str(tensor.dtype).removeprefix("torch.")
     ndim = len(ori_shape)
-    assert block_dim < ndim and block_dim >= -ndim
 
     assert device.startswith("cpu") or device.startswith("cuda"), (
         f"Unsupported device: {device}. Only 'cpu' and 'cuda' are supported."
     )
-    # tensor = tensor.to(torch.bfloat16)
-    tensor = flatten_for_quantize(tensor, block_dim)
+    tensor = tensor.to(torch.bfloat16)
     if device == "cpu":
-        elements = minifloat_fake.extract_minifloat_component(
+        minifloat_fake.extract_minifloat_component(
             tensor, minifloat_meta=minifloat_meta
         )
     else:
-        elements = minifloat_fake.extract_minifloat_component(
+        minifloat_fake.extract_minifloat_component(
             tensor, minifloat_meta=minifloat_meta
         )
     tensor_meta = MinifloatTensorMeta(
@@ -50,7 +46,7 @@ def extract_minifloat_components(
         shape=ori_shape,
         meta=minifloat_meta,
     )
-    return elements, tensor_meta
+    return tensor_meta
 
 
 def compose_minifloat_tensor(
@@ -114,8 +110,7 @@ def minifloat_quantizer_sim(
     :returns: The dequantized tensor.
     :rtype: torch.Tensor
     """
-    elements, tensor_meta = extract_minifloat_components(
-        tensor, block_dim, minifloat_meta
-    )
-    tensor_dq = compose_minifloat_tensor(elements, tensor_meta, dtype=dtype)
+    tensor_meta = extract_minifloat_components(tensor, minifloat_meta)
+    tensor_dq = compose_minifloat_tensor(tensor_meta, dtype=dtype)
     return tensor_dq
+
