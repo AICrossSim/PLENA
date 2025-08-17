@@ -43,7 +43,7 @@ def find_max_x(const1, const2):
 
 
 class model_config:
-    def __init__(self, model_param_path, hbm_bandwidth = 256):
+    def __init__(self, model_param_path, hardware_config, batch_size = 1, seq_len = 2048, hbm_bandwidth = 256):
         model_param = json.load(open(model_param_path))
         self.hidden_size = model_param["hidden_size"]
         self.num_attention_heads = model_param["num_attention_heads"]
@@ -51,131 +51,107 @@ class model_config:
         self.intermediate_size = model_param["intermediate_size"]
         self.num_key_value_heads = model_param["num_key_value_heads"]
         self.attention_bias = model_param["attention_bias"]
-        self.max_position_embeddings = model_param["max_position_embeddings"]
+        self.vocab_size = model_param["vocab_size"]
+        self.default_seq_len = seq_len
         self.head_dim = self.hidden_size // self.num_attention_heads
         self.num_head_groups = self.num_attention_heads // self.num_key_value_heads
         self.vocab_size = model_param["vocab_size"]
         self.DataTypeSize = 4
         self.hbm_bandwidth = hbm_bandwidth        # GigaByte per second
-        self.theoratical_frequency = 10**9 # 1 GHz
-        self.batch_size = 1
-        self.seq_len = 100
+        self.theoratical_frequency = 10**9          # 1 GHz
+        self.hardware_config = hardware_config
+        self.batch_size = batch_size
 
 
-    def rms_layer(self, TileSize):
-        setting_inst_num = 5
-        loop_inst_num = 7 + 7 
-        loop_num = self.hidden_size // TileSize
+    def rms_layer(self):
+        setting_inst_num = 10
+        loop_inst_num = 8
+        loop_num = self.hidden_size // self.hardware_config["VLEN"]
         instruction_num = 0
         instruction_num += setting_inst_num
         instruction_num += loop_num * loop_inst_num
-        return instruction_num
+        return instruction_num * self.batch_size
 
-    def projection(self, TileSize):
+    def projection(self):
         overall_inst_num = 0
-    ##Q Projection
-        # -- Projection
-        setting_inst_num = 9
-        mvm_inst_num = 13
-        loop_mvm_num = (self.hidden_size // TileSize) ** 2
-        data_transfer_inst_num = 5
-        # Load Sin and Cos
-        load_cos_sin_inst_num = 5 * (self.head_dim // TileSize)
-        # -- RoPE
-        head_setting_inst = self.num_attention_heads * 4
-        loop_per_head_inst_num = 16 * (self.head_dim // TileSize) * self.num_attention_heads
-        overall_inst_num += setting_inst_num + mvm_inst_num * loop_mvm_num + data_transfer_inst_num + load_cos_sin_inst_num + head_setting_inst + loop_per_head_inst_num
-    ##K Projection
-        # -- Projection
-        setting_inst_num = 9
-        mvm_inst_num = 13
-        loop_mvm_num = ((self.num_key_value_heads * self.head_dim) // TileSize) ** 2
-        data_transfer_inst_num = 5
-        # Load Sin and Cos
-        load_cos_sin_inst_num = 5 * (self.head_dim // TileSize)
-        # -- RoPE
-        head_setting_inst = self.num_key_value_heads * 4
-        loop_per_head_inst_num = 16 * (self.head_dim // TileSize) * self.num_key_value_heads
-        overall_inst_num += setting_inst_num + mvm_inst_num * loop_mvm_num + data_transfer_inst_num + load_cos_sin_inst_num + head_setting_inst + loop_per_head_inst_num
-    ## V Projection
-        # -- Projection
-        setting_inst_num = 9
-        mvm_inst_num = 13
-        loop_mvm_num = ((self.num_key_value_heads * self.head_dim) // TileSize) ** 2
-        data_transfer_inst_num = 5
-        overall_inst_num += setting_inst_num + mvm_inst_num * loop_mvm_num + data_transfer_inst_num
-        return overall_inst_num
+        # Q, K Projection + RoPE
+        overall_inst_num += self.batch_size * (self.hidden_size // self.hardware_config["BLEN"]) * (self.hidden_size // self.hardware_config["MLEN"]) * (self.default_seq_len // self.hardware_config["BLEN"]) * 3 + 10
+        overall_inst_num += self.batch_size * (self.num_attention_heads * self.default_seq_len) * 10
 
-    def flash_attention(self, TileSize):
+        overall_inst_num += self.batch_size * ((self.num_key_value_heads * self.head_dim) // self.hardware_config["BLEN"]) * (self.hidden_size // self.hardware_config["MLEN"]) * (self.default_seq_len // self.hardware_config["BLEN"]) * 3 + 10
+        overall_inst_num += self.batch_size * (self.num_key_value_heads * self.default_seq_len) * 10
+
+        # V
+        overall_inst_num += self.batch_size * ((self.num_key_value_heads * self.head_dim) // self.hardware_config["BLEN"]) * (self.hidden_size // self.hardware_config["MLEN"]) * (self.default_seq_len // self.hardware_config["BLEN"]) * 3 + 10
+        return overall_inst_num
+    
+    def flash_attention(self):
         overall_inst_num = 0
-        # -- Attention
-        q_heads = self.num_attention_heads
-        settings_in_each_attention = 7
-        internel_Tc_Loop = self.seq_len // TileSize # Assuming 50 for s_kv
-
-        # Internel Tc Loop
-        # Q_KT Loop
-        Tile_Loop_per_head = self.head_dim // TileSize
-        Q_KT_inst_num = 15 * Tile_Loop_per_head  + 7 * Tile_Loop_per_head # One for QKT another for Vector elementwise qk_scale
-        # Row Max
-        row_max_inst_num = 7 * Tile_Loop_per_head
-        # Reduction by m_new
-        reduction_inst_num = 7 * Tile_Loop_per_head
-        # Exp
-        exp_inst_num = 8 * Tile_Loop_per_head
-        # Scalar
-        scalar_inst_num = 15
-        # Psum
-        psum_inst_num = 7 * Tile_Loop_per_head
-        # p v
-        p_v_inst_num = 23 * Tile_Loop_per_head
-
-        overall_inst_num += q_heads * (settings_in_each_attention + internel_Tc_Loop * (Q_KT_inst_num + row_max_inst_num + reduction_inst_num + exp_inst_num + scalar_inst_num + psum_inst_num + p_v_inst_num))
-        return overall_inst_num
+        mlen = self.hardware_config["MLEN"]
+        blen = self.hardware_config["BLEN"]
+        # Outer loop
+        for i in range(self.default_seq_len // self.hardware_config["MLEN"]):
+            for j in range(self.default_seq_len // self.hardware_config["MLEN"]):
+                overall_inst_num += 4 + (mlen // blen) ** 2 * 8 + 3 # MLEN * MLEN
+                overall_inst_num += 2 + mlen * 30  # Softmax
+                overall_inst_num += max(1, self.head_dim // mlen) * (9 + 4 + (mlen // blen) ** 2 * 8 + 3) #PV
+                overall_inst_num += max(1, self.head_dim // mlen) * (1+ mlen * 5) #Compute O
+                overall_inst_num += 8
+                overall_inst_num += 2 + mlen * 4
+        return overall_inst_num * self.batch_size
+    
 
 
-    def residual (self, TileSize):
+    def residual (self):
         overall_inst_num = 0
         # -- Residual
-        iteration = self.hidden_size // TileSize
-        overall_inst_num = 10 * iteration
+        iteration = self.hidden_size // self.hardware_config["VLEN"]
+        overall_inst_num = 5 * iteration + 3
         return overall_inst_num
 
-    def feed_forward(self, TileSize):
-        overall_inst_num = 0
-        # -- Feed Forward
-        setting_inst_num = 9
-        mvm_inst_num = 13
-        loop_mvm_num = (self.hidden_size * self.hidden_size) // (TileSize * TileSize)
-        data_transfer_inst_num = 5
-        overall_inst_num = setting_inst_num + (mvm_inst_num + data_transfer_inst_num) * loop_mvm_num
-        return overall_inst_num
+    def feed_forward(self):
+        mlen = self.hardware_config["MLEN"]
+        vlen = self.hardware_config["VLEN"]
+        blen = self.hardware_config["BLEN"]
 
-    def mlp(self, TileSize):
         overall_inst_num = 0
         # -- MLP
-        setting_inst_num = 9
-        mvm_inst_num = 13
-        loop_mvm_num = (self.hidden_size * self.intermediate_size) // (TileSize * TileSize)
-        data_transfer_inst_num = 5
-        overall_inst_num = setting_inst_num + (mvm_inst_num + data_transfer_inst_num) * loop_mvm_num
+        overall_inst_num += 2 * (self.intermediate_size // blen) * (self.hidden_size // mlen) * 4
+        overall_inst_num += (self.intermediate_size // vlen) * 5
+        overall_inst_num += (self.intermediate_size // blen) * (self.hidden_size // mlen) * 4
+        return overall_inst_num
+
+    def embeddings(self):
+        mlen = self.hardware_config["MLEN"]
+        vlen = self.hardware_config["VLEN"]
+        blen = self.hardware_config["BLEN"]
+        overall_inst_num = 3
+        overall_inst_num += (self.hidden_size // blen) * (self.hidden_size // mlen) * (blen * 2 + 1) + 4
+        
+    def lm_head(self):
+        mlen = self.hardware_config["MLEN"]
+        vlen = self.hardware_config["VLEN"]
+        blen = self.hardware_config["BLEN"]
+        overall_inst_num = 3
+        overall_inst_num += (self.hidden_size // blen) * (self.vocab_size // mlen) * (blen * 2 + 1) + 4
+        
         return overall_inst_num
 
 
-    def compute_overall_inst(self, TileSize):
+    def compute_overall_inst(self):
         overall_inst_num = 0
         for i in range(self.num_hidden_layers):
-            overall_inst_num += self.rms_layer(TileSize)
-            overall_inst_num += self.projection(TileSize)
-            overall_inst_num += self.flash_attention(TileSize)
-            overall_inst_num += self.residual(TileSize)
-            overall_inst_num += self.rms_layer(TileSize)
-            overall_inst_num += self.feed_forward(TileSize)
-            overall_inst_num += self.residual(TileSize)
-        overall_inst_num += self.rms_layer(TileSize)
-        overall_inst_num += self.mlp(TileSize)
+            overall_inst_num += self.rms_layer()
+            overall_inst_num += self.projection()
+            overall_inst_num += self.flash_attention()
+            overall_inst_num += self.residual()
+            overall_inst_num += self.rms_layer()
+            overall_inst_num += self.feed_forward()
+            overall_inst_num += self.residual()
+        # overall_inst_num += self.rms_layer()
+        overall_inst_num += self.lm_head()
         # print("Overall instruction number: ", overall_inst_num)
-        overall_exe_cycle = overall_inst_num * 3
+        overall_exe_cycle = overall_inst_num * 2 # avg 3 execution cycles
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
         # print("Theoratical execution time: ", theoratical_execution_time)
         return overall_inst_num, theoratical_execution_time
