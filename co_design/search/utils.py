@@ -153,3 +153,45 @@ def check_constraints(updated_config: dict, model_name) -> bool:
         return False, "VLEN bandwidth constraint failed"
 
     return True, None
+
+
+from optuna.trial import create_trial, TrialState
+from optuna.distributions import CategoricalDistribution, IntDistribution
+
+
+def _infer_distributions(tunables):
+    """Infer Optuna distributions from your tunables dict (so create_trial works)."""
+    dists = {}
+    for k, values in tunables.items():
+        if isinstance(values, list) and all(isinstance(v, int) for v in values):
+            if sorted(values) == list(range(min(values), max(values) + 1)):
+                dists[k] = IntDistribution(low=min(values), high=max(values))
+            else:
+                dists[k] = CategoricalDistribution(choices=values)
+        else:
+            dists[k] = CategoricalDistribution(choices=values)
+    return dists
+
+
+def append_from_random(random_storage, random_study_name, target_study, tunables, n=10):
+    """Copy first n COMPLETE trials from a random study into the target study."""
+    random_study = optuna.load_study(study_name=random_study_name, storage=random_storage)
+    completed = [t for t in random_study.trials if t.state == TrialState.COMPLETE][:n]
+
+    if not completed:
+        print(f"[WARN] No completed trials found in {random_study_name}")
+        return
+
+    dists = _infer_distributions(tunables)
+
+    for t in completed:
+        ft = create_trial(
+            state=TrialState.COMPLETE,
+            params=t.params,
+            distributions=dists,
+            values=list(t.values),
+            user_attrs=t.user_attrs,
+        )
+        target_study.add_trial(ft)
+
+    print(f"[INFO] Added {len(completed)} trials from '{random_study_name}' into '{target_study.study_name}'")

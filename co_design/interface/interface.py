@@ -35,9 +35,9 @@ def get_latency(config_dict: dict,
 def get_accuracy(config_dict: dict,
                  model_name: str = "meta-llama/Llama-3.2-1B") -> float:
     kwargs = build_llama_eval_kwargs(precision=config_dict, 
-                                     preset="XqWqBqKVqNLq", 
+                                     preset="XqWqBqKVqNL", 
                                      model_name=model_name,
-                                     full_system_sim=True,
+                                     full_system_sim=False,
                                      gptq_ckpt_dir=GPTQ_MODEL_CKPT_PATH)
 
     accuracy = llama_eval(**kwargs)

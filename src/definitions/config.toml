@@ -59,7 +59,7 @@ active = 7
 SIMULATION = 7
 ASIC = 8
 default = 7
-tunable_range = [ "FP_E6M5", "FP_E5M6", "FP_E4M7", "FP_E8M5"]
+tunable_range = [ "FP_E3M2", "FP_E2M3", "FP_E6M5", "FP_E5M6", "FP_E4M7", "FP_E8M5"]
 
 
 [PRECISION.INT_DATA_WIDTH]
