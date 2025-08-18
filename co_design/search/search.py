@@ -117,7 +117,7 @@ def trial_worker(
 
 
 def search(
-    model_name: str = "meta-llama/Llama-3.2-1B",
+    model_name: str = "meta-llama/Meta-Llama-3-8B",
     config_path: str = "src/definitions/config.toml",
     n_trials: int = 80,
     visualize: bool = False,
@@ -136,7 +136,7 @@ def search(
     tunables = load_toml_config(config_path, mode="tunable_range")
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
     
-    random_study_name = "Random_42_1b"
+    random_study_name = f"Random_{seed}_1b"
     random_db_path = Path("co_design") / f"{random_study_name}.db"
     random_storage = f"sqlite:///{random_db_path.resolve()}"
 
