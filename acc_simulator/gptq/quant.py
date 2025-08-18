@@ -168,7 +168,7 @@ def auto_load_quantized_layers(model, checkpoint_dir, model_name="quantized_mode
     
     if not quantized_layers:
         logging.info("No quantized layer checkpoints found")
-        return 0
+        return -1
     
     loaded_count = 0
     max_layer_idx = -1
@@ -271,7 +271,7 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
         max_quantized_layer = auto_load_quantized_layers(model, checkpoint_dir)
         if max_quantized_layer >= 0:
             start_layer = max_quantized_layer + 1
-            logging.info(f"Resuming quantization from layer {start_layer} (loaded {max_quantized_layer + 1} layers)")
+            logging.info(f"Resuming quantization from layer {start_layer} (loaded {max_quantized_layer} layers)")
         else:
             logging.info("No layer checkpoints found, starting from beginning")
 
