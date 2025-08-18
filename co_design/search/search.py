@@ -20,7 +20,6 @@ AREA_MIN, AREA_MAX = 120246991, 500000000
 def objective(
     trial: optuna.Trial,
     tunables: Dict[str, Any],
-    gpu_id: int,
     set_constraints: bool = True,
     normalize: bool = False,
     model_name: str | None = None,
@@ -51,9 +50,7 @@ def objective(
         raise optuna.TrialPruned()
     print()
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-
-    # Run your simulator
+    # Run your simulator (no per-trial device changes)
     accuracy, latency, area = run_simulation(config_hw, config_acc, model_name=model_name)
 
     # Store raw for constraints
@@ -122,17 +119,19 @@ def search(
     n_trials: int = 80,
     visualize: bool = False,
     sampler_type: Union[str, None] = "botorch",
-    num_gpus: int = 8,
-    trials_per_gpu: int = 1,
+    num_gpus: int = 8,                 # ignored for parallel=False single-GPU run
+    trials_per_gpu: int = 1,           # ignored for parallel=False
     normalize: bool = True,
     set_constraints: bool = False,
     parallel: bool = False,
-    seed: int = 42, 
-    # 1213, 2025, 42, 442
+    seed: int = 42,
     restart_study: bool = True,
-    gpu_id: int =0,
+    gpu_id: int = 0,                   # <-- choose your single GPU here
     study_name: str = None
 ):
+    # --- Pin all work to a single GPU once ---
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+
     tunables = load_toml_config(config_path, mode="tunable_range")
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
     
@@ -145,7 +144,7 @@ def search(
     db_path = Path("co_design") / f"db_{seed}" / f"{study_name}.db"
     storage = f"sqlite:///{db_path.resolve()}"
 
-    # Choose sampler
+    # Sampler
     if sampler_type == "botorch":
         sampler = BoTorchSampler(seed=seed, consider_running_trials=True)
     elif sampler_type == "tpe":
@@ -154,20 +153,15 @@ def search(
         sampler = RandomSampler(seed=seed)
     elif sampler_type == "ns":
         sampler = NSGAIISampler(seed=seed)
-
     else:
         raise ValueError(f"Unknown sampler type: {sampler_type}")
     print(sampler)
 
     if restart_study:
-    # Fresh study
         reset_study_and_db(study_name, storage)
         load_if_exists = False
     else:
         load_if_exists = True
-
-    # load the first 10 random trails from random sampler study to the study
-
 
     study = optuna.create_study(
         directions=["minimize", "minimize", "minimize"],
@@ -176,6 +170,7 @@ def search(
         storage=storage,
         load_if_exists=load_if_exists,
     )
+
     if sampler_type != "random" and restart_study:
         append_from_random(
             random_storage=random_storage,
@@ -183,14 +178,27 @@ def search(
             target_study=study,
             tunables=tunables,
             n=10,
-            )
+        )
     print("Validating", study.sampler)
 
-    max_workers = num_gpus * trials_per_gpu
-    print(f"[INFO] Launching {n_trials} trials across {max_workers} workers.")
-
-    if parallel:
+    # --- Sequential (single GPU, single node) ---
+    if not parallel:
+        print(f"[INFO] Launching {n_trials} trials sequentially on GPU {gpu_id}.")
+        for _ in range(n_trials):
+            study.optimize(
+                lambda trial: objective(
+                    trial,
+                    tunables,
+                    set_constraints,
+                    normalize=normalize,
+                    model_name=model_name,
+                ),
+                n_trials=1,
+            )
+            print(study.sampler)
+    else:
         try:
+            max_workers = 1
             with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
                 futures = [
                     executor.submit(
@@ -212,22 +220,7 @@ def search(
             print("\n[INFO] Caught KeyboardInterrupt, cancelling all jobs...")
             executor.shutdown(wait=False, cancel_futures=True)
             raise
-    else:
-        # Sequential: exactly n_trials
-        for i in range(n_trials):
-            gpu_id = i % num_gpus
-            study.optimize(
-                lambda trial: objective(
-                    trial,
-                    tunables,
-                    gpu_id,
-                    set_constraints,
-                    model_name=model_name,
-                    normalize=normalize,
-                ),
-                n_trials=1,
-            )
-            print(study.sampler)
+
 
     post_search(study_name, storage, normalize=normalize, visualize=visualize)
 
