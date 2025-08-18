@@ -16,11 +16,12 @@ def get_preset_info(preset):
     else:
         raise Warning(f"None preset: {preset}")
 
-def setup_linear_args(preset, preset_x, preset_w, online_rotate, clip_search_y):
+def setup_linear_args(preset, preset_x, preset_w, preset_NL, online_rotate, clip_search_y):
     linear_kwargs = {
         "x_meta": None,
         "w_meta": None,
         "b_meta": None,
+        "nl_meta": None,
         "layer_type": "XWB",
         "online_rotate": online_rotate,
         "clip_search_y": clip_search_y,
@@ -33,6 +34,8 @@ def setup_linear_args(preset, preset_x, preset_w, online_rotate, clip_search_y):
         # bias and weights sharing the same datatype setup
         if "Bq" in preset:
             linear_kwargs["b_meta"] = get_preset_info(preset_w)
+        if "NLq" in preset:
+            linear_kwargs["nl_meta"] = get_preset_info(preset_NL)
         linear_kwargs["layer_type"] = preset
     
     return linear_kwargs
@@ -141,7 +144,7 @@ def setup_args_linear_nonlinear(
     }
 
     return {
-        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "online_rotate", "clip_search_y"])),
+        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "preset_NL", "online_rotate", "clip_search_y"])),
         "embed_kwargs": setup_embed_args(**filter_kwargs(kwargs, ["preset", "preset_w"])),
         "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "preset_Kv", "preset_NL", "online_rotate"])),
         "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_NL"])),

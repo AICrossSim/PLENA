@@ -20,6 +20,7 @@ class MXFPLinearPTQ(nn.Module):
         x_meta: MXFPMeta | MXIntMeta | None,
         w_meta: Union[MXFPMeta, MXIntMeta, None],
         b_meta: MXFPMeta | MXIntMeta | None,
+        nl_meta: MinifloatMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
@@ -37,6 +38,7 @@ class MXFPLinearPTQ(nn.Module):
         self.x_meta = x_meta
         self.w_meta = w_meta
         self.b_meta = b_meta
+        self.nl_meta = nl_meta
         self.layer_type = layer_type
         self.w_pre_quantized = w_pre_quantized
         self.online_rotate = online_rotate
@@ -69,7 +71,13 @@ class MXFPLinearPTQ(nn.Module):
                 input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
 
         # print(f"[DEBUG] input dtype: {input.dtype}, weight dtype: {self.weight.dtype}, bias dtype: {self.bias.dtype if self.bias is not None else 'None'}")
-        return torch.nn.functional.linear(input, self.weight, self.bias)
+        if "NLq" in self.layer_type:
+            assert isinstance(self.nl_meta, MinifloatMeta), "nl_meta must be a MinifloatMeta"
+            out = torch.nn.functional.linear(input, self.weight, self.bias)
+            qout = quantize_tensor(out, block_dim=None, meta=self.nl_meta)
+            return qout
+        else:
+            return torch.nn.functional.linear(input, self.weight, self.bias)
 
 
     def extra_repr(self) -> str:
@@ -87,6 +95,7 @@ class MXFPLinearPTQ(nn.Module):
         x_meta: MXFPMeta | MXIntMeta | None,
         w_meta: MXFPMeta | MXIntMeta | None,
         b_meta: MXFPMeta | MXIntMeta | None,
+        nl_meta: MinifloatMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
@@ -104,6 +113,7 @@ class MXFPLinearPTQ(nn.Module):
                 x_meta=x_meta,
                 w_meta=w_meta,
                 b_meta=b_meta,
+                nl_meta=nl_meta,
                 layer_type=layer_type,
                 online_rotate=online_rotate
             )
@@ -115,6 +125,7 @@ class MXFPLinearPTQ(nn.Module):
         x_meta: MXFPMeta | MXIntMeta | None,
         w_meta: MXFPMeta | MXIntMeta | None,
         b_meta: MXFPMeta | MXIntMeta | None,
+        nl_meta: MinifloatMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
@@ -132,6 +143,7 @@ class MXFPLinearPTQ(nn.Module):
                 x_meta=x_meta,
                 w_meta=w_meta,
                 b_meta=b_meta,
+                nl_meta=nl_meta,
                 layer_type=layer_type,
                 w_pre_quantized=True,
                 online_rotate=online_rotate
@@ -146,6 +158,7 @@ class MXFPLinearPTQ(nn.Module):
         x_meta: MXFPMeta | MXIntMeta | None,
         w_meta: MXFPMeta | MXIntMeta | None,
         b_meta: MXFPMeta | MXIntMeta | None,
+        nl_meta: MinifloatMeta | None,
         layer_type: Literal[
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
@@ -163,6 +176,7 @@ class MXFPLinearPTQ(nn.Module):
                 x_meta=x_meta,
                 w_meta=w_meta,                           
                 b_meta=b_meta,
+                nl_meta=nl_meta,
                 layer_type=layer_type,
                 w_pre_quantized=True,
                 online_rotate=online_rotate

@@ -1,5 +1,5 @@
-MODEL_NAME_LIST=("meta-llama/Llama-2-7b-hf" "meta-llama/Llama-2-13b-hf")
-CUDA_DEVICE="cuda:0"
+MODEL_NAME_LIST=("meta-llama/Meta-Llama-3-8B")
+CUDA_DEVICE="cuda:1"
 echo $CUDA_DEVICE
 
 for model_name in "${MODEL_NAME_LIST[@]}"; do

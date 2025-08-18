@@ -5,8 +5,8 @@ from .meta import MinifloatMeta
 from .torch_minifloat import minifloat_denorm_quantizer, minifloat_ieee_quantizer
 
 def extract_minifloat_component(x: Tensor, minifloat_meta: MinifloatMeta) -> Tensor:
-    exp_bits = minifloat_meta.exp_bits
-    frac_bits = minifloat_meta.frac_bits
+    exp_bits = minifloat_meta.element_exp_bits
+    frac_bits = minifloat_meta.element_frac_bits
     total_bits = exp_bits + frac_bits + 1
 
     return minifloat_ieee_quantizer(x, total_bits, exp_bits)
