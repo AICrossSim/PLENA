@@ -117,7 +117,7 @@ def trial_worker(
 
 
 def search(
-    model_name: str = "meta-llama/Meta-Llama-3-8B",
+    model_name: str = "meta-llama/Llama-3.2-1B",
     config_path: str = "src/definitions/config.toml",
     n_trials: int = 80,
     visualize: bool = False,
@@ -137,12 +137,12 @@ def search(
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
     
     random_study_name = f"Random_{seed}_1b"
-    random_db_path = Path("co_design") / f"{random_study_name}.db"
+    random_db_path = Path("co_design") / f"db_{seed}" / f"{random_study_name}.db"
     random_storage = f"sqlite:///{random_db_path.resolve()}"
 
     if not study_name:
         study_name = f"{sampler_type}_search_with_area"
-    db_path = Path("co_design") / f"{study_name}.db"
+    db_path = Path("co_design") / f"db_{seed}" / f"{study_name}.db"
     storage = f"sqlite:///{db_path.resolve()}"
 
     # Choose sampler
