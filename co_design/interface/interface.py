@@ -33,12 +33,15 @@ def get_latency(config_dict: dict,
     
 
 def get_accuracy(config_dict: dict,
-                 model_name: str = "meta-llama/Llama-3.2-1B") -> float:
+                 model_name: str = "meta-llama/Llama-3.2-1B",
+                 model_flag: int = None) -> float:
+    
     kwargs = build_llama_eval_kwargs(precision=config_dict, 
                                      preset="XqWqBqKVqNL", 
                                      model_name=model_name,
                                      full_system_sim=False,
-                                     gptq_ckpt_dir=GPTQ_MODEL_CKPT_PATH)
+                                     gptq_ckpt_dir=GPTQ_MODEL_CKPT_PATH,
+                                     model_flag=model_flag)
 
     accuracy = llama_eval(**kwargs)
     # Assume eval_harness is not enabled for now, only searching over ppl for prefilling 

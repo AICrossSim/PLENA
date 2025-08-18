@@ -42,7 +42,8 @@ def build_llama_eval_kwargs(precision: dict,
                             model_name,
                             gptq_ckpt_dir,
                             preset: str = "XqWqBqKVqNLq", 
-                            full_system_sim: bool = True) -> dict:
+                            full_system_sim: bool = True,
+                            model_flag: int = None) -> dict:
     # Build MX suffix from scale and block
     scale = 8
     block = 16
@@ -64,7 +65,7 @@ def build_llama_eval_kwargs(precision: dict,
         "model_parallel": False,
         "enable_eval_harness": False,
         "use_gptq": True,
-        "online_rotate": False,
+        "online_rotate": True if model_flag == 8 else False,
         "full_system_sim": full_system_sim,
         "gptq_ckpt_dir": gptq_ckpt_dir,
     }

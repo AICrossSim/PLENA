@@ -52,7 +52,8 @@ def denormalize_objective(val, min_val, max_val, sym=True, use_log=True):
 def post_search(study_name, 
                 storage, 
                 normalize: bool = False, 
-                visualize: bool = False):
+                visualize: bool = False,
+                model_flag: int = None):
     # Print the number of Pareto-optimal trials
     study = optuna.load_study(study_name=study_name, storage=storage)
     print(f"[INFO] Number of Pareto-optimal trials: {len(study.best_trials)}")
@@ -64,9 +65,13 @@ def post_search(study_name,
     for i, trial in enumerate(study.best_trials):
         # print(trail.value)
         if normalize:
-            ACC_MIN, ACC_MAX = 9, 20
+            if model_flag == 8:
+                ACC_MIN, ACC_MAX = 5, 20
+            elif model_flag == 1:
+                ACC_MIN, ACC_MAX = 9, 20
             LAT_MIN, LAT_MAX = 0, 10
             AREA_MIN, AREA_MAX = 120246991, 500000000
+            
             acc_norm, lat_norm, area_norm = trial.values
             acc = denormalize_objective(acc_norm, ACC_MIN, ACC_MAX)
             lat = denormalize_objective(lat_norm, LAT_MIN, LAT_MAX)

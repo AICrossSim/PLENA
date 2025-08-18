@@ -12,17 +12,13 @@ from ..interface.utils import load_toml_config, get_bit_width
 from .utils import normalize_objective, post_search, check_constraints, reset_study_and_db, append_from_random
 
 
-ACC_MIN, ACC_MAX = 9, 20
-LAT_MIN, LAT_MAX = 0, 10
-AREA_MIN, AREA_MAX = 120246991, 500000000
-
-
 def objective(
     trial: optuna.Trial,
     tunables: Dict[str, Any],
     set_constraints: bool = True,
     normalize: bool = False,
     model_name: str | None = None,
+    model_flag: int =8,
 ) -> tuple[float, float, float]:
     
     config: Dict[str, Any] = {}
@@ -50,7 +46,7 @@ def objective(
         raise optuna.TrialPruned()
     print()
 
-    # Run your simulator (no per-trial device changes)
+    # Run your simulator
     accuracy, latency, area = run_simulation(config_hw, config_acc, model_name=model_name)
 
     # Store raw for constraints
@@ -59,6 +55,12 @@ def objective(
         trial.set_user_attr("latency_raw", latency)
         trial.set_user_attr("area_raw", area)
 
+    if model_flag == 8:
+        ACC_MIN, ACC_MAX = 5, 20
+    elif model_flag == 1:
+        ACC_MIN, ACC_MAX = 9, 20
+    LAT_MIN, LAT_MAX = 0, 10
+    AREA_MIN, AREA_MAX = 120246991, 500000000
     # Optional normalization
     if normalize:
         accuracy = normalize_objective(accuracy, min_val=ACC_MIN, max_val=ACC_MAX)
@@ -79,10 +81,11 @@ def run_simulation(
     config_hw: Dict[str, Any],
     config_acc: Dict[str, Any],
     model_name: str = "meta-llama/Llama-3.2-1B",
+    model_flag: int = None
 ):
     latency = get_latency(config_dict=config_hw, model_name=model_name)
     area = get_area(config_dict=config_hw)
-    accuracy = get_accuracy(config_dict=config_acc, model_name=model_name)
+    accuracy = get_accuracy(config_dict=config_acc, model_name=model_name, model_flag = model_flag)
     return accuracy, latency, area
 
 
@@ -95,6 +98,7 @@ def trial_worker(
     set_constraints: bool = False,
     model_name: str | None = None,
     normalize: bool = False,
+    model_flag: int = None
 ):
     gpu_id = trial_index % num_gpus
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -108,13 +112,14 @@ def trial_worker(
             set_constraints=set_constraints,
             model_name=model_name,
             normalize=normalize,
+            model_flag=model_flag
         ),
         n_trials=1,
     )
 
 
 def search(
-    model_name: str = "meta-llama/Llama-3.2-1B",
+    model_name: str = "meta-llama/Meta-Llama-3-8B",
     config_path: str = "src/definitions/config.toml",
     n_trials: int = 80,
     visualize: bool = False,
@@ -126,22 +131,29 @@ def search(
     parallel: bool = False,
     seed: int = 42,
     restart_study: bool = True,
-    gpu_id: int = 0,                   # <-- choose your single GPU here
-    study_name: str = None
+    gpu_id: int =0,
+    study_name: str = None,
+    model_flag: int = 8,
 ):
     # --- Pin all work to a single GPU once ---
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     tunables = load_toml_config(config_path, mode="tunable_range")
     print(f"[INFO] Loaded {len(tunables)} tunable parameters.")
-    
-    random_study_name = f"Random_{seed}_1b"
-    random_db_path = Path("co_design") / f"db_{seed}" / f"{random_study_name}.db"
+
+    if model_flag == 8:
+        model_name = "meta-llama/Meta-Llama-3-8B"
+    elif model_flag == 1:
+        model_name = "meta-llama/Llama-3.2-1B"
+    print(model_flag)
+    print(model_name)
+    random_study_name = f"Random_{seed}_{model_flag}b"
+    random_db_path = Path("co_design") / f"db_{seed}_{model_flag}b" / f"{random_study_name}.db"
     random_storage = f"sqlite:///{random_db_path.resolve()}"
 
     if not study_name:
         study_name = f"{sampler_type}_search_with_area"
-    db_path = Path("co_design") / f"db_{seed}" / f"{study_name}.db"
+    db_path = Path("co_design") / f"db_{seed}_{model_flag}b" / f"{study_name}.db"
     storage = f"sqlite:///{db_path.resolve()}"
 
     # Sampler
@@ -211,6 +223,7 @@ def search(
                         set_constraints,
                         model_name,
                         normalize,
+                        model_flag=model_flag
                     )
                     for i in range(n_trials)
                 ]
@@ -220,9 +233,8 @@ def search(
             print("\n[INFO] Caught KeyboardInterrupt, cancelling all jobs...")
             executor.shutdown(wait=False, cancel_futures=True)
             raise
-
-
-    post_search(study_name, storage, normalize=normalize, visualize=visualize)
+ 
+    post_search(study_name, storage, normalize=normalize, visualize=visualize, model_flag=model_flag)
 
 
 if __name__ == "__main__":
