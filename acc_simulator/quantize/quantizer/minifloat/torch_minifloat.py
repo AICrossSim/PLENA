@@ -223,3 +223,61 @@ def minifloat_ieee_quantizer(
     Tested extreme cases: large values to saturate, small normal values, small subnormal values, normal precision, subnormal precision, and 0
     """
     return MinifloatIEEEQuantize.apply(x, width, exponent_width, exponent_bias)
+
+def minifloat_quantizer(x: Tensor, width: int, exponent_width: int, exponent_bias: int = None):
+ 
+    exponent_bias = 2 ** (exponent_width - 1) - 1
+    
+
+    exponent_max = 2 ** exponent_width - 2 - exponent_bias
+    exponent_min = -exponent_bias
+    mantissa_bits = width - exponent_width - 1
+    shift = 2 ** mantissa_bits
+    shifted_mantissa_max = shift - 1
+    shifted_mantissa_min = 0
+
+    sign = torch.sign(x + 1e-9)
+    value = torch.abs(x)
+    is_inf = value.isinf()
+
+    # Calculate exponent and clamp
+    exponent = torch.floor(torch.log2(value + 1e-9))
+    exponent = my_clamp(exponent, exponent_min, exponent_max)
+
+    mantissa = value / (2 ** exponent)
+
+    if isinstance(exponent_bias, (int, float)):
+        exponent_bias = torch.tensor(
+            [exponent_bias], dtype=exponent.dtype, device=exponent.device
+        )
+    is_normal = ~torch.isclose(exponent, -exponent_bias)
+    # Shifted mantissa depends on normal/subnormal form
+    shifted_mantissa = (
+        is_normal
+        * my_clamp(my_round(mantissa * shift - shift), shifted_mantissa_min, shifted_mantissa_max)
+        + (~is_normal)
+        * my_clamp(my_round(mantissa * shift / 2), shifted_mantissa_min, shifted_mantissa_max)
+    )
+
+    mantissa = (
+        is_normal * (1.0 + shifted_mantissa / shift)
+        + (~is_normal) * (shifted_mantissa / shift * 2)
+    )
+
+    # Handle x == 0 explicitly to preserve gradient
+    is_zero = torch.isclose(value, torch.tensor([0.0], dtype=value.dtype, device=value.device))
+    quantized = torch.where(
+        is_zero,
+        x,
+        torch.where(
+            is_inf,
+            sign * 2**exponent_max,
+            sign * (2 ** exponent) * mantissa
+        )
+    )
+
+    if torch.isnan(quantized).any():
+        print("quantized is nan")
+        breakpoint() 
+    
+    return quantized

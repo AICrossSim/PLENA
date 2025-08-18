@@ -4,9 +4,7 @@ import torch
 from torch import Tensor
 
 from ..quantizer.minifloat import MinifloatMeta
-from ..quantizer.mxint import MXIntMeta
-from ..quantizer.mxfp import MXFPMeta
-from ..utils import quantize_tensor
+from ..quantizer.minifloat.minifloat import minifloat_quantizer_sim
 
 
 def rotate_half(x: Tensor) -> Tensor:
@@ -21,14 +19,14 @@ def rope_minifloat(
     k: Tensor,
     cos: Tensor,
     sin: Tensor,
-    x_meta: MinifloatMeta | MXFPMeta | MXIntMeta | None,
+    x_minifp_meta: MinifloatMeta | None,
     func_type: Literal["X", "Xq"],
     unsqueeze_dim: int = 1,
 ) -> tuple[Tensor, Tensor]:
     if func_type == "Xq":
-        assert x_meta is not None, "Meta must be provided when quantizing input"
-        cos = quantize_tensor(cos, block_dim=-1, meta=x_meta)
-        sin = quantize_tensor(sin, block_dim=-1, meta=x_meta)
+        assert x_minifp_meta is not None, "MinifloatMeta must be provided when quantizing input"
+        cos = minifloat_quantizer_sim(cos, block_dim=None, minifloat_meta=x_minifp_meta)
+        sin = minifloat_quantizer_sim(sin, block_dim=None, minifloat_meta=x_minifp_meta)
 
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)
