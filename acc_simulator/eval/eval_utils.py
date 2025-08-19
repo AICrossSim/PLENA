@@ -176,16 +176,19 @@ def validate_and_sanitize_quant_args(
 
 def setup_model(model_name, model_parallel, dtype, device):
         # set tokenizer like this for now
+        logger.info(f"Setting up model {model_name} with dtype {dtype} and device {device}")
         if "meta" in model_name:
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name, use_fast=False, trust_remote_code=True
             )
         else:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
+        logger.info(f"Tokenizer setup complete")
 
         model = AutoModelForCausalLM.from_pretrained(
             model_name, torch_dtype=dtype, attn_implementation="eager"
         )
+        logger.info(f"Model setup complete")
         # Temp, load on cpu only
         return tokenizer, model
         if model_parallel:

@@ -1,4 +1,5 @@
 MODEL_NAME="meta-llama/Llama-2-7b-hf"
+CUDA_DEVICE="cuda:1"
 echo $MODEL_NAME
 
 

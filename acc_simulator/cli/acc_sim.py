@@ -32,9 +32,10 @@ from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
 from ..gptq import quantize_model_gptq, get_loaders
-from ..utils import get_logger
+from ..utils import get_logger, set_logging_verbosity
 
 logger = get_logger(__name__)
+set_logging_verbosity("info")
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -123,11 +124,13 @@ def llama_eval(
         # TODO: Quantization Holder
         if use_gptq:
             # TODO: deal with args later on
+            logger.info(f"Getting loaders")
             trainloader = get_loaders(
                 "wikitext2", nsamples=128,
                 seed=0, model=model_name,
-                seqlen=seqlen, eval_mode=False
+                seqlen=seqlen, eval_mode=True
             )
+            logger.info(f"Loaders got")
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
@@ -143,23 +146,28 @@ def llama_eval(
             #     model=load_gptq(model, ckpt_dir)
             # else:
                 # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
-            model.to("cpu")
+            # model.to("cpu")
+            logger.info(f"Quantizing GPTQ")
+            start_time = time.time()
             quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint)
+            logger.info(f"GPTQ quantized")
+            logger.info(f"Time taken to quantize GPTQ: {time.time() - start_time} seconds")
             # right now always save the weights after gptq, and not rewrite
-            # if save_gptq_model and not ckpt_file.exists():
-            #     ckpt_dir.mkdir(parents=True, exist_ok=True)
-            #     save_gptq(model, ckpt_dir)
-            # quantize and replace the rest
+            if model_parallel:
+                model=move_to_gpu(model, model_parallel)
+                logger.info(f"Model moved to GPU: {model.device}")
+            else:
+                model.to(device_id)
             quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate, clip_search=clip_search)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
+            if model_parallel:
+                model=move_to_gpu(model, model_parallel)
+                logger.info(f"Model moved to GPU: {model.device}")
+            else:
+                model.to(device_id)
             quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search)
 
-    if model_parallel:
-        model=move_to_gpu(model, model_parallel)
-        logger.info(f"Model moved to GPU: {model.device}")
-    else:
-        model.to(device_id)
 
     if enable_eval_harness:
         results = evaluate_with_lm_eval(

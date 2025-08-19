@@ -4,6 +4,7 @@ from typing import Optional, Callable
 
 import torch
 from torch import nn
+from tqdm import tqdm
 
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
@@ -57,7 +58,7 @@ def replace_modules(
         if isinstance(layer, target_class)
     ]
 
-    for name in layer_names:
+    for name in tqdm(layer_names, desc=f"Replacing {label} layers"):
         old_layer = get_layer_by_name(model, name)
 
         if isinstance(old_layer, replacement_class):

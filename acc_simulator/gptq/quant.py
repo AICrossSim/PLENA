@@ -5,6 +5,8 @@ import logging
 import os
 from pathlib import Path
 from safetensors.torch import save_file, load_file
+from tqdm import tqdm
+import time
 
 from .utils import find_qlayers, cleanup_memory
 from .gptq import GPTQ
@@ -274,6 +276,9 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
             logging.info(f"Resuming quantization from layer {start_layer} (loaded {max_quantized_layer} layers)")
         else:
             logging.info("No layer checkpoints found, starting from beginning")
+
+        if start_layer == len(model.model.layers):
+            return 
 
     
     # disable kv cache for efficiency 

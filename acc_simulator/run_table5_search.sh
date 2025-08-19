@@ -5,10 +5,10 @@ echo $CUDA_DEVICE
 
 
 config_list=(
-  # "--clip_search False --online_rotate False --use_gptq False --clip_search_y False"
-  # "--clip_search True --online_rotate False --use_gptq False --clip_search_y False"
-  # "--clip_search True --online_rotate True --use_gptq False --clip_search_y False"
-  # "--clip_search True --online_rotate True --use_gptq True --clip_search_y False"
+  "--clip_search False --online_rotate False --use_gptq False --clip_search_y False"
+  "--clip_search True --online_rotate False --use_gptq False --clip_search_y False"
+  "--clip_search True --online_rotate True --use_gptq False --clip_search_y False"
+  "--clip_search True --online_rotate True --use_gptq True --clip_search_y False"
   "--clip_search True --online_rotate True --use_gptq True --clip_search_y True"
   )
 for x_kv_config in MXINT_4_B16_S8; do
