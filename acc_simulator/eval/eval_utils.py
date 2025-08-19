@@ -242,6 +242,7 @@ def quantize_model(
     skip_lm_head: bool = True,
     online_rotate: bool = False,
     clip_search: bool = False,
+    layer_for_online_rotate: str | None = None,
 ):
     """
     Replaces specific modules in the model with their quantized counterparts based on preset.
@@ -282,7 +283,8 @@ def quantize_model(
             kwargs=parse_args(quant_args, "linear", clip_search),
             label="MXFPLinearPTQ",
             skip_names=["lm_head"] if skip_lm_head else None,
-            online_rotate=online_rotate
+            online_rotate=online_rotate,
+            layer_for_online_rotate=layer_for_online_rotate
         )
     else:
         replace_modules(
@@ -293,7 +295,8 @@ def quantize_model(
             kwargs=parse_args(quant_args, "linear", clip_search),
             label="MXFPLinearPTQ",
             skip_names=["lm_head"] if skip_lm_head else None,
-            online_rotate=online_rotate
+            online_rotate=online_rotate,
+            layer_for_online_rotate=layer_for_online_rotate
         )
 
     if not full_system_sim:

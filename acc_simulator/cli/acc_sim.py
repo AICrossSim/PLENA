@@ -53,6 +53,7 @@ def llama_eval(
     use_gptq: bool = False,
     offline_rotate: bool = False,
     online_rotate: bool = False,
+    layer_for_online_rotate: Union[str, None] = None,
     clip_search: bool = False,
     clip_search_y: bool = False,
     seqlen: int = 2048,
@@ -85,6 +86,7 @@ def llama_eval(
             Defaults to True.
         offline_rotate: Whether to apply offline hadamard rotation.
         online_rotate: Whether to apply online inner layer activation rotation.
+        layer_for_online_rotate: The layer to apply online inner layer activation rotation.
         clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
         cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
         save_dir (str): Directory to save/load quantization checkpoints. Enables automatic checkpoint saving after each layer.
@@ -159,7 +161,7 @@ def llama_eval(
                 logger.info(f"Model moved to GPU: {model.device}")
             else:
                 model.to(device_id)
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate, clip_search=clip_search)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate, clip_search=clip_search, layer_for_online_rotate=layer_for_online_rotate)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
             if model_parallel:
@@ -167,7 +169,7 @@ def llama_eval(
                 # logger.info(f"Model moved to GPU: {model.device}")
             else:
                 model.to(device_id)
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search, layer_for_online_rotate=layer_for_online_rotate)
 
 
     if enable_eval_harness:

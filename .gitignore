@@ -44,6 +44,7 @@ specific.sh
 acc_simulator/results/
 
 acc_simulator/third_party/
+acc_simulator/experiments/
 analyzed/
 
 notebooks/
