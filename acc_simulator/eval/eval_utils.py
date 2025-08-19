@@ -26,6 +26,10 @@ from ..quantize.quantizer.mxfp import MXFPMeta
 from ..quantize.quantizer.minifloat import MinifloatMeta
 from ..quantize.quantizer.mxint import MXIntMeta
 from ..utils import replace_modules, create_device_map
+from ..utils.logger import get_logger, set_logging_verbosity
+
+logger = get_logger(__name__)
+set_logging_verbosity("debug")
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
     # Always store logs inside acc_simulator/logs regardless of current working directory
@@ -207,6 +211,25 @@ def move_to_gpu(model, model_parallel=True):
         model = model.to(device)
     return model
 
+def parse_args(quant_args: dict, layer_type: str, clip_search: bool = False) -> dict:
+    if layer_type == "linear":
+        layer_args = quant_args.get("fc_kwargs", {})
+        layer_args["clip_search"] = clip_search
+        return layer_args
+    elif layer_type == "attention":
+        layer_args = quant_args.get("attn_kwargs", {})
+        return layer_args
+    elif layer_type == "mlp":
+        layer_args = quant_args.get("mlp_kwargs", {})
+        return layer_args
+    elif layer_type == "embedding":
+        layer_args = quant_args.get("embed_kwargs", {})
+        return layer_args
+    elif layer_type == "rms":
+        layer_args = quant_args.get("rms_kwargs", {})
+        return layer_args
+    else:
+        raise ValueError(f"Invalid layer type: {layer_type}")
 
 def quantize_model(
     model: nn.Module,
@@ -215,6 +238,7 @@ def quantize_model(
     full_system_sim: bool = False,
     skip_lm_head: bool = True,
     online_rotate: bool = False,
+    clip_search: bool = False,
 ):
     """
     Replaces specific modules in the model with their quantized counterparts based on preset.
@@ -231,7 +255,7 @@ def quantize_model(
         target_class=LlamaMLP,
         replacement_class=LlamaMLPActFP,
         factory_fn=LlamaMLPActFP.from_mlp,
-        kwargs=quant_args.get("mlp_kwargs", {}),
+        kwargs=parse_args(quant_args, "mlp"),
         label="LlamaMLP"
     )
 
@@ -241,8 +265,9 @@ def quantize_model(
         target_class=LlamaAttention,
         replacement_class=LlamaAttentionMXFP,
         factory_fn=LlamaAttentionMXFP.from_attention,
-        kwargs=quant_args.get("attn_kwargs", {}),
-        label="LlamaAttention"
+        kwargs=parse_args(quant_args, "attention"),
+        label="LlamaAttention",
+        online_rotate=online_rotate
     )
 
     if linear_quantized: 
@@ -251,7 +276,7 @@ def quantize_model(
             target_class=nn.Linear,
             replacement_class=MXFPLinearPTQ,
             factory_fn=MXFPLinearPTQ.from_linear_gptq,
-            kwargs=quant_args.get("fc_kwargs", {}),
+            kwargs=parse_args(quant_args, "linear", clip_search),
             label="MXFPLinearPTQ",
             skip_names=["lm_head"] if skip_lm_head else None,
             online_rotate=online_rotate
@@ -262,7 +287,7 @@ def quantize_model(
             target_class=nn.Linear,
             replacement_class=MXFPLinearPTQ,
             factory_fn=MXFPLinearPTQ.from_linear,
-            kwargs=quant_args.get("fc_kwargs", {}),
+            kwargs=parse_args(quant_args, "linear", clip_search),
             label="MXFPLinearPTQ",
             skip_names=["lm_head"] if skip_lm_head else None,
             online_rotate=online_rotate
@@ -277,7 +302,7 @@ def quantize_model(
         target_class=nn.Embedding,
         replacement_class=MXFPEmbeddingPTQ,
         factory_fn=MXFPEmbeddingPTQ.from_embedding,
-        kwargs=quant_args.get("embed_kwargs", {}),
+        kwargs=parse_args(quant_args, "embedding"),
         label="Embedding"
     )
 
@@ -287,7 +312,7 @@ def quantize_model(
         target_class=LlamaRMSNorm,
         replacement_class=FPRMSNormPTQ,
         factory_fn=FPRMSNormPTQ.from_rmsnorm,
-        kwargs=quant_args.get("rms_kwargs", {}),
+        kwargs=parse_args(quant_args, "rms"),
         label="FPRMSNormPTQ"
     )
 

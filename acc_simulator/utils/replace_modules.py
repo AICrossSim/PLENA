@@ -7,6 +7,11 @@ from torch import nn
 
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
+from ..utils.logger import get_logger, set_logging_verbosity
+
+logger = get_logger(__name__)
+# set_logging_verbosity("debug")
+
 
 def get_layer_by_name(model: nn.Module, name: str) -> nn.Module:
     parts = name.split(".")
@@ -63,13 +68,18 @@ def replace_modules(
             continue
         
         # Only rotate activation in down-projection
-        if target_class == nn.Linear:
-            if "down_proj" not in name:
-                kwargs["online_rotate"] = online_rotate
-            else:
-                kwargs["online_rotate"] = False
+        # if target_class == nn.Linear:
+        #     kwargs["online_rotate"] = online_rotate
+        # else:
+        #     kwargs["online_rotate"] = False
+            # if "down_proj" not in name:
+            #     kwargs["online_rotate"] = online_rotate
+            # else:
+            #     kwargs["online_rotate"] = False
 
         new_layer = factory_fn(old_layer, **kwargs)
+        if kwargs.get("online_rotate", False):
+            logger.debug(f"layer: {name}, rotation?: {kwargs['online_rotate']}")
         set_layer_by_name(model, name, new_layer)
 
         # Safely delete old layer if on GPU

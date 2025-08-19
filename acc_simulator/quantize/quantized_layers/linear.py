@@ -26,6 +26,7 @@ class MXFPLinearPTQ(nn.Module):
         ],
         w_pre_quantized: bool = False,
         online_rotate: bool = False,
+        clip_search: bool = False,
     ):
         super().__init__()
         assert weight.ndim == 2
@@ -47,13 +48,13 @@ class MXFPLinearPTQ(nn.Module):
         self.bias = None
 
         if "Wq" in self.layer_type and not w_pre_quantized:
-            self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta, quantile_search=True)
+            self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta, quantile_search=clip_search)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 
         if "Bq" in self.layer_type:
             if isinstance(bias, Tensor):
-                self.bias = quantize_tensor(bias, block_dim=0, meta=b_meta, quantile_search=True)
+                self.bias = quantize_tensor(bias, block_dim=0, meta=b_meta, quantile_search=clip_search)
         else:
             if bias is not None:
                 self.bias = nn.Parameter(bias, requires_grad=False)
@@ -100,6 +101,7 @@ class MXFPLinearPTQ(nn.Module):
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
         online_rotate: bool,
+        clip_search: bool = False,
         clip_search_y: bool = False,
     ):
         """
@@ -115,7 +117,8 @@ class MXFPLinearPTQ(nn.Module):
                 b_meta=b_meta,
                 nl_meta=nl_meta,
                 layer_type=layer_type,
-                online_rotate=online_rotate
+                online_rotate=online_rotate,
+                clip_search=clip_search
             )
     
     @classmethod
@@ -130,6 +133,7 @@ class MXFPLinearPTQ(nn.Module):
             "XWB", "XWBq", "XWqB", "XWqBq", "XqWB", "XqWBq", "XqWqB", "XqWqBq"
         ],
         online_rotate: bool,
+        clip_search: bool = False,
         clip_search_y: bool = False,
     ):
         """
@@ -146,7 +150,8 @@ class MXFPLinearPTQ(nn.Module):
                 nl_meta=nl_meta,
                 layer_type=layer_type,
                 w_pre_quantized=True,
-                online_rotate=online_rotate
+                online_rotate=online_rotate,
+                clip_search=clip_search,
             )
     
     

@@ -49,6 +49,7 @@ def llama_eval(
     use_gptq: bool = False,
     offline_rotate: bool = False,
     online_rotate: bool = False,
+    clip_search: bool = False,
     clip_search_y: bool = False,
     seqlen: int = 2048,
     save_gptq_model: bool = False,
@@ -127,10 +128,11 @@ def llama_eval(
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
-            if clip_search_y:
-                checkpoint_dir = f"{save_dir}/ckpts_y_search/{model_name.replace('/', '_')}"
-            else:
-                checkpoint_dir = f"{save_dir}/ckpts_w_search/{model_name.replace('/', '_')}"
+            if clip_search:
+                if clip_search_y:
+                    checkpoint_dir = f"{save_dir}/ckpts_y_search/{model_name.replace('/', '_')}"
+                else:
+                    checkpoint_dir = f"{save_dir}/ckpts_w_search/{model_name.replace('/', '_')}"
             # ckpt_dir = Path(checkpoint_dir) / model_name.replace('/', '_')
             # ckpt_file = ckpt_dir / "model.safetensors"
             # if ckpt_file.exists():
@@ -150,14 +152,14 @@ def llama_eval(
             else:
                 model.to(device_id)
             # quantize and replace the rest
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate, clip_search=clip_search)
         else:
             if model_parallel:
                 model=move_to_gpu(model, model_parallel)
             else:
                 model.to(device_id)
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search)
 
 
     if enable_eval_harness:
