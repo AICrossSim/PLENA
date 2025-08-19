@@ -29,7 +29,6 @@ from ..utils import replace_modules, create_device_map
 from ..utils.logger import get_logger, set_logging_verbosity
 
 logger = get_logger(__name__)
-set_logging_verbosity("debug")
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
     # Always store logs inside acc_simulator/logs regardless of current working directory

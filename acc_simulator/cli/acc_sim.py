@@ -32,6 +32,9 @@ from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
 from ..gptq import quantize_model_gptq, get_loaders
+from ..utils import get_logger
+
+logger = get_logger(__name__)
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -146,21 +149,17 @@ def llama_eval(
             # if save_gptq_model and not ckpt_file.exists():
             #     ckpt_dir.mkdir(parents=True, exist_ok=True)
             #     save_gptq(model, ckpt_dir)
-            # could move back to parallel for eval but kept this false on tiamat
-            if model_parallel:
-                model=move_to_gpu(model, model_parallel)
-            else:
-                model.to(device_id)
             # quantize and replace the rest
             quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate, clip_search=clip_search)
         else:
-            if model_parallel:
-                model=move_to_gpu(model, model_parallel)
-            else:
-                model.to(device_id)
             # Direct cast without GPTQ, round-to-nearest mode
             quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search)
 
+    if model_parallel:
+        model=move_to_gpu(model, model_parallel)
+        logger.info(f"Model moved to GPU: {model.device}")
+    else:
+        model.to(device_id)
 
     if enable_eval_harness:
         results = evaluate_with_lm_eval(

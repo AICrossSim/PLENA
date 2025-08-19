@@ -1,7 +1,5 @@
 MODEL_NAME="meta-llama/Llama-2-7b-hf"
-CUDA_DEVICE="cuda:0"
 echo $MODEL_NAME
-echo $CUDA_DEVICE
 
 
 config_list=(
@@ -24,6 +22,7 @@ for x_kv_config in MXINT_4_B16_S8; do
         --save_dir ${CX_DATA_HOME}/saved_models \
         --resume_from_checkpoint True \
         --log_dir results/w_${w_config}_x_${x_kv_config} \
+        --model_parallel True \
         $config \
       # --save_gptq False \
     done
