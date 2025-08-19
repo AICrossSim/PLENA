@@ -209,6 +209,7 @@ def move_to_gpu(model, model_parallel=True):
     if model_parallel:
         device_map = create_device_map(model, "auto-balanced")
         model = dispatch_model(model, device_map=device_map)
+        logger.debug(f"device_map: {device_map}")
     else:
         model = model.to(device)
     return model

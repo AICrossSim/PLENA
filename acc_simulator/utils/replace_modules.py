@@ -79,8 +79,6 @@ def replace_modules(
             #     kwargs["online_rotate"] = False
 
         new_layer = factory_fn(old_layer, **kwargs)
-        if kwargs.get("online_rotate", False):
-            logger.debug(f"layer: {name}, rotation?: {kwargs['online_rotate']}")
         set_layer_by_name(model, name, new_layer)
 
         # Safely delete old layer if on GPU

@@ -35,7 +35,7 @@ from ..gptq import quantize_model_gptq, get_loaders
 from ..utils import get_logger, set_logging_verbosity
 
 logger = get_logger(__name__)
-set_logging_verbosity("info")
+set_logging_verbosity("debug")
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -128,7 +128,7 @@ def llama_eval(
             trainloader = get_loaders(
                 "wikitext2", nsamples=128,
                 seed=0, model=model_name,
-                seqlen=seqlen, eval_mode=True
+                seqlen=seqlen, eval_mode=False
             )
             logger.info(f"Loaders got")
             # GPTQ first quantize and repalce linear, 
@@ -154,6 +154,7 @@ def llama_eval(
             logger.info(f"Time taken to quantize GPTQ: {time.time() - start_time} seconds")
             # right now always save the weights after gptq, and not rewrite
             if model_parallel:
+                logger.info(f"Model device: {model.device}")
                 model=move_to_gpu(model, model_parallel)
                 logger.info(f"Model moved to GPU: {model.device}")
             else:
@@ -163,7 +164,7 @@ def llama_eval(
             # Direct cast without GPTQ, round-to-nearest mode
             if model_parallel:
                 model=move_to_gpu(model, model_parallel)
-                logger.info(f"Model moved to GPU: {model.device}")
+                # logger.info(f"Model moved to GPU: {model.device}")
             else:
                 model.to(device_id)
             quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search)
