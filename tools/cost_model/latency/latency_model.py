@@ -45,8 +45,8 @@ class instr_latency_model:
         self.instr_model = build_instr_model(hardware_settings_file, custom_isa_lib_file)
         self.model_config_file = model_config_file
         self.hardware_config = load_svh_settings(hardware_settings_file)
-        print(f"hardware config: {self.hardware_config}")
-        print(f"model config: {self.model_config_file}")
+        # print(f"hardware config: {self.hardware_config}")
+        # print(f"model config: {self.model_config_file}")
 
     def get_instr_info(self, instr_name):
         return self.model.get(instr_name, None)
@@ -79,13 +79,17 @@ class instr_latency_model:
 
     def obtain_overall_latency(self, updated_config):
         overall_latency = 0
-        batch_size = 1
-        seq_len = 2048
+        batch_size = 512
+        input_seq_len = 1024
+        output_seq_len = 128
+        device_num = 4
         hardware_settings = self.hardware_config
         for key, value in updated_config.items():
             hardware_settings[key] = value
-        model = model_config(self.model_config_file, hardware_settings, batch_size, seq_len)
-        _, overall_latency = model.compute_overall_inst()
+        model = model_config(self.model_config_file, hardware_settings, batch_size, input_seq_len, output_seq_len, device_num)
+        ttft, tps = model.compute_overall_perf()
+        print(f"TTFT: {ttft}")
+        print(f"TPS: {tps}")
         return overall_latency
 
 
@@ -96,9 +100,10 @@ if __name__ == "__main__":
     toml_path               = os.path.join(config_parent_path, "src/definitions/config.toml")
     custom_isa_parent_path  = os.path.dirname(os.path.abspath(__file__))
     custom_isa_path         = os.path.join(custom_isa_parent_path, "customISA_lib.json")
-    model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-8b.json")
+    model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/qwen2_5_7b.json")
 
     model = instr_latency_model(config_path, custom_isa_path, model_config_path)
     test_from_toml = load_toml_config(toml_path, "active")
+    print("test_from_toml", test_from_toml)
     overall_latency = model.obtain_overall_latency(test_from_toml)
     print(f"Overall latency: {overall_latency} seconds")

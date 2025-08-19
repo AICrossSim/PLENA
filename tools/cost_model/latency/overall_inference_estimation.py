@@ -3,9 +3,8 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
-
 import math
+
 
 def find_max_x(const1, const2):
     """
@@ -43,200 +42,197 @@ def find_max_x(const1, const2):
 
 
 class model_config:
-    def __init__(self, model_param_path, hardware_config, batch_size = 1, seq_len = 2048, hbm_bandwidth = 256):
+    def __init__(self, model_param_path, hardware_config, batch_size = 1, seq_len = 2048, output_token = 128, device_num = 1):
         model_param = json.load(open(model_param_path))
         self.hidden_size = model_param["hidden_size"]
         self.num_attention_heads = model_param["num_attention_heads"]
         self.num_hidden_layers = model_param["num_hidden_layers"]
         self.intermediate_size = model_param["intermediate_size"]
         self.num_key_value_heads = model_param["num_key_value_heads"]
-        self.attention_bias = model_param["attention_bias"]
         self.vocab_size = model_param["vocab_size"]
         self.default_seq_len = seq_len
         self.head_dim = self.hidden_size // self.num_attention_heads
         self.num_head_groups = self.num_attention_heads // self.num_key_value_heads
         self.vocab_size = model_param["vocab_size"]
-        self.DataTypeSize = 4
-        self.hbm_bandwidth = hbm_bandwidth        # GigaByte per second
+        self.DataTypeSize = 2
         self.theoratical_frequency = 10**9          # 1 GHz
         self.hardware_config = hardware_config
+        self.output_token = output_token
         self.batch_size = batch_size
+        self.kv_size = seq_len
+        self.device_num = device_num
 
 
-    def rms_layer(self):
-        setting_inst_num = 10
-        loop_inst_num = 8
-        loop_num = self.hidden_size // self.hardware_config["VLEN"]
-        instruction_num = 0
-        instruction_num += setting_inst_num
-        instruction_num += loop_num * loop_inst_num
+    def rms_layer(self, mode = "prefill"):
+        if mode == "prefill":
+            setting_inst_num = 10
+            loop_inst_num = 8
+            loop_num = self.hidden_size // self.hardware_config["VLEN"]
+            instruction_num = 0
+            instruction_num += setting_inst_num
+            instruction_num += loop_num * loop_inst_num * self.default_seq_len
+        elif mode == "decode":
+            setting_inst_num = 10
+            loop_inst_num = 8
+            loop_num = self.hidden_size // self.hardware_config["VLEN"]
+            instruction_num = 0
+            instruction_num += setting_inst_num
+            instruction_num += loop_num * loop_inst_num            
         return instruction_num * self.batch_size
 
-    def projection(self):
-        overall_inst_num = 0
-        # Q, K Projection + RoPE
-        overall_inst_num += self.batch_size * (self.hidden_size // self.hardware_config["BLEN"]) * (self.hidden_size // self.hardware_config["MLEN"]) * (self.default_seq_len // self.hardware_config["BLEN"]) * 3 + 10
-        overall_inst_num += self.batch_size * (self.num_attention_heads * self.default_seq_len) * 10
+    def projection(self, mode = "prefill"):
+        if mode == "prefill":
+            overall_inst_num = 0
+            # Q, K Projection + RoPE
+            overall_inst_num += self.batch_size * (math.ceil(self.hidden_size / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.default_seq_len / self.hardware_config["BLEN"]) * 1 + 10)))
+            overall_inst_num += self.batch_size * (self.num_attention_heads * (self.default_seq_len // self.hardware_config["VLEN"])) * 3
 
-        overall_inst_num += self.batch_size * ((self.num_key_value_heads * self.head_dim) // self.hardware_config["BLEN"]) * (self.hidden_size // self.hardware_config["MLEN"]) * (self.default_seq_len // self.hardware_config["BLEN"]) * 3 + 10
-        overall_inst_num += self.batch_size * (self.num_key_value_heads * self.default_seq_len) * 10
+            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.default_seq_len / self.hardware_config["BLEN"]) * 1 + 10)))
+            overall_inst_num += self.batch_size * (self.num_key_value_heads * (self.default_seq_len // self.hardware_config["VLEN"])) * 3
 
-        # V
-        overall_inst_num += self.batch_size * ((self.num_key_value_heads * self.head_dim) // self.hardware_config["BLEN"]) * (self.hidden_size // self.hardware_config["MLEN"]) * (self.default_seq_len // self.hardware_config["BLEN"]) * 3 + 10
+            # V
+            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.default_seq_len / self.hardware_config["BLEN"]) * 1 + 10)))
+        
+        elif mode == "decode":
+            overall_inst_num = 0
+            # Q, K Projection + RoPE
+            overall_inst_num += self.batch_size * (math.ceil(self.hidden_size / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * 2 + 10))
+            overall_inst_num += self.batch_size * (self.num_attention_heads) * 10
+
+            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * 2 + 10))
+            overall_inst_num += self.batch_size * (self.num_key_value_heads) * 10
+
+            # V
+            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * 2 + 10))
+        
         return overall_inst_num
     
-    def flash_attention(self):
+    def flash_attention(self, mode = "prefill"):
         overall_inst_num = 0
         mlen = self.hardware_config["MLEN"]
         blen = self.hardware_config["BLEN"]
+        if mode == "prefill":
         # Outer loop
-        for i in range(self.default_seq_len // self.hardware_config["MLEN"]):
-            for j in range(self.default_seq_len // self.hardware_config["MLEN"]):
-                overall_inst_num += 4 + (mlen // blen) ** 2 * 8 + 3 # MLEN * MLEN
+            for i in range(self.default_seq_len // self.hardware_config["MLEN"]):
+                for j in range(self.default_seq_len // self.hardware_config["MLEN"]):
+                    overall_inst_num += 4 + (mlen // blen) * 8 + 3 # MLEN * MLEN
+                    overall_inst_num += 2 + mlen * 30  # Softmax
+                    overall_inst_num += max(1, math.ceil(self.head_dim / mlen)) * (9 + 4 + (math.ceil(mlen / blen)) * 8 + 3) #PV
+                    overall_inst_num += max(1, math.ceil(self.head_dim / mlen)) * (1+ mlen * 5) #Compute O
+                    overall_inst_num += 8
+                    overall_inst_num += 2 + mlen * 4
+        elif mode == "decode":
+            print("kv size : ", self.kv_size)
+            for j in range(math.ceil(self.kv_size / self.hardware_config["MLEN"])):
+                overall_inst_num += 4 + (mlen // blen) * 8 + 3 # MLEN * MLEN
                 overall_inst_num += 2 + mlen * 30  # Softmax
-                overall_inst_num += max(1, self.head_dim // mlen) * (9 + 4 + (mlen // blen) ** 2 * 8 + 3) #PV
-                overall_inst_num += max(1, self.head_dim // mlen) * (1+ mlen * 5) #Compute O
+                overall_inst_num += max(1, math.ceil(self.head_dim / mlen)) * (9 + 4 + math.ceil((mlen / blen)) * 8 + 3) #PV
+                overall_inst_num += max(1, math.ceil(self.head_dim / mlen)) * (1+ mlen * 5) #Compute O
                 overall_inst_num += 8
                 overall_inst_num += 2 + mlen * 4
+            self.kv_size = self.kv_size + 1
         return overall_inst_num * self.batch_size
     
 
 
-    def residual (self):
+    def residual (self, mode = "prefill"):
         overall_inst_num = 0
         # -- Residual
-        iteration = self.hidden_size // self.hardware_config["VLEN"]
-        overall_inst_num = 5 * iteration + 3
+        if mode == "prefill":
+            iteration = self.hidden_size // self.hardware_config["VLEN"]
+            overall_inst_num = (5 * iteration + 3) * self.default_seq_len
+        elif mode == "decode":
+            iteration = self.hidden_size // self.hardware_config["VLEN"]
+            overall_inst_num = 5 * iteration + 3
         return overall_inst_num
 
-    def feed_forward(self):
+    def feed_forward(self, mode = "prefill"):
         mlen = self.hardware_config["MLEN"]
         vlen = self.hardware_config["VLEN"]
         blen = self.hardware_config["BLEN"]
 
         overall_inst_num = 0
         # -- MLP
-        overall_inst_num += 2 * (self.intermediate_size // blen) * (self.hidden_size // mlen) * 4
-        overall_inst_num += (self.intermediate_size // vlen) * 5
-        overall_inst_num += (self.intermediate_size // blen) * (self.hidden_size // mlen) * 4
+        if mode == "prefill":
+            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
+            overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5
+            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
+            overall_inst_num = (overall_inst_num) * self.default_seq_len
+        elif mode == "decode":
+            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
+            overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5
+            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
         return overall_inst_num
 
-    def embeddings(self):
+    def embeddings(self, mode = "prefill"):
         mlen = self.hardware_config["MLEN"]
         vlen = self.hardware_config["VLEN"]
         blen = self.hardware_config["BLEN"]
         overall_inst_num = 3
-        overall_inst_num += (self.hidden_size // blen) * (self.hidden_size // mlen) * (blen * 2 + 1) + 4
-        
+        if mode == "prefill":
+            overall_inst_num += self.default_seq_len * math.ceil(self.hidden_size / blen) * math.ceil(self.hidden_size / mlen) * (blen * 2 + 1) + 4
+        elif mode == "decode":
+            overall_inst_num += math.ceil(self.hidden_size / blen) * math.ceil(self.hidden_size / mlen) * (blen * 2 + 1) + 4
+        return overall_inst_num
+    
     def lm_head(self):
         mlen = self.hardware_config["MLEN"]
         vlen = self.hardware_config["VLEN"]
         blen = self.hardware_config["BLEN"]
         overall_inst_num = 3
-        overall_inst_num += (self.hidden_size // blen) * (self.vocab_size // mlen) * (blen * 2 + 1) + 4
-        
+        overall_inst_num += (math.ceil(self.hidden_size / blen) * math.ceil(self.vocab_size / mlen) * (blen * 2 + 1) + 4)
         return overall_inst_num
 
-
-    def compute_overall_inst(self):
+    def compute_prefill_time(self):
+        mode = "prefill"
         overall_inst_num = 0
+        overall_inst_num += self.embeddings(mode)
         for i in range(self.num_hidden_layers):
-            overall_inst_num += self.rms_layer()
-            overall_inst_num += self.projection()
-            overall_inst_num += self.flash_attention()
-            overall_inst_num += self.residual()
-            overall_inst_num += self.rms_layer()
-            overall_inst_num += self.feed_forward()
-            overall_inst_num += self.residual()
+            overall_inst_num += self.rms_layer(mode)
+            overall_inst_num += self.projection(mode)
+            overall_inst_num += self.flash_attention(mode)
+            overall_inst_num += self.residual(mode)
+            overall_inst_num += self.rms_layer(mode)
+            overall_inst_num += self.feed_forward(mode)
+            # overall_inst_num += self.residual(mode)
         # overall_inst_num += self.rms_layer()
         overall_inst_num += self.lm_head()
         # print("Overall instruction number: ", overall_inst_num)
         overall_exe_cycle = overall_inst_num * 2 # avg 3 execution cycles
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
         # print("Theoratical execution time: ", theoratical_execution_time)
-        return overall_inst_num, theoratical_execution_time
-    
-    def resource_utilization_estimation(self, TileSize):
-        MVM_SRAM = 2 * TileSize * TileSize * self.DataTypeSize  
-        print("MVM SRAM Utilization: ", MVM_SRAM  / 1024 / 8, "KB")
-        Scratchpad_SRAM = 4 * TileSize * self.DataTypeSize
-        print("Scratchpad SRAM Utilization: ", Scratchpad_SRAM / 1024 / 8, "KB")
-        SRAM_Utilization = MVM_SRAM + Scratchpad_SRAM
-        print("SRAM Utilization: ", SRAM_Utilization / 1024 / 8, "KB")
-        return SRAM_Utilization
-    
+        return theoratical_execution_time
 
-    def matrix_mult_flop_in_overall_process(self, TileSize):
-        max_flops_per_cycle = TileSize * TileSize * 2 * self.batch_size
-        inst_num = 0
-        # Q, K, V Projection
-        inst_num += 3 * (self.hidden_size // TileSize) ** 2
-        # Flash Attention
-        inst_num += (self.head_dim // TileSize) * (self.seq_len // TileSize) * 2
-        # MLP
-        inst_num += (self.hidden_size * self.intermediate_size) // (TileSize * TileSize)
+    def compute_decode_time(self, output_token_size):
+        mode = "decode"
+        overall_inst_num = 0
+        for i in range (output_token_size):
+            overall_inst_num += self.rms_layer(mode)
+            overall_inst_num += self.projection(mode)
+            overall_inst_num += self.flash_attention(mode)
+            overall_inst_num += self.residual(mode)
+            overall_inst_num += self.rms_layer(mode)
+            overall_inst_num += self.feed_forward(mode)
+        # print("Overall instruction number: ", overall_inst_num)
+        overall_exe_cycle = overall_inst_num * 2 # avg 3 execution cycles
+        theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
+        # print("Theoratical execution time: ", theoratical_execution_time)
+        return theoratical_execution_time
 
-        return (inst_num * max_flops_per_cycle * self.num_hidden_layers)
 
-    def vector_operation_flop_in_overall_process(self, TileSize):
-        max_flops_per_cycle = TileSize * 2 * self.batch_size
-        inst_num = 0
-        # RMS
-        inst_num += 2 * (self.hidden_size // TileSize)
-        # Q, K, V Projection
-        inst_num += 3 * (self.hidden_size // TileSize)
-        # Flash Attention
-        inst_num += (self.head_dim // TileSize) * (self.seq_len // TileSize)
-        # Residual
-        inst_num += 2 * (self.hidden_size // TileSize)
-        # Feed Forward
-        inst_num += 2 * (self.hidden_size // TileSize)
-        # MLP
-        inst_num += 2 * (self.hidden_size // TileSize)
-        return (inst_num * max_flops_per_cycle * self.num_hidden_layers)
-    
-    def compute_theoratical_performance(self, TileSize):
-        matrix_mult_flop = self.matrix_mult_flop_in_overall_process(TileSize)
-        vector_operation_flop = self.vector_operation_flop_in_overall_process(TileSize)
-        total_flop = matrix_mult_flop + vector_operation_flop
-        mcycles = self.compute_overall_inst(TileSize)[0] * 8
-        print("Total FLOP: ", total_flop, "Total Instruction: ", mcycles)
-        flops = ((total_flop // mcycles) * self.theoratical_frequency) / 10**9
-        print("Theoratical Performance: ", flops, "GFLOP/s")
-        return flops
-    
-
-    def determine_max_TileSize(self, batch_size, hbm_bandwidth):
-        cycle_bandwidth = (hbm_bandwidth * 1024 * 1024 * 1024 * 8) / (self.DataTypeSize * self.theoratical_frequency)
-        max_TileSize = find_max_x(batch_size, cycle_bandwidth)
-        print("batch size: ", batch_size, "HBM Bandwidth: ", hbm_bandwidth, "Max Tile Size: ", max_TileSize)
-        return max_TileSize
+    def compute_overall_perf(self):
+        ttft = (self.compute_prefill_time() + self.compute_decode_time(1)) / self.device_num
+        tps =  (self.batch_size * self.output_token) / self.compute_decode_time(self.output_token // self.device_num)
+        return ttft, tps
 
 
 
 
 if __name__ == "__main__":
-    model = model_config("Model_Lib/llama-3.1-8b.json")
-    # # plot a graph, 
-    # batch_size_selection = [1, 2, 4, 8]
-    # hbm_bandwidth_selection = [64, 128, 256]
-    # flops = np.zeros((len(batch_size_selection), len(hbm_bandwidth_selection)))
-    # for j in range(len(hbm_bandwidth_selection)):
-    #     for i in range(len(batch_size_selection)):      
-    #         max_TileSize = model.determine_max_TileSize(batch_size_selection[i], hbm_bandwidth_selection[j])
-    #         flops[i][j] = model.compute_theoratical_performance(max_TileSize)
-
-
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-    # X, Y = np.meshgrid(hbm_bandwidth_selection, batch_size_selection)
-    # ax.plot_surface(X, Y, flops, cmap='viridis')
-    # ax.set_xlabel('HBM Bandwidth (GB/s)')
-    # ax.set_ylabel('Batch Size')
-    # ax.set_zlabel('Theoratical Performance (GFLOP/s)')
-    # plt.show()
+    model = model_config("Model_Lib/llama-3.1-8b.json", batch_size=4)
     MLEN = 64
-    overall_inst_num, theoratical_execution_time = model.compute_overall_inst(MLEN)
+    seq_len = 2048
+    overall_inst_num, theoratical_execution_time = model.compute_overall_inst()
     print("Overall Instruction Number: ", overall_inst_num)
 
 
