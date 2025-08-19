@@ -75,7 +75,6 @@ def replace_modules(
                 kwargs["online_rotate"] = False
             else:
                 kwargs["online_rotate"] = online_rotate
-            breakpoint()
             logger.debug(f"Applying online rotation{kwargs.get('online_rotate', False)} to {name}")
 
         new_layer = factory_fn(old_layer, **kwargs)
