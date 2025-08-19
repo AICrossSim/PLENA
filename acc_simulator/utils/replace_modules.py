@@ -71,11 +71,12 @@ def replace_modules(
         
         # Only rotate activation in down-projection
         if target_class == nn.Linear:
-            if layer_for_online_rotate and layer_for_online_rotate not in name:
+            if (layer_for_online_rotate not in ['None', None]) and (layer_for_online_rotate not in name):
                 kwargs["online_rotate"] = False
             else:
                 kwargs["online_rotate"] = online_rotate
-            # logger.debug(f"Applying online rotation{kwargs.get('online_rotate', False)} to {name}")
+            breakpoint()
+            logger.debug(f"Applying online rotation{kwargs.get('online_rotate', False)} to {name}")
 
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)
