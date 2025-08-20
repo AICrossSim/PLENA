@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from utils import load_toml_config, load_json, load_svh_settings
 
-
+from attainable import attn_model_config
 
 class utilisation_model:
     def __init__(self, hardware_settings_file: str = "config.toml", precision_settings_file: str = "precision.toml", unit_info_file: str = "unit_info.json"):
@@ -27,6 +27,29 @@ class utilisation_model:
         return resource_utilisation
 
 
+class attainable_GEMM_model:
+    def __init__(self, hardware_settings_file: str = "config.toml", model_config_file: str = "model_config.json"):
+        self.model_config_file = model_config_file
+        self.hardware_config = load_svh_settings(hardware_settings_file)
+        # print(f"hardware config: {self.hardware_config}")
+        # print(f"model config: {self.model_config_file}")
+
+    def obtain_overall_utilization(self, updated_config):
+        overall_latency = 0
+        batch_size = 4
+        input_seq_len = 5600
+        output_seq_len = 8000
+        device_num = 4
+        hardware_settings = self.hardware_config
+        for key, value in updated_config.items():
+            hardware_settings[key] = value
+        model = attn_model_config(self.model_config_file, hardware_settings, batch_size, input_seq_len, output_seq_len, device_num)
+        utilization = model.compute_overall_perf()
+        print(f"Overall utilization: {utilization} FLOPS")
+        return utilization
+
+
+
 
 if __name__ == "__main__":
     import toml
@@ -35,7 +58,13 @@ if __name__ == "__main__":
     precision_path  = os.path.join(config_parent_path, "src/definitions/precision.svh")
     toml_path       = os.path.join(config_parent_path, "src/definitions/config.toml")
     unit_info_file  = os.path.join(config_parent_path, "tools/cost_model/utilisation/individual_units_lib.json")
-    
-    utilisation = utilisation_model(config_path, precision_path, unit_info_file)
+    model_config_path  = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-8b.json")
+    # utilisation = utilisation_model(config_path, precision_path, unit_info_file)
+    # test_from_toml = load_toml_config(toml_path, "active")
+    # print(f"Resource Utilisation: {utilisation.obtain_resource_utilisation(test_from_toml)}")
+
+    model = attainable_GEMM_model(config_path, model_config_path)
     test_from_toml = load_toml_config(toml_path, "active")
-    print(f"Resource Utilisation: {utilisation.obtain_resource_utilisation(test_from_toml)}")
+    print("test_from_toml", test_from_toml)
+    overall_utilization = model.obtain_overall_utilization(test_from_toml)
+    print(f"Overall utilization: {overall_utilization} FLOPS")

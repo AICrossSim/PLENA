@@ -1,19 +1,19 @@
 [CONFIG.BLEN]
-active = 16
+active = 4
 SIMULATION = 8
 ASIC = 8
 default = 4
 tunable_range = [4, 8, 16, 32, 64]
 
 [CONFIG.MLEN]
-active = 1024
+active = 512
 SIMULATION = 128
 ASIC = 16
 default = 8
 tunable_range = [32, 64, 128, 256, 512]
 
 [CONFIG.VLEN]
-active = 1024
+active = 64
 SIMULATION = 512
 ASIC = 16
 default = 8
