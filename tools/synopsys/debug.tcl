@@ -12,7 +12,7 @@ puts "=========================================="
 # Set paths
 set src "../../src"
 set outputs "./outputs"
-set top_design "DW_fp_exp_inst"
+set top_design "mxint_default_pe"
 
 set_message_info -id ELAB-405 -limit 10
 
