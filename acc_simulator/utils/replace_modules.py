@@ -51,15 +51,14 @@ def apply_online_rotate(layer_for_online_rotate: str | None, name: str) -> bool:
     parse_layers = layer_for_online_rotate.split(",")
     parse_layers = [x.strip() for x in parse_layers]
     logger.debug(f"parse_layers: {parse_layers}")
+    is_linear = name.endswith("proj")
     for layer in parse_layers:
-        if "proj" in name and "." + layer in name:
+        if is_linear and layer.endswith("proj") and layer in name:
             return True
-        elif layer in name and "proj" not in name:
+        elif layer in name and not is_linear:
             return True
-        else:
-            return False
-    else:
-        return False
+
+    return False
 
 def replace_modules(
     model: nn.Module,
