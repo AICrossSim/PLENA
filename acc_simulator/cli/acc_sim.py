@@ -141,6 +141,8 @@ def llama_eval(
                     checkpoint_dir = f"{save_dir}/ckpts_y_search/{model_name.replace('/', '_')}"
                 else:
                     checkpoint_dir = f"{save_dir}/ckpts_w_search/{model_name.replace('/', '_')}"
+            else:
+                checkpoint_dir = f"{save_dir}/ckpts_no_search/{model_name.replace('/', '_')}"
             # ckpt_dir = Path(checkpoint_dir) / model_name.replace('/', '_')
             # ckpt_file = ckpt_dir / "model.safetensors"
             # if ckpt_file.exists():
@@ -151,7 +153,7 @@ def llama_eval(
             # model.to("cpu")
             logger.info(f"Quantizing GPTQ")
             start_time = time.time()
-            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint)
+            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, clip_search=clip_search, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint)
             logger.info(f"GPTQ quantized")
             logger.info(f"Time taken to quantize GPTQ: {time.time() - start_time} seconds")
             # right now always save the weights after gptq, and not rewrite

@@ -256,7 +256,7 @@ def find_latest_checkpoint(checkpoint_dir, model_name="quantized_model"):
     return str(latest_checkpoint), layer_idx
 
 @torch.no_grad()
-def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False, cali_batch_size=32, checkpoint_dir=None, resume_from_checkpoint=None):
+def quantize_model_gptq(model, dataloader, quant_args, clip_search, dev, nsamples = 128, percdamp = 0.01, seqlen=2048, save_q_model=False, cali_batch_size=32, checkpoint_dir=None, resume_from_checkpoint=None):
     '''
     Adapting From Quarot/GPTQ repo 
     
@@ -392,7 +392,8 @@ def quantize_model_gptq(model, dataloader, quant_args, dev, nsamples = 128, perc
                     w_meta = quant_args["fc_kwargs"]["w_meta"],
                     percdamp=percdamp, 
                     cali_batch_size=cali_batch_size,
-                    layer_name=f"layers{i}.{name}"
+                    layer_name=f"layers{i}.{name}",
+                    quant_search=clip_search
                 )
 
                 if save_q_model:
