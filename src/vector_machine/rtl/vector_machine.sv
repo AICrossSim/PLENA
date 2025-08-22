@@ -512,7 +512,18 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     logic shift_v_out_valid;
 
     assign shift_amt = recorded_s_wtarget[$clog2(VLEN)-1:0];
+    // NEW: latch the input vector for SHIFT and hold the output
+    logic [VLEN-1:0][(V_FP_EXP_WIDTH+V_FP_MANT_WIDTH):0] shift_in_hold;
+    logic [VLEN-1:0][(V_FP_EXP_WIDTH+V_FP_MANT_WIDTH):0] shift_out_hold;
 
+    // Latch A exactly when SHIFT accepts it
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            shift_in_hold <= '0;
+        end else if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT) && v_port_a_valid) begin
+            shift_in_hold <= prepared_v_a;
+        end
+    end
     // ---------------------------//
     //  Vector Shift Unit
     // ---------------------------//

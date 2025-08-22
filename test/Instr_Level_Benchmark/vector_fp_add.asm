@@ -6,4 +6,4 @@ S_LUI_INT gp2, 0;
 S_LD_FP f1, gp2, 0;
 //V_ADD_VF gp1, gp2, f1; 
 //V_PS_V gp1, gp2, gp0;
-V_SHFT_V gp1, gp1, 2;
+V_SHFT_V gp3, gp2, 2;
