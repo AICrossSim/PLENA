@@ -97,7 +97,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     logic element_v_out_valid,  element_v_out_ready;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_v_out;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]   result_v_out;
+    logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   result_v_out;
     logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   p1_result_v_out;
 
     logic hadamard_transform_in_valid, hadamard_transform_out_valid;
@@ -174,9 +174,19 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
                 next_preparation_stage = 1'b1;
             end
 
-            if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
+            // FIX: prefix-scan needs only port A
+            if ((recorded_element_v_control == PREFIX_SCAN_V_ELEMENT) && v_port_a_valid) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
+            end else if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT) && v_port_a_valid) begin
+                complete_element_prepare    = 1'b1;
+                complete_reduct_prepare     = 1'b0;
+            // Original element ops: need A & B unless broadcasting B from scalar
+            end else if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) ||
+                         ((recorded_element_v_control != STALL_V_ELEMENT) &  recorded_broadcast_en & v_port_a_valid)) begin
+                complete_element_prepare    = 1'b1;
+                complete_reduct_prepare     = 1'b0;
+
             end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & s_acc_in_valid) begin
                 complete_element_prepare    = 1'b0;
                 complete_reduct_prepare     = 1'b1;
@@ -196,6 +206,21 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
         .in_data(s_in),
         .out_data(unpacked_v_s)
     );
+    // v_in_valid was being de asserted one clock cycle early so it meant that prepared_v_a couldn't latch onto the
+    // v_a_in so it the element wise compute unit would receive an input vector of just 0s. this is for the testing of prefix scan
+    // it may be necessary for the other element wise operations? could confirm later with more testing but there may be a more robust
+    // workaround.
+    // One-cycle delayed valid for prefix-scan only
+    logic v_a_valid_d1;
+    always_ff @(posedge clk) begin
+        if (rst) v_a_valid_d1 <= 1'b0;
+        else     v_a_valid_d1 <= v_a_valid;
+    end
+
+    wire ps_mode_now = (recorded_element_v_control == PREFIX_SCAN_V_ELEMENT);
+    wire shift_mode_now = (recorded_element_v_control == SHIFT_V_LANES_ELEMENT);
+// Effective valid into A buffer: PS delayed, otherwise pass-through
+    wire v_a_valid_eff = (ps_mode_now|shift_mode_now) ? v_a_valid_d1 : v_a_valid;
 
     // Vector Port A Storage
     register_slice #(
@@ -206,7 +231,8 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
 
         // Input
         .data_in        (v_a_in),
-        .data_in_valid  (v_a_valid),
+        //.data_in_valid  (v_a_valid_eff),
+        .data_in_valid  (v_a_valid), // FIX: use original valid
         .data_in_ready  (v_a_ready),
 
         // Output
@@ -242,7 +268,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
 
         // Input
         .data_in        (s_in),
-        .data_in_valid  (recorded_reduct_v_control != STALL_V_REDUCT ? s_in_valid : 1'b0),
+        .data_in_valid  ((recorded_reduct_v_control != STALL_V_REDUCT) ? s_in_valid : 1'b0),
         .data_in_ready  (), // Not used
 
         // Output
@@ -272,6 +298,28 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             element_in_v_b              <= 'b0;
             reduct_in_v                 <= 'b0;
             hadamard_transform_in_v     <= prepared_v_a;
+        end else if ((recorded_element_v_control == PREFIX_SCAN_V_ELEMENT)) begin
+            // FIX: only feed A for prefix-scan
+            hadamard_transform_in_valid <= 1'b0;
+            element_v_in_a_valid        <= v_port_a_valid;
+            element_v_in_b_valid        <= 1'b1;   // keep this
+            red_v_in_a_valid            <= 1'b0;
+
+            element_in_v_a              <= prepared_v_a;
+            element_in_v_b              <= '0;      // dummy B
+            reduct_in_v                 <= '0;
+            hadamard_transform_in_v     <= '0;
+
+        end else if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT)) begin
+            // Do not feed other units during shift
+            hadamard_transform_in_valid <= 1'b0;
+            element_v_in_a_valid        <= 1'b0;
+            element_v_in_b_valid        <= 1'b0;
+            red_v_in_a_valid            <= 1'b0;
+            element_in_v_a              <= '0;
+            element_in_v_b              <= '0;
+            reduct_in_v                 <= '0;
+            hadamard_transform_in_v     <= '0;
         end else if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
             hadamard_transform_in_valid     <= 1'b0;
             element_v_in_a_valid            <= v_port_a_valid;
@@ -301,7 +349,6 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             hadamard_transform_in_v <= 'b0;
         end
     end
-
 
     //----------------------------//
     // Elementwise Compute Unit
@@ -337,6 +384,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
         TODO: add other non linear function result selection here.
     */
 
+    // Elementwise Result Selection
     assign element_v_out_ready = v_out_ready;
     always_comb begin
         if (pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
@@ -345,18 +393,34 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_ADD_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[VECTOR_MUL_CYCLES - 1].ele_op  == MUL_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_MUL_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[VECTOR_EXP_CYCLES - 1].ele_op == EXP_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_EXP_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[VECTOR_RECI_CYCLES - 1].ele_op == RECI_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_RECI_CYCLES-1].waddr;
+
+        // NEW: prefix-scan selection using configured latency
+        end else if (pipeline_compute_track[VECTOR_PREFIX_SCAN_CYCLES - 1].ele_op == PREFIX_SCAN_V_ELEMENT) begin
+            result_v_out            = element_v_out;
+            compute_result_valid    = element_v_out_valid;
+            stored_result_waddr     = pipeline_compute_track[VECTOR_PREFIX_SCAN_CYCLES-1].waddr;
+
+        // SHIFT (1-cycle): pick shift result and drive valid only when we have it
+        end else if (pipeline_compute_track[VECTOR_SHIFT_CYCLES - 1].ele_op == SHIFT_V_LANES_ELEMENT) begin
+            result_v_out         = shift_v_out;
+            compute_result_valid = shift_v_out_valid;
+            stored_result_waddr  = pipeline_compute_track[VECTOR_SHIFT_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES - 1].ele_op == INNER_HADAMARD_TRANSFORM) begin
             result_v_out            = element_v_out;
             compute_result_valid    = hadamard_transform_out_valid;
@@ -367,7 +431,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             stored_result_waddr     = 'b0;
         end
 
-        if (compute_result_valid)begin
+        if (compute_result_valid) begin
             v_wreq  = 1'b1;
             v_waddr = stored_result_waddr;
         end else begin
@@ -441,4 +505,43 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     );
 `endif
 
+    // Shift unit wires (immediate from recorded_s_wtarget)
+    logic [$clog2(VLEN)-1:0]   shift_amt;
+    logic [VLEN-1:0][(V_FP_EXP_WIDTH+V_FP_MANT_WIDTH):0] shift_v_out;
+    // NEW: hold valid until consumed
+    logic shift_v_out_valid;
+
+    assign shift_amt = recorded_s_wtarget[$clog2(VLEN)-1:0];
+
+    // ---------------------------//
+    //  Vector Shift Unit
+    // ---------------------------//
+    fp_vec_shift #(
+        .VLEN   (VLEN),
+        .VDEPTH (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1)
+    ) vec_shift_unit (
+        .clk   (clk),
+        .v_in  (prepared_v_a),
+        .shift (shift_amt),
+        .v_out (shift_v_out)
+    );
+
+    // Assert valid when we accept A for SHIFT, clear when writeback consumes it
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            shift_v_out_valid <= 1'b0;
+        end else begin
+            // Produce result when SHIFT op is active and A is valid
+            if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT) && v_port_a_valid) begin
+                shift_v_out_valid <= 1'b1;
+            end
+            // Clear after the result reaches the selection slot and is consumed
+            else if (shift_v_out_valid &&
+                     (pipeline_compute_track[VECTOR_SHIFT_CYCLES - 1].ele_op == SHIFT_V_LANES_ELEMENT) &&
+                     v_out_ready) begin
+                shift_v_out_valid <= 1'b0;
+            end
+            // otherwise hold
+        end
+    end
 endmodule

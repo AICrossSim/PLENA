@@ -140,7 +140,6 @@ fp_cp_adder #(
     .data_out_valid     (add_data_out_valid),
     .data_out_ready     (add_data_out_ready)
 );
-
 fp_cp_mult #(
     .EXP_WIDTH(EXP_WIDTH),
     .MANT_WIDTH(MANT_WIDTH)

@@ -35,7 +35,9 @@ typedef enum logic [3:0] {
     EXP_V_ELEMENT   = 4'h4,
     RECI_V_ELEMENT  = 4'h5,
     INNER_HADAMARD_TRANSFORM = 4'h6,
-    BROADCAST_V_ELEMENT  = 4'h7
+    BROADCAST_V_ELEMENT  = 4'h7,
+    PREFIX_SCAN_V_ELEMENT   = 4'h8,
+    SHIFT_V_LANES_ELEMENT   = 4'h9   // renamed, use this everywhere
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
@@ -124,7 +126,8 @@ typedef enum logic [OPCODE_WIDTH - 1:0] {
     V_BC_S                 = 6'h0F,
     V_RED_SUM              = 6'h10,
     V_RED_MAX              = 6'h11,
-
+    V_PS_V                 = 6'h2A,  //Vector Prefix Scan A->RD , i wanted to put it next to the other vector instructions sorry for breaking the order
+    V_SHFT_V               = 6'h2B,
     // Scalar Operations (Floating-Point)
     S_ADD_FP               = 6'h12,
     S_SUB_FP               = 6'h13,

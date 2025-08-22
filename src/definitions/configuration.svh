@@ -64,6 +64,8 @@ endpackage
         parameter   VECTOR_ADD_CYCLES              = 2;
         parameter   VECTOR_MUL_CYCLES              = 1;
         parameter   VECTOR_EXP_CYCLES              = 1;
+        parameter   VECTOR_PREFIX_SCAN_CYCLES      = 9;
+        parameter   VECTOR_SHIFT_CYCLES            = 1;
         parameter   VECTOR_RECI_CYCLES             = 2;
         parameter   VECTOR_MAX_CYCLES              = 4;
         parameter   VECTOR_SUM_CYCLES              = 8;
@@ -87,7 +89,9 @@ endpackage
         parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 20;
         parameter   VECTOR_ADD_CYCLES              = 7;
         parameter   VECTOR_MUL_CYCLES              = 5;
+        parameter   VECTOR_PREFIX_SCAN_CYCLES      = 9;
         parameter   VECTOR_EXP_CYCLES              = 6;
+        parameter   VECTOR_SHIFT_CYCLES            = 1;
         parameter   VECTOR_RECI_CYCLES             = 7;
         parameter   VECTOR_MAX_CYCLES              = 4;
         parameter   VECTOR_SUM_CYCLES              = 20;

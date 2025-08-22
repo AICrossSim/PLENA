@@ -15,6 +15,7 @@ pub enum Opcode {
     VMulVv { rd: u8, rs1: u8, rs2: u8 },
     VMulVf { rd: u8, rs1: u8, rs2: u8 },
     VExpV { rd: u8, rs1: u8 },
+    VPsV { rd: u8, rs1: u8 },
     VReciV { rd: u8, rs1: u8, imm: u8 },
     VLdF { rd: u8, rs1: u8, rs2: u8 },
     VRedSum { rd: u8, rs1: u8, imm: u8 },

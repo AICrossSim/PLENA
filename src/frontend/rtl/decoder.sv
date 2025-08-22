@@ -13,12 +13,19 @@ Description :
     [IMM_LONG]      [RD] [OPCODE_WID]
 */
 
-module decoder import instruction_pkg::*; #(
-    parameter INSTRUCTION_LENGTH = 32,
-    parameter OPERAND_WIDTH = 5,
-    parameter OPCODE_WIDTH = 4,
-    parameter IMM_WIDTH = 32,
-    parameter INST_BUFF_DEPTH = 8
+//module decoder import instruction_pkg::*; #(
+//    parameter INSTRUCTION_LENGTH = 32,
+  //  parameter OPERAND_WIDTH = 5,
+   // parameter OPCODE_WIDTH = 4,
+    //parameter IMM_WIDTH = 32,
+    //parameter INST_BUFF_DEPTH = 8
+//)
+    module decoder import instruction_pkg::*; #(
+    parameter INSTRUCTION_LENGTH = instruction_pkg::INSTRUCTION_LENGTH,
+    parameter OPERAND_WIDTH      = instruction_pkg::OPERAND_WIDTH,
+    parameter OPCODE_WIDTH       = instruction_pkg::OPCODE_WIDTH,   // was 4
+    parameter IMM_WIDTH          = instruction_pkg::IMM_WIDTH,
+    parameter INST_BUFF_DEPTH    = 8
 )(
     input   logic clk,
     input   logic rst,
@@ -109,7 +116,7 @@ always_comb begin
         end
 
         // Vector Operations
-        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_RED_SUM, V_RED_MAX, V_BC_S, C_HADAMARD_TRANSFORM : begin
+        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_RED_SUM, V_RED_MAX, V_BC_S, C_HADAMARD_TRANSFORM, V_PS_V, V_SHFT_V : begin
             decode_instruction_type = V;
         end
 
@@ -266,13 +273,16 @@ always_ff @(posedge clk) begin
 
             V: begin
                 decode_stage_op.m_op     <= STALL_M;
-                decode_stage_op.v_ele_op <=     (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT  :
-                                                (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT  :
-                                                (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT  :
-                                                (decode_instr_info.opcode == V_EXP_V)                                          ? EXP_V_ELEMENT  : 
-                                                (decode_instr_info.opcode == V_RECI_V)                                         ? RECI_V_ELEMENT :
-                                                (decode_instr_info.opcode == V_BC_S)                                           ? BROADCAST_V_ELEMENT   : 
-                                                (decode_instr_info.opcode == C_HADAMARD_TRANSFORM)                             ? INNER_HADAMARD_TRANSFORM   : STALL_V_ELEMENT;
+                decode_stage_op.v_ele_op <=
+                    (decode_instr_info.opcode == V_ADD_VV || decode_instr_info.opcode == V_ADD_VF) ? ADD_V_ELEMENT  :
+                    (decode_instr_info.opcode == V_SUB_VV || decode_instr_info.opcode == V_SUB_VF) ? SUB_V_ELEMENT  :
+                    (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT  :
+                    (decode_instr_info.opcode == V_EXP_V)                                          ? EXP_V_ELEMENT  :
+                    (decode_instr_info.opcode == V_RECI_V)                                         ? RECI_V_ELEMENT :
+                    (decode_instr_info.opcode == V_BC_S)                                           ? BROADCAST_V_ELEMENT :
+                    (decode_instr_info.opcode == C_HADAMARD_TRANSFORM)                             ? INNER_HADAMARD_TRANSFORM :
+                    (decode_instr_info.opcode == V_PS_V)                                           ? PREFIX_SCAN_V_ELEMENT :
+                    (decode_instr_info.opcode == V_SHFT_V)                                         ? SHIFT_V_LANES_ELEMENT : STALL_V_ELEMENT;
 
                 decode_stage_op.v_reduct_op <=      (decode_instr_info.opcode == V_RED_SUM)   ? SUM_V_REDUCT :
                                                     (decode_instr_info.opcode == V_RED_MAX)   ? MAX_V_REDUCT : STALL_V_REDUCT;
@@ -281,14 +291,24 @@ always_ff @(posedge clk) begin
                 decode_stage_op.c_op                    <= STALL_C;
                 decode_stage_op.h_op                    <= STALL_H;
                 if (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) begin
-                    decode_stage_op.s_fp_op             <= LD_OUT_FP;
-                    decode_stage_op.fps1                <= 'b0;
-                    decode_stage_op.fps2                <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
-                    decode_stage_op.fpd                 <= 'b0;
-                    rs1                                 <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
-                    rs2                                 <= {INT_OPERAND_WIDTH{1'b0}};
-                    rd                                  <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
-                    imm                                 <= {IMM_WIDTH{1'b0}};
+                    decode_stage_op.s_fp_op <= LD_OUT_FP;
+                    decode_stage_op.fps1    <= 'b0;
+                    decode_stage_op.fps2    <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                    decode_stage_op.fpd     <= 'b0;
+                    rs1                     <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                     <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                      <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
+                    imm                     <= {IMM_WIDTH{1'b0}};
+                end else if (decode_instr_info.opcode == V_SHFT_V) begin
+                    // Shift uses an immediate; drive it via fps2 -> s_wtarget
+                    decode_stage_op.s_fp_op <= STALL_S_FP; // no scalar FP needed
+                    decode_stage_op.fps1    <= 'b0;
+                    decode_stage_op.fps2    <= decode_instr_info.rs2[FP_OPERAND_WIDTH - 1 : 0];
+                    decode_stage_op.fpd     <= 'b0;
+                    rs1                     <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
+                    rs2                     <= {INT_OPERAND_WIDTH{1'b0}};
+                    rd                      <= decode_instr_info.rd[INT_OPERAND_WIDTH - 1 : 0];
+                    imm                     <= {IMM_WIDTH{1'b0}};
                 end else if (decode_instr_info.opcode == V_RED_SUM || decode_instr_info.opcode == V_RED_MAX) begin
                     decode_stage_op.s_fp_op             <= LD_OUT_FP;
                     decode_stage_op.fps1                <= 'b0;

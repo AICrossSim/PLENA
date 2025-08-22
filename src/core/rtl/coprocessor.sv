@@ -134,6 +134,100 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
     logic [FP_OPERAND_WIDTH - 1 : 0] s_wtarget_from_v;
     logic s_map_v_valid, s_map_v_ready;
 
+    logic v_v_a_valid_d1;
+    V_ELEMENT_OP v_ele_opb1, v_ele_opb2;
+always_ff @(posedge clk) begin
+    if (rst) v_v_a_valid_d1 <= 1'b0;
+    else     v_v_a_valid_d1 <= v_v_a_valid;
+    v_ele_opb1<=exe_stage_op.v_ele_op;
+    v_ele_opb2<=v_ele_opb1;
+end
+
+// 1) Define the predicate once
+function automatic bit uses_only_a_f(V_ELEMENT_OP op);
+    return (op == PREFIX_SCAN_V_ELEMENT) || (op == SHIFT_V_LANES_ELEMENT);
+endfunction
+
+// 2) Pipeline the raw valid (1 stage) and the predicate (2 stages) with reset
+logic uses_only_a_d0, uses_only_a_d1, uses_only_a_d2;
+
+always_ff @(posedge clk) begin
+    if (rst) begin
+        v_v_a_valid_d1 <= 1'b0;
+        uses_only_a_d0 <= 1'b0;
+        uses_only_a_d1 <= 1'b0;
+        uses_only_a_d2 <= 1'b0;
+    end else begin
+        v_v_a_valid_d1 <= v_v_a_valid;
+
+        // compute predicate from current control, then delay it by 2 cycles
+        uses_only_a_d0 <= uses_only_a_f(exe_stage_op.v_ele_op);
+        uses_only_a_d1 <= uses_only_a_d0;
+        uses_only_a_d2 <= uses_only_a_d1;
+    end
+end
+
+// 3) Select the delayed valid only when the 2-cycle-old op is A-only
+wire v_v_a_valid_aligned = uses_only_a_d2 ? v_v_a_valid_d1
+                                          : v_v_a_valid;
+
+
+   //new code to try to fix this thing
+
+//     V_ELEMENT_OP vm_ele_in;
+//     V_REDUCT_OP  vm_red_in;
+//     logic        vm_bcast_in;
+//     logic [FP_OPERAND_WIDTH-1:0] vm_s_wtarget_in;
+
+// // Use VM's in_preparation_stage as "busy"
+//     wire vm_busy;
+//     assign vm_busy = v_in_prep;
+//     // Gate new issues: only present a non-stall op when VM is idle
+//     assign vm_ele_in       = vm_busy ? STALL_V_ELEMENT : exe_stage_op.v_ele_op;
+//     assign vm_red_in       = vm_busy ? STALL_V_REDUCT  : exe_stage_op.v_red_op;
+//     assign vm_bcast_in     = vm_busy ? 1'b0            : exe_stage_op.broadcast_fp2;
+//     assign vm_s_wtarget_in = vm_busy ? '0              : exe_stage_op.fps2;
+
+//     logic              pend_valid;
+// V_ELEMENT_OP       pend_ele;
+// V_REDUCT_OP        pend_red;
+// logic              pend_bcast;
+// logic [FP_OPERAND_WIDTH-1:0] pend_wtarget;
+
+// always_ff @(posedge clk) begin
+//     if (rst) begin
+//         pend_valid  <= 1'b0;
+//         pend_ele    <= STALL_V_ELEMENT;
+//         pend_red    <= STALL_V_REDUCT;
+//         pend_bcast  <= 1'b0;
+//         pend_wtarget<= '0;
+//     end else begin
+//         // Capture when VM busy and we have a non-stall op and no pending yet
+//         if (vm_busy && !pend_valid &&
+//             ((exe_stage_op.v_ele_op != STALL_V_ELEMENT) || (exe_stage_op.v_red_op != STALL_V_REDUCT))) begin
+//             pend_valid   <= 1'b1;
+//             pend_ele     <= exe_stage_op.v_ele_op;
+//             pend_red     <= exe_stage_op.v_red_op;
+//             pend_bcast   <= exe_stage_op.broadcast_fp2;
+//             pend_wtarget <= exe_stage_op.fps2; // shift amount path
+//         end
+
+//         // Clear after we hand it to VM (when VM becomes idle and we drive non-stall)
+//         if (!vm_busy && pend_valid) begin
+//             pend_valid <= 1'b0;
+//         end
+//     end
+// end
+
+// // Drive VM: if pending exists, present it; else present current iff VM idle; else STALL
+// wire use_pend = pend_valid;
+// wire can_issue_now = !vm_busy && !use_pend &&
+//                      ((exe_stage_op.v_ele_op != STALL_V_ELEMENT) || (exe_stage_op.v_red_op != STALL_V_REDUCT));
+
+
+
+//     //end of new code 
+
     
     // -----------------------------
     // Dataflow & Execution Control
@@ -285,9 +379,10 @@ module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
             .element_v_control      (exe_stage_op.v_ele_op),
             .reduct_v_control       (exe_stage_op.v_reduct_op),
             .in_preparation_stage   (v_in_prep),
-            .v_a_in                 (v_port_a_out_fp),
-            .v_a_valid              (v_v_a_valid),
-            .v_a_ready              (v_v_a_ready),
+
+            .v_a_in                (v_port_a_out_fp),
+            .v_a_valid             (v_v_a_valid_aligned),
+            .v_a_ready             (v_v_a_ready),
             .v_b_in                 (v_port_b_out_fp),
             .v_b_valid              (v_v_b_valid),
             .v_b_ready              (v_v_b_ready),

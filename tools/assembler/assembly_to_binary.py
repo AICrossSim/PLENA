@@ -76,6 +76,17 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
+        elif instruction.opcode in ["V_SHFT_V"]:
+            if rs2 is None and imm is not None:
+                # Optional: mask to clog2(VLEN) if you know it here
+                rs2 = int(imm) & ((1 << ow) - 1)
+                imm = 0
+                binary_instruction = (
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
         else:
             binary_instruction = (
                 (rs2 << (opw + 2 * ow)) +

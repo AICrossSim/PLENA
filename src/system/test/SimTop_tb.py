@@ -2,7 +2,9 @@
 
 # This script tests the fixed point linear
 import os, logging
-
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "tools"))
 import cocotb
 from cocotb.log import SimLog
 from cocotb.triggers import *
@@ -234,6 +236,7 @@ def SimToP_test():
             str(SRC_PATH / "basic_components/cast"),
             str(SRC_PATH / "basic_components/systolic_gemm_mx"),
             str(SRC_PATH / "basic_components/gemv"),
+            str(SRC_PATH / "basic_components/synopsis/rtl"),
             str(SRC_PATH / "basic_components/synopsis"),
             str(SRC_PATH / "basic_components/synopsis_ip_inst"),
             str(SRC_PATH / "basic_components/hadamard_transform"),
@@ -247,7 +250,7 @@ def SimToP_test():
             str(SRC_PATH / "memory/scratch_sram"),
             str(SRC_PATH / "memory/scalar_sram"),
             str(SRC_PATH / "memory/HBM"),
-            str(SRC_PATH / "core")
+            str(SRC_PATH / "core"),
         ],       
         definitions_path = [
             str(SRC_PATH / "definitions"), 
@@ -303,8 +306,15 @@ def init_mem():
     addr_mapper_file            = build_path / "hbm_addr_mapper.mem"
 
     fp_mem_file.touch()
+    # with open(fp_mem_file, "w") as f:
+    #     f.write("3F00\n")
     with open(fp_mem_file, "w") as f:
-        f.write("3F00\n")
+        f.write("@0\n")  # Start address
+        f.write("3F800000\n")  # 1.0 in IEEE 754 floating-point
+        f.write("40000000\n")  # 2.0
+        f.write("40400000\n")  # 3.0
+        f.write("40800000\n")  # 4.0
+
     fixed_mem_file.touch()
     addr_mapper_file.touch()
 
@@ -318,8 +328,37 @@ def init_mem():
     os.environ["FAKE_HBM_SCALE_WRITE_V_FILE"] = str(hbm_write_scale_v_file)
     os.environ["ASM_FILE"] = str(asm_file)
 
+def init_vector_sram():
+    vector_mem_file = Path("test/Instr_Level_Benchmark/build/vector_fp_add/vector_result.mem")
+    vector_mem_file.touch()
+    with open(vector_mem_file, "w") as f:
+        f.write("@0\n")
+        f.write("3F800000\n")  # 1.0 in IEEE 754
+        f.write("40000000\n")  # 2.0
+        f.write("40400000\n")  # 3.0
+        f.write("40800000\n")  # 4.0
+    print(f"Initialized vector SRAM file: {vector_mem_file}")
+
+def init_vector_hbm_for_test():
+    build_dir = Path("test/Instr_Level_Benchmark/build/vector_fp_add")
+    build_dir.mkdir(parents=True, exist_ok=True)
+    hbm_ele = build_dir / "hbm_ele.mem"
+
+    # Initialize vector elements at address 0 (32-bit IEEE754 values shown)
+    with open(hbm_ele, "w") as f:
+        f.write("@0\n")
+        f.write("3F800000\n")  # 1.0
+        f.write("40000000\n")  # 2.0
+        f.write("40400000\n")  # 3.0
+        f.write("40800000\n")  # 4.0
+        # add more lines if your VLEN/scale expects more
+
+    print(f"Initialized HBM element file: {hbm_ele}")
+
 if __name__ == "__main__":
     init_mem()
+    #init_vector_sram()
+    #init_vector_hbm_for_test()
     
     SimToP_test()
 
