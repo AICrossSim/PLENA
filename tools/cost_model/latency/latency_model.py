@@ -79,9 +79,9 @@ class instr_latency_model:
 
     def obtain_overall_latency(self, updated_config):
         overall_latency = 0
-        batch_size = 64
-        input_seq_len = 5600
-        output_seq_len = 85300
+        batch_size = 128
+        input_seq_len = 1024
+        output_seq_len = 128
         device_num = 4
         hardware_settings = self.hardware_config
         for key, value in updated_config.items():
@@ -101,7 +101,8 @@ if __name__ == "__main__":
     custom_isa_parent_path  = os.path.dirname(os.path.abspath(__file__))
     custom_isa_path         = os.path.join(custom_isa_parent_path, "customISA_lib.json")
     # model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/qwen2_5_7b.json")
-    model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.3-70b.json")
+    # model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.3-70b.json")
+    model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-8b.json")
 
     model = instr_latency_model(config_path, custom_isa_path, model_config_path)
     test_from_toml = load_toml_config(toml_path, "active")

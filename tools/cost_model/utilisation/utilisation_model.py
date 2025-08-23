@@ -36,9 +36,9 @@ class attainable_GEMM_model:
 
     def obtain_overall_utilization(self, updated_config):
         overall_latency = 0
-        batch_size = 4
+        batch_size = 16
         input_seq_len = 5600
-        output_seq_len = 8000
+        output_seq_len = 80000
         device_num = 4
         hardware_settings = self.hardware_config
         for key, value in updated_config.items():
