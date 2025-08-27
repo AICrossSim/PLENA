@@ -175,26 +175,26 @@ def compute_L_packed(A_cs):
         L_bands[k] = exp_masked           # row k holds the k-th subdiagonal as a vector
     return L_bands
 
-def banded_apply_LM(L_bands: torch.Tensor, M: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
-    """
-    Compute Y = (L ⊙ M) @ X using banded L (packed subdiagonals), dense M and X.
-    L_bands: (T, T), L_bands[k, k:] = L[i, i-k] for i>=k (else 0)
-    M: (T, T) dense
-    X: (T, d)
-    Returns Y: (T, d)
-    """
-    T, d = X.shape
-    Y = torch.zeros((T, d), dtype=X.dtype, device=X.device)
-    # k = 0 (main diagonal): Y += diag(M) * X
-    diag0 = torch.diagonal(M, offset=0)          # (T,)
-    Y += diag0[:, None] * X
-    # k >= 1: accumulate subdiagonals
-    for k in range(1, T):
-        mk = torch.diagonal(M, offset=-k)        # (T-k,)
-        lk = L_bands[k, k:]                      # (T-k,)
-        coeff = mk * lk                          # (T-k,)
-        Y[k:, :] += coeff[:, None] * X[:T-k, :]
-    return Y
+# def banded_apply_LM(L_bands: torch.Tensor, M: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
+#     """
+#     Compute Y = (L ⊙ M) @ X using banded L (packed subdiagonals), dense M and X.
+#     L_bands: (T, T), L_bands[k, k:] = L[i, i-k] for i>=k (else 0)
+#     M: (T, T) dense
+#     X: (T, d)
+#     Returns Y: (T, d)
+#     """
+#     T, d = X.shape
+#     Y = torch.zeros((T, d), dtype=X.dtype, device=X.device)
+#     # k = 0 (main diagonal): Y += diag(M) * X
+#     diag0 = torch.diagonal(M, offset=0)          # (T,)
+#     Y += diag0[:, None] * X
+#     # k >= 1: accumulate subdiagonals
+#     for k in range(1, T):
+#         mk = torch.diagonal(M, offset=-k)        # (T-k,)
+#         lk = L_bands[k, k:]                      # (T-k,)
+#         coeff = mk * lk                          # (T-k,)
+#         Y[k:, :] += coeff[:, None] * X[:T-k, :]
+#     return Y
 
 def banded_apply_L(L_bands: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
     T, D = X.shape
