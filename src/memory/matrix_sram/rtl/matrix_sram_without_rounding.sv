@@ -12,9 +12,9 @@ Status      : Passed Simple Row/Col Read/Write Tests
 
 module matrix_sram_without_rounding #(
     // MX-FP Data Format
-    parameter WT_MX_EXP_WIDTH     = 4,
-    parameter WT_MX_MANT_WIDTH    = 3,
-    parameter MXFP_SCALE_WIDTH      = 8,
+    parameter WT_MX_EXP_WIDTH       = 4,
+    parameter WT_MX_MANT_WIDTH      = 3,
+    parameter MX_SCALE_WIDTH        = 8,
     parameter ON_CHIP_ADDR_WIDTH    = 32,
 
     // Dimension
@@ -37,14 +37,14 @@ module matrix_sram_without_rounding #(
     input   logic transposed_read,
     input   logic [ON_CHIP_ADDR_WIDTH-1:0] sram_raddr,   
     output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]    element_out,
-    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]                scale_out,
+    output  logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MX_SCALE_WIDTH - 1 : 0]                scale_out,
 
     // Write Operation
     input   logic wen,
     output  logic write_response,
     input   logic [ON_CHIP_ADDR_WIDTH-1:0] sram_waddr,
     input   logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]  element_in,
-    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0]         scale_in,
+    input   logic [PARALLEL_DIM - 1 : 0][BLOCK_NUM - 1 : 0][MX_SCALE_WIDTH - 1 : 0]         scale_in,
 
     // Prefetch Status
     input   logic [ON_CHIP_ADDR_WIDTH - 1 : 0] prefetch_addr,
@@ -111,16 +111,16 @@ end
 
 // scale duplication
 logic scale_write_response, element_write_response;
-logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
-logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MXFP_SCALE_WIDTH - 1 : 0] loaded_scale_out;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MX_SCALE_WIDTH - 1 : 0] dumplicated_scale_in;
+logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][MX_SCALE_WIDTH - 1 : 0] loaded_scale_out;
 logic [PARALLEL_DIM - 1 : 0][MLEN - 1 : 0][WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0] loaded_element_out;
 
 assign write_response = scale_write_response & element_write_response;
 
 duplicate_data_section #(
-    .DATA_SEC_WIDTH     (MXFP_SCALE_WIDTH),
+    .DATA_SEC_WIDTH     (MX_SCALE_WIDTH),
     .REPEAT             (BLOCK_DIM),
-    .BITSTREAM_WIDTH    (MXFP_SCALE_WIDTH * BLOCK_NUM * PARALLEL_DIM)
+    .BITSTREAM_WIDTH    (MX_SCALE_WIDTH * BLOCK_NUM * PARALLEL_DIM)
 ) dumplicate_scale(
     .in_data        (scale_in),
     .out_data       (dumplicated_scale_in)
@@ -128,7 +128,7 @@ duplicate_data_section #(
 
 // scale storage
 biaccess_sram #(
-    .DataWidth      (MXFP_SCALE_WIDTH),
+    .DataWidth      (MX_SCALE_WIDTH),
     .SRAM_DEPTH     (SRAM_DEPTH),
     .MLEN           (MLEN),
     .Parallel_Rd_Dim(PARALLEL_DIM)

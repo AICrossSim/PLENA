@@ -16,12 +16,14 @@ def get_preset_info(preset):
     else:
         raise Warning(f"None preset: {preset}")
 
-def setup_linear_args(preset, preset_x, preset_w):
+def setup_linear_args(preset, preset_x, preset_w, online_rotate, clip_search_y):
     linear_kwargs = {
         "x_meta": None,
         "w_meta": None,
         "b_meta": None,
         "layer_type": "XWB",
+        "online_rotate": online_rotate,
+        "clip_search_y": clip_search_y,
     }
     if preset != "original":
         if "Xq" in preset:
@@ -108,11 +110,10 @@ def setup_atten_args(preset, preset_x, preset_w, preset_Kv, preset_NL, online_ro
 
     return attn_kwargs
 
-def setup_mlp_args(preset, preset_NL, online_rotate):
+def setup_mlp_args(preset, preset_NL):
     mlp_kwargs = {
         "silu_meta": None,
-        "silu_func_type": "X",
-        "online_rotate": online_rotate
+        "silu_func_type": "X"
     }
     if preset != "original" and "NLq" in preset:
         mlp_kwargs["silu_meta"] = get_preset_info(preset_NL)
@@ -126,7 +127,8 @@ def setup_args_linear_nonlinear(
     preset_W: str | None,
     preset_Kv: str | None,
     preset_NL: str | None,
-    online_rotate: bool
+    online_rotate: bool,
+    clip_search_y : bool
 ) -> dict:
     kwargs = {
         "preset": preset,
@@ -134,13 +136,14 @@ def setup_args_linear_nonlinear(
         "preset_w": preset_W,
         "preset_Kv": preset_Kv,
         "preset_NL": preset_NL,
-        "online_rotate": online_rotate
+        "online_rotate": online_rotate,
+        "clip_search_y": clip_search_y
     }
 
     return {
-        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w"])),
+        "fc_kwargs": setup_linear_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "online_rotate", "clip_search_y"])),
         "embed_kwargs": setup_embed_args(**filter_kwargs(kwargs, ["preset", "preset_w"])),
         "attn_kwargs": setup_atten_args(**filter_kwargs(kwargs, ["preset", "preset_x", "preset_w", "preset_Kv", "preset_NL", "online_rotate"])),
-        "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_NL", "online_rotate"])),
+        "mlp_kwargs": setup_mlp_args(**filter_kwargs(kwargs, ["preset", "preset_NL"])),
         "rms_kwargs": setup_norm_args(**filter_kwargs(kwargs, ["preset", "preset_NL"])),
     }

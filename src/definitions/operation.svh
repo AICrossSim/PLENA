@@ -102,7 +102,7 @@ function automatic int max(input int a, input int b);
     return (a > b) ? a : b;
 endfunction
 
-typedef enum logic [OPCODE_WIDTH - 1:0] {
+typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     // Invalid
     INVALID_OPCODE         = 6'h00,
 

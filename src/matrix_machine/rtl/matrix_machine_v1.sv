@@ -32,19 +32,19 @@ module matrix_machine_v1 import precision_pkg::*; import configuration_pkg::*; #
 
     // Matix - row-major order
     input  logic [MLEN*Matrix_Parallel_Rd_Dim-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      m_element,
-    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MXFP_SCALE_WIDTH-1:0]        m_scale,
+    input  logic [BLOCK_NUM*Matrix_Parallel_Rd_Dim-1:0]          [MX_SCALE_WIDTH-1:0]        m_scale,
     input  logic                   m_valid,
     output logic                   m_ready,
 
     // Vector - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      v_element,
-    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                      v_scale,
+    input  logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]                      v_scale,
     input  logic                   v_valid,
     output logic                   v_ready,
 
     // Offset - row-major order
     input  logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      o_element,
-    input  logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                      o_scale,
+    input  logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]                      o_scale,
     input  logic                    o_valid,
     output logic                    o_ready,
 
@@ -134,7 +134,7 @@ end
 // Matrix Buffering
 // Element Collector
 logic [MLEN*MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      collect_m_element;
-logic [MLEN*BLOCK_NUM-1:0]          [MXFP_SCALE_WIDTH-1:0]       collect_m_scale;
+logic [MLEN*BLOCK_NUM-1:0]          [MX_SCALE_WIDTH-1:0]       collect_m_scale;
 
 logic collect_in_m_ele_ready,   collect_in_m_scale_ready;
 logic collect_in_m_ele_valid,   collect_in_m_scale_valid;
@@ -173,7 +173,7 @@ matrix_collector #(
 
 // Scale Collector
 matrix_collector #(
-    .DATA_WIDTH(MXFP_SCALE_WIDTH * BLOCK_NUM),
+    .DATA_WIDTH(MX_SCALE_WIDTH * BLOCK_NUM),
     .MLEN(MLEN),
     .Collect_Dim(Matrix_Parallel_Rd_Dim)
 ) scale_collect (
@@ -203,7 +203,7 @@ join_n #(
 
 // Multiplicand Vector Buffering
 logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      stored_v_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]       stored_v_scale;
+logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]       stored_v_scale;
 logic stored_v_in_ele_ready, stored_v_in_scale_ready;
 logic stored_v_in_ele_valid, stored_v_in_scale_valid;
 logic stored_v_ele_ready, stored_v_scale_ready;
@@ -237,7 +237,7 @@ skid_buffer #(
 );
 
 skid_buffer #(
-    .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+    .DATA_WIDTH(BLOCK_NUM * MX_SCALE_WIDTH)
 ) multiplicand_vec_scale_buffer (
     .clk(clk),
     .rst(rst),
@@ -265,7 +265,7 @@ join_n #(
 
 // Offset Vector Buffering
 logic [MLEN-1:0] [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]      stored_o_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]       stored_o_scale;
+logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]       stored_o_scale;
 logic stored_o_in_ele_ready, stored_o_in_scale_ready;
 logic stored_o_in_ele_valid, stored_o_in_scale_valid;
 logic stored_o_ele_ready, stored_o_scale_ready;
@@ -298,7 +298,7 @@ skid_buffer #(
 );
 
 skid_buffer #(
-    .DATA_WIDTH(BLOCK_NUM * MXFP_SCALE_WIDTH)
+    .DATA_WIDTH(BLOCK_NUM * MX_SCALE_WIDTH)
 ) offset_vec_scale_buffer (
     .clk(clk),
     .rst(rst),
@@ -326,13 +326,13 @@ join_n #(
 // Control Logic
 logic prod_valid, prod_ready;
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]         prod_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                         prod_scale;
+logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]                         prod_scale;
 
 // Matrix - Vector multiplication Unit
 mx_fp_mv #(
     .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
     .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-    .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+    .MXFP_SCALE_WIDTH(MX_SCALE_WIDTH),
 
     .COMPUTE_DIM(MLEN),
     .BLOCK_DIM(BLOCK_DIM),
@@ -375,11 +375,11 @@ logic prod_for_acc_ready, prod_for_acc_valid;
 logic offset_for_acc_ready, offset_for_acc_valid;
 
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     acc_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     acc_scale;
+logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]                       acc_scale;
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     result_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     result_scale;
+logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]                       result_scale;
 logic [MLEN-1:0]             [(MXFP_MANT_WIDTH + MXFP_EXP_WIDTH):0]     out_element;
-logic [BLOCK_NUM-1:0]        [MXFP_SCALE_WIDTH-1:0]                     out_scale;
+logic [BLOCK_NUM-1:0]        [MX_SCALE_WIDTH-1:0]                       out_scale;
 logic result_from_acc_valid, result_from_acc_ready;
 
 // Assuming there is no case that MV_IC is followed by MV_WO, where both might write to the sram at the same time.
@@ -472,7 +472,7 @@ generate;
         mx_fp_blockwise_adder #(
             .MXFP_EXP_WIDTH(MXFP_EXP_WIDTH),
             .MXFP_MANT_WIDTH(MXFP_MANT_WIDTH),
-            .MXFP_SCALE_WIDTH(MXFP_SCALE_WIDTH),
+            .MXFP_SCALE_WIDTH(MX_SCALE_WIDTH),
             .BLOCK_DIM(BLOCK_DIM),
             .EXT_EXP_WIDTH(BLOCK_ADD_EXT_EXP_WIDTH),
             .EXT_MANT_WIDTH(BLOCK_ADD_EXT_MANT_WIDTH)

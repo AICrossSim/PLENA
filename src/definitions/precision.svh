@@ -14,20 +14,20 @@ package precision_pkg;
     parameter   ACT_MXFP_EXP_WIDTH  = 4;
     parameter   KV_MX_MANT_WIDTH    = 2;
     parameter   KV_MX_EXP_WIDTH     = 1;
-    parameter   KV_MX_INT_ENABLE    = 0;
-    parameter   WT_MX_MANT_WIDTH    = 3;
-    parameter   WT_MX_EXP_WIDTH     = 4;
+    parameter   KV_MX_INT_ENABLE    = 0;    // Currently not used.
+    parameter   WT_MX_MANT_WIDTH    = 2;
+    parameter   WT_MX_EXP_WIDTH     = 1;
     parameter   WT_MX_INT_ENABLE    = 0;
-    parameter   MXFP_SCALE_WIDTH    = 8;
+    parameter   MX_SCALE_WIDTH      = 8;
     
-    parameter   BLOCK_DIM = 4;
+    parameter   BLOCK_DIM = 16;
     // Per Unit Precision
-    parameter   V_FP_EXP_WIDTH  = 7;
-    parameter   V_FP_MANT_WIDTH = 8;
-    parameter   M_FP_EXP_WIDTH  = 7;
-    parameter   M_FP_MANT_WIDTH = 8;
-    parameter   S_FP_EXP_WIDTH  = 7;
-    parameter   S_FP_MANT_WIDTH = 8;
+    parameter   V_FP_EXP_WIDTH  = 6;
+    parameter   V_FP_MANT_WIDTH = 5;
+    parameter   M_FP_EXP_WIDTH  = 6;
+    parameter   M_FP_MANT_WIDTH = 5;
+    parameter   S_FP_EXP_WIDTH  = 6;
+    parameter   S_FP_MANT_WIDTH = 5;
     parameter   INT_DATA_WIDTH  = 32;
     // Compute Related Precision
     parameter   PRODUCT_EXT_EXP_WIDTH       = 0;

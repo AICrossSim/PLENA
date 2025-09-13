@@ -101,13 +101,12 @@ def compose_mxfp_tensor(
     return tensor
 
 
-from cfl_tools.debugger import _get_similarity
 def mxfp_quantizer_sim(
     tensor: Tensor,
     block_dim: int,
     mxfp_meta: MXFPMeta,
     dtype: torch.dtype | None = None,
-    quantile_search: bool = True,
+    quantile_search: bool = False,
 ) -> Tensor:
     """
     Quantizes and dequantizes a tensor using the MXFP format.

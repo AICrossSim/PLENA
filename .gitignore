@@ -35,10 +35,13 @@ src/basic_components/synopsis/
 .nfs*
 
 *.mem
-
+*.ipynb
 *.message
 
 *.pt
+*.asm
+specific.sh
+acc_simulator/results/
 
 acc_simulator/third_party/
 analyzed/
@@ -48,3 +51,4 @@ logs*/
 kube/
 *.out
 temp/
+ckpts_*

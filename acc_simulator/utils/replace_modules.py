@@ -40,7 +40,8 @@ def replace_modules(
     factory_fn: Callable[..., nn.Module],
     kwargs: dict,
     skip_names: Optional[list[str]] = None,
-    label: str = "layer"
+    label: str = "layer", 
+    online_rotate: bool = False,
 ) -> nn.Module:
     assert isinstance(model, LlamaForCausalLM)
     replaced = 0
@@ -60,6 +61,13 @@ def replace_modules(
         if skip_names and name in skip_names:
             print(f"Skipping {label}: {name}")
             continue
+        
+        # Only rotate activation in down-projection
+        if target_class == nn.Linear:
+            if "down_proj" not in name:
+                kwargs["online_rotate"] = online_rotate
+            else:
+                kwargs["online_rotate"] = False
 
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)

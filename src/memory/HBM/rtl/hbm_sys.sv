@@ -31,14 +31,14 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     input   logic prefetch_m_ready,
     output  logic prefetch_m_valid,
     output  logic [MLEN -1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]                prefetch_m_element,
-    output  logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                          prefetch_m_scale,
+    output  logic [M_BLOCKNUM -1:0] [MX_SCALE_WIDTH-1:0]                          prefetch_m_scale,
 
     // Data to Vector SRAM
     input   logic prefetch_v_ready,
     output  logic prefetch_v_valid,
     output  logic [VLEN-1:0] [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]               prefetch_v_high_precision_element,
     output  logic [VLEN-1:0] [KV_MX_MANT_WIDTH  + KV_MX_EXP_WIDTH:0]                    prefetch_v_low_precision_element,
-    output  logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                               prefetch_v_scale,
+    output  logic [V_BLOCKNUM-1:0] [MX_SCALE_WIDTH-1:0]                               prefetch_v_scale,
 
     // Write Back to HBM
     input   logic                                 hbm_write_high_valid,
@@ -47,7 +47,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
 
     input   logic   [VLEN-1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]               hbm_write_high_element,
     input   logic   [VLEN-1:0] [KV_MX_MANT_WIDTH + KV_MX_EXP_WIDTH:0]               hbm_write_low_element,
-    input   logic   [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                         hbm_write_scale,
+    input   logic   [V_BLOCKNUM-1:0] [MX_SCALE_WIDTH-1:0]                         hbm_write_scale,
 
     // Status Tracking
     output logic prefetch_m_in_progress,
@@ -97,18 +97,18 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     logic [MLEN * (WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH + 1) - 1 : 0]     m_hbm_element_out;
     logic [MLEN - 1 : 0] [KV_MX_EXP_WIDTH + KV_MX_MANT_WIDTH : 0]       m_hbm_low_precision_element_out;
     logic [MLEN - 1 : 0] [WT_MX_EXP_WIDTH + WT_MX_MANT_WIDTH : 0]       m_hbm_upcasted_element_out;
-    logic [M_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
+    logic [M_BLOCKNUM * MX_SCALE_WIDTH - 1 : 0] m_hbm_scale_out;
 
     logic [ON_CHIP_ADDR_WIDTH - 1 : 0] stride_size, stored_m_scale_offset, stored_v_scale_offset;
     logic [VLEN * (ACT_MXFP_EXP_WIDTH + ACT_MXFP_MANT_WIDTH + 1) - 1 : 0]   v_hbm_high_precision_element_out;
     logic [VLEN * (KV_MX_EXP_WIDTH + KV_MX_MANT_WIDTH + 1) - 1 : 0]     v_hbm_low_precision_element_out;
-    logic [V_BLOCKNUM * MXFP_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
+    logic [V_BLOCKNUM * MX_SCALE_WIDTH - 1 : 0] v_hbm_scale_out;
 
     logic [MLEN -1:0] [WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH:0]                stored_prefetch_m_element;
-    logic [M_BLOCKNUM -1:0] [MXFP_SCALE_WIDTH-1:0]                          stored_prefetch_m_scale;
+    logic [M_BLOCKNUM -1:0] [MX_SCALE_WIDTH-1:0]                          stored_prefetch_m_scale;
     logic [VLEN-1:0] [ACT_MXFP_MANT_WIDTH + ACT_MXFP_EXP_WIDTH:0]           stored_prefetch_high_precision_v_element;   
     logic [VLEN-1:0] [KV_MX_MANT_WIDTH  + KV_MX_EXP_WIDTH:0]                stored_prefetch_low_precision_v_element;
-    logic [V_BLOCKNUM-1:0] [MXFP_SCALE_WIDTH-1:0]                           stored_prefetch_v_scale; 
+    logic [V_BLOCKNUM-1:0] [MX_SCALE_WIDTH-1:0]                           stored_prefetch_v_scale; 
 
     OP_BUNDLE mem_stage_op;
 
@@ -287,7 +287,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .HIGH_MXFP_MANT_WIDTH       (WT_MX_MANT_WIDTH),
         .LOW_MXFP_EXP_WIDTH         (KV_MX_EXP_WIDTH),
         .LOW_MXFP_MANT_WIDTH        (KV_MX_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH           (MXFP_SCALE_WIDTH),
+        .MX_SCALE_WIDTH           (MX_SCALE_WIDTH),
         .BLOCK_DIM                  (BLOCK_DIM),
         .DATA_DIM                   (MLEN),
         .HBM_ADDR_WIDTH             (HBM_ADDR_WIDTH),
@@ -352,7 +352,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
     );
 
     register_slice #(
-        .DATA_WIDTH(M_BLOCKNUM * MXFP_SCALE_WIDTH)
+        .DATA_WIDTH(M_BLOCKNUM * MX_SCALE_WIDTH)
     ) matrix_sram_prefetch_scale_buffer (
         .clk(clk),
         .rst(rst),
@@ -382,7 +382,7 @@ module hbm_sys import precision_pkg::*; import configuration_pkg::*; #(
         .HIGH_MXFP_MANT_WIDTH       (ACT_MXFP_MANT_WIDTH),
         .LOW_MXFP_EXP_WIDTH         (KV_MX_EXP_WIDTH),
         .LOW_MXFP_MANT_WIDTH        (KV_MX_MANT_WIDTH),
-        .MXFP_SCALE_WIDTH           (MXFP_SCALE_WIDTH),
+        .MX_SCALE_WIDTH             (MX_SCALE_WIDTH),
         .BLOCK_DIM                  (BLOCK_DIM),
         .DATA_DIM                   (VLEN),
         .HBM_ADDR_WIDTH             (HBM_ADDR_WIDTH),

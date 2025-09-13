@@ -1,82 +1,59 @@
-from code_gen_op import _generate_vector_op
+import os
+from typing import Dict, List, Any, Optional
+from pathlib import Path
+
+
 def rms_norm_asm(
-    # qk hbm addresses
-    q_hbm_address: int,
-    _n_offset: int,
     _eps_offset: int,
-    # qkv sram addresses
-    q_base_address: int,
-    k_base_address: int,
-    v_base_address: int,
-    # model info
-    mlen: int,
+    reci_hid_offset: int,
+    alive_registers: List[int],
+    activation_base_address: int,
+    scratchpad_base_address: int,
     vlen: int,
-    head_dim: int,
-    hidden_dim: int,
-    blen: int 
+    batch_size: int,
+    hidden_dim: int
 ) -> str:
     """
     Generate assembly code for L2 normalization.
     """
+    act_addr = alive_registers[0]
+    scratchpad_addr = alive_registers[1]
 
-    _n_offset = "TODO"
-    _eps_offset = "TODO"
+    generated_code = "; RMS Norm generation \n"
+    generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address} \n"
+    generated_code += f"S_ADDI_INT gp{scratchpad_addr}, gp0, {scratchpad_base_address} \n"
+    # Load eps into f1
+    generated_code += f"S_LD_FP f1, gp0, {_eps_offset} \n"
+    # Reset f2 as accumulator for reduction.
+    generated_code += "S_ADD_FP f2, f0, f0 \n"
+    # Load the 1/ hidden_dim into f3
+    generated_code += f"S_LD_FP f3, gp0, {reci_hid_offset} \n"
+    for batch in range(batch_size):
+        for i in range(hidden_dim // vlen):
+            # Compute square of the activation vector and summation
+            generated_code += f"V_MUL_VV gp{scratchpad_addr}, gp{act_addr}, gp{act_addr} \n"
+            generated_code += f"V_RED_SUM f2, gp{scratchpad_addr} \n"
+
+            # Move to next vector
+            generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen} \n"
         
-    square_code = _generate_vector_op(
-        {
-            "name": "VMultVv",
-            "type": "vector",
-            "reg_in_0": "i0",
-            "reg_in_1": "i0",
-            "reg_out": "i1",
-            "loops": hidden_dim // vlen
-        })
-    reduction_code = _generate_vector_op(
-        {
-            "name": "VRedSum",
-            "type": "vector",
-            "reg_in_0": "i1",
-            "reg_out": "f0",
-            "loops": hidden_dim // vlen
-        })
-    generated_code = f"""
-    ; RMS Normalization: hidden_dim={hidden_dim},
-    ; Compute RMS and normalize
-    ; initialize reg
-    LDI i0, 0
-    SAddiInt i0, i0, 0
-    SAddiInt i1, i0, 0
-    ; compute square x^2
-    {square_code}
+        # Taking the avg
+        generated_code += f"S_MUL_FP f2, f2, f3 \n"
 
-    ; compute reduction sum, output to f0
-    {reduction_code}
+        # Plus epsilon
+        generated_code += f"S_ADD_FP f2, f2, f1 \n"
 
-    ; compute load 1/n to f1
-    SAddiInt i3, i0, {_n_offset}
-    SLdFp f1, i3, 0
+        # Compute square root
+        generated_code += "S_SQRT_FP f2, f2 \n"
 
-    ; compute variance
-    SMulInt f0, f0, f1
+        # Compute reciprocal
+        generated_code += "S_RECI_FP f2, f2 \n"
 
-    ; eps + variance
-    SAddiInt i3, i0, {_eps_offset}
-    SLdFp f1, i3, 0
-    SAddFp f0, f0, f1
+        for i in range(hidden_dim // vlen):
+            # Normalize the activation vector
+            generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f2 \n"
 
-    ; compute RMS
-    SSqrtFp f0, f0
-    SReciFp f0, f0
+            # Move to next vector
+            generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen} \n"
 
-    ; load 1/n to f1
-    SAddiInt i3, i0, {_n_offset}
-    SLdFp f1, i3, 0
-
-    ; normalize
-
-    ; store result
-    """
-
-    return f"""
-
-"""
+    return generated_code

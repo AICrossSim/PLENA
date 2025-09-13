@@ -1,5 +1,5 @@
 `ifndef GLOBAL_DEFINE_VH
-`define SIMULATION
+// `define SIMULATION
 `define DC_LIB_EN
 // `define HADAMARD_EN
 // `define MAMBA_EXTENSION_EN

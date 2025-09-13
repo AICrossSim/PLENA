@@ -10,7 +10,7 @@ def ffn_asm(
     batch: int,
     hidden_size: int,
     alive_registers: List[int],
-    weight_base_address: int,
+    weight_hbm_offset_reg: int,
     intermediate_size: int,
     const_address: int,
     activation_base_address: int,
@@ -23,7 +23,6 @@ def ffn_asm(
         mlen (int): The number of rows in the first matrix.
         blen (int): The number of columns in the second matrix.
         alive_registers (List[int]): List of registers that are alive.
-        weight_base_address (int): index for the address mapper pointing to the base addr of the weight matrix.
         rope_base_address (int): index for the address mapper pointing to the base addr of the rope matrix.
         activation_base_address (int): index for the address mapper pointing to the base addr of the activation matrix.
     Functionality:
@@ -31,10 +30,9 @@ def ffn_asm(
         Activation      (b, s, intermediate_size) -> (b, s, intermediate_size)
         Downsize linear (b, s, intermediate_size) @ (intermediate_size, hidden_size) -> (b, s, hidden_size)
     """
-    generated_code = ""
-    generated_code += " \n \n FFN Upsize Linear Generation \n"
+    generated_code = " ; FFN Upsize Linear Generation \n"
     # Dot product of weight (Hidden Size, Hidden Size) and activation (Batch, 1, Hidden Size)
-    assert batch > blen, "Batch size must be greater than blen"
+    assert batch < blen, "Batch size must be greater than blen"
     # get two registers from alive_registers, 1 as w address, 1 as a address
     w_base_register = alive_registers[0]
     a_base_register = alive_registers[1]
@@ -43,25 +41,27 @@ def ffn_asm(
     a_actual_register = alive_registers[4]
     intermediate_register = alive_registers[5]
     # reset the registers
-    set_w_base_register  = f"S_LD_INT {w_base_register}, gp0, {weight_base_address} \n"
-    set_a_base_address   = f"S_LD_INT {a_base_register}, gp0, {activation_base_address} \n"
-    set_result_address   = f"S_LD_INT {result_register}, gp0, {result_base_address} \n"
+    set_w_base_register  = f"S_ADDI_INT gp{w_base_register}, gp0, 0 \n"
+    set_a_base_address   = f"S_ADDI_INT gp{a_base_register}, gp0, {activation_base_address} \n"
+    set_result_address   = f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n"
 
-    set_w_actual_address = f"S_ADD_INT {w_actual_register}, gp0, {w_base_register} \n"
-    set_a_actual_address = f"S_ADD_INT {a_actual_register}, gp0, {a_base_register} \n"
-    increment_result_actual_address = f"S_ADD_INT {result_register}, gp0, {a_base_register} \n"
+    set_w_actual_address = f"S_ADD_INT gp{w_actual_register}, gp0, {w_base_register} \n"
+    set_a_actual_address = f"S_ADD_INT gp{a_actual_register}, gp0, {a_base_register} \n"
+
+    increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {mlen} \n"
 
     row_loop_over_hid = intermediate_size // blen
+    vect_loop_over_hid = intermediate_size // vlen
     col_loop_over_hid = hidden_size // mlen
     generated_code += set_w_base_register
     generated_code += set_a_base_address
     generated_code += set_result_address
     
-    generated_code += f"PREFETECH_M {w_actual_register}, gp0, a1, 1, 0 \n"
+    generated_code += f"PREFETECH_M {w_actual_register}, gp0, a{weight_hbm_offset_reg}, 1, 0 \n"
     for i in range(row_loop_over_hid):
-        generated_code += f"<---- Generating New Row Tile at index {i} ----> \n"
+        generated_code += f"; <---- Generating New Row Tile at index {i} ----> \n"
         for j in range(col_loop_over_hid):
-            generated_code += f"<---- Generating New Column Tile at row {i} col {j} \n"
+            generated_code += f"; <---- Generating New Column Tile at row {i} col {j} ----> \n"
             generated_code += f"M_MM 0, {w_actual_register}, {a_actual_register} \n"
             generated_code += set_w_actual_address
             generated_code += set_a_actual_address
@@ -69,11 +69,11 @@ def ffn_asm(
         if (i % blen) == 0:
             generated_code += increment_result_actual_address
     
-    generated_code += " \n \n SILU Generation \n"
+    generated_code += "; SILU Generation \n"
     fp_const_reg = "f1"
     generated_code += f"S_LD_FP {fp_const_reg}, gp0, {const_address} \n"
-    for i in range(row_loop_over_hid):
-        generated_code += f"<---- per VLEN block {i} ----> \n"
+    for i in range(vect_loop_over_hid):
+        generated_code += f"; <---- per VLEN block {i} ----> \n"
         generated_code += f"V_SUB_VV {intermediate_register}, {intermediate_register}, {result_register} \n"
         generated_code += f"V_EXP_V  {intermediate_register}, {intermediate_register} \n"
         generated_code += f"V_ADD_VF {intermediate_register}, {intermediate_register}, {fp_const_reg} \n"
@@ -82,15 +82,15 @@ def ffn_asm(
         generated_code += f"V_MUL_VV {result_register}, {result_register}, {intermediate_register} \n"
 
 
-    generated_code += " \n \n FFN Downsize Linear Generation \n"
+    generated_code += "; FFN Downsize Linear Generation \n"
 
     row_loop_over_hid = hidden_size // blen
     col_loop_over_hid = intermediate_size // mlen
 
     for i in range(row_loop_over_hid):
-        generated_code += f"<---- Generating New Row Tile at index {i} ----> \n"
+        generated_code += f"; <---- Generating New Row Tile at index {i} ----> \n"
         for j in range(col_loop_over_hid):
-            generated_code += f"<---- Generating New Column Tile at row {i} col {j} \n"
+            generated_code += f"; <---- Generating New Column Tile at row {i} col {j} ----> \n"
             generated_code += f"M_MM 0, {w_actual_register}, {result_register} \n"
             generated_code += set_w_actual_address
             generated_code += set_result_address

@@ -14,7 +14,6 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta, percentile: float
     Returns:
         tuple[Tensor, Tensor]: A tuple containing the scale (shape = [num_blocks, 1]) and element tensors (shape = [num_blocks, block_size]).
     """
-    assert x.dtype == torch.bfloat16
     B = mxint_meta.block_size
     assert x.numel() % B == 0, (
         f"Input tensor size {x.numel()} is not divisible by block size {B}."
@@ -24,7 +23,10 @@ def extract_mxint_components(x: Tensor, mxint_meta: MXIntMeta, percentile: float
     x = x.flatten()
     x = x.reshape(n_blocks, B)  # [n_blocks, B]
 
-    x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True)
+    ori_dtype = x.dtype
+    # quantile need fp32
+    x_max = x.abs().to(torch.float32).quantile(percentile, dim=1, keepdim=True).to(ori_dtype)
+
     scale = x_max.log2().ceil()
     scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
     x = x / 2**scale
@@ -52,7 +54,5 @@ def compose_mxint_tensor(
     Returns:
         Tensor: The composed MXINT tensor.
     """
-    B = mxint_meta.block_size
-    n_blocks = shared_scales.shape[0]
     scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
     return elements / 2**(mxint_meta.element_bits-1) * 2**(shared_scales - scale_bias)
