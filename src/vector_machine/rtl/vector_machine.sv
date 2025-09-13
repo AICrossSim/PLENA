@@ -524,6 +524,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             shift_in_hold <= prepared_v_a;
         end
     end
+    
     // ---------------------------//
     //  Vector Shift Unit
     // ---------------------------//
