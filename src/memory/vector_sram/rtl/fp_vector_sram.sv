@@ -88,7 +88,7 @@ module fp_vector_sram #(
     output  logic data_not_ready
 );
 
-    localparam  INTERNAL_ADDR_LEN           = $clog2(SRAM_DEPTH);
+    localparam int INTERNAL_ADDR_LEN           = $clog2(SRAM_DEPTH);
 
     initial begin
         if (VLEN < MLEN) begin
@@ -388,7 +388,7 @@ module fp_vector_sram #(
         .ResultFile(MEM_RESULT_FILE)
         `endif
     ) vect_storage (
-        .clk_i(clk),
+        .clk_i          (clk),
         .a_req_i        (test_port_a_req),
         .a_write_i      (port_a_write_en_internal),
         .a_addr_i       (translated_port_a_addr_internal),

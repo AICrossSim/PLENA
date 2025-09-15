@@ -54,20 +54,29 @@ module fp_vec_shift #(
             logic [VLEN-1:0][BITWIDTH-1:0] next_data;
 
             // Build next_data combinationally (OK to use loops with blocking '=' here)
-            always_comb begin
-                if (shift_pipe[s][s]) begin
-                    next_data = '0;
-                    for (int i = 0; i < VLEN; i++) begin
-                        if (RIGHT_SHIFT) begin
-                            if ((i + STEP) < VLEN)
-                                next_data[i] = data_pipe[s][i + STEP];
-                        end else begin
+            if (!RIGHT_SHIFT) begin : left_shift_logic
+                always_comb begin
+                    if (shift_pipe[s][s]) begin
+                        next_data = '0;
+                        for (int i = 0; i < VLEN; i++) begin
                             if (i >= STEP)
                                 next_data[i] = data_pipe[s][i - STEP];
                         end
+                    end else begin
+                        next_data = data_pipe[s]; // pass-through
                     end
-                end else begin
-                    next_data = data_pipe[s]; // pass-through
+                end
+            end else begin : right_shift_logic
+                always_comb begin
+                    if (shift_pipe[s][s]) begin
+                        next_data = '0;
+                        for (int i = 0; i < VLEN; i++) begin
+                            if ((i + STEP) < VLEN)
+                                next_data[i] = data_pipe[s][i + STEP];
+                        end
+                    end else begin
+                        next_data = data_pipe[s]; // pass-through
+                    end
                 end
             end
 
