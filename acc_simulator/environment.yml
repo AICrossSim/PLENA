@@ -10,10 +10,9 @@ dependencies:
   - pandas
   - toml
   - pip:
-      - torch==2.7.1+cu126
-      - torchvision==0.22.1+cu126
-      - torchaudio==2.7.1+cu126
-      - --extra-index-url https://download.pytorch.org/whl/cu126
+      - torch
+      - torchvision
+      - torchaudio
       - jsonargparse[all]
       - lm-eval==0.4.8
       - transformers==4.52.4
