@@ -18,7 +18,7 @@ from transformers.models.llama.modeling_llama import (
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import dispatch_model
 
-from safetensors.torch import save_file, load_file, save_model
+from safetensors.torch import save_file, load_file
 
 from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
 from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
@@ -26,6 +26,9 @@ from ..quantize.quantizer.mxfp import MXFPMeta
 from ..quantize.quantizer.minifloat import MinifloatMeta
 from ..quantize.quantizer.mxint import MXIntMeta
 from ..utils import replace_modules, create_device_map
+from ..utils.logger import get_logger, set_logging_verbosity
+
+logger = get_logger(__name__)
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
     # Always store logs inside acc_simulator/logs regardless of current working directory
@@ -173,19 +176,21 @@ def validate_and_sanitize_quant_args(
 
 def setup_model(model_name, model_parallel, dtype, device):
         # set tokenizer like this for now
+        logger.info(f"Setting up model {model_name} with dtype {dtype} and device {device}")
         if "meta" in model_name:
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name, use_fast=False, trust_remote_code=True
             )
         else:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
+        logger.info(f"Tokenizer setup complete")
 
         model = AutoModelForCausalLM.from_pretrained(
             model_name, torch_dtype=dtype, attn_implementation="eager"
         )
+        logger.info(f"Model setup complete")
         # Temp, load on cpu only
-        # return tokenizer, model
-        # breakpoint()
+        return tokenizer, model
         if model_parallel:
             device_map = create_device_map(model, "auto-balanced")
             model = dispatch_model(model, device_map=device_map)
@@ -204,10 +209,30 @@ def move_to_gpu(model, model_parallel=True):
     if model_parallel:
         device_map = create_device_map(model, "auto-balanced")
         model = dispatch_model(model, device_map=device_map)
+        logger.debug(f"device_map: {device_map}")
     else:
         model = model.to(device)
     return model
 
+def parse_args(quant_args: dict, layer_type: str, clip_search: bool = False) -> dict:
+    if layer_type == "linear":
+        layer_args = quant_args.get("fc_kwargs", {})
+        layer_args["clip_search"] = clip_search
+        return layer_args
+    elif layer_type == "attention":
+        layer_args = quant_args.get("attn_kwargs", {})
+        return layer_args
+    elif layer_type == "mlp":
+        layer_args = quant_args.get("mlp_kwargs", {})
+        return layer_args
+    elif layer_type == "embedding":
+        layer_args = quant_args.get("embed_kwargs", {})
+        return layer_args
+    elif layer_type == "rms":
+        layer_args = quant_args.get("rms_kwargs", {})
+        return layer_args
+    else:
+        raise ValueError(f"Invalid layer type: {layer_type}")
 
 def quantize_model(
     model: nn.Module,
@@ -216,6 +241,8 @@ def quantize_model(
     full_system_sim: bool = False,
     skip_lm_head: bool = True,
     online_rotate: bool = False,
+    clip_search: bool = False,
+    layer_for_online_rotate: str | None = None,
 ):
     """
     Replaces specific modules in the model with their quantized counterparts based on preset.
@@ -226,27 +253,26 @@ def quantize_model(
         linear_only (bool): If True, only replaces nn.Linear layers.
         skip_lm_head (bool): If True, skips quantizing the "lm_head" layer.
     """
-    if full_system_sim:
-        skip_lm_head = False  # Always quantize lm_head for full system simulation
-
     # Replace MLP activations (e.g., SiLU)
     replace_modules(
         model,
         target_class=LlamaMLP,
         replacement_class=LlamaMLPActFP,
         factory_fn=LlamaMLPActFP.from_mlp,
-        kwargs=quant_args.get("mlp_kwargs", {}),
+        kwargs=parse_args(quant_args, "mlp"),
         label="LlamaMLP"
     )
 
-    # Replace attention (e.g., softmax, rope, matmul)
+    # # Replace attention (e.g., softmax, rope, matmul)
     replace_modules(
         model,
         target_class=LlamaAttention,
         replacement_class=LlamaAttentionMXFP,
         factory_fn=LlamaAttentionMXFP.from_attention,
-        kwargs=quant_args.get("attn_kwargs", {}),
-        label="LlamaAttention"
+        kwargs=parse_args(quant_args, "attention"),
+        label="LlamaAttention",
+        online_rotate=online_rotate,
+        layer_for_online_rotate=layer_for_online_rotate
     )
 
     if linear_quantized: 
@@ -255,10 +281,11 @@ def quantize_model(
             target_class=nn.Linear,
             replacement_class=MXFPLinearPTQ,
             factory_fn=MXFPLinearPTQ.from_linear_gptq,
-            kwargs=quant_args.get("fc_kwargs", {}),
+            kwargs=parse_args(quant_args, "linear", clip_search),
             label="MXFPLinearPTQ",
             skip_names=["lm_head"] if skip_lm_head else None,
-            online_rotate=online_rotate
+            online_rotate=online_rotate,
+            layer_for_online_rotate=layer_for_online_rotate
         )
     else:
         replace_modules(
@@ -266,10 +293,11 @@ def quantize_model(
             target_class=nn.Linear,
             replacement_class=MXFPLinearPTQ,
             factory_fn=MXFPLinearPTQ.from_linear,
-            kwargs=quant_args.get("fc_kwargs", {}),
+            kwargs=parse_args(quant_args, "linear", clip_search),
             label="MXFPLinearPTQ",
             skip_names=["lm_head"] if skip_lm_head else None,
-            online_rotate=online_rotate
+            online_rotate=online_rotate,
+            layer_for_online_rotate=layer_for_online_rotate
         )
 
     if not full_system_sim:
@@ -281,7 +309,7 @@ def quantize_model(
         target_class=nn.Embedding,
         replacement_class=MXFPEmbeddingPTQ,
         factory_fn=MXFPEmbeddingPTQ.from_embedding,
-        kwargs=quant_args.get("embed_kwargs", {}),
+        kwargs=parse_args(quant_args, "embedding"),
         label="Embedding"
     )
 
@@ -291,19 +319,18 @@ def quantize_model(
         target_class=LlamaRMSNorm,
         replacement_class=FPRMSNormPTQ,
         factory_fn=FPRMSNormPTQ.from_rmsnorm,
-        kwargs=quant_args.get("rms_kwargs", {}),
+        kwargs=parse_args(quant_args, "rms"),
         label="FPRMSNormPTQ"
     )
 
 def save_gptq(model, out_dir: str):
     Path(out_dir).mkdir(parents=True, exist_ok=True)
-    # sd = model.to("cpu").state_dict()
-    # save_file(sd, f"{out_dir}/model.safetensors")
-    save_model(model, f"{out_dir}/model.safetensors")
+    sd = model.to("cpu").state_dict()
+    save_file(sd, f"{out_dir}/model.safetensors")
 
-def load_gptq(model, ckpt_file: str, strict: bool = True):
-    sd = load_file(ckpt_file)
-    model.load_state_dict(sd, strict)  # requires same arch/vocab
+def load_gptq(model, ckpt_dir: str):
+    sd = load_file(f"{ckpt_dir}/model.safetensors")
+    model.load_state_dict(sd, strict=True)  # requires same arch/vocab
     model.eval()
     try: model.tie_weights()
     except Exception: pass

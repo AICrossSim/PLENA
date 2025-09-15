@@ -27,7 +27,7 @@ class FPRMSNormPTQ(nn.Module):
         self.weight = None
 
         if "Wq" in layer_type:
-            self.weight = quantize_tensor(weight, block_dim=-1, meta=w_meta)
+            self.weight = quantize_tensor(weight, block_dim=1, meta=w_meta)
         else:
             self.weight = nn.Parameter(weight, requires_grad=False)
 

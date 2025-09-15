@@ -2,7 +2,7 @@ from lm_eval import simple_evaluate
 from lm_eval.models.huggingface import HFLM
 from lm_eval.utils import make_table
 from transformers import PreTrainedModel, PreTrainedTokenizer
-from typing import Union, List, Dict, Optional
+from typing import Union, List, Dict
 
 def evaluate_with_lm_eval(
     model: PreTrainedModel,
@@ -11,7 +11,6 @@ def evaluate_with_lm_eval(
     max_length: int = 2048,
     batch_size: Union[int, str] = "auto",
     log_samples: bool = False,
-    num_fewshot: Optional[int] = None,
 ) -> Dict:
     """
     Evaluate a HuggingFace model using EleutherAI's lm-eval harness.
@@ -30,14 +29,13 @@ def evaluate_with_lm_eval(
     if isinstance(tasks, str):
         tasks = [tasks]
 
-    model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=max_length, batch_size=batch_size)
+    model_lm_eval = HFLM(pretrained=model, tokenizer=tokenizer, max_length=max_length)
 
     results = simple_evaluate(
         model=model_lm_eval,
         tasks=tasks,
         batch_size=batch_size,
         log_samples=log_samples,
-        num_fewshot=num_fewshot
     )
 
     table = make_table(results)
