@@ -138,6 +138,7 @@ def mxint_quantizer_sim(
 
                 torch.cuda.empty_cache()
             else:
+                breakpoint()
                 q -= qtensor
                 q.abs_()
                 q.pow_(2)
