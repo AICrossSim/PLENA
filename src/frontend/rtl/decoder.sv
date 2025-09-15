@@ -116,7 +116,7 @@ always_comb begin
         end
 
         // Vector Operations
-        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_RED_SUM, V_RED_MAX, V_BC_S, C_HADAMARD_TRANSFORM, V_PS_V, V_SHFT_V : begin
+        V_ADD_VV, V_ADD_VF, V_SUB_VV, V_SUB_VF, V_MUL_VV, V_MUL_VF, V_EXP_V, V_RECI_V, V_RED_SUM, V_RED_MAX, C_HADAMARD_TRANSFORM, V_PS_V, V_SHFT_V : begin
             decode_instruction_type = V;
         end
 
@@ -242,7 +242,7 @@ always_ff @(posedge clk) begin
     end else if (!pipeline_stall) begin
         rd_operand_ready <= 1'b0;
         decode_stage_op.m_transposed_read       <= (decode_instr_info.opcode == M_TMM) ? 1'b1 : 1'b0;
-        decode_stage_op.v_broadcast_en          <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF || decode_instr_info.opcode == V_BC_S) ? 1'b1 : 1'b0;
+        decode_stage_op.v_broadcast_en          <= (decode_instr_info.opcode == V_ADD_VF || decode_instr_info.opcode == V_SUB_VF || decode_instr_info.opcode == V_MUL_VF) ? 1'b1 : 1'b0;
         decode_stage_op.update_m_waddr          <= 1'b0;
         decode_stage_op.update_v_waddr          <= 1'b0;
         decode_stage_op.gp_reg1                 <= decode_instr_info.rs1[INT_OPERAND_WIDTH - 1 : 0];
@@ -279,7 +279,6 @@ always_ff @(posedge clk) begin
                     (decode_instr_info.opcode == V_MUL_VV || decode_instr_info.opcode == V_MUL_VF) ? MUL_V_ELEMENT  :
                     (decode_instr_info.opcode == V_EXP_V)                                          ? EXP_V_ELEMENT  :
                     (decode_instr_info.opcode == V_RECI_V)                                         ? RECI_V_ELEMENT :
-                    (decode_instr_info.opcode == V_BC_S)                                           ? BROADCAST_V_ELEMENT :
                     (decode_instr_info.opcode == C_HADAMARD_TRANSFORM)                             ? INNER_HADAMARD_TRANSFORM :
                     (decode_instr_info.opcode == V_PS_V)                                           ? PREFIX_SCAN_V_ELEMENT :
                     (decode_instr_info.opcode == V_SHFT_V)                                         ? SHIFT_V_LANES_ELEMENT : STALL_V_ELEMENT;

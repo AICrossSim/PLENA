@@ -35,9 +35,8 @@ typedef enum logic [3:0] {
     EXP_V_ELEMENT   = 4'h4,
     RECI_V_ELEMENT  = 4'h5,
     INNER_HADAMARD_TRANSFORM    = 4'h6,
-    BROADCAST_V_ELEMENT         = 4'h7,
-    PREFIX_SCAN_V_ELEMENT       = 4'h8,
-    SHIFT_V_LANES_ELEMENT       = 4'h9   // renamed, use this everywhere
+    PREFIX_SCAN_V_ELEMENT       = 4'h7,
+    SHIFT_V_LANES_ELEMENT       = 4'h8   // renamed, use this everywhere
 } V_ELEMENT_OP;
 
 typedef enum logic [2:0] {
@@ -123,7 +122,6 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     V_MUL_VF               = 6'h0C,
     V_EXP_V                = 6'h0D,
     V_RECI_V               = 6'h0E,
-    V_BC_S                 = 6'h0F,
     V_RED_SUM              = 6'h10,
     V_RED_MAX              = 6'h11,
     V_PS_V                 = 6'h12,

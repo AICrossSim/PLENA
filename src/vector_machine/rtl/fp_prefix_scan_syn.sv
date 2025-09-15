@@ -28,9 +28,7 @@ module fp_prefix_scan_syn#(
     always_ff @(posedge clk) begin
         if (rst) begin
             valid_pipe <= 'b0;
-            for (int i = 0; i < VLEN; i++) begin
-                temp[0][i] <= '0;
-            end
+            pipe_vect  <= 'b0;
         end else begin
             valid_pipe[0]       <= in_valid;
             if (in_valid) begin
@@ -58,7 +56,7 @@ module fp_prefix_scan_syn#(
                         .rst(rst),
                         .data_a(pipe_vect[s][i]),
                         .data_b(pipe_vect[s][i-(1<<s)]),
-                        .data_in_valid(valid_pipe[s][0]),
+                        .data_in_valid(valid_pipe[s]),
                         .data_in_ready(), // can be left unconnected if not used
                         .data_out(temp_vect[i]),
                         .data_out_valid(), // can be left unconnected if not used

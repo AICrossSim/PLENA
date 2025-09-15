@@ -13,11 +13,9 @@ Status      : Pass Simple Test, EXP not implemented yet.
 
 module fp_elementwise_compute_unit #(
     // FP Data Format
-    parameter EXP_WIDTH    = 4,
-    parameter MANT_WIDTH   = 3,
-
-    // Dimensions
-    parameter VLEN      = 8
+    parameter EXP_WIDTH     = 4,
+    parameter MANT_WIDTH    = 3,
+    parameter VLEN          = 8
 
 ) (
     input logic clk,
@@ -48,8 +46,6 @@ logic [VLEN - 1:0] split_result_ready, split_result_valid;
 
 // Select signals
 logic element_in_valid;
-logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] selected_output;
-logic selected_valid;
 
 // Input handshaking for ALU path (only when not using prefix scan)
 join2 #() join_input_handshake (
@@ -68,7 +64,7 @@ generate;
         ) vec_alu_inst (
             .clk(clk),
             .rst(rst),
-            .data_in_valid       (element_in_valid & ~use_prefix_scan),
+            .data_in_valid       (element_in_valid),
             .data_a             (v_in_a[i]),
             .data_b             (v_in_b[i]),
             .operation          (operation),
@@ -89,63 +85,14 @@ join_n #(
 );
 
 
-`ifdef MAMBA_EXTENSION_EN
-    // Prefix scan path - vector processing
-    logic use_prefix_scan;
-    logic [VLEN - 1:0] [MANT_WIDTH + EXP_WIDTH : 0] prefix_scan_out;
-    logic prefix_scan_valid, prefix_scan_ready;
-
-    // Determine which path to use
-    assign use_prefix_scan = (operation == PREFIX_SCAN_V_ELEMENT);
-
-
-    fp_prefix_scan_syn #(
-        .VLEN(VLEN),
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
-    ) prefix_scan_unit (
-        .clk(clk),
-        .rst(rst),
-        .vin(v_in_a),
-        .vout(prefix_scan_out),
-        .in_valid(v_in_a_valid & use_prefix_scan),  // ADD THIS
-        .out_valid(prefix_scan_valid)
-    );
-
-    // Remove or fix the input ready logic:
-    always_comb begin
-        if (use_prefix_scan) begin
-            prefix_scan_ready = v_out_ready;  // Connect prefix scan ready to output ready
-            // Don't override v_in_a_ready, v_in_b_ready here - let join2 handle them
-        end else begin
-            prefix_scan_ready = 1'b0;  // Not used when not doing prefix scan
-        end
-    end
-
-    // Output selection based on operation
-    always_comb begin
-        if (use_prefix_scan) begin
-            selected_output = prefix_scan_out;
-            selected_valid  = prefix_scan_valid;
-        end else begin
-            selected_output = v_alu_out;
-            selected_valid  = v_compute_valid;
-        end
-    end
-`else
-    assign selected_output = v_alu_out;
-    assign selected_valid  = v_compute_valid;
-`endif
-
-
 // Output buffer
 register_slice #(
     .DATA_WIDTH(VLEN * (MANT_WIDTH + EXP_WIDTH + 1))
 ) result_buf_inst (
     .clk(clk),
     .rst(rst),
-    .data_in        (selected_output),
-    .data_in_valid  (selected_valid),
+    .data_in        (v_alu_out),
+    .data_in_valid  (v_compute_valid),
     .data_in_ready  (v_compute_ready),
     .data_out       (v_out),
     .data_out_valid (v_out_valid),
