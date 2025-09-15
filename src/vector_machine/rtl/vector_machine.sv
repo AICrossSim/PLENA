@@ -96,15 +96,25 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     logic element_v_in_b_valid, element_v_in_b_ready;
     logic element_v_out_valid,  element_v_out_ready;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_v_out;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] shift_v_out;
     logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   result_v_out;
     logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   p1_result_v_out;
-
-    logic hadamard_transform_in_valid, hadamard_transform_out_valid;
-    logic hadamard_transform_in_ready, hadamard_transform_out_ready;
-    
     logic [ADDR_WIDTH-1:0] stored_result_waddr;
     logic compute_result_valid;
+
+
+// Special Extension Definitions
+`ifdef HADAMARD_EN
+    logic hadamard_transform_in_valid, hadamard_transform_out_valid;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_v_out;
+`endif
+
+`ifdef MAMBA_EXTENSION_EN
+    logic prefix_scan_in_valid, prefix_scan_out_valid;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prefix_scan_v_out;
+    logic shift_in_valid, shift_out_valid;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] shift_v_out;
+`endif
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -154,9 +164,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             for (int i = 0; i < VECTOR_LONGEST_OPERATE_CYCLES - 1; i++) begin
                 pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
             end
-
             in_preparation_stage <= next_preparation_stage;
-
         end
     end
 
@@ -283,44 +291,12 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_b;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_in_v;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] reduct_in_v;
-    assign hadamard_transform_in_ready = 1'b1;
+
     assign v_port_a_ready = 1'b1;
     assign v_port_b_ready = 1'b1;
 
     always_ff @(posedge clk) begin
-        if ((recorded_element_v_control == INNER_HADAMARD_TRANSFORM)) begin
-            hadamard_transform_in_valid <= v_port_a_valid;
-            element_v_in_b_valid        <= 1'b0;
-            red_v_in_a_valid            <= 1'b0;
-            element_v_in_a_valid        <= 1'b0;
-            element_v_in_b_valid        <= 1'b0;
-            element_in_v_a              <= 'b0;
-            element_in_v_b              <= 'b0;
-            reduct_in_v                 <= 'b0;
-            hadamard_transform_in_v     <= prepared_v_a;
-        end else if ((recorded_element_v_control == PREFIX_SCAN_V_ELEMENT)) begin
-            // FIX: only feed A for prefix-scan
-            hadamard_transform_in_valid <= 1'b0;
-            element_v_in_a_valid        <= v_port_a_valid;
-            element_v_in_b_valid        <= 1'b1;   // keep this
-            red_v_in_a_valid            <= 1'b0;
-
-            element_in_v_a              <= prepared_v_a;
-            element_in_v_b              <= '0;      // dummy B
-            reduct_in_v                 <= '0;
-            hadamard_transform_in_v     <= '0;
-
-        end else if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT)) begin
-            // Do not feed other units during shift
-            hadamard_transform_in_valid <= 1'b0;
-            element_v_in_a_valid        <= 1'b0;
-            element_v_in_b_valid        <= 1'b0;
-            red_v_in_a_valid            <= 1'b0;
-            element_in_v_a              <= '0;
-            element_in_v_b              <= '0;
-            reduct_in_v                 <= '0;
-            hadamard_transform_in_v     <= '0;
-        end else if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
+        if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
             hadamard_transform_in_valid     <= 1'b0;
             element_v_in_a_valid            <= v_port_a_valid;
             element_v_in_b_valid            <= v_port_b_valid;
@@ -338,7 +314,45 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             element_in_v_b       <= 'b0;
             reduct_in_v          <= prepared_v_a;
             hadamard_transform_in_v <= 'b0;
-        end else begin
+        end 
+        `ifdef HADAMARD_EN
+        else if ((recorded_element_v_control == INNER_HADAMARD_TRANSFORM)) begin
+            hadamard_transform_in_valid <= v_port_a_valid;
+            element_v_in_b_valid        <= 1'b0;
+            red_v_in_a_valid            <= 1'b0;
+            element_v_in_a_valid        <= 1'b0;
+            element_v_in_b_valid        <= 1'b0;
+            element_in_v_a              <= 'b0;
+            element_in_v_b              <= 'b0;
+            reduct_in_v                 <= 'b0;
+            hadamard_transform_in_v     <= prepared_v_a;
+        end 
+        `endif
+        `ifdef MAMBA_EXTENSION_EN
+        else if ((recorded_element_v_control == PREFIX_SCAN_V_ELEMENT)) begin
+            // FIX: only feed A for prefix-scan
+            hadamard_transform_in_valid <= 1'b0;
+            element_v_in_a_valid        <= v_port_a_valid;
+            element_v_in_b_valid        <= 1'b1;   // keep this
+            red_v_in_a_valid            <= 1'b0;
+
+            element_in_v_a              <= prepared_v_a;
+            element_in_v_b              <= '0;      // dummy B
+            reduct_in_v                 <= '0;
+            hadamard_transform_in_v     <= '0;
+        end else if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT)) begin
+            // Do not feed other units during shift
+            hadamard_transform_in_valid <= 1'b0;
+            element_v_in_a_valid        <= 1'b0;
+            element_v_in_b_valid        <= 1'b0;
+            red_v_in_a_valid            <= 1'b0;
+            element_in_v_a              <= '0;
+            element_in_v_b              <= '0;
+            reduct_in_v                 <= '0;
+            hadamard_transform_in_v     <= '0;
+        end 
+        `endif
+        else begin
             element_v_in_a_valid <= 1'b0;
             element_v_in_b_valid <= 1'b0;
             red_v_in_a_valid     <= 1'b0;
@@ -376,7 +390,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     );
 
 
-    /*  Elementwise Result Selection
+    /*  Elementwise Vector Out Result Selection
         Note: Different vector operations can end and trigger write to the memory at different cycles,
         Here we assume all the vector operations on flight does not have data dependency and can be directly write to memory once it is completed.
         The pipeline control unit will in charge of removing possible data dependency by inserting stall cycles.
@@ -384,7 +398,6 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
         TODO: add other non linear function result selection here.
     */
 
-    // Elementwise Result Selection
     assign element_v_out_ready = v_out_ready;
     always_comb begin
         if (pipeline_compute_track[VECTOR_ADD_CYCLES - 1].ele_op    == ADD_V_ELEMENT ||
@@ -417,12 +430,12 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
 
         // SHIFT (1-cycle): pick shift result and drive valid only when we have it
         end else if (pipeline_compute_track[VECTOR_SHIFT_CYCLES - 1].ele_op == SHIFT_V_LANES_ELEMENT) begin
-            result_v_out         = shift_v_out;
-            compute_result_valid = shift_v_out_valid;
-            stored_result_waddr  = pipeline_compute_track[VECTOR_SHIFT_CYCLES-1].waddr;
+            result_v_out            = shift_v_out;
+            compute_result_valid    = shift_v_out_valid;
+            stored_result_waddr     = pipeline_compute_track[VECTOR_SHIFT_CYCLES-1].waddr;
 
         end else if (pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES - 1].ele_op == INNER_HADAMARD_TRANSFORM) begin
-            result_v_out            = element_v_out;
+            result_v_out            = hadamard_transform_v_out;
             compute_result_valid    = hadamard_transform_out_valid;
             stored_result_waddr     = pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES-1].waddr;
         end else begin
@@ -530,30 +543,14 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     // ---------------------------//
     fp_vec_shift #(
         .VLEN   (VLEN),
-        .VDEPTH (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1)
+        .BITWIDTH (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1)
     ) vec_shift_unit (
         .clk   (clk),
-        .v_in  (prepared_v_a),
-        .shift (shift_amt),
+        .rst   (rst),
+        .v_in_valid (v_port_a_valid),
+        .v_in       (prepared_v_a),
+        .shift_amount (shift_amt),
+        .v_out_valid (shift_v_out_valid),
         .v_out (shift_v_out)
     );
-
-    // Assert valid when we accept A for SHIFT, clear when writeback consumes it
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            shift_v_out_valid <= 1'b0;
-        end else begin
-            // Produce result when SHIFT op is active and A is valid
-            if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT) && v_port_a_valid) begin
-                shift_v_out_valid <= 1'b1;
-            end
-            // Clear after the result reaches the selection slot and is consumed
-            else if (shift_v_out_valid &&
-                     (pipeline_compute_track[VECTOR_SHIFT_CYCLES - 1].ele_op == SHIFT_V_LANES_ELEMENT) &&
-                     v_out_ready) begin
-                shift_v_out_valid <= 1'b0;
-            end
-            // otherwise hold
-        end
-    end
 endmodule
