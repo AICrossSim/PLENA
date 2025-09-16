@@ -388,7 +388,7 @@ module fp_vector_sram #(
         .ResultFile(MEM_RESULT_FILE)
         `endif
     ) vect_storage (
-        .clk_i          (clk),
+        .clk_i(clk),
         .a_req_i        (test_port_a_req),
         .a_write_i      (port_a_write_en_internal),
         .a_addr_i       (translated_port_a_addr_internal),
