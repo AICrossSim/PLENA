@@ -1,7 +1,23 @@
-# AIXSim: Llama Acceleration Coprocessor Design
+# PLENA: A Programmable Long-context Efficient Neural Accelerator
 
-This project contains the implementation of a coprocessor for Llama model's inference process.
+This repository contains the design and implementation of PLENA. 
 
+## Publications
+* Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference, [link](https://arxiv.org/abs/2509.09505)
+  ```
+    @misc{wu2025combatingmemorywallsoptimization,
+        title={Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference}, 
+        author={Haoran Wu and Can Xiao and Jiayi Nie and Xuan Guo and Binglei Lou and Jeffrey T. H. Wong and Zhiwen Mo and Cheng Zhang and Przemyslaw Forys and Wayne Luk and Hongxiang Fan and Jianyi Cheng and Timothy M. Jones and Rika Antonova and Robert Mullins and Aaron Zhao},
+        year={2025},
+        eprint={2509.09505},
+        archivePrefix={arXiv},
+        primaryClass={cs.AR},
+        url={https://arxiv.org/abs/2509.09505}, 
+    }
+  ```
+
+
+![Figure 1: Diagram of the PLENA](doc/Accelerator_Config.png)
 
 **ISA Summary:**  
 [View Document on Notion](https://www.notion.so/Custom-ISA-1e228f1ee68e80d29f05ec130b72a3ce?source=copy_link)
@@ -11,8 +27,6 @@ This project contains the implementation of a coprocessor for Llama model's infe
 
 **Design Space and Tuning Method:**  
 [View Document](src/definitions/config.md)
-
-<!-- ![Figure 1: Diagram of the Coprocessor](doc/CoProcessor_Design.png) -->
 
 **SystemVerilog RTL Format:**  
 [LowRISC Format](https://github.com/lowRISC/style-guides)

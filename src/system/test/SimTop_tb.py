@@ -55,7 +55,7 @@ def generate_golden_result(data, precision_settings, data_config):
         data, 
         width=precision_settings["ACT_MXFP_EXP_WIDTH"] + precision_settings["ACT_MXFP_MANT_WIDTH"] + 1, 
         exponent_width=precision_settings["ACT_MXFP_EXP_WIDTH"], 
-        exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
+        exponent_bias_width=precision_settings["MX_SCALE_WIDTH"],
         block_size=data_config["block_size"])
     qele = pbmant * 2**pbexp
     logger.debug("---- mxfp_input ----")
@@ -126,7 +126,7 @@ class SimTOP(Testbench):
         quant_config = {
                 "exp_width": precision_settings["ACT_MXFP_EXP_WIDTH"],
                 "man_width": precision_settings["ACT_MXFP_MANT_WIDTH"],
-                "exp_bias_width": precision_settings["MXFP_SCALE_WIDTH"],
+                "exp_bias_width": precision_settings["MX_SCALE_WIDTH"],
                 "block_size": data_config["block_size"],
                 "skip_first_dim": False,
             }
@@ -145,7 +145,7 @@ class SimTOP(Testbench):
             data, 
             width=precision_settings["ACT_MXFP_EXP_WIDTH"] + precision_settings["ACT_MXFP_MANT_WIDTH"] + 1, 
             exponent_width=precision_settings["ACT_MXFP_EXP_WIDTH"], 
-            exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
+            exponent_bias_width=precision_settings["MX_SCALE_WIDTH"],
             block_size=data_config["block_size"])
         qele = pbmant * 2**pbexp
 
