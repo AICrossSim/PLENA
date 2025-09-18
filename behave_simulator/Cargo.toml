@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "lib/runtime",
+    "lib/memory",
+    "lib/ramulator",
+    "lib/buddy",
+]
