@@ -5,3 +5,7 @@ This simulator is mainly built by Dr Gary Guo
 
 
 ## Setup Process
+```bash
+   direnv allow
+   cargo run --release
+```

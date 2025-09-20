@@ -62,6 +62,13 @@ impl MemoryBacked {
             data: Mutex::new(vec![[0; 64]; size / 64]),
         }
     }
+
+    pub fn with_data(&self, f: impl FnOnce(&mut [u8])) {
+        use zerocopy::IntoBytes;
+
+        let mut guard = self.data.lock().unwrap();
+        f(guard.as_mut_bytes())
+    }
 }
 
 #[async_trait::async_trait]
