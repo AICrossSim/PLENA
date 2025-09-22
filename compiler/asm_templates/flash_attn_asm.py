@@ -228,7 +228,7 @@ def _computing_pv_code(
     generated_code = ""
 
     # load v from hbm
-    generated_code += f"HPrefetchV [rd: gp0, rs1: gp2, rs2: {v_hbm_address}, rstride: 0, precision: kv ];"
+    generated_code += f"H_PREFETCH_V [rd: gp0, rs1: gp2, rs2: {v_hbm_address}, rstride: 0, precision: kv ];"
 
     for i in range(v_head_dim_iteration_number):
         p_actual_address = p_base_address
@@ -429,8 +429,8 @@ def flash_attn_asm(
     k_seq_iteration_number = seq_len // mlen
 
     # load q from hbm
-    generated_code += f"HPrefetchV [rd: gp0, rs1: gp2, rs2: {q_hbm_address}, rstride: 0, precision: activation ];"
-    generated_code += f"HPrefetchM [rd: gp0, rs1: gp2, rs2: {k_hbm_address}, rstride: 1, precision: kv ];"
+    generated_code += f"H_PREFETCH_V [rd: gp0, rs1: gp2, rs2: {q_hbm_address}, rstride: 0, precision: activation ];"
+    generated_code += f"H_PREFETCH_M [rd: gp0, rs1: gp2, rs2: {k_hbm_address}, rstride: 1, precision: kv ];"
     # loop over different sequence blocks
     for i in range(q_seq_iteration_number):
         for j in range(k_seq_iteration_number):

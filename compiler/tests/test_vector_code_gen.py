@@ -16,7 +16,7 @@ def test_attention_code_generation():
     hidden_size = 4096
     VLEN = 32
     op_config = {
-        "name": "VAddVv",
+        "name": "V_ADD_VV",
         "type": "vector",
         "reg_in_0": "i0",
         "reg_in_1": "i1",

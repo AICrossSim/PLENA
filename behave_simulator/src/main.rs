@@ -525,7 +525,7 @@ impl Accelerator {
             match *op {
                 op::Opcode::Invalid => todo!(),
 
-                op::Opcode::MMm { rs1, rs2 } => {
+                op::Opcode::M_MM { rs1, rs2 } => {
                     self.m_machine
                         .mm(
                             self.reg_file.gp_reg[rs1 as usize],
@@ -533,12 +533,12 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::MMmWo { rd, imm } => {
+                op::Opcode::M_MM_WO { rd, imm } => {
                     self.m_machine
                         .mm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
                         .await;
                 }
-                op::Opcode::MTmm { rs1, rs2 } => {
+                op::Opcode::M_TMM { rs1, rs2 } => {
                     self.m_machine
                         .tmm(
                             self.reg_file.gp_reg[rs1 as usize],
@@ -546,7 +546,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::MMv { rs1, rs2 } => {
+                op::Opcode::M_MV { rs1, rs2 } => {
                     self.m_machine
                         .mv(
                             self.reg_file.gp_reg[rs1 as usize],
@@ -554,12 +554,12 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::MMvWo { rd, imm } => {
+                op::Opcode::M_MV_WO { rd, imm } => {
                     self.m_machine
                         .mv_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
                         .await;
                 }
-                op::Opcode::MTmv { rs1, rs2 } => {
+                op::Opcode::M_TMV { rs1, rs2 } => {
                     self.m_machine
                         .tmv(
                             self.reg_file.gp_reg[rs1 as usize],
@@ -568,7 +568,7 @@ impl Accelerator {
                         .await;
                 }
 
-                op::Opcode::VAddVv { rd, rs1, rs2 } => {
+                op::Opcode::V_ADD_VV { rd, rs1, rs2 } => {
                     self.v_machine
                         .add(
                             self.reg_file.gp_reg[rd as usize],
@@ -577,7 +577,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VAddVf { rd, rs1, rs2 } => {
+                op::Opcode::V_ADD_VF { rd, rs1, rs2 } => {
                     self.v_machine
                         .add_scalar(
                             self.reg_file.gp_reg[rd as usize],
@@ -586,7 +586,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VSubVv { rd, rs1, rs2 } => {
+                op::Opcode::V_SUB_VV { rd, rs1, rs2 } => {
                     self.v_machine
                         .sub(
                             self.reg_file.gp_reg[rd as usize],
@@ -595,7 +595,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VSubVf { rd, rs1, rs2 } => {
+                op::Opcode::V_SUB_VF { rd, rs1, rs2 } => {
                     self.v_machine
                         .add_scalar(
                             self.reg_file.gp_reg[rd as usize],
@@ -604,7 +604,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VMulVv { rd, rs1, rs2 } => {
+                op::Opcode::V_MUL_VV { rd, rs1, rs2 } => {
                     self.v_machine
                         .mul(
                             self.reg_file.gp_reg[rd as usize],
@@ -613,7 +613,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VMulVf { rd, rs1, rs2 } => {
+                op::Opcode::V_MUL_VF { rd, rs1, rs2 } => {
                     self.v_machine
                         .mul_scalar(
                             self.reg_file.gp_reg[rd as usize],
@@ -622,7 +622,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VExpV { rd, rs1 } => {
+                op::Opcode::V_EXP_V { rd, rs1 } => {
                     self.v_machine
                         .exp(
                             self.reg_file.gp_reg[rd as usize],
@@ -630,7 +630,7 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VReciV { rd, rs1 } => {
+                op::Opcode::V_RECI_V { rd, rs1 } => {
                     self.v_machine
                         .reciprocal(
                             self.reg_file.gp_reg[rd as usize],
@@ -638,19 +638,19 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::VBcF { rd, rs1 } => {
-                    self.v_machine
-                        .broadcast(
-                            self.reg_file.gp_reg[rd as usize],
-                            self.reg_file.fp_reg[rs1 as usize].into(),
-                        )
-                        .await;
-                }
+                // op::Opcode::VBcF { rd, rs1 } => {
+                //     self.v_machine
+                //         .broadcast(
+                //             self.reg_file.gp_reg[rd as usize],
+                //             self.reg_file.fp_reg[rs1 as usize].into(),
+                //         )
+                //         .await;
+                // }
 
                 // Write to fp0 is a no-op.
-                op::Opcode::VRedSum { rd: 0, .. } | op::Opcode::VRedMax { rd: 0, .. } => (),
+                op::Opcode::V_RED_SUM { rd: 0, .. } | op::Opcode::V_RED_MAX { rd: 0, .. } => (),
 
-                op::Opcode::VRedSum { rd, rs1 } => {
+                op::Opcode::V_RED_SUM { rd, rs1 } => {
                     let result = self
                         .v_machine
                         .reduce_sum(
@@ -660,7 +660,7 @@ impl Accelerator {
                         .await;
                     self.reg_file.fp_reg[rd as usize] = f16::from_f32(result);
                 }
-                op::Opcode::VRedMax { rd, rs1 } => {
+                op::Opcode::V_RED_MAX { rd, rs1 } => {
                     let result = self
                         .v_machine
                         .reduce_max(
@@ -672,74 +672,74 @@ impl Accelerator {
                 }
 
                 // Write to fp0 is a no-op.
-                op::Opcode::SAddFp { rd: 0, .. }
-                | op::Opcode::SSubFp { rd: 0, .. }
-                | op::Opcode::SMaxFp { rd: 0, .. }
-                | op::Opcode::SMulFp { rd: 0, .. }
-                | op::Opcode::SExpFp { rd: 0, .. }
-                | op::Opcode::SReciFp { rd: 0, .. }
-                | op::Opcode::SSqrtFp { rd: 0, .. } => {}
+                op::Opcode::S_ADD_FP { rd: 0, .. }
+                | op::Opcode::S_SUB_FP { rd: 0, .. }
+                | op::Opcode::S_MAX_FP { rd: 0, .. }
+                | op::Opcode::S_MUL_FP { rd: 0, .. }
+                | op::Opcode::S_EXP_FP { rd: 0, .. }
+                | op::Opcode::S_RECI_FP { rd: 0, .. }
+                | op::Opcode::S_SQRT_FP { rd: 0, .. } => {}
 
-                op::Opcode::SAddFp { rd, rs1, rs2 } => {
+                op::Opcode::S_ADD_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.reg_file.fp_reg[rs1 as usize] + self.reg_file.fp_reg[rs2 as usize];
                     cycle!(1);
                 }
-                op::Opcode::SSubFp { rd, rs1, rs2 } => {
+                op::Opcode::S_SUB_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.reg_file.fp_reg[rs1 as usize] - self.reg_file.fp_reg[rs2 as usize];
                     cycle!(1);
                 }
-                op::Opcode::SMaxFp { rd, rs1, rs2 } => {
+                op::Opcode::S_MAX_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] = f16::max(
                         self.reg_file.fp_reg[rs1 as usize],
                         self.reg_file.fp_reg[rs2 as usize],
                     );
                     cycle!(1);
                 }
-                op::Opcode::SMulFp { rd, rs1, rs2 } => {
+                op::Opcode::S_MUL_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.reg_file.fp_reg[rs1 as usize] * self.reg_file.fp_reg[rs2 as usize];
                     cycle!(1);
                 }
-                op::Opcode::SExpFp { rd, rs1 } => {
+                op::Opcode::S_EXP_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         f16::from_f32(f32::exp(self.reg_file.fp_reg[rs1 as usize].into()));
                     cycle!(1);
                 }
-                op::Opcode::SReciFp { rd, rs1 } => {
+                op::Opcode::S_RECI_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         f16::ONE / self.reg_file.fp_reg[rs1 as usize];
                     cycle!(1);
                 }
-                op::Opcode::SSqrtFp { rd, rs1 } => {
+                op::Opcode::S_SQRT_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         f16::from_f32(f32::from(self.reg_file.fp_reg[rs1 as usize]).sqrt());
                     cycle!(1);
                 }
-                op::Opcode::SLdFp { rd, rs1, imm } => {
+                op::Opcode::S_LD_FP { rd, rs1, imm } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.fp_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
                     cycle!(1);
                 }
-                op::Opcode::SStFp { rd, rs1, imm } => {
+                op::Opcode::S_ST_FP { rd, rs1, imm } => {
                     self.fp_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.fp_reg[rd as usize];
                     cycle!(1);
                 }
-                op::Opcode::SMapVFp { rd, rs1, imm } => todo!(),
+                op::Opcode::S_MAP_V_FP { rd, rs1, imm } => todo!(),
 
-                op::Opcode::SAddInt { rd, rs1, rs2 } => {
+                op::Opcode::S_ADD_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_add(self.reg_file.gp_reg[rs2 as usize]);
                     cycle!(1);
                 }
-                op::Opcode::SAddiInt { rd, rs1, imm } => {
+                op::Opcode::S_ADDI_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[rd as usize] =
                         self.reg_file.gp_reg[rs1 as usize].wrapping_add(imm as u32);
                     cycle!(1);
                 }
-                op::Opcode::SSubInt { rd, rs1, rs2 } => {
+                op::Opcode::S_SUB_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_sub(self.reg_file.gp_reg[rs2 as usize]);
                     cycle!(1);
@@ -749,21 +749,21 @@ impl Accelerator {
                         .wrapping_mul(self.reg_file.gp_reg[rs2 as usize]);
                     cycle!(1);
                 }
-                op::Opcode::SLuiInt { rd, imm } => {
+                op::Opcode::S_LUI_INT { rd, imm } => {
                     self.reg_file.gp_reg[rd as usize] = (imm as u32) << 4;
                     cycle!(1);
                 }
-                op::Opcode::SLdInt { rd, rs1, imm } => {
+                op::Opcode::S_LD_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[rd as usize] =
                         self.int_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
                     cycle!(1);
                 }
-                op::Opcode::SStInt { rd, rs1, imm } => {
+                op::Opcode::S_ST_INT { rd, rs1, imm } => {
                     self.int_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.gp_reg[rd as usize];
                     cycle!(1);
                 }
-                op::Opcode::HPrefetchM {
+                op::Opcode::H_PREFETCH_M {
                     rd,
                     rs1,
                     rs2,
@@ -799,7 +799,7 @@ impl Accelerator {
                         .write_delayed(self.reg_file.gp_reg[rd as usize], xfer)
                         .await;
                 }
-                op::Opcode::HPrefetchV {
+                op::Opcode::H_PREFETCH_V {
                     rd,
                     rs1,
                     rs2,
@@ -834,24 +834,24 @@ impl Accelerator {
                     let dest = self.reg_file.gp_reg[rd as usize];
                     self.v_machine.vram.write_delayed(dest, xfer).await;
                 }
-                op::Opcode::HStoreV {
+                op::Opcode::H_STORE_V {
                     rd,
                     rs1,
                     rs2,
                     rstride,
                     precision: _,
                 } => todo!(),
-                op::Opcode::CSetAddrReg { rd, rs1, rs2 } => {
+                op::Opcode::C_SET_ADDR_REG { rd, rs1, rs2 } => {
                     let imm = ((self.reg_file.gp_reg[rs1 as usize] as u64) << 32)
                         | (self.reg_file.gp_reg[rs2 as usize] as u64);
                     self.reg_file.hbm_addr_reg[rd as usize] = imm;
                     cycle!(1);
                 }
-                op::Opcode::CSetScaleReg { rd } => {
+                op::Opcode::C_SET_SCALE_REG { rd } => {
                     self.reg_file.scale = self.reg_file.gp_reg[rd as usize];
                     cycle!(1);
                 }
-                op::Opcode::CBreak => todo!(),
+                op::Opcode::C_BREAK => todo!(),
             }
         }
     }

@@ -14,66 +14,66 @@ pub enum VectorPrecision {
 pub enum Opcode {
     Invalid,
 
-    MMm {
+    M_MM {
         rs1: u8,
         rs2: u8,
     },
-    MTmm {
+    M_TMM {
         rs1: u8,
         rs2: u8,
     },
-    MMmWo {
+    M_MM_WO {
         rd: u8,
         imm: u32,
     },
-    MMv {
+    M_MV {
         rs1: u8,
         rs2: u8,
     },
-    MTmv {
+    M_TMV {
         rs1: u8,
         rs2: u8,
     },
-    MMvWo {
+    M_MV_WO {
         rd: u8,
         imm: u32,
     },
 
-    VAddVv {
+    V_ADD_VV {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    VAddVf {
+    V_ADD_VF {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    VSubVv {
+    V_SUB_VV {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    VSubVf {
+    V_SUB_VF {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    VMulVv {
+    V_MUL_VV {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    VMulVf {
+    V_MUL_VF {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    VExpV {
+    V_EXP_V {
         rd: u8,
         rs1: u8,
     },
-    VReciV {
+    V_RECI_V {
         rd: u8,
         rs1: u8,
     },
@@ -81,74 +81,74 @@ pub enum Opcode {
         rd: u8,
         rs1: u8,
     },
-    VRedSum {
+    V_RED_SUM {
         rd: u8,
         rs1: u8,
     },
-    VRedMax {
+    V_RED_MAX {
         rd: u8,
         rs1: u8,
     },
 
-    SAddFp {
+    S_ADD_FP {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    SSubFp {
+    S_SUB_FP {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    SMaxFp {
+    S_MAX_FP {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    SMulFp {
+    S_MUL_FP {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    SExpFp {
+    S_EXP_FP {
         rd: u8,
         rs1: u8,
     },
-    SReciFp {
+    S_RECI_FP {
         rd: u8,
         rs1: u8,
     },
-    SSqrtFp {
+    S_SQRT_FP {
         rd: u8,
         rs1: u8,
     },
-    SLdFp {
+    S_LD_FP {
         rd: u8,
         rs1: u8,
         imm: u32,
     },
-    SStFp {
+    S_ST_FP {
         rd: u8,
         rs1: u8,
         imm: u32,
     },
-    SMapVFp {
+    S_MAP_V_FP {
         rd: u8,
         rs1: u8,
         imm: u32,
     },
 
-    SAddInt {
+    S_ADD_INT {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    SAddiInt {
+    S_ADDI_INT {
         rd: u8,
         rs1: u8,
         imm: u32,
     },
-    SSubInt {
+    S_SUB_INT {
         rd: u8,
         rs1: u8,
         rs2: u8,
@@ -158,36 +158,36 @@ pub enum Opcode {
         rs1: u8,
         rs2: u8,
     },
-    SLuiInt {
+    S_LUI_INT {
         rd: u8,
         imm: u32,
     },
-    SLdInt {
+    S_LD_INT {
         rd: u8,
         rs1: u8,
         imm: u32,
     },
-    SStInt {
+    S_ST_INT {
         rd: u8,
         rs1: u8,
         imm: u32,
     },
 
-    HPrefetchM {
+    H_PREFETCH_M {
         rd: u8,
         rs1: u8,
         rs2: u8,
         rstride: u8,
         precision: MatrixPrecision,
     },
-    HPrefetchV {
+    H_PREFETCH_V {
         rd: u8,
         rs1: u8,
         rs2: u8,
         rstride: u8,
         precision: VectorPrecision,
     },
-    HStoreV {
+    H_STORE_V {
         rd: u8,
         rs1: u8,
         rs2: u8,
@@ -195,15 +195,15 @@ pub enum Opcode {
         precision: VectorPrecision,
     },
 
-    CSetAddrReg {
+    C_SET_ADDR_REG {
         rd: u8,
         rs1: u8,
         rs2: u8,
     },
-    CSetScaleReg {
+    C_SET_SCALE_REG {
         rd: u8,
     },
-    CBreak,
+    C_BREAK,
 }
 
 const OPERAND_WIDTH: u32 = 4;
@@ -230,74 +230,76 @@ impl Opcode {
 
         match opcode {
             0x00 => Self::Invalid,
+            // Matrix Operations
+            0x01 => Self::M_MM      { rs1, rs2 },
+            0x02 => Self::M_TMM     { rs1, rs2 },
+            0x03 => Self::M_MM_WO   { rd, imm: imm2 },
+            0x04 => Self::M_MV      { rs1, rs2 },
+            0x05 => Self::M_TMV     { rs1, rs2 },
+            0x06 => Self::M_MV_WO   { rd, imm: imm2 },
 
-            0x01 => Self::MMm { rs1, rs2 },
-            0x02 => Self::MTmm { rs1, rs2 },
-            0x03 => Self::MMmWo { rd, imm: imm2 },
-            0x04 => Self::MMv { rs1, rs2 },
-            0x05 => Self::MMvWo { rd, imm: imm2 },
-            0x06 => Self::MTmv { rs1, rs2 },
+            // Vector Operations
+            0x07 => Self::V_ADD_VV  { rd, rs1, rs2 },
+            0x08 => Self::V_ADD_VF  { rd, rs1, rs2 },
+            0x09 => Self::V_SUB_VV  { rd, rs1, rs2 },
+            0x0A => Self::V_SUB_VF  { rd, rs1, rs2 },
+            0x0B => Self::V_MUL_VV  { rd, rs1, rs2 },
+            0x0C => Self::V_MUL_VF  { rd, rs1, rs2 },
+            0x0D => Self::V_EXP_V   { rd, rs1 },
+            0x0E => Self::V_RECI_V  { rd, rs1 },
+            0x0F => Self::V_RED_SUM { rd, rs1 },
+            0x10 => Self::V_RED_MAX { rd, rs1 },
 
-            0x07 => Self::VAddVv { rd, rs1, rs2 },
-            0x08 => Self::VAddVf { rd, rs1, rs2 },
-            0x09 => Self::VSubVv { rd, rs1, rs2 },
-            0x0A => Self::VSubVf { rd, rs1, rs2 },
-            0x0B => Self::VMulVv { rd, rs1, rs2 },
-            0x0C => Self::VMulVf { rd, rs1, rs2 },
-            0x0D => Self::VExpV { rd, rs1 },
-            0x0E => Self::VReciV { rd, rs1 },
-            0x0F => Self::VBcF { rd, rs1 },
-            0x10 => Self::VRedSum { rd, rs1 },
-            0x11 => Self::VRedMax { rd, rs1 },
+            // Scalar Operations (Floating-Point)
+            0x11 => Self::S_ADD_FP  { rd, rs1, rs2 },
+            0x12 => Self::S_SUB_FP  { rd, rs1, rs2 },
+            0x13 => Self::S_MAX_FP  { rd, rs1, rs2 },
+            0x14 => Self::S_MUL_FP  { rd, rs1, rs2 },
+            0x15 => Self::S_EXP_FP  { rd, rs1 },
+            0x16 => Self::S_RECI_FP { rd, rs1 },
+            0x17 => Self::S_SQRT_FP { rd, rs1 },
+            0x18 => Self::S_LD_FP   { rd, rs1, imm: imm2 },
+            0x19 => Self::S_ST_FP   { rd, rs1, imm: imm2 },
+            0x1A => Self::S_MAP_V_FP { rd, rs1, imm: imm2 },
 
-            0x12 => Self::SAddFp { rd, rs1, rs2 },
-            0x13 => Self::SSubFp { rd, rs1, rs2 },
-            0x14 => Self::SMaxFp { rd, rs1, rs2 },
-            0x15 => Self::SMulFp { rd, rs1, rs2 },
-            0x16 => Self::SExpFp { rd, rs1 },
-            0x17 => Self::SReciFp { rd, rs1 },
-            0x18 => Self::SSqrtFp { rd, rs1 },
-            0x19 => Self::SLdFp { rd, rs1, imm: imm2 },
-            0x1A => Self::SStFp { rd, rs1, imm: imm2 },
-            0x1B => Self::SMapVFp { rd, rs1, imm: imm2 },
+            // Scalar Operations (INT)
+            0x1B => Self::S_ADD_INT { rd, rs1, rs2 },
+            0x1C => Self::S_ADDI_INT { rd, rs1, imm: imm2 },
+            0x1D => Self::S_SUB_INT { rd, rs1, rs2 },
+            0x1E => Self::S_MUL_INT { rd, rs1, rs2 },
+            0x1F => Self::S_LUI_INT { rd, imm },
+            0x20 => Self::S_LD_INT { rd, rs1, imm: imm2 },
+            0x21 => Self::S_ST_INT { rd, rs1, imm: imm2 },
 
-            0x1C => Self::SAddInt { rd, rs1, rs2 },
-            0x1D => Self::SAddiInt { rd, rs1, imm: imm2 },
-            0x1E => Self::SSubInt { rd, rs1, rs2 },
-            0x1F => Self::SMulInt { rd, rs1, rs2 },
-            0x20 => Self::SLuiInt { rd, imm },
-            0x21 => Self::SLdInt { rd, rs1, imm: imm2 },
-            0x22 => Self::SStInt { rd, rs1, imm: imm2 },
-
-            0x23 => Self::HPrefetchM {
+            0x22 => Self::H_PREFETCH_M {
                 rd,
                 rs1,
                 rs2,
                 rstride: rs3,
                 precision: MatrixPrecision::Weights,
             },
-            // 0x2A => Self::HPrefetchM { rd, rs1, rs2, rstride: rs3, precision: MatrixPrecision::KeyValue },
-            0x24 => Self::HPrefetchV {
+            // 0x2A => Self::H_PREFETCH_M { rd, rs1, rs2, rstride: rs3, precision: MatrixPrecision::KeyValue },
+            0x23 => Self::H_PREFETCH_V {
                 rd,
                 rs1,
                 rs2,
                 rstride: rs3,
                 precision: VectorPrecision::KeyValue,
             },
-            // 0x2E => Self::HPrefetchV { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
-            0x25 => Self::HStoreV {
+            // 0x2E => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
+            0x24 => Self::H_STORE_V {
                 rd,
                 rs1,
                 rs2,
                 rstride: rs3,
                 precision: VectorPrecision::Activation,
             },
-            // 0x32 => Self::HStoreV { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
-            0x26 => Self::CSetAddrReg { rd, rs1, rs2 },
-            0x27 => Self::CSetScaleReg { rd },
+            // 0x32 => Self::H_STORE_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
+            0x25 => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
+            0x26 => Self::C_SET_SCALE_REG { rd },
 
-            // 0x28 => Self::CHadamardTransform,
-            0x29 => Self::CBreak,
+            // TODO: Add Hadamard_transform and mamba extension.
+            0x2A => Self::C_BREAK,
 
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
