@@ -77,10 +77,10 @@ pub enum Opcode {
         rd: u8,
         rs1: u8,
     },
-    VBcF {
-        rd: u8,
-        rs1: u8,
-    },
+    // VBcF {
+    //     rd: u8,
+    //     rs1: u8,
+    // },
     V_RED_SUM {
         rd: u8,
         rs1: u8,
@@ -153,7 +153,7 @@ pub enum Opcode {
         rs1: u8,
         rs2: u8,
     },
-    SMulInt {
+    S_MUL_INT {
         rd: u8,
         rs1: u8,
         rs2: u8,
@@ -251,25 +251,25 @@ impl Opcode {
             0x10 => Self::V_RED_MAX { rd, rs1 },
 
             // Scalar Operations (Floating-Point)
-            0x11 => Self::S_ADD_FP  { rd, rs1, rs2 },
-            0x12 => Self::S_SUB_FP  { rd, rs1, rs2 },
-            0x13 => Self::S_MAX_FP  { rd, rs1, rs2 },
-            0x14 => Self::S_MUL_FP  { rd, rs1, rs2 },
-            0x15 => Self::S_EXP_FP  { rd, rs1 },
-            0x16 => Self::S_RECI_FP { rd, rs1 },
-            0x17 => Self::S_SQRT_FP { rd, rs1 },
-            0x18 => Self::S_LD_FP   { rd, rs1, imm: imm2 },
-            0x19 => Self::S_ST_FP   { rd, rs1, imm: imm2 },
+            0x11 => Self::S_ADD_FP   { rd, rs1, rs2 },
+            0x12 => Self::S_SUB_FP   { rd, rs1, rs2 },
+            0x13 => Self::S_MAX_FP   { rd, rs1, rs2 },
+            0x14 => Self::S_MUL_FP   { rd, rs1, rs2 },
+            0x15 => Self::S_EXP_FP   { rd, rs1 },
+            0x16 => Self::S_RECI_FP  { rd, rs1 },
+            0x17 => Self::S_SQRT_FP  { rd, rs1 },
+            0x18 => Self::S_LD_FP    { rd, rs1, imm: imm2 },
+            0x19 => Self::S_ST_FP    { rd, rs1, imm: imm2 },
             0x1A => Self::S_MAP_V_FP { rd, rs1, imm: imm2 },
 
             // Scalar Operations (INT)
-            0x1B => Self::S_ADD_INT { rd, rs1, rs2 },
+            0x1B => Self::S_ADD_INT  { rd, rs1, rs2 },
             0x1C => Self::S_ADDI_INT { rd, rs1, imm: imm2 },
-            0x1D => Self::S_SUB_INT { rd, rs1, rs2 },
-            0x1E => Self::S_MUL_INT { rd, rs1, rs2 },
-            0x1F => Self::S_LUI_INT { rd, imm },
-            0x20 => Self::S_LD_INT { rd, rs1, imm: imm2 },
-            0x21 => Self::S_ST_INT { rd, rs1, imm: imm2 },
+            0x1D => Self::S_SUB_INT  { rd, rs1, rs2 },
+            0x1E => Self::S_MUL_INT  { rd, rs1, rs2 },
+            0x1F => Self::S_LUI_INT  { rd, imm },
+            0x20 => Self::S_LD_INT   { rd, rs1, imm: imm2 },
+            0x21 => Self::S_ST_INT   { rd, rs1, imm: imm2 },
 
             0x22 => Self::H_PREFETCH_M {
                 rd,

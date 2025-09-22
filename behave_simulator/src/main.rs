@@ -744,7 +744,7 @@ impl Accelerator {
                         .wrapping_sub(self.reg_file.gp_reg[rs2 as usize]);
                     cycle!(1);
                 }
-                op::Opcode::SMulInt { rd, rs1, rs2 } => {
+                op::Opcode::S_MUL_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_mul(self.reg_file.gp_reg[rs2 as usize]);
                     cycle!(1);

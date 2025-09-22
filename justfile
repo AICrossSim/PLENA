@@ -34,6 +34,11 @@ test-sw:
 # 		--profile --profile-svg \
 # 		test/
 
+test-behave-simulator:
+	cd behave_simulator
+	direnv allow
+	cargo run --release -- --opcode ./sim_testcases/vector_fp_add.mem --hbm ./sim_testcases/hbm_ele.mem
+
 
 # # This test will test all the available component
 reformat:

@@ -35,7 +35,7 @@ pub enum Opcode {
     S_ADD_INT { rd: u8, rs1: u8, rs2: u8 },
     S_ADDI_INT { rd: u8, rs1: u8, imm: u8 },
     S_SUB_INT { rd: u8, rs1: u8, rs2: u8 },
-    SMulInt { rd: u8, rs1: u8, rs2: u8 },
+    S_MUL_INT { rd: u8, rs1: u8, rs2: u8 },
     S_LUI_INT { rd: u8, imm: u8 },
     S_LD_INT { rd: u8, rs1: u8, imm: u8 },
     S_ST_INT { rd: u8, rs1: u8, imm: u8 },
