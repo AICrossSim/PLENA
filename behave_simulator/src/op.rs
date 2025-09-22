@@ -217,6 +217,9 @@ const fn mask(width: u32) -> u32 {
 
 impl Opcode {
     pub fn decode(instr: u32) -> Self {
+        eprintln!(
+            "decode(): instr = 0x{instr:08X} ({instr:032b})"
+        );
         let opcode = instr & mask(OPCODE_WIDTH);
         let rd = ((instr >> OPCODE_WIDTH) & mask(OPERAND_WIDTH)) as u8;
         let rs1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(OPERAND_WIDTH)) as u8;

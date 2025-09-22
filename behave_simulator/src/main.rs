@@ -25,6 +25,8 @@ const VECTOR_REDUCT_CYCLES: u32 = 4;
 const TILE_SIZE: u32 = 128;
 const BATCH_SIZE: u32 = 4;
 const HBM_SIZE: usize = 1024 * 1024 * 1024;
+const MATRIX_SRAM_SIZE: usize = 1024;
+const VECTOR_SRAM_SIZE: usize = 1024;
 
 const MATRIX_SRAM_TYPE: MxDataType = MxDataType::Plain(DataType::Fp(FpType::BF16));
 const VECTOR_SRAM_TYPE: MxDataType = MxDataType::Plain(DataType::Fp(FpType::BF16));
@@ -869,8 +871,8 @@ struct Opts {
 async fn start() {
     let opts = Opts::parse();
 
-    let mram = Arc::new(MatrixSram::new(TILE_SIZE, 1024, MATRIX_SRAM_TYPE));
-    let vram = Arc::new(VectorSram::new(TILE_SIZE, 1024, VECTOR_SRAM_TYPE));
+    let mram = Arc::new(MatrixSram::new(TILE_SIZE, MATRIX_SRAM_SIZE, MATRIX_SRAM_TYPE)); // Matrix SRAM
+    let vram = Arc::new(VectorSram::new(TILE_SIZE, VECTOR_SRAM_SIZE, VECTOR_SRAM_TYPE)); // Vector SRAM
     let machine = MatrixMachine {
         mram,
         vram: vram.clone(),
@@ -904,30 +906,40 @@ async fn start() {
         fp_sram: vec![f16::ZERO; 1024],
     };
 
-    let op_file = std::fs::read(opts.opcode).unwrap();
-    let op: Vec<_> = op_file
-        .chunks_exact(4)
-        .map(|x| u32::from_le_bytes(x.try_into().unwrap()))
+    use std::fs;
+    let op_file = fs::read_to_string(opts.opcode).unwrap(); 
+    eprintln!("Loaded opcode file: {:?}", op_file);
+
+    let op: Vec<u32> = op_file
+        .split_whitespace()                          // split by spaces/newlines
+        .map(|tok| {
+            u32::from_str_radix(tok.trim_start_matches("0x"), 16).unwrap()
+        })
         .collect();
 
-    let hbm_data = std::fs::read(opts.hbm).unwrap();
-    hbm.data().with_data(|f| {
-        f[..hbm_data.len()].copy_from_slice(&hbm_data);
-    });
+    for (i, word) in op.iter().enumerate() {
+        let decoded = op::Opcode::decode(*word);
+        println!("{i:04}: 0x{word:08X} -> {:?}", decoded);
+    }
 
-    accelerator.fp_sram[0] = f16::from_bits(0x3F00);
+    // let hbm_data = std::fs::read(opts.hbm).unwrap();
+    // hbm.data().with_data(|f| {
+    //     f[..hbm_data.len()].copy_from_slice(&hbm_data);
+    // });
 
-    accelerator
-        .do_ops(&dbg!(
-            op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
-        ))
-        .await;
+    // accelerator.fp_sram[0] = f16::from_bits(0x3F00); // Preloading a constant at the 0 index
 
-    println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
-    println!(
-        "{}",
-        accelerator.v_machine.vram.read(0x1000).await.as_tensor()
-    );
+    // accelerator
+    //     .do_ops(&dbg!(
+    //         op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
+    //     ))
+    //     .await;
+
+    // println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
+    // println!(
+    //     "{}",
+    //     accelerator.v_machine.vram.read(0x1000).await.as_tensor()
+    // );
 }
 
 #[tokio::main]
