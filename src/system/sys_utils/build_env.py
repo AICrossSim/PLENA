@@ -12,7 +12,7 @@ def build_sim_env():
     
     parser = argparse.ArgumentParser(description="Build simulation environment")
     parser.add_argument('--asm', type=str, required=True, help='Path to assembly file')
-    parser.add_argument('--data', type=str, default=None, required=True, help='Output directory for build files')
+    parser.add_argument('--data', type=str, default=None, help='Output directory for build files')
     args = parser.parse_args()
     args.path = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{args.asm}.asm")
     init_mem(args)
@@ -50,5 +50,5 @@ def build_sim_env():
     env_setup(blocks, bias, asm_file, data_config, quant_config)
 
 if __name__ == "__main__":
-    
+    build_sim_env()
     pass

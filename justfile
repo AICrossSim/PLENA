@@ -25,7 +25,21 @@ test-sw:
 
 build-env arg:
     # cd behave_simulator
-    python3 src/system/sys_utils/build_env.py {{arg}}
+    python3 src/system/sys_utils/build_env.py --asm {{arg}}
+
+build-behave-sim arg:
+    # 1) Build env for the given target
+    just build-env {{arg}}
+
+    # 2) Compute absolute paths (so they still work after cd)
+    asm_path="$../test/Instr_Level_Benchmark/build/{{arg}}/{{arg}}.mem"
+    data_path="$../test/Instr_Level_Benchmark/build/{{arg}}/hbm_ele.mem"
+
+    # 3) Enter simulator, allow direnv (ignore if not present), then run
+    cd behave_simulator
+    direnv allow
+    cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
+
 
 reformat:
     black *.py

@@ -90,7 +90,8 @@ def init_mem(in_args=None):
         args = parse_args()
         asm_file = Path(args.path).stem
     else:
-        asm_file = Path(args).stem
+        args = in_args
+        asm_file = Path(args.path).stem
 
     build_path = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem
     build_path.mkdir(parents=True, exist_ok=True)
