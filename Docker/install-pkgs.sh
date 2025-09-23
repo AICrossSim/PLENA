@@ -79,6 +79,9 @@ log "Installing Python versions..."
 apt-get update -y \
     && apt-get install -y clang-14
 
+# Install direnv
+apt-get install direnv
+
 export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \

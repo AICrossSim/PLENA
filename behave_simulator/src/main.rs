@@ -922,24 +922,24 @@ async fn start() {
         println!("{i:04}: 0x{word:08X} -> {:?}", decoded);
     }
 
-    // let hbm_data = std::fs::read(opts.hbm).unwrap();
-    // hbm.data().with_data(|f| {
-    //     f[..hbm_data.len()].copy_from_slice(&hbm_data);
-    // });
+    let hbm_data = std::fs::read(opts.hbm).unwrap();
+    hbm.data().with_data(|f| {
+        f[..hbm_data.len()].copy_from_slice(&hbm_data);
+    });
 
-    // accelerator.fp_sram[0] = f16::from_bits(0x3F00); // Preloading a constant at the 0 index
+    accelerator.fp_sram[0] = f16::from_bits(0x3F00); // Preloading a constant at the 0 index
 
-    // accelerator
-    //     .do_ops(&dbg!(
-    //         op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
-    //     ))
-    //     .await;
+    accelerator
+        .do_ops(&dbg!(
+            op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
+        ))
+        .await;
 
-    // println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
-    // println!(
-    //     "{}",
-    //     accelerator.v_machine.vram.read(0x1000).await.as_tensor()
-    // );
+    println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
+    println!(
+        "{}",
+        accelerator.v_machine.vram.read(0x1000).await.as_tensor()
+    );
 }
 
 #[tokio::main]

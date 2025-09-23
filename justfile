@@ -24,6 +24,8 @@ test-sw:
     python3 tools/quant/quant_operations/reciprocal.py
 
 build-env arg:
+    make shell
+    source .coprocessor_env/bin/activate
     # cd behave_simulator
     python3 src/system/sys_utils/build_env.py --asm {{arg}}
 
@@ -35,7 +37,7 @@ build-behave-sim arg:
     asm_path="$../test/Instr_Level_Benchmark/build/{{arg}}/{{arg}}.mem"
     data_path="$../test/Instr_Level_Benchmark/build/{{arg}}/hbm_ele.mem"
 
-    # 3) Enter simulator, allow direnv (ignore if not present), then run
+    # 3) Exit the Docker Env for RTL SIM, Enter simulator, allow direnv (ignore if not present), then run
     cd behave_simulator
     direnv allow
     cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
