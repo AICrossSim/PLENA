@@ -31,7 +31,7 @@ from cfl_tools.logger import get_logger
 from cfl_tools.debugger import set_excepthook
 from cfl_tools import PROJECT_PATH
 
-from sys_utils.build_sys_sim_env import (
+from sys_utils.build_sys_tools import (
     generate_golden_result,
     env_setup,
     init_mem

@@ -84,11 +84,13 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def init_mem():
+def init_mem(in_args=None):
     """ Initialize memory files and environment variables for simulation. """
-
-    args = parse_args()
-    asm_file = Path(args.path).stem
+    if in_args is None:
+        args = parse_args()
+        asm_file = Path(args.path).stem
+    else:
+        asm_file = Path(args).stem
 
     build_path = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem
     build_path.mkdir(parents=True, exist_ok=True)
