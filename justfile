@@ -26,7 +26,6 @@ test-sw:
 build-env arg:
     make shell
     source .coprocessor_env/bin/activate
-    # cd behave_simulator
     python3 src/system/sys_utils/build_env.py --asm {{arg}}
 
 build-behave-sim arg:
