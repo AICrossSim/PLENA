@@ -1,9 +1,0 @@
-# Build artifacts
-/target
-result
-
-# Direnv caches
-/.direnv
-
-# A place to place local depenedency checkouts
-/vendor

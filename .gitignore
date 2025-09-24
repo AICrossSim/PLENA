@@ -52,3 +52,11 @@ kube/
 *.out
 temp/
 ckpts_*
+
+*.lock
+
+# behavioral simulator
+behave_simulator/target
+behave_simulator/result
+behave_simulator/.direnv
+behave_simulator/vendor
