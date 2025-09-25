@@ -23,6 +23,7 @@ test-sw:
     python3 tools/quant/quant_operations/sqrt.py
     python3 tools/quant/quant_operations/reciprocal.py
 
+
 build-env arg:
     make shell
     source .coprocessor_env/bin/activate
@@ -41,6 +42,9 @@ build-behave-sim arg:
     direnv allow
     cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
 
+build-rtl-sim arg:
+    rm -rf test/Instr_Level_Benchmark/build/{{arg}}
+    
 
 reformat:
     black *.py
