@@ -47,8 +47,17 @@
           # Add any system libraries your Rust crate needs
           buildInputs = with pkgs; [
             openssl
-            # Add other dependencies as needed
+          ] ++ (if customPkgs ? ramulator2 then [ customPkgs.ramulator2 ] else []);
+
+          nativeBuildInputs = with pkgs; [
+            pkg-config
           ];
+
+          # Set up library paths for ramulator2
+          preBuild = if customPkgs ? ramulator2 then ''
+            export LD_LIBRARY_PATH="${customPkgs.ramulator2}/lib:$LD_LIBRARY_PATH"
+            export LIBRARY_PATH="${customPkgs.ramulator2}/lib:$LIBRARY_PATH"
+          '' else "";
 
           # Set environment variables if needed
           # RUSTFLAGS = "-C target-cpu=native";
@@ -149,7 +158,16 @@
             uv
           ];
 
-          shellHook = ''
+          # Set up environment for ramulator2 library
+          shellHook = let
+            ramulatorPath = if customPkgs ? ramulator2 then "${customPkgs.ramulator2}/lib" else "";
+          in ''
+            ${if customPkgs ? ramulator2 then ''
+              export LD_LIBRARY_PATH="${ramulatorPath}:$LD_LIBRARY_PATH"
+              export LIBRARY_PATH="${ramulatorPath}:$LIBRARY_PATH"
+              export PKG_CONFIG_PATH="${ramulatorPath}/pkgconfig:$PKG_CONFIG_PATH"
+            '' else ""}
+            
             echo ">>> Toolchain versions:"
             echo "Verilator:    $(verilator --version 2>/dev/null || echo not found)"
             echo "Verible:      $(verible-verilog-format --version 2>/dev/null || echo not found)"
@@ -159,7 +177,7 @@
             echo "Python 3.12:  $(python3.12 --version 2>/dev/null || echo not found)"
             echo "Python 3.13:  $(python3.13 --version 2>/dev/null || echo not found)"
             echo "FFmpeg:       $(ffmpeg -version | head -n1 2>/dev/null || echo not found)"
-            echo "Ramulator2:   $(find /nix/store -name "libramulator.so" 2>/dev/null | head -1 | sed 's|.*|library available|' || echo "library not found")"
+            echo "Ramulator2:   ${if customPkgs ? ramulator2 then "library at ${ramulatorPath}" else "not available"}"
           '';
         };
       };
