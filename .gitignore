@@ -54,7 +54,7 @@ temp/
 ckpts_*
 
 # behavioral simulator
-behave_simulator/target
-behave_simulator/result
+behavioral_simulator/target
+behavioral_simulator/result
 .direnv
-behave_simulator/vendor
+behavioral_simulator/vendor

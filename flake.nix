@@ -1,20 +1,75 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
-    flake-utils.url = "github:numtide/flake-utils";
+    systems.url = "github:nix-systems/default-linux";
+    flake-utils = {
+      url = "github:numtide/flake-utils";
+      inputs.systems.follows = "systems";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        rustPlatform = pkgs.rustPlatform;
-        llvm14 = pkgs.llvmPackages_14;
-      in
-      rec {
-        # ---------- Dev Shell for the whole repo ----------
-        devShells.default = pkgs.mkShell {
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    ...
+  } @ inputs: let
+    lib = nixpkgs.lib;
+  in
+    flake-utils.lib.eachDefaultSystem (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+      rustPlatform = pkgs.rustPlatform;
+      llvm14 = pkgs.llvmPackages_14;
+    in rec {
+      # ---------- Formatter ----------
+      formatter = pkgs.alejandra;
+
+      # ---------- Packages ----------
+      packages = 
+        let
+          customPkgs = if builtins.pathExists ./behavioral_simulator/pkgs 
+                      then import ./behavioral_simulator/pkgs { inherit pkgs; }
+                      else {};
+        in customPkgs // rec {
+        # Build the behavioral simulator as a Nix package
+        behavioral-simulator = rustPlatform.buildRustPackage {
+          pname = "behavioral-simulator";
+          version = "0.1.0";
+          src = pkgs.lib.cleanSource ./behavioral_simulator;
+
+          # Use the Cargo.lock from the behavioral_simulator subdir
+          cargoLock = {
+            lockFile = ./behavioral_simulator/Cargo.lock;
+          };
+
+          # Add any system libraries your Rust crate needs
           buildInputs = with pkgs; [
+            openssl
+            # Add other dependencies as needed
+          ];
+
+          # Set environment variables if needed
+          # RUSTFLAGS = "-C target-cpu=native";
+        };
+
+        # Make behavioral-simulator the default package
+        default = behavioral-simulator;
+      };
+
+      # ---------- Development Shells ----------
+      devShells = 
+        let
+          customPkgs = if builtins.pathExists ./behavioral_simulator/pkgs 
+                      then import ./behavioral_simulator/pkgs { inherit pkgs; }
+                      else {};
+        in {
+        default = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            # Include ramulator2 from your custom packages
+            (if customPkgs ? ramulator2 then customPkgs.ramulator2 else null)
+
             # --- Verilog/SystemVerilog toolchain ---
             verilator
             verible
@@ -104,40 +159,9 @@
             echo "Python 3.12:  $(python3.12 --version 2>/dev/null || echo not found)"
             echo "Python 3.13:  $(python3.13 --version 2>/dev/null || echo not found)"
             echo "FFmpeg:       $(ffmpeg -version | head -n1 2>/dev/null || echo not found)"
+            echo "Ramulator2:   $(find /nix/store -name "libramulator.so" 2>/dev/null | head -1 | sed 's|.*|library available|' || echo "library not found")"
           '';
         };
-
-        # ---------- (Optional) Build the simulator as a Nix package ----------
-        #
-        # This assumes your Rust binary crate lives in ./behavioral_simulator
-        # and produces an executable (e.g., `aria-sim`); adjust name if needed.
-        #
-        packages.behavioral-simulator = rustPlatform.buildRustPackage {
-          pname = "behavioral-simulator";
-          version = "0.1.0";
-          src = pkgs.lib.cleanSource ./behavioral_simulator;
-
-          # Use the Cargo.lock from that subdir:
-          cargoLock = {
-            lockFile = ./behavioral_simulator/Cargo.lock;
-          };
-
-          # If build complains about missing libs (e.g., libtorch), add
-          # them to buildInputs and/or set RPATH/LD_LIBRARY_PATH here.
-          buildInputs = with pkgs; [
-            # Example: add system libs required by your crate
-            # openblas lapack
-          ];
-
-          # If you need environment vars during build, set them here.
-          # RUSTFLAGS = "-C target-cpu=native";
-        };
-
-        # Make `nix build` with no attr pick the simulator by default
-        packages.default = packages.behavioral-simulator;
-
-        # Formatter
-        formatter = pkgs.alejandra;
-      }
-    );
+      };
+    });
 }
