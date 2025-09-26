@@ -2,7 +2,7 @@
 
 This repository contains the design and implementation of PLENA. 
 
-## Publications
+## Publication
 * Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference, [link](https://arxiv.org/abs/2509.09505)
   ```
     @misc{wu2025combatingmemorywallsoptimization,
@@ -31,35 +31,25 @@ This repository contains the design and implementation of PLENA.
 **SystemVerilog RTL Format:**  
 [LowRISC Format](https://github.com/lowRISC/style-guides)
 
+## Prerequisite
+```
+nix
+direnv 
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+source ~/.bashrc
+
+```
 
 ## Configure your environment
 
 ```
-make build-docker
+direnv allow
+nix develop
 ```
 
-This will help you to download the required non-python related packages for the tool like clang, llvm, verilator, etc.
-
-## install dependencies
+## Run Behavioral Simulation
 
 ```
-make shell
-```
-This command cd into the shell of the docker container.
-
-```
-python3 -m venv .coprocessor_env
-source .coprocessor_env/bin/activate
-pip install -e .
-```
-
-The Python environment will be installed locally, allowing you to customize it according to your specific needs
-
-<!-- ```bash --> -->
-
-## Run Simulation
-
-```
-just build-behave-sim argsbu
+just build-behave-sim [ Task to simulate ]
 ```
 

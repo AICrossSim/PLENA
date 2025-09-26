@@ -773,7 +773,6 @@ impl Accelerator {
                     // TODO: rstride support to be added
                     let offset = self.reg_file.gp_reg[rs1 as usize];
                     let addr = self.reg_file.hbm_addr_reg[rs2 as usize];
-
                     let dtype = match precision {
                         op::MatrixPrecision::Weights => MATRIX_WEIGHT_TYPE,
                         op::MatrixPrecision::KeyValue => MATRIX_KV_TYPE,
