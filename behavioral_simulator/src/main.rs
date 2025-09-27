@@ -22,6 +22,7 @@ const PERIOD: Duration = Duration::from_nanos(1);
 const VECTOR_BASIC_CYCLES: u32 = 1;
 const VECTOR_REDUCT_CYCLES: u32 = 4;
 
+
 const TILE_SIZE: u32 = 128;
 const BATCH_SIZE: u32 = 4;
 const HBM_SIZE: usize = 1024 * 1024 * 1024;

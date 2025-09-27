@@ -121,12 +121,10 @@
             gperftools
             numactl
 
-            # --- Python (two versions) ---
+            # --- Python ---
             python312
             python312Packages.pip
             python312Packages.sphinx
-            python313
-            python313Packages.pip
 
             # --- Math / BLAS / LAPACK / Fortran ---
             openblas
@@ -175,7 +173,6 @@
             echo "GCC:          $(gcc --version | head -n1 2>/dev/null || echo not found)"
             echo "CMake:        $(cmake --version | head -n1 2>/dev/null || echo not found)"
             echo "Python 3.12:  $(python3.12 --version 2>/dev/null || echo not found)"
-            echo "Python 3.13:  $(python3.13 --version 2>/dev/null || echo not found)"
             echo "FFmpeg:       $(ffmpeg -version | head -n1 2>/dev/null || echo not found)"
             echo "Ramulator2:   ${if customPkgs ? ramulator2 then "library at ${ramulatorPath}" else "not available"}"
           '';
