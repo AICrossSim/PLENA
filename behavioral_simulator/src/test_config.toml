@@ -1,0 +1,68 @@
+period_nanos = 15
+vector_basic_cycles = 7
+vector_reduct_cycles = 7
+tile_size = 1024
+batch_size = 4
+hbm_size = 1073741824
+matrix_sram_size = 1024
+vector_sram_size = 1024
+
+[matrix_sram_type]
+format = "Plain"
+[matrix_sram_type.data_type]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[vector_sram_type]
+format = "Plain"
+[vector_sram_type.data_type]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[matrix_weight_type]
+format = "Plain"
+[matrix_weight_type.data_type]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[matrix_kv_type]
+format = "Plain"
+[matrix_kv_type.data_type]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[vector_activation_type]
+format = "Mx"
+block = 4
+[vector_activation_type.elem]
+type = "Fp"
+sign = true
+exponent = 3
+mantissa = 4
+[vector_activation_type.scale]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 0
+
+[vector_kv_type]
+format = "Mx"
+block = 4
+[vector_kv_type.elem]
+type = "Fp"
+sign = true
+exponent = 7
+mantissa = 8
+[vector_kv_type.scale]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 0

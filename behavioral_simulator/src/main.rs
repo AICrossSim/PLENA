@@ -21,8 +21,6 @@ const PERIOD: Duration = Duration::from_nanos(1);
 
 const VECTOR_BASIC_CYCLES: u32 = 1;
 const VECTOR_REDUCT_CYCLES: u32 = 4;
-
-
 const TILE_SIZE: u32 = 128;
 const BATCH_SIZE: u32 = 4;
 const HBM_SIZE: usize = 1024 * 1024 * 1024;
@@ -52,6 +50,8 @@ const VECTOR_KV_TYPE: MxDataType = MxDataType::Mx {
     scale: DataType::Fp(FpType::E8M0),
     block: 4,
 };
+
+pub mod load_config;
 
 /// Address handling utilities.
 ///
@@ -196,7 +196,6 @@ struct MatrixMachine {
 }
 
 impl MatrixMachine {
-    // TODO: Timing
     async fn mm(&mut self, v_addr: u32, m_addr: u32) {
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
@@ -208,6 +207,7 @@ impl MatrixMachine {
             .i((mat_offset as i64..(mat_offset + self.batch_size) as i64, ..));
 
         let mut tensors = Vec::with_capacity(self.batch_size as usize);
+        cycle!(self.tile_size + 5);
         for i in 0..self.batch_size {
             tensors.push(
                 self.vram
@@ -222,19 +222,17 @@ impl MatrixMachine {
         self.m_accum += mat.matmul(&vec);
     }
 
-    // TODO: Timing
     async fn tmm(&mut self, v_addr: u32, m_addr: u32) {
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
         assert!(mat_offset.is_multiple_of(self.batch_size));
-
         let full_mat = self.mram.read(mat_base).await;
         let mat = full_mat
             .as_tensor()
             .transpose(-1, -2)
             .i((mat_offset as i64..(mat_offset + self.batch_size) as i64, ..));
-
         let mut tensors = Vec::with_capacity(self.batch_size as usize);
+        cycle!(self.tile_size + 5);
         for i in 0..self.batch_size {
             tensors.push(
                 self.vram
@@ -249,11 +247,10 @@ impl MatrixMachine {
         self.m_accum += mat.matmul(&vec);
     }
 
-    // TODO: Timing
     async fn mm_wo(&mut self, v_addr: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.tile_size);
         assert!(vec_offset.is_multiple_of(self.batch_size));
-
+        cycle!(1);
         for i in 0..self.batch_size {
             let tensor = self.m_accum.i((i as i64, ..)).unsqueeze(0);
             let old = self.vram.read(vec_base + i * self.tile_size).await;
@@ -278,7 +275,6 @@ impl MatrixMachine {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
 
-        // TODO: Check
         cycle!(self.tile_size + 5);
 
         self.v_accum += mat.as_tensor().matmul(vec.as_tensor());
@@ -287,8 +283,6 @@ impl MatrixMachine {
     async fn tmv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
-
-        // TODO: Check
         cycle!(self.tile_size + 5);
 
         self.v_accum += mat.as_tensor().transpose(-1, -2).matmul(vec.as_tensor());
@@ -297,9 +291,7 @@ impl MatrixMachine {
     async fn mv_wo(&mut self, v_addr: u32) {
         let quant = QuantTensor::quantize(self.v_accum.shallow_clone(), self.vram.ty);
         self.vram.write(v_addr, quant).await;
-
-        // TODO: Timing
-
+        cycle!(1);
         self.v_accum = Tensor::zeros(
             [self.tile_size as i64],
             (tch::Kind::Float, tch::Device::Cpu),
@@ -314,56 +306,56 @@ struct VectorMachine {
 impl VectorMachine {
     async fn add_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
         let a = self.vram.read(vs1).await;
-
         let c = QuantTensor::quantize(a.as_tensor() + (f as f64), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
         let a = self.vram.read(vs1).await;
-
         let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn add(&mut self, vd: u32, vs1: u32, vs2: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
-
         let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn sub(&mut self, vd: u32, vs1: u32, vs2: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
-
         let c = QuantTensor::quantize(a.as_tensor() - b.as_tensor(), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn mul(&mut self, vd: u32, vs1: u32, vs2: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
-
         let c = QuantTensor::quantize(a.as_tensor() * b.as_tensor(), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn exp(&mut self, vd: u32, vs1: u32) {
         let a = self.vram.read(vs1).await;
-
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn reciprocal(&mut self, vd: u32, vs1: u32) {
         let a = self.vram.read(vs1).await;
-
         let c = QuantTensor::quantize(a.as_tensor().reciprocal(), a.data_type());
+
         cycle!(VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
