@@ -82,7 +82,7 @@ def parse_config_string(config_str):
 
 def modify_toml_file(
     mode: str,
-    toml_path: str = "config.toml",
+    toml_path: str = "plena_settings.toml",
     section: str = "CONFIG",
     config_params: dict = None
 ):
@@ -132,7 +132,7 @@ def main():
     config_settings = parse_config_string(args.config) if args.config else None
     precision_settings = parse_config_string(args.precision) if args.precision else None
     parent_path = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(parent_path, "config.toml")
+    config_path = os.path.join(parent_path, "plena_settings.toml")
     config_svh_path    = os.path.join(parent_path, "configuration.svh")
     precision_svh_path = os.path.join(parent_path, "precision.svh")
 

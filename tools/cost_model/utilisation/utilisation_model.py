@@ -8,7 +8,7 @@ from utils import load_toml_config, load_json, load_svh_settings
 from attainable import attn_model_config
 
 class utilisation_model:
-    def __init__(self, hardware_settings_file: str = "config.toml", precision_settings_file: str = "precision.toml", unit_info_file: str = "unit_info.json"):
+    def __init__(self, hardware_settings_file: str = "plena_settings.toml", precision_settings_file: str = "precision.toml", unit_info_file: str = "unit_info.json"):
         self.unit_info = load_json(unit_info_file)
         config_settings = load_svh_settings(hardware_settings_file)
         precision_settings = load_svh_settings(precision_settings_file)
@@ -28,7 +28,7 @@ class utilisation_model:
 
 
 class attainable_GEMM_model:
-    def __init__(self, hardware_settings_file: str = "config.toml", model_config_file: str = "model_config.json"):
+    def __init__(self, hardware_settings_file: str = "plena_settings.toml", model_config_file: str = "model_config.json"):
         self.model_config_file = model_config_file
         self.hardware_config = load_svh_settings(hardware_settings_file)
         # print(f"hardware config: {self.hardware_config}")
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     config_parent_path = Path(__file__).resolve().parents[3]
     config_path     = os.path.join(config_parent_path, "src/definitions/configuration.svh")
     precision_path  = os.path.join(config_parent_path, "src/definitions/precision.svh")
-    toml_path       = os.path.join(config_parent_path, "src/definitions/config.toml")
+    toml_path       = os.path.join(config_parent_path, "src/definitions/plena_settings.toml")
     unit_info_file  = os.path.join(config_parent_path, "tools/cost_model/utilisation/individual_units_lib.json")
     model_config_path  = os.path.join(config_parent_path, "doc/Model_Lib/llama-3.1-8b.json")
     # utilisation = utilisation_model(config_path, precision_path, unit_info_file)

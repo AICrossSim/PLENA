@@ -1,57 +1,48 @@
 mod op;
+mod load_config; // Add this line to include the config module
 
 use std::mem::ManuallyDrop;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex as BlockingMutex};
+use std::sync::Arc;
+use std::future::Future;
 
 use clap::Parser;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use half::f16;
 use memory::MemoryModel;
-use quantize::{DataType, FpType, MxDataType, QuantTensor};
+use quantize::{MxDataType, QuantTensor};
 use runtime::{Duration, Executor, Instant};
 use tch::{IndexOp, Tensor};
 
 use tokio::sync::Mutex;
 use tokio::sync::oneshot::{self, Receiver};
 
-const PERIOD: Duration = Duration::from_nanos(1);
+// Import the configuration functions
+use load_config::*;
 
-const VECTOR_BASIC_CYCLES: u32 = 1;
-const VECTOR_REDUCT_CYCLES: u32 = 4;
-const TILE_SIZE: u32 = 128;
-const BATCH_SIZE: u32 = 4;
-const HBM_SIZE: usize = 1024 * 1024 * 1024;
-const MATRIX_SRAM_SIZE: usize = 1024;
-const VECTOR_SRAM_SIZE: usize = 1024;
+// Replace the const declarations with function calls to the config
+// These functions will be called at runtime to get the configured values
 
-const MATRIX_SRAM_TYPE: MxDataType = MxDataType::Plain(DataType::Fp(FpType::BF16));
-const VECTOR_SRAM_TYPE: MxDataType = MxDataType::Plain(DataType::Fp(FpType::BF16));
+// You can still use these as pseudo-constants by wrapping them in lazy statics if needed
+use once_cell::sync::Lazy;
 
-const MATRIX_WEIGHT_TYPE: MxDataType = MxDataType::Plain(DataType::Fp(FpType::BF16));
-const MATRIX_KV_TYPE: MxDataType = MxDataType::Plain(DataType::Fp(FpType::BF16));
-const VECTOR_ACTIVATION_TYPE: MxDataType = MxDataType::Mx {
-    elem: DataType::Fp(FpType {
-        sign: true,
-        exponent: 3,
-        mantissa: 4,
-    }),
-    scale: DataType::Fp(FpType::E8M0),
-    block: 4,
-};
-const VECTOR_KV_TYPE: MxDataType = MxDataType::Mx {
-    elem: DataType::Fp(FpType {
-        sign: true,
-        exponent: 7,
-        mantissa: 8,
-    }),
-    scale: DataType::Fp(FpType::E8M0),
-    block: 4,
-};
-
-pub mod load_config;
+// Lazy static "constants" that behave like your original constants
+static PERIOD: Lazy<Duration> = Lazy::new(|| Duration::from_nanos(CONFIG.period_nanos));
+static VECTOR_BASIC_CYCLES: Lazy<u32> = Lazy::new(|| vector_basic_cycles());
+static VECTOR_REDUCT_CYCLES: Lazy<u32> = Lazy::new(|| vector_reduct_cycles());
+static TILE_SIZE: Lazy<u32> = Lazy::new(|| tile_size());
+static BATCH_SIZE: Lazy<u32> = Lazy::new(|| batch_size());
+static HBM_SIZE: Lazy<usize> = Lazy::new(|| hbm_size());
+static MATRIX_SRAM_SIZE: Lazy<usize> = Lazy::new(|| matrix_sram_size());
+static VECTOR_SRAM_SIZE: Lazy<usize> = Lazy::new(|| vector_sram_size());
+static MATRIX_SRAM_TYPE: Lazy<MxDataType> = Lazy::new(|| matrix_sram_type());
+static VECTOR_SRAM_TYPE: Lazy<MxDataType> = Lazy::new(|| vector_sram_type());
+static MATRIX_WEIGHT_TYPE: Lazy<MxDataType> = Lazy::new(|| matrix_weight_type());
+static MATRIX_KV_TYPE: Lazy<MxDataType> = Lazy::new(|| matrix_kv_type());
+static VECTOR_ACTIVATION_TYPE: Lazy<MxDataType> = Lazy::new(|| vector_activation_type());
+static VECTOR_KV_TYPE: Lazy<MxDataType> = Lazy::new(|| vector_kv_type());
 
 /// Address handling utilities.
 ///
@@ -79,7 +70,7 @@ impl AddrUtils for u32 {
 macro_rules! cycle {
     ($cycle: expr) => {
         runtime::Executor::current()
-            .resolve_at(PERIOD * ($cycle as u32))
+            .resolve_at(*PERIOD * ($cycle as u32))
             .await;
     };
 }
@@ -308,7 +299,7 @@ impl VectorMachine {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor() + (f as f64), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -316,7 +307,7 @@ impl VectorMachine {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -324,7 +315,7 @@ impl VectorMachine {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -332,7 +323,7 @@ impl VectorMachine {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() - b.as_tensor(), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -340,7 +331,7 @@ impl VectorMachine {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() * b.as_tensor(), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -348,7 +339,7 @@ impl VectorMachine {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -356,7 +347,7 @@ impl VectorMachine {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().reciprocal(), a.data_type());
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
@@ -370,20 +361,20 @@ impl VectorMachine {
             self.vram.ty,
         );
 
-        cycle!(VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_BASIC_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn reduce_sum(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
-        cycle!(VECTOR_REDUCT_CYCLES);
+        cycle!(*VECTOR_REDUCT_CYCLES);
         let val: f32 = a.as_tensor().sum(tch::Kind::Float).i(0).try_into().unwrap();
         f + val
     }
 
     async fn reduce_max(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
-        cycle!(VECTOR_REDUCT_CYCLES);
+        cycle!(*VECTOR_REDUCT_CYCLES);
         let val: f32 = a.as_tensor().max().i(0).try_into().unwrap();
         f32::max(val, f)
     }
@@ -407,26 +398,6 @@ struct AcceeleratorRegFile {
 }
 
 impl Accelerator {
-    // /// Transfer a vector from host to HBM.
-    // fn transfer_to_hbm(&self, mut data: QuantTensor, index: u64) -> Receiver<()> {
-    //     let (sender, receiver) = oneshot::channel();
-    //     let bytes = data.into_bytes();
-
-    //     // Launch the data transfer in parallel.
-    //     let hbm_clone = self.hbm.clone();
-    //     Executor::current().spawn(async move {
-    //         futures::future::join_all(bytes.chunks(64).enumerate().map(|(i, x)| {
-    //             let mut chunk = [0; 64];
-    //             chunk[..x.len()].copy_from_slice(x);
-    //             hbm_clone.write(index + i as u64 * 64, chunk)
-    //         }))
-    //         .await;
-    //         let _ = sender.send(());
-    //     });
-
-    //     receiver
-    // }
-
     /// Transfer a vector from HBM to host.
     ///
     /// `len` is size in bytes.
@@ -453,7 +424,7 @@ impl Accelerator {
             let len_in_bytes = len_in_bits / 8;
 
             let (scale_len_in_bytes, block) =
-                if let MxDataType::Mx { elem, scale, block } = hbm_type {
+                if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
                     let scale_bits = scale.size_in_bits();
                     assert!(scale_bits.is_power_of_two());
 
@@ -493,7 +464,7 @@ impl Accelerator {
             println!("{:?}", vec);
 
             let mut scale_vec = vec![0f32; len / block as usize];
-            if let MxDataType::Mx { elem, scale, block } = hbm_type {
+            if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
                 scale.convert_bytes_to_f32_vec(&scale_bytes, &mut scale_vec);
 
                 for (elem, scale) in vec
@@ -631,14 +602,6 @@ impl Accelerator {
                         )
                         .await;
                 }
-                // op::Opcode::VBcF { rd, rs1 } => {
-                //     self.v_machine
-                //         .broadcast(
-                //             self.reg_file.gp_reg[rd as usize],
-                //             self.reg_file.fp_reg[rs1 as usize].into(),
-                //         )
-                //         .await;
-                // }
 
                 // Write to fp0 is a no-op.
                 op::Opcode::V_RED_SUM { rd: 0, .. } | op::Opcode::V_RED_MAX { rd: 0, .. } => (),
@@ -767,8 +730,8 @@ impl Accelerator {
                     let offset = self.reg_file.gp_reg[rs1 as usize];
                     let addr = self.reg_file.hbm_addr_reg[rs2 as usize];
                     let dtype = match precision {
-                        op::MatrixPrecision::Weights => MATRIX_WEIGHT_TYPE,
-                        op::MatrixPrecision::KeyValue => MATRIX_KV_TYPE,
+                        op::MatrixPrecision::Weights => *MATRIX_WEIGHT_TYPE,
+                        op::MatrixPrecision::KeyValue => *MATRIX_KV_TYPE,
                     };
 
                     let scale = match dtype {
@@ -782,7 +745,7 @@ impl Accelerator {
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
-                        (self.tile_size * self.tile_size) as usize,
+                        (*TILE_SIZE * *TILE_SIZE) as usize,
                         dtype,
                         self.m_machine.mram.ty,
                     );
@@ -803,8 +766,8 @@ impl Accelerator {
                     let addr = self.reg_file.hbm_addr_reg[rs2 as usize];
 
                     let dtype = match precision {
-                        op::VectorPrecision::Activation => VECTOR_ACTIVATION_TYPE,
-                        op::VectorPrecision::KeyValue => VECTOR_KV_TYPE,
+                        op::VectorPrecision::Activation => *VECTOR_ACTIVATION_TYPE,
+                        op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE,
                     };
 
                     let scale = match dtype {
@@ -818,7 +781,7 @@ impl Accelerator {
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
-                        self.tile_size as usize,
+                        *TILE_SIZE as usize,
                         dtype,
                         self.v_machine.vram.ty,
                     );
@@ -863,31 +826,31 @@ struct Opts {
 async fn start() {
     let opts = Opts::parse();
 
-    let mram = Arc::new(MatrixSram::new(TILE_SIZE, MATRIX_SRAM_SIZE, MATRIX_SRAM_TYPE)); // Matrix SRAM
-    let vram = Arc::new(VectorSram::new(TILE_SIZE, VECTOR_SRAM_SIZE, VECTOR_SRAM_TYPE)); // Vector SRAM
+    let mram = Arc::new(MatrixSram::new(*TILE_SIZE, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
+    let vram = Arc::new(VectorSram::new(*TILE_SIZE, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
     let machine = MatrixMachine {
         mram,
         vram: vram.clone(),
-        tile_size: TILE_SIZE,
-        batch_size: BATCH_SIZE,
+        tile_size: *TILE_SIZE,
+        batch_size: *BATCH_SIZE,
         m_accum: Tensor::zeros(
-            [BATCH_SIZE as i64, BATCH_SIZE as i64],
+            [*BATCH_SIZE as i64, *BATCH_SIZE as i64],
             (tch::Kind::Float, tch::Device::Cpu),
         ),
-        v_accum: Tensor::zeros([TILE_SIZE as i64], (tch::Kind::Float, tch::Device::Cpu)),
+        v_accum: Tensor::zeros([*TILE_SIZE as i64], (tch::Kind::Float, tch::Device::Cpu)),
     };
     let v_machine = VectorMachine { vram };
 
     let hbm = Arc::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
-        memory::MemoryBacked::with_capacity(HBM_SIZE),
+        memory::MemoryBacked::with_capacity(*HBM_SIZE),
     ));
 
     let mut accelerator = Accelerator {
         m_machine: machine,
         v_machine,
         hbm: hbm.clone(),
-        tile_size: TILE_SIZE,
+        tile_size: *TILE_SIZE,
         reg_file: AcceeleratorRegFile {
             gp_reg: [0; 16],
             fp_reg: [f16::ZERO; 8],

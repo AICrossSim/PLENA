@@ -172,7 +172,7 @@ pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
     
     // 2. Try standard config file locations
     let config_paths = [
-        "./config.toml"
+        "./plena_settings.toml"
     ];
     
     for path in &config_paths {
@@ -252,8 +252,8 @@ pub fn vector_kv_type() -> MxDataType {
 pub fn generate_example_config() -> Result<(), Box<dyn std::error::Error>> {
     let config = AcceleratorConfig::default();
     let toml_content = toml::to_string_pretty(&config)?;
-    fs::write("config.toml", toml_content)?;
-    println!("Example config.toml generated successfully!");
+    fs::write("plena_settings.toml", toml_content)?;
+    println!("Example plena_settings.toml generated successfully!");
     Ok(())
 }
 

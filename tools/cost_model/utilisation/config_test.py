@@ -32,7 +32,7 @@ def experiment_module_auto_config (
 
 if __name__ == "__main__":
     config_parent_path = Path(__file__).resolve().parents[3]
-    toml_path = os.path.join(config_parent_path, "src/definitions/config.toml")
+    toml_path = os.path.join(config_parent_path, "src/definitions/plena_settings.toml")
     config_svh_path = os.path.join(config_parent_path, "src/definitions/configuration.svh")
     precision_svh_path = os.path.join(config_parent_path, "src/definitions/precision.svh")
     experiment_samples = os.path.join(config_parent_path, "tools/cost_model/utilisation/single_unit_experiment.json")
