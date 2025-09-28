@@ -8,7 +8,7 @@
 Module      : Matrix Machine Module
 Timing      : Sequential, Takes x cycles to compute the dot product
 Description : This module is the older version of the matrix machine, which solely supports the GEMV, conducting the operation m(MLEN, MLEN) @ v(MLEN, 1) + o (MLEN, 1)
-Status      : Passed Simple Tests
+Status      : Passed Simple Tests / Not in used at the moment
 */
 
 

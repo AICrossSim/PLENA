@@ -56,9 +56,6 @@ endpackage
 
     package pipeline_pkg;
         parameter   MAX_PIPELINE_STAGE             = 10;   
-        parameter   MATRIX_MAX_CYCLES              = 8;
-        parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
-        parameter   MATRIX_W_OFFSET_CYCLES         = 8;
         parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
         parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 10;
         parameter   VECTOR_ADD_CYCLES              = 2;
@@ -82,9 +79,6 @@ endpackage
 
     package pipeline_pkg;
         parameter   MAX_PIPELINE_STAGE             = 10;   
-        parameter   MATRIX_MAX_CYCLES              = 8;
-        parameter   MATRIX_WO_OFFSET_CYCLES        = 6;
-        parameter   MATRIX_W_OFFSET_CYCLES         = 8;
         parameter   SYSTOLIC_PROCESSING_OVERHEAD   = 0;
         parameter   VECTOR_LONGEST_OPERATE_CYCLES  = 20;
         parameter   VECTOR_ADD_CYCLES              = 7;

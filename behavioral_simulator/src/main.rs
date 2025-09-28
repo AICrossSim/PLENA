@@ -29,11 +29,23 @@ use load_config::*;
 use once_cell::sync::Lazy;
 
 // Lazy static "constants" that behave like your original constants
-static PERIOD: Lazy<Duration> = Lazy::new(|| Duration::from_nanos(CONFIG.period_nanos));
-static VECTOR_BASIC_CYCLES: Lazy<u32> = Lazy::new(|| vector_basic_cycles());
-static VECTOR_REDUCT_CYCLES: Lazy<u32> = Lazy::new(|| vector_reduct_cycles());
-static TILE_SIZE: Lazy<u32> = Lazy::new(|| tile_size());
-static BATCH_SIZE: Lazy<u32> = Lazy::new(|| batch_size());
+const PERIOD: Duration = Duration::from_nanos(1);
+static SYSTOLIC_PROCESSING_OVERHEAD: Lazy<u32> = Lazy::new(|| systolic_processing_overhead());
+static VECTOR_ADD_CYCLES: Lazy<u32> = Lazy::new(|| vector_add_cycles());
+static VECTOR_MUL_CYCLES: Lazy<u32> = Lazy::new(|| vector_mul_cycles());
+static VECTOR_EXP_CYCLES: Lazy<u32> = Lazy::new(|| vector_exp_cycles());
+static VECTOR_RECI_CYCLES: Lazy<u32> = Lazy::new(|| vector_reci_cycles());
+static VECTOR_MAX_CYCLES: Lazy<u32> = Lazy::new(|| vector_max_cycles());
+static VECTOR_SUM_CYCLES: Lazy<u32> = Lazy::new(|| vector_sum_cycles());
+static SCALAR_FP_BASIC_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_basic_cycles());
+static SCALAR_FP_EXP_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_exp_cycles());
+static SCALAR_FP_SQRT_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_sqrt_cycles());
+static SCALAR_FP_RECI_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_reci_cycles());
+static SCALAR_INT_BASIC_CYCLES: Lazy<u32> = Lazy::new(|| scalar_int_basic_cycles());
+
+static MLEN: Lazy<u32> = Lazy::new(|| mlen());
+static VLEN: Lazy<u32> = Lazy::new(|| vlen());
+static BLEN: Lazy<u32> = Lazy::new(|| blen());
 static HBM_SIZE: Lazy<usize> = Lazy::new(|| hbm_size());
 static MATRIX_SRAM_SIZE: Lazy<usize> = Lazy::new(|| matrix_sram_size());
 static VECTOR_SRAM_SIZE: Lazy<usize> = Lazy::new(|| vector_sram_size());
@@ -70,7 +82,7 @@ impl AddrUtils for u32 {
 macro_rules! cycle {
     ($cycle: expr) => {
         runtime::Executor::current()
-            .resolve_at(*PERIOD * ($cycle as u32))
+            .resolve_at(PERIOD * ($cycle as u32))
             .await;
     };
 }
@@ -198,7 +210,7 @@ impl MatrixMachine {
             .i((mat_offset as i64..(mat_offset + self.batch_size) as i64, ..));
 
         let mut tensors = Vec::with_capacity(self.batch_size as usize);
-        cycle!(self.tile_size + 5);
+        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
         for i in 0..self.batch_size {
             tensors.push(
                 self.vram
@@ -223,7 +235,7 @@ impl MatrixMachine {
             .transpose(-1, -2)
             .i((mat_offset as i64..(mat_offset + self.batch_size) as i64, ..));
         let mut tensors = Vec::with_capacity(self.batch_size as usize);
-        cycle!(self.tile_size + 5);
+        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
         for i in 0..self.batch_size {
             tensors.push(
                 self.vram
@@ -265,17 +277,14 @@ impl MatrixMachine {
     async fn mv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
-
-        cycle!(self.tile_size + 5);
-
+        cycle!(self.tile_size);
         self.v_accum += mat.as_tensor().matmul(vec.as_tensor());
     }
 
     async fn tmv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
-        cycle!(self.tile_size + 5);
-
+        cycle!(self.tile_size);
         self.v_accum += mat.as_tensor().transpose(-1, -2).matmul(vec.as_tensor());
     }
 
@@ -298,83 +307,75 @@ impl VectorMachine {
     async fn add_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor() + (f as f64), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_ADD_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_MUL_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn add(&mut self, vd: u32, vs1: u32, vs2: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_ADD_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn sub(&mut self, vd: u32, vs1: u32, vs2: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() - b.as_tensor(), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_ADD_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn mul(&mut self, vd: u32, vs1: u32, vs2: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() * b.as_tensor(), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_MUL_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn exp(&mut self, vd: u32, vs1: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_EXP_CYCLES);
         self.vram.write(vd, c).await;
     }
 
     async fn reciprocal(&mut self, vd: u32, vs1: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().reciprocal(), a.data_type());
-
-        cycle!(*VECTOR_BASIC_CYCLES);
+        cycle!(*VECTOR_RECI_CYCLES);
         self.vram.write(vd, c).await;
     }
 
-    async fn broadcast(&mut self, vd: u32, f: f32) {
-        let c = QuantTensor::quantize(
-            Tensor::full(
-                [self.vram.tile_size as i64],
-                f as f64,
-                (tch::Kind::Float, tch::Device::Cpu),
-            ),
-            self.vram.ty,
-        );
-
-        cycle!(*VECTOR_BASIC_CYCLES);
-        self.vram.write(vd, c).await;
-    }
+    // async fn broadcast(&mut self, vd: u32, f: f32) {
+    //     let c = QuantTensor::quantize(
+    //         Tensor::full(
+    //             [self.vram.tile_size as i64],
+    //             f as f64,
+    //             (tch::Kind::Float, tch::Device::Cpu),
+    //         ),
+    //         self.vram.ty,
+    //     );
+    //     cycle!(*VECTOR_BASIC_CYCLES);
+    //     self.vram.write(vd, c).await;
+    // }
 
     async fn reduce_sum(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
-        cycle!(*VECTOR_REDUCT_CYCLES);
+        cycle!(*VECTOR_SUM_CYCLES);
         let val: f32 = a.as_tensor().sum(tch::Kind::Float).i(0).try_into().unwrap();
         f + val
     }
 
     async fn reduce_max(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
-        cycle!(*VECTOR_REDUCT_CYCLES);
+        cycle!(*VECTOR_MAX_CYCLES);
         let val: f32 = a.as_tensor().max().i(0).try_into().unwrap();
         f32::max(val, f)
     }
@@ -639,39 +640,39 @@ impl Accelerator {
                 op::Opcode::S_ADD_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.reg_file.fp_reg[rs1 as usize] + self.reg_file.fp_reg[rs2 as usize];
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_SUB_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.reg_file.fp_reg[rs1 as usize] - self.reg_file.fp_reg[rs2 as usize];
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_MAX_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] = f16::max(
                         self.reg_file.fp_reg[rs1 as usize],
                         self.reg_file.fp_reg[rs2 as usize],
                     );
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_MUL_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         self.reg_file.fp_reg[rs1 as usize] * self.reg_file.fp_reg[rs2 as usize];
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_EXP_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         f16::from_f32(f32::exp(self.reg_file.fp_reg[rs1 as usize].into()));
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_EXP_CYCLES);
                 }
                 op::Opcode::S_RECI_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         f16::ONE / self.reg_file.fp_reg[rs1 as usize];
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_RECI_CYCLES);
                 }
                 op::Opcode::S_SQRT_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[rd as usize] =
                         f16::from_f32(f32::from(self.reg_file.fp_reg[rs1 as usize]).sqrt());
-                    cycle!(1);
+                    cycle!(*SCALAR_FP_SQRT_CYCLES);
                 }
                 op::Opcode::S_LD_FP { rd, rs1, imm } => {
                     self.reg_file.fp_reg[rd as usize] =
@@ -688,22 +689,22 @@ impl Accelerator {
                 op::Opcode::S_ADD_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_add(self.reg_file.gp_reg[rs2 as usize]);
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_ADDI_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[rd as usize] =
                         self.reg_file.gp_reg[rs1 as usize].wrapping_add(imm as u32);
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_SUB_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_sub(self.reg_file.gp_reg[rs2 as usize]);
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_MUL_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_mul(self.reg_file.gp_reg[rs2 as usize]);
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_LUI_INT { rd, imm } => {
                     self.reg_file.gp_reg[rd as usize] = (imm as u32) << 4;
@@ -745,7 +746,7 @@ impl Accelerator {
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
-                        (*TILE_SIZE * *TILE_SIZE) as usize,
+                        (*MLEN * *MLEN) as usize,
                         dtype,
                         self.m_machine.mram.ty,
                     );
@@ -781,7 +782,7 @@ impl Accelerator {
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
-                        *TILE_SIZE as usize,
+                        *VLEN as usize,
                         dtype,
                         self.v_machine.vram.ty,
                     );
@@ -826,20 +827,20 @@ struct Opts {
 async fn start() {
     let opts = Opts::parse();
 
-    let mram = Arc::new(MatrixSram::new(*TILE_SIZE, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
-    let vram = Arc::new(VectorSram::new(*TILE_SIZE, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
+    let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
+    let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
     let machine = MatrixMachine {
         mram,
         vram: vram.clone(),
-        tile_size: *TILE_SIZE,
-        batch_size: *BATCH_SIZE,
+        tile_size: *MLEN,
+        batch_size: *BLEN,
         m_accum: Tensor::zeros(
-            [*BATCH_SIZE as i64, *BATCH_SIZE as i64],
+            [*BLEN as i64, *BLEN as i64],
             (tch::Kind::Float, tch::Device::Cpu),
         ),
-        v_accum: Tensor::zeros([*TILE_SIZE as i64], (tch::Kind::Float, tch::Device::Cpu)),
+        v_accum: Tensor::zeros([*MLEN as i64], (tch::Kind::Float, tch::Device::Cpu)),
     };
-    let v_machine = VectorMachine { vram };
+    let v_machine = VectorMachine { vram }; // Share same dim with VSRAM
 
     let hbm = Arc::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
@@ -850,7 +851,7 @@ async fn start() {
         m_machine: machine,
         v_machine,
         hbm: hbm.clone(),
-        tile_size: *TILE_SIZE,
+        tile_size: *MLEN,
         reg_file: AcceeleratorRegFile {
             gp_reg: [0; 16],
             fp_reg: [f16::ZERO; 8],

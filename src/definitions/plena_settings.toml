@@ -1,77 +1,171 @@
+[CONFIG.DC_EN]
+value = 1
+
 [CONFIG.BLEN]
-active = 256
-SIMULATION = 8
-ASIC = 8
-default = 4
-tunable_range = [4, 8, 16, 32, 64]
+value = 32
 
 [CONFIG.MLEN]
-active = 256
-SIMULATION = 128
-ASIC = 16
-default = 8
-tunable_range = [32, 64, 128, 256, 512]
+value = 32
 
 [CONFIG.VLEN]
-active = 1024
-SIMULATION = 1024
-ASIC = 16
-default = 8
-tunable_range = [32, 64, 128, 256, 512, 1024]
+value = 32
+
+[CONFIG.HBM_SIZE]
+value = 1073741824
+
+[CONFIG.MATRIX_SRAM_SIZE]
+value = 1024
+
+[CONFIG.VECTOR_SRAM_SIZE]
+value = 1024
 
 [CONFIG.HBM_M_Prefetch_Amount]
-active = 16
-SIMULATION = 8
-ASIC = 16
-default = 8
-tunable_range = [ 2, 4, 8, 16, 32, 64, 128, 256,]
+value = 16
 
 [CONFIG.HBM_V_Prefetch_Amount]
-active = 16
-SIMULATION = 8
-ASIC = 16
-default = 8
-tunable_range = [ 32, 64, 128, 256,]
+value = 16
 
 [CONFIG.HBM_V_Writeback_Amount]
-active = 16
-SIMULATION = 8
-ASIC = 16
-default = 8
-tunable_range = [ 32, 64, 128, 256,]
+value = 16
 
-[PRECISION.ACT_ELEMENT_WIDTH]
-active = 8
-SIMULATION = 8
-ASIC = 8
-default = 8
-tunable_range = [ 2, 4, 8, 16]
+[PRECISION.MATRIX_SRAM_TYPE]
+format = "Plain"
+[PRECISION.MATRIX_SRAM_TYPE.DATA_TYPE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
 
-[PRECISION.KV_ELEMENT_WIDTH]
-active = 8
-SIMULATION = 8
-ASIC = 8
-default = 8
-tunable_range = [ 2, 4, 8, 16]
+[PRECISION.VECTOR_SRAM_TYPE]
+format = "Plain"
+[PRECISION.VECTOR_SRAM_TYPE.DATA_TYPE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
 
-[PRECISION.FP_EXP_WIDTH]
-active = 7
-SIMULATION = 7
-ASIC = 8
-default = 7
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8,]
+[PRECISION.HBM_M_WEIGHT_TYPE]
+format = "Mx"
+block = 4
+[PRECISION.HBM_M_WEIGHT_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.HBM_M_WEIGHT_TYPE.SCALE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 0
 
-[PRECISION.FP_MANT_WIDTH]
-active = 8
-SIMULATION = 8
-ASIC = 7
-default = 8
-tunable_range = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,]
+[PRECISION.HBM_M_KV_TYPE]
+format = "Mx"
+block = 4
+[PRECISION.HBM_M_KV_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.HBM_M_KV_TYPE.SCALE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 0
 
-[PRECISION.INT_DATA_WIDTH]
-active = 32
-SIMULATION = 32
-ASIC = 32
-default = 32
-tunable_range = [ 16, 32, 64,]
+[PRECISION.HBM_V_ACT_TYPE]
+format = "Mx"
+block = 4
+[PRECISION.HBM_V_ACT_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.HBM_V_ACT_TYPE.SCALE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 0
 
+[PRECISION.HBM_V_KV_TYPE]
+format = "Mx"
+block = 4
+[PRECISION.HBM_V_KV_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.HBM_V_KV_TYPE.SCALE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 0
+
+[PRECISION.SCALAR_FP]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[LATENCY.SYSTOLIC_PROCESSING_OVERHEAD]
+dc_lib_en = 0
+dc_lib_dis = 0
+
+[LATENCY.VECTOR_LONGEST_OPERATE_CYCLES]
+dc_lib_en = 10
+dc_lib_dis = 20
+
+[LATENCY.VECTOR_ADD_CYCLES]
+dc_lib_en = 2
+dc_lib_dis = 7
+
+[LATENCY.VECTOR_MUL_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 5
+
+[LATENCY.VECTOR_EXP_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 6
+
+[LATENCY.VECTOR_PREFIX_SCAN_CYCLES]
+dc_lib_en = 9
+dc_lib_dis = 9
+
+[LATENCY.VECTOR_SHIFT_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 1
+
+[LATENCY.VECTOR_RECI_CYCLES]
+dc_lib_en = 2
+dc_lib_dis = 7
+
+[LATENCY.VECTOR_MAX_CYCLES]
+dc_lib_en = 4
+dc_lib_dis = 4
+
+[LATENCY.VECTOR_SUM_CYCLES]
+dc_lib_en = 8
+dc_lib_dis = 20
+
+[LATENCY.SCALAR_FP_LONGEST_OPERATE_CYCLES]
+dc_lib_en = 4
+dc_lib_dis = 4
+
+[LATENCY.SCALAR_FP_BASIC_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 1
+
+[LATENCY.SCALAR_FP_EXP_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 2
+
+[LATENCY.SCALAR_FP_SQRT_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 2
+
+[LATENCY.SCALAR_FP_RECI_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 2
+
+[LATENCY.SCALAR_INT_BASIC_CYCLES]
+dc_lib_en = 1
+dc_lib_dis = 1

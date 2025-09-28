@@ -8,21 +8,19 @@ use once_cell::sync::Lazy;
 use quantize::{DataType, FpType, MxDataType};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AcceleratorConfig {
-    pub period_nanos: u64,
-    pub vector_basic_cycles: u32,
-    pub vector_reduct_cycles: u32,
-    pub tile_size: u32,
-    pub batch_size: u32,
-    pub hbm_size: usize,
-    pub matrix_sram_size: usize,
-    pub vector_sram_size: usize,
-    pub matrix_sram_type: MxDataTypeConfig,
-    pub vector_sram_type: MxDataTypeConfig,
-    pub matrix_weight_type: MxDataTypeConfig,
-    pub matrix_kv_type: MxDataTypeConfig,
-    pub vector_activation_type: MxDataTypeConfig,
-    pub vector_kv_type: MxDataTypeConfig,
+pub struct ConfigValue {
+    pub value: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigValueUsize {
+    pub value: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LatencyValue {
+    pub dc_lib_en: u32,
+    pub dc_lib_dis: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -39,80 +37,236 @@ pub enum DataTypeConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "format")]
-pub enum MxDataTypeConfig {
-    Plain { data_type: DataTypeConfig },
-    Mx {
-        elem: DataTypeConfig,
-        scale: DataTypeConfig,
-        block: u32,
+pub struct MxDataTypeConfig {
+    pub format: String,
+    #[serde(flatten)]
+    pub data: MxDataTypeData,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum MxDataTypeData {
+    Plain {
+        #[serde(rename = "DATA_TYPE")]
+        data_type: DataTypeConfig,
     },
+    Mx {
+        block: u32,
+        #[serde(rename = "ELEM")]
+        elem: DataTypeConfig,
+        #[serde(rename = "SCALE")]
+        scale: DataTypeConfig,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AcceleratorConfig {
+    #[serde(rename = "CONFIG")]
+    pub config: ConfigSection,
+    #[serde(rename = "PRECISION")]
+    pub precision: PrecisionSection,
+    #[serde(rename = "LATENCY")]
+    pub latency: LatencySection,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigSection {
+    #[serde(rename = "BLEN")]
+    pub blen: ConfigValue,
+    #[serde(rename = "MLEN")]
+    pub mlen: ConfigValue,
+    #[serde(rename = "VLEN")]
+    pub vlen: ConfigValue,
+    #[serde(rename = "HBM_SIZE")]
+    pub hbm_size: ConfigValueUsize,
+    #[serde(rename = "MATRIX_SRAM_SIZE")]
+    pub matrix_sram_size: ConfigValueUsize,
+    #[serde(rename = "VECTOR_SRAM_SIZE")]
+    pub vector_sram_size: ConfigValueUsize,
+    #[serde(rename = "HBM_M_Prefetch_Amount")]
+    pub hbm_m_prefetch_amount: ConfigValue,
+    #[serde(rename = "HBM_V_Prefetch_Amount")]
+    pub hbm_v_prefetch_amount: ConfigValue,
+    #[serde(rename = "HBM_V_Writeback_Amount")]
+    pub hbm_v_writeback_amount: ConfigValue,
+    #[serde(rename = "DC_EN")]
+    pub dc_en: ConfigValue,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PrecisionSection {
+    #[serde(rename = "MATRIX_SRAM_TYPE")]
+    pub matrix_sram_type: MxDataTypeConfig,
+    #[serde(rename = "VECTOR_SRAM_TYPE")]
+    pub vector_sram_type: MxDataTypeConfig,
+    #[serde(rename = "HBM_M_WEIGHT_TYPE")]
+    pub hbm_m_weight_type: MxDataTypeConfig,
+    #[serde(rename = "HBM_M_KV_TYPE")]
+    pub hbm_m_kv_type: MxDataTypeConfig,
+    #[serde(rename = "HBM_V_ACT_TYPE")]
+    pub hbm_v_act_type: MxDataTypeConfig,
+    #[serde(rename = "HBM_V_KV_TYPE")]
+    pub hbm_v_kv_type: MxDataTypeConfig,
+    #[serde(rename = "SCALAR_FP")]
+    pub scalar_fp: DataTypeConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LatencySection {
+    #[serde(rename = "SYSTOLIC_PROCESSING_OVERHEAD")]
+    pub systolic_processing_overhead: LatencyValue,
+    #[serde(rename = "VECTOR_ADD_CYCLES")]
+    pub vector_add_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_MUL_CYCLES")]
+    pub vector_mul_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_EXP_CYCLES")]
+    pub vector_exp_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_PREFIX_SCAN_CYCLES")]
+    pub vector_prefix_scan_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_SHIFT_CYCLES")]
+    pub vector_shift_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_RECI_CYCLES")]
+    pub vector_reci_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_MAX_CYCLES")]
+    pub vector_max_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_SUM_CYCLES")]
+    pub vector_sum_cycles: LatencyValue,
+    #[serde(rename = "SCALAR_FP_LONGEST_OPERATE_CYCLES")]
+    pub scalar_fp_longest_operate_cycles: LatencyValue,
+    #[serde(rename = "SCALAR_FP_BASIC_CYCLES")]
+    pub scalar_fp_basic_cycles: LatencyValue,
+    #[serde(rename = "SCALAR_FP_EXP_CYCLES")]
+    pub scalar_fp_exp_cycles: LatencyValue,
+    #[serde(rename = "SCALAR_FP_SQRT_CYCLES")]
+    pub scalar_fp_sqrt_cycles: LatencyValue,
+    #[serde(rename = "SCALAR_FP_RECI_CYCLES")]
+    pub scalar_fp_reci_cycles: LatencyValue,
+    #[serde(rename = "SCALAR_INT_BASIC_CYCLES")]
+    pub scalar_int_basic_cycles: LatencyValue,
 }
 
 impl Default for AcceleratorConfig {
     fn default() -> Self {
         AcceleratorConfig {
-            period_nanos: 1,
-            vector_basic_cycles: 1,
-            vector_reduct_cycles: 4,
-            tile_size: 128,
-            batch_size: 4,
-            hbm_size: 1024 * 1024 * 1024,
-            matrix_sram_size: 1024,
-            vector_sram_size: 1024,
-            matrix_sram_type: MxDataTypeConfig::Plain {
-                data_type: DataTypeConfig::Fp(FpTypeConfig {
+            config: ConfigSection {
+                blen: ConfigValue { value: 32 },
+                mlen: ConfigValue { value: 32 },
+                vlen: ConfigValue { value: 32 },
+                hbm_size: ConfigValueUsize { value: 1073741824 },
+                matrix_sram_size: ConfigValueUsize { value: 1024 },
+                vector_sram_size: ConfigValueUsize { value: 1024 },
+                hbm_m_prefetch_amount: ConfigValue { value: 16 },
+                hbm_v_prefetch_amount: ConfigValue { value: 16 },
+                hbm_v_writeback_amount: ConfigValue { value: 16 },
+                dc_en: ConfigValue { value: 1 },
+            },
+            precision: PrecisionSection {
+                matrix_sram_type: MxDataTypeConfig {
+                    format: "Plain".to_string(),
+                    data: MxDataTypeData::Plain {
+                        data_type: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 8,
+                            mantissa: 7,
+                        }),
+                    },
+                },
+                vector_sram_type: MxDataTypeConfig {
+                    format: "Plain".to_string(),
+                    data: MxDataTypeData::Plain {
+                        data_type: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 8,
+                            mantissa: 7,
+                        }),
+                    },
+                },
+                hbm_m_weight_type: MxDataTypeConfig {
+                    format: "Mx".to_string(),
+                    data: MxDataTypeData::Mx {
+                        block: 4,
+                        elem: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 4,
+                            mantissa: 3,
+                        }),
+                        scale: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 8,
+                            mantissa: 0,
+                        }),
+                    },
+                },
+                hbm_m_kv_type: MxDataTypeConfig {
+                    format: "Mx".to_string(),
+                    data: MxDataTypeData::Mx {
+                        block: 4,
+                        elem: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 4,
+                            mantissa: 3,
+                        }),
+                        scale: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 8,
+                            mantissa: 0,
+                        }),
+                    },
+                },
+                hbm_v_act_type: MxDataTypeConfig {
+                    format: "Mx".to_string(),
+                    data: MxDataTypeData::Mx {
+                        block: 4,
+                        elem: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 4,
+                            mantissa: 3,
+                        }),
+                        scale: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 8,
+                            mantissa: 0,
+                        }),
+                    },
+                },
+                hbm_v_kv_type: MxDataTypeConfig {
+                    format: "Mx".to_string(),
+                    data: MxDataTypeData::Mx {
+                        block: 4,
+                        elem: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 4,
+                            mantissa: 3,
+                        }),
+                        scale: DataTypeConfig::Fp(FpTypeConfig {
+                            sign: true,
+                            exponent: 8,
+                            mantissa: 0,
+                        }),
+                    },
+                },
+                scalar_fp: DataTypeConfig::Fp(FpTypeConfig {
                     sign: true,
                     exponent: 8,
                     mantissa: 7,
                 }),
             },
-            vector_sram_type: MxDataTypeConfig::Plain {
-                data_type: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 8,
-                    mantissa: 7,
-                }),
-            },
-            matrix_weight_type: MxDataTypeConfig::Plain {
-                data_type: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 8,
-                    mantissa: 7,
-                }),
-            },
-            matrix_kv_type: MxDataTypeConfig::Plain {
-                data_type: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 8,
-                    mantissa: 7,
-                }),
-            },
-            vector_activation_type: MxDataTypeConfig::Mx {
-                elem: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 3,
-                    mantissa: 4,
-                }),
-                scale: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 8,
-                    mantissa: 0,
-                }),
-                block: 4,
-            },
-            vector_kv_type: MxDataTypeConfig::Mx {
-                elem: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 7,
-                    mantissa: 8,
-                }),
-                scale: DataTypeConfig::Fp(FpTypeConfig {
-                    sign: true,
-                    exponent: 8,
-                    mantissa: 0,
-                }),
-                block: 4,
+            latency: LatencySection {
+                systolic_processing_overhead: LatencyValue { dc_lib_en: 0, dc_lib_dis: 0 },
+                vector_add_cycles: LatencyValue { dc_lib_en: 2, dc_lib_dis: 7 },
+                vector_mul_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 5 },
+                vector_exp_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 6 },
+                vector_prefix_scan_cycles: LatencyValue { dc_lib_en: 9, dc_lib_dis: 9 },
+                vector_shift_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 1 },
+                vector_reci_cycles: LatencyValue { dc_lib_en: 2, dc_lib_dis: 7 },
+                vector_max_cycles: LatencyValue { dc_lib_en: 4, dc_lib_dis: 4 },
+                vector_sum_cycles: LatencyValue { dc_lib_en: 8, dc_lib_dis: 20 },
+                scalar_fp_longest_operate_cycles: LatencyValue { dc_lib_en: 4, dc_lib_dis: 4 },
+                scalar_fp_basic_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 1 },
+                scalar_fp_exp_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 2 },
+                scalar_fp_sqrt_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 2 },
+                scalar_fp_reci_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 2 },
+                scalar_int_basic_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 1 },
             },
         }
     }
@@ -139,9 +293,9 @@ impl From<DataTypeConfig> for DataType {
 
 impl From<MxDataTypeConfig> for MxDataType {
     fn from(config: MxDataTypeConfig) -> Self {
-        match config {
-            MxDataTypeConfig::Plain { data_type } => MxDataType::Plain(data_type.into()),
-            MxDataTypeConfig::Mx { elem, scale, block } => MxDataType::Mx {
+        match config.data {
+            MxDataTypeData::Plain { data_type } => MxDataType::Plain(data_type.into()),
+            MxDataTypeData::Mx { elem, scale, block } => MxDataType::Mx {
                 elem: elem.into(),
                 scale: scale.into(),
                 block,
@@ -172,7 +326,7 @@ pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
     
     // 2. Try standard config file locations
     let config_paths = [
-        "./plena_settings.toml"
+        "../../src/definitions/plena_settings.toml"
     ];
     
     for path in &config_paths {
@@ -191,63 +345,135 @@ pub fn load_config_from_file(path: &str) -> Result<AcceleratorConfig, Box<dyn st
     Ok(config)
 }
 
-// Convenience functions to access configuration values with the same names as your constants
-pub fn period() -> Duration {
-    Duration::from_nanos(CONFIG.period_nanos)
+// Helper function to check if DC library is enabled from config
+pub fn is_dc_lib_enabled() -> bool {
+    CONFIG.config.dc_en.value != 0
 }
 
-pub fn vector_basic_cycles() -> u32 {
-    CONFIG.vector_basic_cycles
+// Helper function to select DC library enabled or disabled values
+pub fn get_dc_lib_value(latency_val: &LatencyValue) -> u32 {
+    if is_dc_lib_enabled() {
+        latency_val.dc_lib_en
+    } else {
+        latency_val.dc_lib_dis
+    }
 }
 
-pub fn vector_reduct_cycles() -> u32 {
-    CONFIG.vector_reduct_cycles
-}
-
-pub fn tile_size() -> u32 {
-    CONFIG.tile_size
-}
-
-pub fn batch_size() -> u32 {
-    CONFIG.batch_size
-}
+// Configuration accessor functions (automatically uses DC_EN setting from config)
 
 pub fn hbm_size() -> usize {
-    CONFIG.hbm_size
+    CONFIG.config.hbm_size.value
 }
 
 pub fn matrix_sram_size() -> usize {
-    CONFIG.matrix_sram_size
+    CONFIG.config.matrix_sram_size.value
 }
 
 pub fn vector_sram_size() -> usize {
-    CONFIG.vector_sram_size
+    CONFIG.config.vector_sram_size.value
 }
 
 pub fn matrix_sram_type() -> MxDataType {
-    CONFIG.matrix_sram_type.clone().into()
+    CONFIG.precision.matrix_sram_type.clone().into()
 }
 
 pub fn vector_sram_type() -> MxDataType {
-    CONFIG.vector_sram_type.clone().into()
+    CONFIG.precision.vector_sram_type.clone().into()
 }
 
 pub fn matrix_weight_type() -> MxDataType {
-    CONFIG.matrix_weight_type.clone().into()
+    CONFIG.precision.hbm_m_weight_type.clone().into()
 }
 
 pub fn matrix_kv_type() -> MxDataType {
-    CONFIG.matrix_kv_type.clone().into()
+    CONFIG.precision.hbm_m_kv_type.clone().into()
 }
 
 pub fn vector_activation_type() -> MxDataType {
-    CONFIG.vector_activation_type.clone().into()
+    CONFIG.precision.hbm_v_act_type.clone().into()
 }
 
 pub fn vector_kv_type() -> MxDataType {
-    CONFIG.vector_kv_type.clone().into()
+    CONFIG.precision.hbm_v_kv_type.clone().into()
 }
 
+// Additional accessor functions for new parameters
+pub fn mlen() -> u32 {
+    CONFIG.config.mlen.value
+}
+
+pub fn vlen() -> u32 {
+    CONFIG.config.vlen.value
+}
+
+pub fn blen() -> u32 {
+    CONFIG.config.blen.value
+}
+
+pub fn dc_en() -> u32 {
+    CONFIG.config.dc_en.value
+}
+
+// Latency accessor functions (automatically uses DC_EN setting from config)
+pub fn systolic_processing_overhead() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.systolic_processing_overhead)
+}
+
+// pub fn vector_ps_cycles() -> u32 {
+//     get_dc_lib_value(&CONFIG.latency.vector_ps_cycles)
+// }
+
+// pub fn vector_shift_cycles() -> u32 {
+//     get_dc_lib_value(&CONFIG.latency.vector_shift_cycles)
+// }
+
+pub fn vector_max_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_max_cycles)
+}
+
+pub fn vector_sum_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_sum_cycles)
+}
+
+pub fn vector_add_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_add_cycles)
+}
+
+pub fn vector_mul_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_mul_cycles)
+}
+
+pub fn vector_exp_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_exp_cycles)
+}
+
+pub fn vector_reci_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_reci_cycles)
+}
+
+pub fn scalar_fp_longest_operate_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.scalar_fp_longest_operate_cycles)
+}
+
+pub fn scalar_fp_basic_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.scalar_fp_basic_cycles)
+}
+
+pub fn scalar_fp_exp_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.scalar_fp_exp_cycles)
+}
+
+pub fn scalar_fp_sqrt_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.scalar_fp_sqrt_cycles)
+}
+
+pub fn scalar_fp_reci_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.scalar_fp_reci_cycles)
+}
+
+pub fn scalar_int_basic_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.scalar_int_basic_cycles)
+}
 // Utility function to generate example config file
 pub fn generate_example_config() -> Result<(), Box<dyn std::error::Error>> {
     let config = AcceleratorConfig::default();
@@ -264,40 +490,28 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = AcceleratorConfig::default();
-        assert_eq!(config.period_nanos, 1);
-        assert_eq!(config.vector_basic_cycles, 1);
-        assert_eq!(config.tile_size, 128);
+        assert_eq!(config.config.blen.value, 32);
+        assert_eq!(config.config.mlen.value, 32);
+        assert_eq!(config.config.vlen.value, 32);
+        assert_eq!(config.config.dc_en.value, 1);
     }
     
     #[test]
-    fn test_config_conversion() {
+    fn test_dc_lib_selection() {
         let config = AcceleratorConfig::default();
-        let mx_type: MxDataType = config.matrix_sram_type.into();
+        // Test with DC_EN = 1 (enabled)
+        assert_eq!(get_dc_lib_value(&config.latency.vector_add_cycles), 2);
         
-        // Test that conversion works
-        match mx_type {
-            MxDataType::Plain(DataType::Fp(fp_type)) => {
-                assert!(fp_type.sign);
-                assert_eq!(fp_type.exponent, 8);
-                assert_eq!(fp_type.mantissa, 7);
-            }
-            _ => panic!("Unexpected type conversion"),
-        }
+        // Test is_dc_lib_enabled function
+        assert!(is_dc_lib_enabled());
     }
+    
     #[test]
-    fn test_toml_loading() {
-        let test_file = "./src/test_config.toml";
-        
-        let absolute_path = std::fs::canonicalize(test_file).unwrap_or_else(|_| {
-            std::env::current_dir().unwrap().join(test_file)
-        });
-        println!("Test file path: {:?}", absolute_path);
-        
-        // Test the specific file directly instead of using load_config()
-        let config = load_config_from_file(test_file).expect("Failed to load test config");
-        
-        assert_eq!(config.period_nanos, 15);
-        assert_eq!(config.vector_basic_cycles, 7);
-        assert_eq!(config.tile_size, 1024);
+    fn test_accessor_functions() {
+        assert_eq!(mlen(), 32);
+        assert_eq!(vlen(), 32);
+        assert_eq!(blen(), 32);
+        assert_eq!(dc_en(), 1);
+        assert_eq!(vector_add_cycles(), 2); // Should use dc_lib_en since DC_EN = 1
     }
 }
