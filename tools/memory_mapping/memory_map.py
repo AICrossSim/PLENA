@@ -30,10 +30,9 @@ def map_fp_data_to_fake_hbm(packed_input, element_width, path):
             row = ""
             index_in_row += 1
 
-def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
-
+def map_data_to_fake_hbm_for_rtl_sim(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
     """
-    Maps the quantized blocks and bias to a fake HBM memory structure.
+    Maps the quantized blocks and bias to two memory files as the fake HBM memory.
     """
     num_blocks_per_row = hbm_row_width // block_width
     num_bias_per_row = hbm_row_width // bias_width
@@ -90,6 +89,55 @@ def map_data_to_fake_hbm(blocks, element_width, block_width, bias, bias_width, d
             f.write("0x" + insert_bias_row + "\n")
 
 
+def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
+    """
+    Maps the quantized blocks and bias to single memory file fake HBM memory, used as the behavioral simulator input.
+    """
+    num_blocks_per_row = hbm_row_width // block_width
+    num_bias_per_row = hbm_row_width // bias_width
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    if not append:
+        # Clear existing files if not appending
+        with open(os.path.join(directory, "hbm_for_behave_sim.mem"), "w") as f:
+            f.write("")
+
+    with open(os.path.join(directory, "hbm_for_behave_sim.mem"), "a") as f:
+        insert_row = ""
+        combined_blk = ""
+        index_in_row = 0
+        for i, block in enumerate(blocks):
+            combined_blk = combined_blk + map_block_to_value(block, element_width) 
+            if i % combined_blk_dim == combined_blk_dim - 1:
+                insert_row = combined_blk + insert_row
+                combined_blk = ""
+            index_in_row += 1
+            if index_in_row == num_blocks_per_row:
+                f.write("0x" + insert_row + "\n")
+                insert_row = ""
+                index_in_row = 0
+
+        combined_bias = ""
+        index_ratio = (num_bias_per_row // num_blocks_per_row)
+        for i, b in enumerate(bias):
+            combined_bias = combined_bias + map_scale_to_value(b, bias_width)
+            if i % combined_blk_dim == combined_blk_dim - 1:
+                insert_row =  combined_bias + insert_row
+                combined_bias = ""
+            index_in_row += (1 / index_ratio)
+            if index_in_row >= num_bias_per_row:
+                f.write("0x" + insert_row + "\n")
+                insert_row = ""
+                index_in_row = 0
+        if 0 < index_in_row < num_blocks_per_row:
+            # If the last row is not full, pad it with zeros
+            insert_row = "0" * (num_blocks_per_row - int(index_ratio * index_in_row)) * (element_width // 4) + insert_row
+            f.write("0x" + insert_row + "\n")
+
+
+
 if __name__ == "__main__":
     directory = "../../test/weight"
     fake_hbm_dir = "../../test/load_mem"
@@ -113,7 +161,7 @@ if __name__ == "__main__":
     rand_gen_high.tensor_gen()
     weight = rand_gen_high.tensor_load()
     blocks, bias = rand_gen_high.quantize_tensor(weight[:8, :])
-    map_data_to_fake_hbm(   blocks=blocks,
+    map_data_to_fake_hbm_for_rtl_sim(   blocks=blocks,
                             element_width=quant_config_high["exp_width"] + quant_config_high["man_width"] + 1,
                             block_width=(quant_config_high["exp_width"] + quant_config_high["man_width"] + 1) * 4,
                             bias=bias,
@@ -137,7 +185,7 @@ if __name__ == "__main__":
         quant_config=quant_config_low
     )
     blocks, bias = rand_gen_low.quantize_tensor(weight[8:, :])
-    map_data_to_fake_hbm(   blocks=blocks,
+    map_data_to_fake_hbm_for_rtl_sim(   blocks=blocks,
                             element_width=quant_config_low["exp_width"] + quant_config_low["man_width"] + 1,
                             block_width=(quant_config_low["exp_width"] + quant_config_low["man_width"] + 1) * 4,
                             bias=bias,

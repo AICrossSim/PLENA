@@ -2,7 +2,7 @@
 value = 1
 
 [CONFIG.BLEN]
-value = 32
+value = 4
 
 [CONFIG.MLEN]
 value = 64

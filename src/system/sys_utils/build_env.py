@@ -8,8 +8,8 @@ from utils.load_config import load_svh_settings
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 
-def build_sim_env():
-    
+def build_sim_env(data_size=64, block_size=8):
+    # TODO: Add an automatic to actually gen the sim env.
     parser = argparse.ArgumentParser(description="Build simulation environment")
     parser.add_argument('--asm', type=str, required=True, help='Path to assembly file')
     parser.add_argument('--data', type=str, default=None, help='Output directory for build files')
@@ -20,8 +20,8 @@ def build_sim_env():
     asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{args.asm}.asm")
 
     data_config = {
-        "tensor_size": [1, 8],
-        "block_size": [1, 4],
+        "tensor_size": [1, data_size],
+        "block_size" : [1, block_size],
     }
 
     quant_config = {

@@ -7,7 +7,7 @@ from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin, fp_2_bin
 from cfl_tools import PROJECT_PATH
 
-from memory_mapping.memory_map import map_fp_data_to_fake_hbm, map_data_to_fake_hbm
+from memory_mapping.memory_map import map_fp_data_to_fake_hbm, map_data_to_fake_hbm_for_rtl_sim, map_data_to_fake_hbm_for_behave_sim
 from assembler.assembly_to_binary import AssemblyToBinary
 
 def generate_golden_result(data, logger, precision_settings, data_config):
@@ -64,10 +64,21 @@ def env_setup(blocks, bias, test_path: str, data_config, quant_config):
 
     assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
     assembler.generate_binary(asm_file_path, build_folder / f'{test_file_name}.mem')
-
     torch.manual_seed(52)
     
-    map_data_to_fake_hbm(   blocks=blocks,
+    map_data_to_fake_hbm_for_rtl_sim(   
+                            blocks=blocks,
+                            element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
+                            block_width=data_config["block_size"][1],
+                            bias=bias,
+                            bias_width=quant_config["exp_bias_width"],
+                            combined_blk_dim = data_config["tensor_size"][1]//data_config["block_size"][1],
+                            directory=build_folder,
+                            append=False,
+                            hbm_row_width=256)
+
+    map_data_to_fake_hbm_for_behave_sim(   
+                            blocks=blocks,
                             element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
                             block_width=data_config["block_size"][1],
                             bias=bias,
@@ -97,10 +108,12 @@ def init_mem(in_args=None):
     build_path.mkdir(parents=True, exist_ok=True)
     hbm_element_file = build_path / "hbm_ele.mem"
     hbm_scale_file = build_path / "hbm_scale.mem"
+    hbm_file_for_behave_sim = build_path / "hbm_for_behave_sim.mem"
     instr_file = build_path / f"{Path(args.path).stem}.mem"
 
     os.environ["HBM_ELEMENT_FILE"] = str(hbm_element_file)
     os.environ["HBM_SCALE_FILE"] = str(hbm_scale_file)
+    os.environ["HBM_FOR_BEHAVE_SIM_FILE"] = str(hbm_file_for_behave_sim)
     os.environ["INSTR_FILE"] = str(instr_file) 
 
     hbm_write_element_m_file    = build_path / "hbm_write_m_ele.mem"

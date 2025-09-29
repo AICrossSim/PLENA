@@ -421,16 +421,13 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits = element_bits as u32 * len as u32;
-            println!("len_in_bits: {}", len_in_bits);
             assert!(len_in_bits.is_multiple_of(8 * 64));
             let len_in_bytes = len_in_bits / 8;
 
             let (scale_len_in_bytes, block) =
                 if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
                     let scale_bits = scale.size_in_bits();
-                    println!("scale_bits: {}", scale_bits);
                     assert!(scale_bits.is_power_of_two());
-
                     let scale_len_in_bits = scale_bits as u32 * len as u32;
                     assert!(scale_len_in_bits.is_multiple_of(8 * 64));
                     (scale_len_in_bits / 8, block as usize)
@@ -441,7 +438,6 @@ impl Accelerator {
             let mut bytes = vec![0; len_in_bytes as usize];
             let mut scale_bytes = vec![0; scale_len_in_bytes as usize];
             let hbm_clone = &hbm_clone;
-
             let futures = FuturesUnordered::<Pin<Box<dyn Future<Output = _> + Send>>>::new();
 
             for (i, x) in bytes.chunks_mut(64).enumerate() {
@@ -459,9 +455,7 @@ impl Accelerator {
             }
 
             futures.collect::<()>().await;
-
             println!("{:?}", bytes);
-
             let mut vec = vec![0f32; len];
             element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
             println!("{:?}", vec);
@@ -742,7 +736,7 @@ impl Accelerator {
                         MxDataType::Mx { elem, scale, block } => {
                             offset
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
-                        }
+                        } // Element addr shifted by (element to scale ratio)
                     };
                     println!("prefetch_m: dtype_size = {:?}", dtype.element_type().size_in_bits());
 
