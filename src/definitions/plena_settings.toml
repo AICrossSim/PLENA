@@ -5,10 +5,10 @@ value = 1
 value = 32
 
 [CONFIG.MLEN]
-value = 32
+value = 64
 
 [CONFIG.VLEN]
-value = 32
+value = 64
 
 [CONFIG.HBM_SIZE]
 value = 1073741824
@@ -54,7 +54,7 @@ exponent = 4
 mantissa = 3
 [PRECISION.HBM_M_WEIGHT_TYPE.SCALE]
 type = "Fp"
-sign = true
+sign = false
 exponent = 8
 mantissa = 0
 
@@ -68,13 +68,13 @@ exponent = 4
 mantissa = 3
 [PRECISION.HBM_M_KV_TYPE.SCALE]
 type = "Fp"
-sign = true
+sign = false
 exponent = 8
 mantissa = 0
 
 [PRECISION.HBM_V_ACT_TYPE]
 format = "Mx"
-block = 4
+block = 8
 [PRECISION.HBM_V_ACT_TYPE.ELEM]
 type = "Fp"
 sign = true
@@ -82,13 +82,13 @@ exponent = 4
 mantissa = 3
 [PRECISION.HBM_V_ACT_TYPE.SCALE]
 type = "Fp"
-sign = true
+sign = false
 exponent = 8
 mantissa = 0
 
 [PRECISION.HBM_V_KV_TYPE]
 format = "Mx"
-block = 4
+block = 8
 [PRECISION.HBM_V_KV_TYPE.ELEM]
 type = "Fp"
 sign = true
@@ -96,7 +96,7 @@ exponent = 4
 mantissa = 3
 [PRECISION.HBM_V_KV_TYPE.SCALE]
 type = "Fp"
-sign = true
+sign = false
 exponent = 8
 mantissa = 0
 

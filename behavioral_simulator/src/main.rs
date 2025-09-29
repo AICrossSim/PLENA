@@ -195,23 +195,23 @@ struct MatrixMachine {
     m_accum: Tensor,
     v_accum: Tensor,
     tile_size: u32,
-    batch_size: u32,
+    blen: u32,
 }
 
 impl MatrixMachine {
     async fn mm(&mut self, v_addr: u32, m_addr: u32) {
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
-        assert!(mat_offset.is_multiple_of(self.batch_size));
+        assert!(mat_offset.is_multiple_of(self.blen));
 
         let full_mat = self.mram.read(mat_base).await;
         let mat = full_mat
             .as_tensor()
-            .i((mat_offset as i64..(mat_offset + self.batch_size) as i64, ..));
+            .i((mat_offset as i64..(mat_offset + self.blen) as i64, ..));
 
-        let mut tensors = Vec::with_capacity(self.batch_size as usize);
+        let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
-        for i in 0..self.batch_size {
+        for i in 0..self.blen {
             tensors.push(
                 self.vram
                     .read(v_addr + i * self.tile_size)
@@ -228,15 +228,15 @@ impl MatrixMachine {
     async fn tmm(&mut self, v_addr: u32, m_addr: u32) {
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
-        assert!(mat_offset.is_multiple_of(self.batch_size));
+        assert!(mat_offset.is_multiple_of(self.blen));
         let full_mat = self.mram.read(mat_base).await;
         let mat = full_mat
             .as_tensor()
             .transpose(-1, -2)
-            .i((mat_offset as i64..(mat_offset + self.batch_size) as i64, ..));
-        let mut tensors = Vec::with_capacity(self.batch_size as usize);
+            .i((mat_offset as i64..(mat_offset + self.blen) as i64, ..));
+        let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
-        for i in 0..self.batch_size {
+        for i in 0..self.blen {
             tensors.push(
                 self.vram
                     .read(v_addr + i * self.tile_size)
@@ -252,13 +252,13 @@ impl MatrixMachine {
 
     async fn mm_wo(&mut self, v_addr: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.tile_size);
-        assert!(vec_offset.is_multiple_of(self.batch_size));
+        assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
-        for i in 0..self.batch_size {
+        for i in 0..self.blen {
             let tensor = self.m_accum.i((i as i64, ..)).unsqueeze(0);
             let old = self.vram.read(vec_base + i * self.tile_size).await;
             let new = old.as_tensor().copy();
-            new.i(vec_offset as i64..(vec_offset + self.batch_size) as i64)
+            new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
                 .copy_(&tensor);
             self.vram
                 .write(
@@ -269,7 +269,7 @@ impl MatrixMachine {
         }
 
         self.m_accum = Tensor::zeros(
-            [self.batch_size as i64, self.batch_size as i64],
+            [self.blen as i64, self.blen as i64],
             (tch::Kind::Float, tch::Device::Cpu),
         );
     }
@@ -421,12 +421,14 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits = element_bits as u32 * len as u32;
+            println!("len_in_bits: {}", len_in_bits);
             assert!(len_in_bits.is_multiple_of(8 * 64));
             let len_in_bytes = len_in_bits / 8;
 
             let (scale_len_in_bytes, block) =
                 if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
                     let scale_bits = scale.size_in_bits();
+                    println!("scale_bits: {}", scale_bits);
                     assert!(scale_bits.is_power_of_two());
 
                     let scale_len_in_bits = scale_bits as u32 * len as u32;
@@ -742,6 +744,7 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
+                    println!("prefetch_m: dtype_size = {:?}", dtype.element_type().size_in_bits());
 
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
@@ -778,7 +781,7 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
-
+                    println!("prefetch_v: dtype_size = {:?}", dtype.element_type().size_in_bits());
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
@@ -833,7 +836,7 @@ async fn start() {
         mram,
         vram: vram.clone(),
         tile_size: *MLEN,
-        batch_size: *BLEN,
+        blen: *BLEN,
         m_accum: Tensor::zeros(
             [*BLEN as i64, *BLEN as i64],
             (tch::Kind::Float, tch::Device::Cpu),

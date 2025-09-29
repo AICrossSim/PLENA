@@ -184,7 +184,7 @@ impl Default for AcceleratorConfig {
                 hbm_m_weight_type: MxDataTypeConfig {
                     format: "Mx".to_string(),
                     data: MxDataTypeData::Mx {
-                        block: 4,
+                        block: 8,
                         elem: DataTypeConfig::Fp(FpTypeConfig {
                             sign: true,
                             exponent: 4,
@@ -200,7 +200,7 @@ impl Default for AcceleratorConfig {
                 hbm_m_kv_type: MxDataTypeConfig {
                     format: "Mx".to_string(),
                     data: MxDataTypeData::Mx {
-                        block: 4,
+                        block: 8,
                         elem: DataTypeConfig::Fp(FpTypeConfig {
                             sign: true,
                             exponent: 4,
@@ -216,7 +216,7 @@ impl Default for AcceleratorConfig {
                 hbm_v_act_type: MxDataTypeConfig {
                     format: "Mx".to_string(),
                     data: MxDataTypeData::Mx {
-                        block: 4,
+                        block: 8,
                         elem: DataTypeConfig::Fp(FpTypeConfig {
                             sign: true,
                             exponent: 4,
@@ -232,7 +232,7 @@ impl Default for AcceleratorConfig {
                 hbm_v_kv_type: MxDataTypeConfig {
                     format: "Mx".to_string(),
                     data: MxDataTypeData::Mx {
-                        block: 4,
+                        block: 8,
                         elem: DataTypeConfig::Fp(FpTypeConfig {
                             sign: true,
                             exponent: 4,
@@ -314,19 +314,9 @@ pub static CONFIG: Lazy<AcceleratorConfig> = Lazy::new(|| {
 
 // Configuration loading functions
 pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
-    // Try multiple sources in order of preference
-    
-    // 1. Try environment variable for config file path
-    if let Ok(config_path) = std::env::var("CONFIG_FILE_PATH") {
-        if let Ok(config) = load_config_from_file(&config_path) {
-            println!("Loaded config from: {}", config_path);
-            return Ok(config);
-        }
-    }
-    
-    // 2. Try standard config file locations
+
     let config_paths = [
-        "../../src/definitions/plena_settings.toml"
+        "../src/definitions/plena_settings.toml"
     ];
     
     for path in &config_paths {
