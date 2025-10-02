@@ -121,6 +121,8 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
 
         combined_bias = ""
         index_ratio = (num_bias_per_row // num_blocks_per_row)
+        
+        breakpoint()
         for i, b in enumerate(bias):
             combined_bias = combined_bias + map_scale_to_value(b, bias_width)
             if i % combined_blk_dim == combined_blk_dim - 1:

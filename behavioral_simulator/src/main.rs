@@ -1,11 +1,12 @@
-mod op;
-mod load_config; // Add this line to include the config module
+mod load_config;
+mod op; // Add this line to include the config module
 
+use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::future::Future;
+use std::sync::LazyLock;
 
 use clap::Parser;
 use futures::StreamExt;
@@ -25,36 +26,33 @@ use load_config::*;
 // Replace the const declarations with function calls to the config
 // These functions will be called at runtime to get the configured values
 
-// You can still use these as pseudo-constants by wrapping them in lazy statics if needed
-use once_cell::sync::Lazy;
-
-// Lazy static "constants" that behave like your original constants
 const PERIOD: Duration = Duration::from_nanos(1);
-static SYSTOLIC_PROCESSING_OVERHEAD: Lazy<u32> = Lazy::new(|| systolic_processing_overhead());
-static VECTOR_ADD_CYCLES: Lazy<u32> = Lazy::new(|| vector_add_cycles());
-static VECTOR_MUL_CYCLES: Lazy<u32> = Lazy::new(|| vector_mul_cycles());
-static VECTOR_EXP_CYCLES: Lazy<u32> = Lazy::new(|| vector_exp_cycles());
-static VECTOR_RECI_CYCLES: Lazy<u32> = Lazy::new(|| vector_reci_cycles());
-static VECTOR_MAX_CYCLES: Lazy<u32> = Lazy::new(|| vector_max_cycles());
-static VECTOR_SUM_CYCLES: Lazy<u32> = Lazy::new(|| vector_sum_cycles());
-static SCALAR_FP_BASIC_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_basic_cycles());
-static SCALAR_FP_EXP_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_exp_cycles());
-static SCALAR_FP_SQRT_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_sqrt_cycles());
-static SCALAR_FP_RECI_CYCLES: Lazy<u32> = Lazy::new(|| scalar_fp_reci_cycles());
-static SCALAR_INT_BASIC_CYCLES: Lazy<u32> = Lazy::new(|| scalar_int_basic_cycles());
+static SYSTOLIC_PROCESSING_OVERHEAD: LazyLock<u32> =
+    LazyLock::new(|| systolic_processing_overhead());
+static VECTOR_ADD_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_add_cycles());
+static VECTOR_MUL_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_mul_cycles());
+static VECTOR_EXP_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_exp_cycles());
+static VECTOR_RECI_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_reci_cycles());
+static VECTOR_MAX_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_max_cycles());
+static VECTOR_SUM_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_sum_cycles());
+static SCALAR_FP_BASIC_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_basic_cycles());
+static SCALAR_FP_EXP_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_exp_cycles());
+static SCALAR_FP_SQRT_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_sqrt_cycles());
+static SCALAR_FP_RECI_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_reci_cycles());
+static SCALAR_INT_BASIC_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_int_basic_cycles());
 
-static MLEN: Lazy<u32> = Lazy::new(|| mlen());
-static VLEN: Lazy<u32> = Lazy::new(|| vlen());
-static BLEN: Lazy<u32> = Lazy::new(|| blen());
-static HBM_SIZE: Lazy<usize> = Lazy::new(|| hbm_size());
-static MATRIX_SRAM_SIZE: Lazy<usize> = Lazy::new(|| matrix_sram_size());
-static VECTOR_SRAM_SIZE: Lazy<usize> = Lazy::new(|| vector_sram_size());
-static MATRIX_SRAM_TYPE: Lazy<MxDataType> = Lazy::new(|| matrix_sram_type());
-static VECTOR_SRAM_TYPE: Lazy<MxDataType> = Lazy::new(|| vector_sram_type());
-static MATRIX_WEIGHT_TYPE: Lazy<MxDataType> = Lazy::new(|| matrix_weight_type());
-static MATRIX_KV_TYPE: Lazy<MxDataType> = Lazy::new(|| matrix_kv_type());
-static VECTOR_ACTIVATION_TYPE: Lazy<MxDataType> = Lazy::new(|| vector_activation_type());
-static VECTOR_KV_TYPE: Lazy<MxDataType> = Lazy::new(|| vector_kv_type());
+static MLEN: LazyLock<u32> = LazyLock::new(|| mlen());
+static VLEN: LazyLock<u32> = LazyLock::new(|| vlen());
+static BLEN: LazyLock<u32> = LazyLock::new(|| blen());
+static HBM_SIZE: LazyLock<usize> = LazyLock::new(|| hbm_size());
+static MATRIX_SRAM_SIZE: LazyLock<usize> = LazyLock::new(|| matrix_sram_size());
+static VECTOR_SRAM_SIZE: LazyLock<usize> = LazyLock::new(|| vector_sram_size());
+static MATRIX_SRAM_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_sram_type());
+static VECTOR_SRAM_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_sram_type());
+static MATRIX_WEIGHT_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_weight_type());
+static MATRIX_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_kv_type());
+static VECTOR_ACTIVATION_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_activation_type());
+static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type());
 
 /// Address handling utilities.
 ///
@@ -424,16 +422,20 @@ impl Accelerator {
             assert!(len_in_bits.is_multiple_of(8 * 64));
             let len_in_bytes = len_in_bits / 8;
 
-            let (scale_len_in_bytes, block) =
-                if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
-                    let scale_bits = scale.size_in_bits();
-                    assert!(scale_bits.is_power_of_two());
-                    let scale_len_in_bits = scale_bits as u32 * len as u32;
-                    assert!(scale_len_in_bits.is_multiple_of(8 * 64));
-                    (scale_len_in_bits / 8, block as usize)
-                } else {
-                    (0, usize::MAX)
-                };
+            let (scale_len_in_bytes, block) = if let MxDataType::Mx {
+                elem: _,
+                scale,
+                block,
+            } = hbm_type
+            {
+                let scale_bits = scale.size_in_bits();
+                assert!(scale_bits.is_power_of_two());
+                let scale_len_in_bits = scale_bits as u32 * len as u32;
+                assert!(scale_len_in_bits.is_multiple_of(8 * 64));
+                (scale_len_in_bits / 8, block as usize)
+            } else {
+                (0, usize::MAX)
+            };
 
             let mut bytes = vec![0; len_in_bytes as usize];
             let mut scale_bytes = vec![0; scale_len_in_bytes as usize];
@@ -461,7 +463,12 @@ impl Accelerator {
             println!("{:?}", vec);
 
             let mut scale_vec = vec![0f32; len / block as usize];
-            if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
+            if let MxDataType::Mx {
+                elem: _,
+                scale,
+                block,
+            } = hbm_type
+            {
                 scale.convert_bytes_to_f32_vec(&scale_bytes, &mut scale_vec);
 
                 for (elem, scale) in vec
@@ -738,7 +745,10 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         } // Element addr shifted by (element to scale ratio)
                     };
-                    println!("prefetch_m: dtype_size = {:?}", dtype.element_type().size_in_bits());
+                    println!(
+                        "prefetch_m: dtype_size = {:?}",
+                        dtype.element_type().size_in_bits()
+                    );
 
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
@@ -775,7 +785,10 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
-                    println!("prefetch_v: dtype_size = {:?}", dtype.element_type().size_in_bits());
+                    println!(
+                        "prefetch_v: dtype_size = {:?}",
+                        dtype.element_type().size_in_bits()
+                    );
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
@@ -860,14 +873,12 @@ async fn start() {
     };
 
     use std::fs;
-    let op_file = fs::read_to_string(opts.opcode).unwrap(); 
+    let op_file = fs::read_to_string(opts.opcode).unwrap();
     eprintln!("Loaded opcode file: {:?}", op_file);
 
     let op: Vec<u32> = op_file
-        .split_whitespace()                          // split by spaces/newlines
-        .map(|tok| {
-            u32::from_str_radix(tok.trim_start_matches("0x"), 16).unwrap()
-        })
+        .split_whitespace() // split by spaces/newlines
+        .map(|tok| u32::from_str_radix(tok.trim_start_matches("0x"), 16).unwrap())
         .collect();
 
     for (i, word) in op.iter().enumerate() {

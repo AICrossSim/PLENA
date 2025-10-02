@@ -1,8 +1,7 @@
 // load_config.rs
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, sync::LazyLock};
 use std::time::Duration;
-use once_cell::sync::Lazy;
 
 // Import the types from your main module
 use quantize::{DataType, FpType, MxDataType};
@@ -305,7 +304,7 @@ impl From<MxDataTypeConfig> for MxDataType {
 }
 
 // Global configuration loaded at runtime
-pub static CONFIG: Lazy<AcceleratorConfig> = Lazy::new(|| {
+pub static CONFIG: LazyLock<AcceleratorConfig> = LazyLock::new(|| {
     load_config().unwrap_or_else(|e| {
         eprintln!("Failed to load config: {}. Using defaults.", e);
         AcceleratorConfig::default()
