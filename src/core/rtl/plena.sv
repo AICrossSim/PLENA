@@ -10,12 +10,12 @@
 /*
 Module      : Coprocessor Top Module
 Status      : Under Development
-Description : This module serves as the top level of the coprocessor, 
+Description : This module serves as the top level of the plena, 
               controlling the dataflow between the instruction decoder, computation units and memory units.
               It currently only supports single batch execution.
 */
 
-module coprocessor import configuration_pkg::*; import instruction_pkg::*; #(
+module plena import configuration_pkg::*; import instruction_pkg::*; #(
     `ifdef SIMULATION
         parameter string FP_MEM_INIT_FILE       = "",
         parameter string INT_MEM_INIT_FILE      = "",

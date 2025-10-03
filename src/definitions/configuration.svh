@@ -21,25 +21,26 @@ package configuration_pkg;
     parameter   VECTOR_SRAM_WIDTH = (precision_pkg::V_FP_MANT_WIDTH + precision_pkg::V_FP_EXP_WIDTH + 1) * VLEN;
     parameter   VECTOR_SRAM_DEPTH = 1024;
     parameter   VECTOR_RESET_AMOUNT = 8;            // Need to be the same as Head_Dim for assembly code.
-    parameter   INT_SRAM_WIDTH  = precision_pkg::INT_DATA_WIDTH;
-    parameter   INT_SRAM_DEPTH    = 32;
-    parameter   FP_SRAM_WIDTH     = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
-    parameter   FP_SRAM_DEPTH = 512;
-    parameter   HBM_ADDR_WIDTH = 128;
-    
+    parameter   INT_SRAM_WIDTH      = precision_pkg::INT_DATA_WIDTH;
+    parameter   INT_SRAM_DEPTH      = 32;
+    parameter   FP_SRAM_WIDTH       = (precision_pkg::S_FP_MANT_WIDTH + precision_pkg::S_FP_EXP_WIDTH + 1);
+    parameter   FP_SRAM_DEPTH       = 512;
+    parameter   HBM_ADDR_WIDTH      = 128;
+
     // HBM Related
-    parameter   HBM_M_Prefetch_Amount = 16;
-    parameter   HBM_V_Prefetch_Amount = 16;
-    parameter   HBM_V_Writeback_Amount = 16;
-    parameter   HBM_ELE_WIDTH = 512;
-    parameter   HBM_SCALE_WIDTH = 512;
+    parameter   HBM_M_Prefetch_Amount   = 16;
+    parameter   HBM_V_Prefetch_Amount   = 16;
+    parameter   HBM_V_Writeback_Amount  = 16;
+    parameter   HBM_ELE_WIDTH           = 512;
+    parameter   HBM_SCALE_WIDTH         = 512;
+    parameter   HBM_WIDTH               = 512;
 endpackage
 
 package instruction_pkg;
     parameter INT_OPERAND_WIDTH     = 4;
     parameter FP_OPERAND_WIDTH      = 3;
     parameter HBM_ADR_OPERAND_WIDTH = 3;
-    parameter STRIDE_OPERAND_WIDTH = 3;
+    parameter STRIDE_OPERAND_WIDTH  = 3;
     parameter OPERAND_WIDTH         = 4;
     parameter FUNCT_WIDTH           = 4;
     parameter OPCODE_WIDTH          = 6;

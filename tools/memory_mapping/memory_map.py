@@ -89,12 +89,12 @@ def map_data_to_fake_hbm_for_rtl_sim(blocks, element_width, block_width, bias, b
             f.write("0x" + insert_bias_row + "\n")
 
 
-def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
+def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, append = True, hbm_row_width=64):
     """
     Maps the quantized blocks and bias to single memory file fake HBM memory, used as the behavioral simulator input.
     """
-    num_blocks_per_row = hbm_row_width // block_width
-    num_bias_per_row = hbm_row_width // bias_width
+    num_blocks_per_row  = hbm_row_width // (block_width * element_width)
+    num_bias_per_row    = hbm_row_width // bias_width
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -110,33 +110,29 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
         index_in_row = 0
         for i, block in enumerate(blocks):
             combined_blk = combined_blk + map_block_to_value(block, element_width) 
-            if i % combined_blk_dim == combined_blk_dim - 1:
-                insert_row = combined_blk + insert_row
-                combined_blk = ""
             index_in_row += 1
             if index_in_row == num_blocks_per_row:
-                f.write("0x" + insert_row + "\n")
-                insert_row = ""
+                print("insert_row:", combined_blk)
+                f.write("0x" + combined_blk + "\n")
+                combined_blk = ""
                 index_in_row = 0
-
-        combined_bias = ""
-        index_ratio = (num_bias_per_row // num_blocks_per_row)
         
-        breakpoint()
+        combined_bias   = ""
+        index_in_row    = 0
         for i, b in enumerate(bias):
             combined_bias = combined_bias + map_scale_to_value(b, bias_width)
-            if i % combined_blk_dim == combined_blk_dim - 1:
-                insert_row =  combined_bias + insert_row
-                combined_bias = ""
-            index_in_row += (1 / index_ratio)
+            index_in_row += 1
             if index_in_row >= num_bias_per_row:
-                f.write("0x" + insert_row + "\n")
-                insert_row = ""
+                insert_row =  combined_bias + insert_row
+                f.write("0x" + combined_bias + "\n")
+                combined_bias = ""
                 index_in_row = 0
-        if 0 < index_in_row < num_blocks_per_row:
+
+        if 0 < index_in_row < num_bias_per_row:
             # If the last row is not full, pad it with zeros
-            insert_row = "0" * (num_blocks_per_row - int(index_ratio * index_in_row)) * (element_width // 4) + insert_row
+            insert_row = "0" * (num_bias_per_row - int(index_ratio * index_in_row)) * (bias_width // 4) + insert_row
             f.write("0x" + insert_row + "\n")
+        quit()
 
 
 

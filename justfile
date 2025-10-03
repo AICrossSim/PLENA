@@ -25,6 +25,7 @@ test-sw:
 
 
 build-env arg:
+    rm -rf test/Instr_Level_Benchmark/build/{{arg}}
     python3 src/system/sys_utils/build_env.py --asm {{arg}}
 
 build-behave-sim arg:

@@ -50,7 +50,7 @@ def generate_golden_result(data, logger, precision_settings, data_config):
     
     return qdata
 
-def env_setup(blocks, bias, test_path: str, data_config, quant_config):
+def env_setup(blocks, bias, test_path: str, data_config, quant_config, hbm_row_width=256):
 
     torch.manual_seed(52)
     isa_file_path = PROJECT_PATH / 'src' / 'definitions' / 'operation.svh'
@@ -64,7 +64,6 @@ def env_setup(blocks, bias, test_path: str, data_config, quant_config):
 
     assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
     assembler.generate_binary(asm_file_path, build_folder / f'{test_file_name}.mem')
-    torch.manual_seed(52)
     
     map_data_to_fake_hbm_for_rtl_sim(   
                             blocks=blocks,
@@ -72,10 +71,10 @@ def env_setup(blocks, bias, test_path: str, data_config, quant_config):
                             block_width=data_config["block_size"][1],
                             bias=bias,
                             bias_width=quant_config["exp_bias_width"],
-                            combined_blk_dim = data_config["tensor_size"][1]//data_config["block_size"][1],
+                            combined_blk_dim = hbm_row_width//data_config["block_size"][1],
                             directory=build_folder,
                             append=False,
-                            hbm_row_width=256)
+                            hbm_row_width=hbm_row_width)
 
     map_data_to_fake_hbm_for_behave_sim(   
                             blocks=blocks,
@@ -83,10 +82,9 @@ def env_setup(blocks, bias, test_path: str, data_config, quant_config):
                             block_width=data_config["block_size"][1],
                             bias=bias,
                             bias_width=quant_config["exp_bias_width"],
-                            combined_blk_dim = data_config["tensor_size"][1]//data_config["block_size"][1],
                             directory=build_folder,
                             append=False,
-                            hbm_row_width=256)
+                            hbm_row_width=hbm_row_width)
     
 
 def parse_args():

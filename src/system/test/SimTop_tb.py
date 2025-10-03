@@ -66,6 +66,7 @@ class SimTOP(Testbench):
     def generate_inputs(self):
         torch.manual_seed(52)
         precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
+        
         asm_file_name = os.environ["ASM_FILE"]
         asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{asm_file_name}.asm")
         data_config = {
