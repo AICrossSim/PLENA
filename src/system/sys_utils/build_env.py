@@ -2,7 +2,7 @@ from build_sys_tools import *
 import logging
 from cfl_cocotb import SRC_PATH
 from cfl_tools.logger import get_logger
-from memory_mapping.rand_gen import RandomTensorGenerator
+from memory_mapping.rand_gen import Random_MXFP_Tensor_Generator
 from utils.load_config import load_svh_settings
 
 logger = get_logger("testbench")
@@ -33,7 +33,7 @@ def build_fake_sim_env(data_size=1024):
             "skip_first_dim": False,
         }
     if args.data is None:
-        raw_data = RandomTensorGenerator(
+        raw_data = Random_MXFP_Tensor_Generator(
             shape=tuple(data_config["tensor_size"]),
             directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
             filename="test_projection_data.pt",

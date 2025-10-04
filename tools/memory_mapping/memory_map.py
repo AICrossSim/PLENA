@@ -1,4 +1,4 @@
-from memory_mapping.rand_gen import RandomTensorGenerator
+from memory_mapping.rand_gen import Random_MXFP_Tensor_Generator
 from bitstring import BitArray
 import torch
 import os
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         "block_size": [1, 4],
         "skip_first_dim": False,
     }
-    rand_gen_high = RandomTensorGenerator(
+    rand_gen_high = Random_MXFP_Tensor_Generator(
         shape=(16, 8),
         directory=directory,
         filename=filename,
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         "block_size": [1, 4],
         "skip_first_dim": False,
     }
-    rand_gen_low = RandomTensorGenerator(
+    rand_gen_low = Random_MXFP_Tensor_Generator(
         shape=(8, 8),
         directory=directory,
         filename=filename,

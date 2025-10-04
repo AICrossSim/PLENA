@@ -22,7 +22,7 @@ from cfl_cocotb.runner import veri_runner
 from cfl_cocotb import SRC_PATH
 from cfl_cocotb.torch_fp_conversion import bin_2_fp
 
-from memory_mapping.rand_gen import RandomTensorGenerator
+from memory_mapping.rand_gen import Random_MXFP_Tensor_Generator
 from utils.load_config import load_svh_settings
 from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
 from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
@@ -66,7 +66,7 @@ class SimTOP(Testbench):
     def generate_inputs(self):
         torch.manual_seed(52)
         precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
-        
+
         asm_file_name = os.environ["ASM_FILE"]
         asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{asm_file_name}.asm")
         data_config = {
@@ -82,7 +82,7 @@ class SimTOP(Testbench):
                 "skip_first_dim": False,
             }
 
-        rand_gen_high = RandomTensorGenerator(
+        rand_gen_high = Random_MXFP_Tensor_Generator(
             shape=tuple(data_config["tensor_size"]),
             directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
             filename="test_projection_data.pt",
