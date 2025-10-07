@@ -116,6 +116,9 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             hex_str = '0' + hex_str
         return bytes.fromhex(hex_str)
     
+    hbm_row_elem_num = hbm_row_width // (element_width)
+    hbm_row_bias_num = hbm_row_width // (bias_width)
+
     with open(output_file, mode) as f:
         # Process blocks
         row_buffer = bytearray()
@@ -126,14 +129,14 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             row_buffer.extend(block_bytes)
             
             # Write when row is full
-            if len(row_buffer) >= hbm_row_width:
-                f.write(row_buffer[:hbm_row_width])
-                row_buffer = row_buffer[hbm_row_width:]
+            if len(row_buffer) >= hbm_row_elem_num:
+                f.write(row_buffer[:hbm_row_elem_num])
+                row_buffer = bytearray() # Reset buffer after writing
         
         # Flush any remaining block data
         if len(row_buffer) > 0:
             # Pad to row width
-            row_buffer.extend(b'\x00' * (hbm_row_width - len(row_buffer)))
+            row_buffer.extend(b'\x00' * (hbm_row_elem_num - len(row_buffer)))
             f.write(row_buffer)
         
         # Process bias
@@ -145,14 +148,23 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             row_buffer.extend(bias_bytes)
             
             # Write when row is full
-            if len(row_buffer) >= hbm_row_width:
-                f.write(row_buffer[:hbm_row_width])
-                row_buffer = row_buffer[hbm_row_width:]
+            if len(row_buffer) >= hbm_row_bias_num:
+                f.write(row_buffer[:hbm_row_bias_num])
+                row_buffer = bytearray()
         
-        # Flush any remaining bias data
+        # # For Little Endian Purpose
+        # if len(row_buffer) > 0:
+        #     # Calculate padding needed
+        #     padding_needed = hbm_row_bias_num - len(row_buffer)
+        #     # Insert zeros at the beginning
+        #     row_buffer = bytearray(b'\x00' * padding_needed) + row_buffer
+        #     f.write(row_buffer)
+
+        # For Big Endian Purpose
         if len(row_buffer) > 0:
-            # Pad to row width
-            row_buffer.extend(b'\x00' * (hbm_row_width - len(row_buffer)))
+            # Calculate padding needed
+            padding_needed = hbm_row_bias_num - len(row_buffer)
+            row_buffer.extend(b'\x00' * padding_needed)
             f.write(row_buffer)
     
     print(f"Binary HBM data written to: {output_file}")

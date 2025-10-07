@@ -713,7 +713,7 @@ impl Accelerator {
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_LUI_INT { rd, imm } => {
-                    self.reg_file.gp_reg[rd as usize] = (imm as u32) << 4;
+                    self.reg_file.gp_reg[rd as usize] = (imm as u32) << 12;
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_LD_INT { rd, rs1, imm } => {
@@ -927,6 +927,7 @@ async fn start() {
         .await;
 
     println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
+    println!("scale = {}", accelerator.reg_file.scale);
     println!(
         "{}",
         accelerator.v_machine.vram.read(0x0000).await.as_tensor()

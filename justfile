@@ -33,7 +33,7 @@ build-behave-sim arg:
     just build-env {{arg}}
     # 2) Compute absolute paths (so they still work after cd)
     asm_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/{{arg}}.mem" && \
-    data_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/fake_test_raw_data.pt" && \
+    data_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/hbm_for_behave_sim.bin" && \
     cd behavioral_simulator && \
     cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
 
