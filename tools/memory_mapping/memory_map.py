@@ -89,48 +89,73 @@ def map_data_to_fake_hbm_for_rtl_sim(blocks, element_width, block_width, bias, b
             f.write("0x" + insert_bias_row + "\n")
 
 
-def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, append = True, hbm_row_width=64):
+def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, append=True, hbm_row_width=64):
     """
-    Maps the quantized blocks and bias to single memory file fake HBM memory, used as the behavioral simulator input.
+    Maps the quantized blocks and bias to binary memory file for fake HBM memory.
+    Writes raw bytes instead of ASCII hex text.
     """
-    num_blocks_per_row  = hbm_row_width // (block_width * element_width)
-    num_bias_per_row    = hbm_row_width // bias_width
+    num_blocks_per_row = hbm_row_width // (block_width * element_width)
+    num_bias_per_row = hbm_row_width // bias_width
 
     if not os.path.exists(directory):
         os.makedirs(directory)
     
-    if not append:
-        # Clear existing files if not appending
-        with open(os.path.join(directory, "hbm_for_behave_sim.mem"), "w") as f:
-            f.write("")
+    output_file = os.path.join(directory, "hbm_for_behave_sim.bin")
+    mode = 'ab' if append else 'wb'
+    for row_idx, row in enumerate(blocks):
+        hex_row = " ".join(f"0x{val:02X}" for val in row)
+        print(f"Row {row_idx:02d}: {hex_row}")
 
-    with open(os.path.join(directory, "hbm_for_behave_sim.mem"), "a") as f:
-        insert_row = ""
-        combined_blk = ""
-        index_in_row = 0
-        for i, block in enumerate(blocks):
-            combined_blk = combined_blk + map_block_to_value(block, element_width) 
-            index_in_row += 1
-            if index_in_row == num_blocks_per_row:
-                f.write(combined_blk + "\n")
-                combined_blk = ""
-                index_in_row = 0
+    def hex_to_bytes(hex_str):
+        """Convert hex string (with or without 0x prefix) to bytes"""
+        hex_str = hex_str.strip()
+        if hex_str.startswith('0x'):
+            hex_str = hex_str[2:]
+        # Ensure even length
+        if len(hex_str) % 2 != 0:
+            hex_str = '0' + hex_str
+        return bytes.fromhex(hex_str)
+    
+    with open(output_file, mode) as f:
+        # Process blocks
+        row_buffer = bytearray()
         
-        combined_bias   = ""
-        index_in_row    = 0
+        for i, block in enumerate(blocks):
+            hex_str = map_block_to_value(block, element_width)
+            block_bytes = hex_to_bytes(hex_str)
+            row_buffer.extend(block_bytes)
+            
+            # Write when row is full
+            if len(row_buffer) >= hbm_row_width:
+                f.write(row_buffer[:hbm_row_width])
+                row_buffer = row_buffer[hbm_row_width:]
+        
+        # Flush any remaining block data
+        if len(row_buffer) > 0:
+            # Pad to row width
+            row_buffer.extend(b'\x00' * (hbm_row_width - len(row_buffer)))
+            f.write(row_buffer)
+        
+        # Process bias
+        row_buffer = bytearray()
+        
         for i, b in enumerate(bias):
-            combined_bias = combined_bias + map_scale_to_value(b, bias_width)
-            index_in_row += 1
-            if index_in_row >= num_bias_per_row:
-                insert_row =  combined_bias + insert_row
-                f.write(combined_bias + "\n")
-                combined_bias = ""
-                index_in_row = 0
-
-        if 0 < index_in_row < num_bias_per_row:
-            # If the last row is not full, pad it with zeros
-            insert_row = "0" * (num_bias_per_row - int(index_ratio * index_in_row)) * (bias_width // 4) + insert_row
-            f.write(insert_row + "\n")
+            hex_str = map_scale_to_value(b, bias_width)
+            bias_bytes = hex_to_bytes(hex_str)
+            row_buffer.extend(bias_bytes)
+            
+            # Write when row is full
+            if len(row_buffer) >= hbm_row_width:
+                f.write(row_buffer[:hbm_row_width])
+                row_buffer = row_buffer[hbm_row_width:]
+        
+        # Flush any remaining bias data
+        if len(row_buffer) > 0:
+            # Pad to row width
+            row_buffer.extend(b'\x00' * (hbm_row_width - len(row_buffer)))
+            f.write(row_buffer)
+    
+    print(f"Binary HBM data written to: {output_file}")
 
 if __name__ == "__main__":
     directory = "../../test/weight"

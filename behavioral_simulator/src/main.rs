@@ -894,6 +894,7 @@ async fn start() {
 
     // Memory Initialization
     // - HBM Preload
+    
     let hbm_data = std::fs::read(opts.hbm).unwrap();
 
     for (i, chunk) in hbm_data.chunks(16).enumerate() {
@@ -909,15 +910,7 @@ async fn start() {
         }
         
         // ASCII representation
-        print!(" |");
-        for byte in chunk {
-            if *byte >= 32 && *byte <= 126 {
-                print!("{}", *byte as char);
-            } else {
-                print!(".");
-            }
-        }
-        println!("|");
+        println!(" |");
     }
 
     hbm.data().with_data(|f| {

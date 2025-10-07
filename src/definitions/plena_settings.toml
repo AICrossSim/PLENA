@@ -46,7 +46,7 @@ mantissa = 7
 
 [PRECISION.HBM_M_WEIGHT_TYPE]
 format = "Mx"
-block = 4
+block = 8
 [PRECISION.HBM_M_WEIGHT_TYPE.ELEM]
 type = "Fp"
 sign = true
@@ -60,7 +60,7 @@ mantissa = 0
 
 [PRECISION.HBM_M_KV_TYPE]
 format = "Mx"
-block = 4
+block = 8
 [PRECISION.HBM_M_KV_TYPE.ELEM]
 type = "Fp"
 sign = true
