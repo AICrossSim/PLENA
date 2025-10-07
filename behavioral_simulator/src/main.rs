@@ -457,7 +457,8 @@ impl Accelerator {
             }
 
             futures.collect::<()>().await;
-            println!("{:?}", bytes);
+            // eprintln!("HBM Loaded Value: {:08X?}", &bytes);
+
             let mut vec = vec![0f32; len];
             element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
             println!("{:?}", vec);
@@ -471,12 +472,14 @@ impl Accelerator {
             {
                 scale.convert_bytes_to_f32_vec(&scale_bytes, &mut scale_vec);
 
-                for (elem, scale) in vec
-                    .chunks_mut(block as usize)
-                    .zip(scale_vec.iter().copied())
+            for (i, (elem_block, scale_val)) in vec
+                .chunks_mut(block as usize)
+                .zip(scale_vec.iter().copied())
+                .enumerate()
                 {
-                    for elem in elem.iter_mut() {
-                        *elem *= scale;
+                    println!("Block {}: scale={}, elems={:?}", i, scale_val, elem_block);
+                    for elem in elem_block.iter_mut() {
+                        *elem *= scale_val;
                     }
                 }
             }
@@ -711,17 +714,17 @@ impl Accelerator {
                 }
                 op::Opcode::S_LUI_INT { rd, imm } => {
                     self.reg_file.gp_reg[rd as usize] = (imm as u32) << 4;
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_LD_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[rd as usize] =
                         self.int_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_ST_INT { rd, rs1, imm } => {
                     self.int_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.gp_reg[rd as usize];
-                    cycle!(1);
+                    cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::H_PREFETCH_M {
                     rd,
@@ -797,6 +800,9 @@ impl Accelerator {
                         self.v_machine.vram.ty,
                     );
 
+                    // let tensor_data = xfer.await;
+                    // println!("Transfer tensor (debug): {:?}", tensor_data);
+                
                     let dest = self.reg_file.gp_reg[rd as usize];
                     self.v_machine.vram.write_delayed(dest, xfer).await;
                 }
@@ -886,13 +892,41 @@ async fn start() {
         println!("{i:04}: 0x{word:08X} -> {:?}", decoded);
     }
 
+    // Memory Initialization
+    // - HBM Preload
     let hbm_data = std::fs::read(opts.hbm).unwrap();
+
+    for (i, chunk) in hbm_data.chunks(16).enumerate() {
+        print!("{:08x}: ", i * 16);
+        
+        for byte in chunk {
+            print!("{:02x} ", byte);
+        }
+        
+        // Padding if less than 16 bytes
+        for _ in 0..(16 - chunk.len()) {
+            print!("   ");
+        }
+        
+        // ASCII representation
+        print!(" |");
+        for byte in chunk {
+            if *byte >= 32 && *byte <= 126 {
+                print!("{}", *byte as char);
+            } else {
+                print!(".");
+            }
+        }
+        println!("|");
+    }
+
     hbm.data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
     });
-
+    // - FP_SRAM Preload
     accelerator.fp_sram[0] = f16::from_bits(0x3F00); // Preloading a constant at the 0 index
 
+    // - Execute Instructions
     accelerator
         .do_ops(&dbg!(
             op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
@@ -902,7 +936,7 @@ async fn start() {
     println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
     println!(
         "{}",
-        accelerator.v_machine.vram.read(0x1000).await.as_tensor()
+        accelerator.v_machine.vram.read(0x0000).await.as_tensor()
     );
 }
 

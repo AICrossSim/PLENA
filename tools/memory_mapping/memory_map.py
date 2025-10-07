@@ -112,8 +112,7 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             combined_blk = combined_blk + map_block_to_value(block, element_width) 
             index_in_row += 1
             if index_in_row == num_blocks_per_row:
-                print("insert_row:", combined_blk)
-                f.write("0x" + combined_blk + "\n")
+                f.write(combined_blk + "\n")
                 combined_blk = ""
                 index_in_row = 0
         
@@ -124,17 +123,14 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             index_in_row += 1
             if index_in_row >= num_bias_per_row:
                 insert_row =  combined_bias + insert_row
-                f.write("0x" + combined_bias + "\n")
+                f.write(combined_bias + "\n")
                 combined_bias = ""
                 index_in_row = 0
 
         if 0 < index_in_row < num_bias_per_row:
             # If the last row is not full, pad it with zeros
             insert_row = "0" * (num_bias_per_row - int(index_ratio * index_in_row)) * (bias_width // 4) + insert_row
-            f.write("0x" + insert_row + "\n")
-        quit()
-
-
+            f.write(insert_row + "\n")
 
 if __name__ == "__main__":
     directory = "../../test/weight"

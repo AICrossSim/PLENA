@@ -1,9 +1,10 @@
-from quant.quantizer.hardware_quantizer import _mx_fp_quantize_hardware, _minifloat_ieee_quantize_hardware
-from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 import torch
 import os
+import numpy as np
+from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook
 from cfl_tools.logger import set_logging_verbosity, get_logger
+from quant.quantizer.hardware_quantizer import _mx_fp_quantize_hardware, _minifloat_ieee_quantize_hardware
 
 logger = get_logger("test_bin_mxfp")
 set_logging_verbosity("debug")
@@ -84,7 +85,7 @@ class Random_MXINT_Tensor_Generator:
 
 
 class Random_MXFP_Tensor_Generator:
-    def __init__(self, shape, quant_config, directory=None, filename=None):
+    def __init__(self, shape, quant_config, config_settings, directory=None, filename=None):
         """
         Initialize the random tensor generator with a given shape.
         If directory and filename are provided, the tensor will be saved to a file.
@@ -93,6 +94,7 @@ class Random_MXFP_Tensor_Generator:
         self.directory      = directory
         self.filename       = filename
         self.quant_config   = quant_config
+        self.config_settings = config_settings
 
     def tensor_gen(self):
         tensor = torch.randn(self.shape)
@@ -102,7 +104,21 @@ class Random_MXFP_Tensor_Generator:
             file_path = os.path.join(self.directory, self.filename)
             torch.save(tensor, file_path)
             logger.debug(f"Tensor saved to {file_path}")
-    
+
+            # Change extension to .mem
+            base_name = os.path.splitext(self.filename)[0]
+            rd_file_path = os.path.join(self.directory, f"{base_name}.mem")
+            
+            # Save as human-readable hex format
+            with open(rd_file_path, 'w') as f:
+                flat_tensor = tensor.flatten().numpy().astype(np.float32)
+                floats_per_line = self.config_settings["HBM_WIDTH"] // 4
+                for i, value in enumerate(flat_tensor):
+                    if i % floats_per_line == 0 and i != 0:
+                        f.write('\n')
+                    f.write(f"{value:.8f}")
+                    if (i + 1) % floats_per_line != 0 and i < len(flat_tensor) - 1:
+                        f.write(', ')
     def tensor_load(self):
         if self.directory and self.filename:
             file_path = os.path.join(self.directory, self.filename)

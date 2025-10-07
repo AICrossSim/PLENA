@@ -8,7 +8,7 @@ from utils.load_config import load_svh_settings
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 
-def build_fake_sim_env(data_size=1024):
+def build_fake_sim_env(data_size=256):
     # TODO: Add an automatic to actually gen the sim env.
     parser = argparse.ArgumentParser(description="Build simulation environment")
     parser.add_argument('--asm', type=str, required=True, help='Path to assembly file')
@@ -32,12 +32,14 @@ def build_fake_sim_env(data_size=1024):
             "block_size": data_config["block_size"],
             "skip_first_dim": False,
         }
+
     if args.data is None:
         raw_data = Random_MXFP_Tensor_Generator(
             shape=tuple(data_config["tensor_size"]),
+            quant_config=quant_config,
+            config_settings=config_settings,
             directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
-            filename="test_projection_data.pt",
-            quant_config=quant_config
+            filename= Path(f"{args.asm}/fake_test_raw_data.pt")
         )
     else:
         # TODO: Write Load Weight Function, loading the data from pretrained model.
