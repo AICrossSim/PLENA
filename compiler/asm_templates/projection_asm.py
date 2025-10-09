@@ -33,7 +33,7 @@ def projection_asm(
     """
     generated_code = ""
     # Dot product of weight (Hidden Size, Hidden Size) and activation (Batch, 1, Hidden Size)
-    assert batch < blen, "Batch size must be less than blen"
+    assert batch <= blen, "Batch size must be less than blen"
     # get two registers from alive_registers, 1 as w address, 1 as a address
     result_register = alive_registers[0]
     w_actual_register = alive_registers[1]

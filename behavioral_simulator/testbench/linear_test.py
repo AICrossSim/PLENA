@@ -5,9 +5,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
+from test_data_gen import get_weights_path
+from compiler.asm_templates import projection_asm
 
-
-original_layer = nn.Linear(in_features=512, out_features=256)
 
 # TODOs: Need to integrate the MX quantizer here.
 # quantized_layer = MXFPLinearPTQ.from_linear(
@@ -22,7 +22,35 @@ original_layer = nn.Linear(in_features=512, out_features=256)
 
 
 if __name__ == "__main__":
-    input_tensor = torch.randn(1, 512)
-    # Forward pass through the original layer
+    torch.manual_seed(42)
+    # Gen Weight and Test Data
+    input_tensor = torch.randn(4, 128)
+    original_layer = nn.Linear(in_features=128, out_features=128)
+    original_layer.load_state_dict(torch.load(get_weights_path('model_weights.pth')))
     original_output = original_layer(input_tensor)
-    print(original_output)
+    
+    # Store the original_output result into a .txt file
+    output_path = get_weights_path('original_output.txt')
+    with open(output_path, 'w') as f:
+        f.write(str(original_output.detach().cpu().numpy()))
+
+    print(f"Original output saved to {output_path}")
+    
+    # Gen Instructions
+    gen_assembly_code = projection_asm(
+        mlen=64,
+        blen=4,
+        batch=4,
+        hidden_size=128,
+        alive_registers=[1,2,3,4,5,6,7,8],
+        head_dim=128,
+        w_base_hbm_offset_reg=0,
+        rope_hbm_offset_reg=0,
+        rope_on_chip_address=0,
+        activation_base_address=0,
+        result_base_address=0,
+        rope_enabled=False
+    )
+
+    with open(get_weights_path('projection_assembly.asm'), "w") as f:
+        f.write(gen_assembly_code)

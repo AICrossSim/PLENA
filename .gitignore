@@ -39,6 +39,7 @@ src/basic_components/synopsis/
 *.message
 
 *.pt
+*.pth
 *.asm
 specific.sh
 acc_simulator/results/

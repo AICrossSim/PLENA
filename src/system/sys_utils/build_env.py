@@ -41,11 +41,15 @@ def build_fake_sim_env(data_size=256):
             directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
             filename= Path(f"{args.asm}/fake_test_raw_data.pt")
         )
+        raw_data.tensor_gen()
     else:
-        # TODO: Write Load Weight Function, loading the data from pretrained model.
-        raw_data = None
-
-    raw_data.tensor_gen()
+        raw_data = Random_MXFP_Tensor_Generator(
+            shape=tuple(data_config["tensor_size"]),
+            quant_config=quant_config,
+            config_settings=config_settings,
+            directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
+            filename= Path(f"{args.data}")
+        )
     data = raw_data.tensor_load()
 
     blocks, bias = raw_data.quantize_tensor(data)

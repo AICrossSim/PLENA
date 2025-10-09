@@ -24,4 +24,4 @@ def get_weights_path(filename='model_weights.pth'):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
 
 if __name__ == "__main__":
-    generate_and_save_random_weights(64, 64, get_weights_path('model_weights.pth'))
+    generate_and_save_random_weights(128, 128, get_weights_path('model_weights.pth'))
