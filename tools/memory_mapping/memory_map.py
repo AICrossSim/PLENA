@@ -104,7 +104,6 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
     mode = 'ab' if append else 'wb'
     for row_idx, row in enumerate(blocks):
         hex_row = " ".join(f"0x{val:02X}" for val in row)
-        print(f"Row {row_idx:02d}: {hex_row}")
 
     def hex_to_bytes(hex_str):
         """Convert hex string (with or without 0x prefix) to bytes"""

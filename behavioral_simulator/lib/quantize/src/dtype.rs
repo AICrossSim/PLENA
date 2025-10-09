@@ -188,7 +188,6 @@ impl DataType {
         let bits = self.size_in_bits();
         let mut data = 0;
         let mut bits_left = 0;
-        println!("convert input bytes: {bytes:x?}, bits: {bits}");
         for out in out.iter_mut() {
             while bits_left < bits {
                 data |= (bytes[0] as u32) << bits_left;

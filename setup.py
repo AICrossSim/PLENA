@@ -3,8 +3,8 @@ from setuptools import setup, find_packages
 setup(
     name='llama_coprocessor',  
     version='1.0',  # random
-    packages=find_packages("tools"),
-    package_dir={'': 'tools'},
+    packages=find_packages("tools") + find_packages("acc_simulator"),
+    package_dir={'': '.'},
     install_requires=[
         # 'black', 'toml', 'GitPython', 'colorlog', 'cocotb[bus]==1.9.2',
         # 'pytest', 'pytorch-lightning', 'transformers', 

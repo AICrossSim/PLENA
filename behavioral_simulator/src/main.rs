@@ -461,7 +461,7 @@ impl Accelerator {
 
             let mut vec = vec![0f32; len];
             element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
-            println!("{:?}", vec);
+            // println!("{:?}", vec);
 
             let mut scale_vec = vec![0f32; len / block as usize];
             if let MxDataType::Mx {
@@ -477,7 +477,6 @@ impl Accelerator {
                 .zip(scale_vec.iter().copied())
                 .enumerate()
                 {
-                    println!("Block {}: scale={}, elems={:?}", i, scale_val, elem_block);
                     for elem in elem_block.iter_mut() {
                         *elem *= scale_val;
                     }
@@ -799,9 +798,6 @@ impl Accelerator {
                         dtype,
                         self.v_machine.vram.ty,
                     );
-
-                    // let tensor_data = xfer.await;
-                    // println!("Transfer tensor (debug): {:?}", tensor_data);
                 
                     let dest = self.reg_file.gp_reg[rd as usize];
                     self.v_machine.vram.write_delayed(dest, xfer).await;
@@ -896,22 +892,6 @@ async fn start() {
     // - HBM Preload
     
     let hbm_data = std::fs::read(opts.hbm).unwrap();
-
-    for (i, chunk) in hbm_data.chunks(16).enumerate() {
-        print!("{:08x}: ", i * 16);
-        
-        for byte in chunk {
-            print!("{:02x} ", byte);
-        }
-        
-        // Padding if less than 16 bytes
-        for _ in 0..(16 - chunk.len()) {
-            print!("   ");
-        }
-        
-        // ASCII representation
-        println!(" |");
-    }
 
     hbm.data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
