@@ -8,7 +8,6 @@ from .fake import extract_mxint_components as extract_mxint_components_fake, com
 from ..mxfp.helpers import flatten_for_quantize, permute_for_dequantize
 
 
-
 def extract_mxint_components(
     tensor: Tensor, block_dim: int, mxint_meta: MXIntMeta, percentile: float = 1.0
 ) -> tuple[Tensor, Tensor, MXIntTensorMeta]:

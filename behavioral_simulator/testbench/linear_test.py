@@ -5,8 +5,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
-from test_data_gen import get_weights_path
+from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import projection_asm
+from create_sim_env import create_sim_env
 
 
 # TODOs: Need to integrate the MX quantizer here.
@@ -22,20 +23,24 @@ from compiler.asm_templates import projection_asm
 
 
 if __name__ == "__main__":
+    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
+    hidden_size = 128
+    batch_size = 4
+
     torch.manual_seed(42)
     # Gen Weight and Test Data
-    input_tensor = torch.randn(4, 128)
-    original_layer = nn.Linear(in_features=128, out_features=128)
-    original_layer.load_state_dict(torch.load(get_weights_path('model_weights.pth')))
+    generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
+    input_tensor = torch.randn(batch_size, hidden_size)
+    input_tensor_path = get_weights_path('test_input_tensor.pt')
+    torch.save(input_tensor, input_tensor_path)
+    print(f"Input tensor saved to {input_tensor_path}")
+
+    original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+    original_layer.load_state_dict(torch.load(get_weights_path('model_weights.pt')))
     original_output = original_layer(input_tensor)
     
     # Store the original_output result into a .txt file
-    output_path = get_weights_path('original_output.txt')
-    with open(output_path, 'w') as f:
-        f.write(str(original_output.detach().cpu().numpy()))
 
-    print(f"Original output saved to {output_path}")
-    
     # Gen Instructions
     gen_assembly_code = projection_asm(
         mlen=64,

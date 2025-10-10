@@ -50,7 +50,7 @@ def generate_golden_result(data, logger, precision_settings, data_config):
     
     return qdata
 
-def env_setup(blocks, bias, test_path: str, data_config, quant_config, hbm_row_width=256):
+def env_setup(grp_blocks, grp_bias, test_path: str, data_config, quant_config, hbm_row_width=256):
 
     torch.manual_seed(52)
     isa_file_path = PROJECT_PATH / 'src' / 'definitions' / 'operation.svh'
@@ -65,49 +65,41 @@ def env_setup(blocks, bias, test_path: str, data_config, quant_config, hbm_row_w
     assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
     assembler.generate_binary(asm_file_path, build_folder / f'{test_file_name}.mem')
     
-    map_data_to_fake_hbm_for_rtl_sim(   
-                            blocks=blocks,
-                            element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
-                            block_width=data_config["block_size"][1],
-                            bias=bias,
-                            bias_width=quant_config["exp_bias_width"],
-                            combined_blk_dim = hbm_row_width//data_config["block_size"][1],
-                            directory=build_folder,
-                            append=False,
-                            hbm_row_width=hbm_row_width)
+    for blocks, bias in zip(grp_blocks, grp_bias):
+        map_data_to_fake_hbm_for_rtl_sim(   
+                                blocks          =blocks,
+                                element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
+                                block_width     =data_config["block_size"][1],
+                                bias            =bias,
+                                bias_width      =quant_config["exp_bias_width"],
+                                combined_blk_dim=hbm_row_width // data_config["block_size"][1],
+                                directory       =build_folder,
+                                append          =True,
+                                hbm_row_width   =hbm_row_width)
 
-    map_data_to_fake_hbm_for_behave_sim(   
-                            blocks=blocks,
-                            element_width=quant_config["exp_width"] + quant_config["man_width"] + 1,
-                            block_width=data_config["block_size"][1],
-                            bias=bias,
-                            bias_width=quant_config["exp_bias_width"],
-                            directory=build_folder,
-                            append=False,
-                            hbm_row_width=hbm_row_width)
+        map_data_to_fake_hbm_for_behave_sim(   
+                                blocks          =blocks,
+                                element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
+                                block_width     =data_config["block_size"][1],
+                                bias            =bias,
+                                bias_width      =quant_config["exp_bias_width"],
+                                directory       =build_folder,
+                                append          =True,
+                                hbm_row_width   =hbm_row_width)
     
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', type=str, required=True, help='Path to the test assembly file')
     args = parser.parse_args()
     return args
 
-def init_mem(in_args=None):
+def init_mem(build_path):
     """ Initialize memory files and environment variables for simulation. """
-    if in_args is None:
-        args = parse_args()
-        asm_file = Path(args.path).stem
-    else:
-        args = in_args
-        asm_file = Path(args.path).stem
-
-    build_path = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem
     build_path.mkdir(parents=True, exist_ok=True)
     hbm_element_file = build_path / "hbm_ele.mem"
     hbm_scale_file = build_path / "hbm_scale.mem"
     hbm_file_for_behave_sim = build_path / "hbm_for_behave_sim.mem"
-    instr_file = build_path / f"{Path(args.path).stem}.mem"
+    instr_file = build_path / f"machine_code.mem"
 
     os.environ["HBM_ELEMENT_FILE"] = str(hbm_element_file)
     os.environ["HBM_SCALE_FILE"] = str(hbm_scale_file)
@@ -119,7 +111,7 @@ def init_mem(in_args=None):
     hbm_write_scale_m_file      = build_path / "hbm_write_m_scale.mem"
     hbm_write_scale_v_file      = build_path / "hbm_write_v_scale.mem"
     vector_mem_result_file      = build_path / "vector_result.mem"
-    # same 
+ 
     hbm_write_element_m_file.touch()
     hbm_write_element_v_file.touch()
     hbm_write_scale_m_file.touch()
@@ -151,7 +143,7 @@ def init_mem(in_args=None):
     os.environ["FAKE_HBM_ELEMENT_WRITE_V_FILE"] = str(hbm_write_element_v_file)
     os.environ["FAKE_HBM_SCALE_WRITE_M_FILE"] = str(hbm_write_scale_m_file)
     os.environ["FAKE_HBM_SCALE_WRITE_V_FILE"] = str(hbm_write_scale_v_file)
-    os.environ["ASM_FILE"] = str(asm_file)
+    os.environ["ASM_FILE"] = str(instr_file)
 
 def init_vector_sram():
     vector_mem_file = Path("test/Instr_Level_Benchmark/build/vector_fp_add/vector_result.mem")

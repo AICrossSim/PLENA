@@ -25,6 +25,7 @@ tools/synopsys/
 tools/alib-52/
 
 acc_simulator/third_party/fast-hadamard-transform/
+behavioral_simulator/testbench/original_output.txt
 
 src/basic_components/synopsis/
 .Xil
@@ -43,7 +44,6 @@ src/basic_components/synopsis/
 *.asm
 specific.sh
 acc_simulator/results/
-
 acc_simulator/third_party/
 analyzed/
 

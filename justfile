@@ -24,21 +24,20 @@ test-sw:
     python3 tools/quant/quant_operations/reciprocal.py
 
 
-build-env arg:
-    rm -rf test/Instr_Level_Benchmark/build/{{arg}}
-    python3 src/system/sys_utils/build_env.py --asm {{arg}}
-
 build-behave-sim arg:
     # 1) Build env for the given target
-    just build-env {{arg}}
+    rm -rf behavioral_simulator/testbench/build
+    python3 behavioral_simulator/testbench/test/{{arg}}_test.py
+    python3 src/system/sys_utils/build_env.py --asm {{arg}} --mode behave_sim
     # 2) Compute absolute paths (so they still work after cd)
-    asm_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/{{arg}}.mem" && \
-    data_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/hbm_for_behave_sim.bin" && \
-    cd behavioral_simulator && \
-    cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
+    # asm_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/{{arg}}.mem" && \
+    # data_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/hbm_for_behave_sim.bin" && \
+    # cd behavioral_simulator && \
+    # cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
 
 build-rtl-sim arg:
     rm -rf test/Instr_Level_Benchmark/build/{{arg}}
+    python3 src/system/sys_utils/build_env.py --asm {{arg}}
     
 
 reformat:
