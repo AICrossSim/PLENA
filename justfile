@@ -30,10 +30,11 @@ build-behave-sim arg:
     python3 behavioral_simulator/testbench/{{arg}}_test.py
     python3 src/system/sys_utils/build_env.py --asm {{arg}} --mode behave_sim
     # 2) Compute absolute paths (so they still work after cd)
-    # asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_asm_code.asm" && \
-    # data_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/hbm_for_behave_sim.bin" && \
-    # cd behavioral_simulator && \
-    # cargo run --release -- --opcode "$asm_path" --hbm "$data_path"
+    
+    asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
+    data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
+    cd behavioral_simulator && \
+    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" 
 
 build-rtl-sim arg:
     rm -rf test/Instr_Level_Benchmark/build/{{arg}}

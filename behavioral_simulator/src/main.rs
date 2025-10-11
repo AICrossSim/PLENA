@@ -130,7 +130,7 @@ impl MatrixSram {
     }
 
     async fn write_delayed(&self, addr: u32, tensor: Receiver<QuantTensor>) {
-        let addr_in_tiles = addr.assert_multiple_of(self.tile_size * self.tile_size);
+        let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
 
         *self.tiles[addr_in_tiles as usize].lock().await = Err(tensor);
     }
@@ -198,15 +198,16 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, v_addr: u32, m_addr: u32) {
+        println!("m_addr = {:?}", m_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
+        println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
-
         let full_mat = self.mram.read(mat_base).await;
         let mat = full_mat
             .as_tensor()
+            .view([self.tile_size as i64, self.tile_size as i64])
             .i((mat_offset as i64..(mat_offset + self.blen) as i64, ..));
-
         let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
         for i in 0..self.blen {
@@ -219,7 +220,7 @@ impl MatrixMachine {
             );
         }
         let vec = tch::Tensor::stack(&tensors, -1);
-
+        println!("vec = {:?}", vec);
         self.m_accum += mat.matmul(&vec);
     }
 
@@ -230,6 +231,7 @@ impl MatrixMachine {
         let full_mat = self.mram.read(mat_base).await;
         let mat = full_mat
             .as_tensor()
+            .view([self.tile_size as i64, self.tile_size as i64])
             .transpose(-1, -2)
             .i((mat_offset as i64..(mat_offset + self.blen) as i64, ..));
         let mut tensors = Vec::with_capacity(self.blen as usize);
@@ -253,7 +255,7 @@ impl MatrixMachine {
         assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
         for i in 0..self.blen {
-            let tensor = self.m_accum.i((i as i64, ..)).unsqueeze(0);
+            let tensor = self.m_accum.i((i as i64, ..));
             let old = self.vram.read(vec_base + i * self.tile_size).await;
             let new = old.as_tensor().copy();
             new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
@@ -276,14 +278,14 @@ impl MatrixMachine {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
         cycle!(self.tile_size);
-        self.v_accum += mat.as_tensor().matmul(vec.as_tensor());
+        self.v_accum += mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64]).matmul(vec.as_tensor());
     }
 
     async fn tmv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
         cycle!(self.tile_size);
-        self.v_accum += mat.as_tensor().transpose(-1, -2).matmul(vec.as_tensor());
+        self.v_accum += mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64]).transpose(-1, -2).matmul(vec.as_tensor());
     }
 
     async fn mv_wo(&mut self, v_addr: u32) {
@@ -492,6 +494,7 @@ impl Accelerator {
 
     async fn do_ops(&mut self, ops: &[op::Opcode]) {
         for op in ops {
+            println!("execute op = {:?}", op);
             match *op {
                 op::Opcode::Invalid => todo!(),
 
@@ -747,10 +750,6 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         } // Element addr shifted by (element to scale ratio)
                     };
-                    println!(
-                        "prefetch_m: dtype_size = {:?}",
-                        dtype.element_type().size_in_bits()
-                    );
 
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
@@ -759,6 +758,7 @@ impl Accelerator {
                         dtype,
                         self.m_machine.mram.ty,
                     );
+                    println!("reg_file.gp_reg[rd as usize] = {:?}", self.reg_file.gp_reg[rd as usize]);
                     self.m_machine
                         .mram
                         .write_delayed(self.reg_file.gp_reg[rd as usize], xfer)
@@ -787,10 +787,7 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
-                    println!(
-                        "prefetch_v: dtype_size = {:?}",
-                        dtype.element_type().size_in_bits()
-                    );
+
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
@@ -885,7 +882,7 @@ async fn start() {
 
     for (i, word) in op.iter().enumerate() {
         let decoded = op::Opcode::decode(*word);
-        println!("{i:04}: 0x{word:08X} -> {:?}", decoded);
+        // println!("{i:04}: 0x{word:08X} -> {:?}", decoded);
     }
 
     // Memory Initialization
