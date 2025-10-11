@@ -55,7 +55,7 @@ def projection_asm(
         generated_code += f"; <---- Generating New Row Tile at index {i} ----> \n"
         for j in range(col_loop_over_hid):
             generated_code += f"; <---- Generating New Column Tile at row {i} col {j} \n"
-            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_actual_register}, a{w_base_hbm_offset_reg} 0, 1 \n"
+            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_actual_register}, a{w_base_hbm_offset_reg}, 0, 1 \n"
             generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
             generated_code += increment_w_actual_address
             generated_code += increment_a_actual_address

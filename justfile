@@ -27,7 +27,7 @@ test-sw:
 build-behave-sim arg:
     # 1) Build env for the given target
     rm -rf behavioral_simulator/testbench/build
-    python3 behavioral_simulator/testbench/test/{{arg}}_test.py
+    python3 behavioral_simulator/testbench/{{arg}}_test.py
     python3 src/system/sys_utils/build_env.py --asm {{arg}} --mode behave_sim
     # 2) Compute absolute paths (so they still work after cd)
     # asm_path="$(pwd)/test/Instr_Level_Benchmark/build/{{arg}}/{{arg}}.mem" && \

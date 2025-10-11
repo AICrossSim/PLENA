@@ -1,5 +1,6 @@
 import torch
 import os
+import collections
 import numpy as np
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook
@@ -122,6 +123,7 @@ class Random_MXFP_Tensor_Generator:
     def tensor_load(self):
         if self.directory and self.filename:
             file_path = os.path.join(self.directory, self.filename)
+            print("loading file", file_path)
             if os.path.exists(file_path):
                 tensor = torch.load(file_path)
                 logger.debug(f"Tensor loaded from {file_path}")
@@ -140,35 +142,57 @@ class Random_MXFP_Tensor_Generator:
         but the per_block * will be packed as showns
         [shape_1 * shaped_2 // (block_size[0] * block_size[1]), block_size[0] * block_size[1]]
         '''
-        bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
-            tensor,
-            width               = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
-            exponent_width      = self.quant_config["exp_width"],
-            exponent_bias_width = self.quant_config["exp_bias_width"],
-            block_size          = self.quant_config["block_size"],
-            skip_first_dim      = self.quant_config["skip_first_dim"],
-        )
+        # INSERT_YOUR_CODE
+        # Accept tensor as either a torch.Tensor or an OrderedDict of tensors
+        # If it's an OrderedDict, quantize each value (assuming each is a tensor), otherwise just quantize the single tensor
+        
+        block_list = []
+        scaling_list = []
+        tensors = []
 
-        logger.debug(f"per_block_mantissa: {per_block_mantissa.shape}")
-        logger.debug(f"per_block_exponent: {per_block_exponent.shape}")
-        logger.debug(f"per_block_quant_bias: {per_block_scaling.shape}")
+        if isinstance(tensor, collections.OrderedDict):
+            tensors = list(tensor.values())
+        elif isinstance(tensor, dict):  # in case sometimes dict is used, not strictly OrderedDict
+            tensors = list(tensor.values())
+        else:
+            tensors = [tensor]
 
-        block_list  = []
-        scaling_list   = []
-
-        for i in range(per_block_mantissa.shape[0]):
-            bin_block = pack_fp_to_bin(
-                per_block_exponent[i],
-                per_block_mantissa[i],
-                self.quant_config["exp_width"],
-                self.quant_config["man_width"],
+        for t in tensors:
+            print("quantizing tensor", t.shape) 
+            # If the input is 1D, add a dimension to make it 2D (row vector)
+            if t.ndim == 1:
+                t = t.unsqueeze(0)
+                print("reshaped to", t.shape)
+            bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
+                t,
+                width               = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
+                exponent_width      = self.quant_config["exp_width"],
+                exponent_bias_width = self.quant_config["exp_bias_width"],
+                block_size          = self.quant_config["block_size"],
+                skip_first_dim      = self.quant_config["skip_first_dim"],
             )
-            block_list.append(bin_block.tolist())
-            scaling_list.append(int(per_block_scaling[i]))
-            # note here the block_mantissa was represented as unsigned integer
-            # the exponent was represented as signed integer
-        logger.debug(f"block_list: {block_list}")
-        logger.debug(f"scaling_list: {scaling_list}")
+
+            logger.debug(f"per_block_mantissa: {per_block_mantissa.shape}")
+            logger.debug(f"per_block_exponent: {per_block_exponent.shape}")
+            logger.debug(f"per_block_quant_bias: {per_block_scaling.shape}")
+
+            inner_block_list  = []
+            inner_scaling_list   = []
+
+            for i in range(per_block_mantissa.shape[0]):
+                bin_block = pack_fp_to_bin(
+                    per_block_exponent[i],
+                    per_block_mantissa[i],
+                    self.quant_config["exp_width"],
+                    self.quant_config["man_width"],
+                )
+                inner_block_list.append(bin_block.tolist())
+                inner_scaling_list.append(int(per_block_scaling[i]))
+                # note here the block_mantissa was represented as unsigned integer
+                # the exponent was represented as signed integer
+
+            block_list.append(inner_block_list)
+            scaling_list.append(inner_scaling_list)
 
         return block_list, scaling_list
 

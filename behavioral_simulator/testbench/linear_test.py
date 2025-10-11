@@ -27,20 +27,22 @@ if __name__ == "__main__":
     hidden_size = 128
     batch_size = 4
 
-    torch.manual_seed(42)
+    
     # Gen Weight and Test Data
-    generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
+    # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
+    
+    torch.manual_seed(42)
     input_tensor = torch.randn(batch_size, hidden_size)
     input_tensor_path = get_weights_path('test_input_tensor.pt')
     torch.save(input_tensor, input_tensor_path)
     print(f"Input tensor saved to {input_tensor_path}")
 
     original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+    weights = original_layer.state_dict()
+
     original_layer.load_state_dict(torch.load(get_weights_path('model_weights.pt')))
     original_output = original_layer(input_tensor)
     
-    # Store the original_output result into a .txt file
-
     # Gen Instructions
     gen_assembly_code = projection_asm(
         mlen=64,
@@ -57,5 +59,4 @@ if __name__ == "__main__":
         rope_enabled=False
     )
 
-    with open(get_weights_path('projection_assembly.asm'), "w") as f:
-        f.write(gen_assembly_code)
+    create_sim_env(input_tensor, weights, gen_assembly_code, original_output)
