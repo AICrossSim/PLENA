@@ -50,20 +50,16 @@ def generate_golden_result(data, logger, precision_settings, data_config):
     
     return qdata
 
-def env_setup(grp_blocks, grp_bias, test_path: str, data_config, quant_config, hbm_row_width=256):
-
-    torch.manual_seed(52)
+def env_setup(grp_blocks, grp_bias, build_path: str, data_config, quant_config, hbm_row_width=256, test_file_name=None):
     isa_file_path = PROJECT_PATH / 'src' / 'definitions' / 'operation.svh'
     config_file_path = PROJECT_PATH / 'src' / 'definitions' / 'configuration.svh'
-    asm_file_path = test_path
 
-    build_folder = PROJECT_PATH/ 'test' /Path(asm_file_path).parent.stem / 'build'
-    test_file_name = Path(asm_file_path).stem
-    build_folder = build_folder / f'{test_file_name}'
-    build_folder.mkdir(parents=True, exist_ok=True)
-
-    assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
-    assembler.generate_binary(asm_file_path, build_folder / f'{test_file_name}.mem')
+    if test_file_name is None:
+        assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
+        assembler.generate_binary(build_path / "generated_asm_code.asm", build_path / "generated_machine_code.mem")
+    else:
+        assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
+        assembler.generate_binary(build_path / f'{test_file_name}.asm', build_path / f'{test_file_name}.mem')
     
     for blocks, bias in zip(grp_blocks, grp_bias):
         map_data_to_fake_hbm_for_rtl_sim(   
@@ -73,7 +69,7 @@ def env_setup(grp_blocks, grp_bias, test_path: str, data_config, quant_config, h
                                 bias            =bias,
                                 bias_width      =quant_config["exp_bias_width"],
                                 combined_blk_dim=hbm_row_width // data_config["block_size"][1],
-                                directory       =build_folder,
+                                directory       =build_path,
                                 append          =True,
                                 hbm_row_width   =hbm_row_width)
 
@@ -83,7 +79,7 @@ def env_setup(grp_blocks, grp_bias, test_path: str, data_config, quant_config, h
                                 block_width     =data_config["block_size"][1],
                                 bias            =bias,
                                 bias_width      =quant_config["exp_bias_width"],
-                                directory       =build_folder,
+                                directory       =build_path,
                                 append          =True,
                                 hbm_row_width   =hbm_row_width)
     

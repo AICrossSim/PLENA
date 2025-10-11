@@ -33,14 +33,8 @@ if __name__ == "__main__":
     
     torch.manual_seed(42)
     input_tensor = torch.randn(batch_size, hidden_size)
-    input_tensor_path = get_weights_path('test_input_tensor.pt')
-    torch.save(input_tensor, input_tensor_path)
-    print(f"Input tensor saved to {input_tensor_path}")
-
     original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size)
     weights = original_layer.state_dict()
-
-    original_layer.load_state_dict(torch.load(get_weights_path('model_weights.pt')))
     original_output = original_layer(input_tensor)
     
     # Gen Instructions

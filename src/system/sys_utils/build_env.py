@@ -23,7 +23,7 @@ def build_fake_sim_env(data_size=256):
     else:
         asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{args.asm}.asm")
     
-    init_mem(Path(asm_file.parent) / "build")
+    init_mem(Path(asm_file.parent))
 
     data_config = {
         "tensor_size": [1, data_size],
@@ -45,7 +45,7 @@ def build_fake_sim_env(data_size=256):
             shape=tuple(data_config["tensor_size"]),
             quant_config=quant_config,
             config_settings=config_settings,
-            directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
+            directory=Path(asm_file).parent,
             filename= Path(f"{args.asm}/fake_test_raw_data.pt")
         )
         raw_data.tensor_gen()
@@ -66,7 +66,7 @@ def build_fake_sim_env(data_size=256):
                 shape=tuple(data_config["tensor_size"]),
                 quant_config=quant_config,
                 config_settings=config_settings,
-                directory=target_dir,
+                directory=Path(asm_file).parent,
                 filename=pt_file
             )
             file_tensor = file_raw_data.tensor_load()
@@ -75,7 +75,8 @@ def build_fake_sim_env(data_size=256):
                 grp_blocks.append(block)
                 grp_bias.append(b)
     # generate_golden_result(data, logger, precision_settings, data_config)
-    env_setup(grp_blocks, grp_bias, asm_file, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"])
+
+    env_setup(grp_blocks, grp_bias, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"])
 
 if __name__ == "__main__":
     build_fake_sim_env()
