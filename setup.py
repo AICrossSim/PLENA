@@ -1,23 +1,23 @@
 from setuptools import setup, find_packages
 
+# Get packages and create proper package_dir mapping
+tools_packages = find_packages("tools")
+acc_packages = find_packages("acc_simulator")
+
+# Create package directory mapping for nested packages
+package_dir = {}
+for pkg in tools_packages:
+    # Convert dot notation to path (e.g., "quant.quantizer" -> "tools/quant/quantizer")
+    package_dir[pkg] = "tools/" + pkg.replace(".", "/")
+for pkg in acc_packages:
+    # Convert dot notation to path
+    package_dir[pkg] = "acc_simulator/" + pkg.replace(".", "/")
+
 setup(
     name='llama_coprocessor',  
     version='1.0',  # random
-    packages=find_packages("tools") + find_packages("acc_simulator"),
-    package_dir={'': '.'},
+    packages=tools_packages + acc_packages,
+    package_dir=package_dir,
     install_requires=[
-        # 'black', 'toml', 'GitPython', 'colorlog', 'cocotb[bus]==1.9.2',
-        # 'pytest', 'pytorch-lightning', 'transformers', 
-        # 'timm', 'pytorch-nlp', 'datasets', 'ipython', 'ipdb',
-        # 'einops', 'pybind11',
-        # 'tabulate', 'tensorboardx', 'hyperopt', 'accelerate',
-        # 'optuna', 'stable-baselines3[extra]', 'h5py', 'scikit-learn',
-        # 'scipy', 'onnxruntime', 'matplotlib', 'sphinx-rtd-theme',
-        # 'imageio', 'imageio-ffmpeg', 'opencv-python', 'kornia',
-        # 'ghp-import', 'optimum', 'pytest-profiling', 'myst_parser',
-        # 'pytest-cov', 'pytest-xdist', 'pytest-sugar', 'pytest-html',
-        # 'lightning', 'wandb', 'bitarray', 'bitstring', 'emoji',
-        # 'numpy<2.0', 'tensorboard',
-        # 'absl-py', 'sphinx-glpi-theme', 'prettytable',
     ]
 )
