@@ -10,72 +10,81 @@ set_excepthook()
 
 def _mx_int_quantize_hardware(
     x: Tensor,
-    width: int,
-    exponent_width: int,
-    exponent_bias_width: int,
-    block_size: list[int] | int = [16],
-    skip_first_dim: bool = False,
+    width: int = 12,
+    exponent_width: int = 8,
+    exponent_bias: int = None,
+    block_size: list[int] = [16],
+    skip_first_dim: bool = True,
 ):
     """
-    - Convert IEEE FP32/64 to Block Minifloat (BM) which is also called as MXFP, where an exponent bias is shared over all elements in a block
-    - `2**-bias_shared x [(-1)^s1 x 2^exponent1 x mantissa1, (-1)^s2 x 2^exponent2 x mantissa2, ...]`
-    - See https://openreview.net/forum?id=6zaTwpNSsQ2
+    - Convert IEEE FP32/64 to Microscaling Integer (MXINT) which is also called block_floating_point or MSFP, where an exponent is shared over all elements in a block.
+    - `e_shared x [(-1)^s1 x mantissa1, (-1)^s2 x mantissa2, ...]`
+    - See https://proceedings.neurips.cc/paper/2020/file/747e32ab0fea7fbd2ad9ec03daa3f840-Paper.pdf
 
     ---
-    - forward: convert IEEE FP32/64 to BM
+    - forward: convert IEEE FP32/64 to MSFP
     - backward: STE
 
     ---
-    - `width`: the number of bits (1 sign bit + exponent_bits + mantissa_bits)
-    - `exponent_width`: the number of exponent_bits
-    - `exponent_bias_width`: the number of bits of the shared exponent bias
+    - `width`: The number of mantissa bits + 1 (the sign bit)
+    - `exponent_width`: the number of exponent bits, which is shared over a block
+    - `exponent_bias`: the exponent bias, if None, `2**(exponent_bits-1)-1` will be used
     - `block_size`: a list of integers where each integer is the block size on that dimension. See function `block`.
 
     """
-    if len(block_size) == 1:
-        block_size = [1, block_size[0]]
+    if isinstance(block_size, int):
+        block_size = [block_size]
+    # separate x into blocks
+    x_shape_before_blocking = [i for i in x.shape]
+    blocked_x, per_block_max, padded_x_shape, block_shape = block(
+        x, block_shape=block_size, skip_first_dim=skip_first_dim
+    )
+
+    # fill zeros to avoid log2(0) = -inf
+    if torch.all(per_block_max == 0):
+        # all elements in zero-initialized bias can be 0 thus per_block_max is 0
+        per_block_max = torch.ones_like(per_block_max)
     else:
-        assert len(block_size) == 2, "block_size must be a list of two integers"
+        per_block_max[per_block_max == 0] = per_block_max[per_block_max != 0].min()
+    # minifloat_denorm_quantizer on each block over which a exponent is shared
+    mantissa_bits = width - 1
+    if exponent_bias in (None, "none", "None"):
+        exponent_bias = 2 ** (exponent_width - 1) - 1
 
-    x_shape = x.shape
-    # Pre-compute padding requirements
-    x_pad_size_0 = (block_size[0] - (x_shape[-2] % block_size[0])) % block_size[0]
-    x_pad_size_1 = (block_size[1] - (x_shape[-1] % block_size[1])) % block_size[1]
-    
-    # Pad x if needed 
-    px = F.pad(x, (0, x_pad_size_1, 0, x_pad_size_0), 'constant', 0)
-    px_shape = px.shape
+    exponent_max = 2**exponent_width - 1 - exponent_bias
+    exponent_min = -exponent_bias
 
-    # in order to follow the law of torch.mm
-    # px will be reshaped to (-1, number_of_blocks_0, block_size[0], number_of_blocks_1, block_size[1])
-    # and be view as (-1, number_of_blocks_0, number_of_blocks_1, block_size[0], block_size[1])
-    px = px.view(-1, px_shape[-2]//block_size[0], block_size[0], px_shape[-1]//block_size[1], block_size[1]).permute(0, 1, 3, 2, 4)
-    px = px.reshape(-1, block_size[0] * block_size[1])
+    mantissa_integer_max = 2**mantissa_bits - 1
+    # sign
+    per_block_sign = torch.sign(blocked_x + 1e-9)
+    # exponent
+    per_block_value = torch.abs(blocked_x) + 1e-9
+    per_block_exponent = torch.ceil(torch.log2(per_block_max))
+    per_block_exponent = my_clamp(per_block_exponent, exponent_min, exponent_max)
+    # mantissa
+    per_block_mantissa = per_block_value / 2**per_block_exponent
+    shift = 2**mantissa_bits
+    per_block_mantissa_integer = my_clamp(
+        my_round(per_block_mantissa * shift), 0, mantissa_integer_max
+    )
+    per_block_mantissa = per_block_mantissa_integer / shift
 
-    per_block_max = px.abs().max(dim=-1, keepdim=True).values + 1e-9
-    per_block_exponent_bias = my_clamp(
-        torch.floor(torch.log2(per_block_max)), -2**(exponent_bias_width - 1), 2**(exponent_bias_width - 1) - 1
+    per_block_msfp = per_block_sign * (2**per_block_exponent) * per_block_mantissa
+    scaling = per_block_exponent
+    msfp_x = unblock(
+        per_block_msfp,
+        x_shape_before_blocking=x_shape_before_blocking,
+        padded_x_shape=padded_x_shape,
+        block_shape=block_shape,
+        skipped_first_dim_when_blocking=skip_first_dim,
     )
 
-    px = px / 2**per_block_exponent_bias
-    per_block_bm_x, per_block_fp_exp, per_block_fp_mant = _minifloat_ieee_quantize_hardware(
-        px,
-        width=width,
-        exponent_width=exponent_width,
-    )
-
-    per_block_bm_x = per_block_bm_x * 2**per_block_exponent_bias
-
-    bm_x = per_block_bm_x.reshape(-1, px_shape[0]//block_size[0], px_shape[1]//block_size[1], block_size[0], block_size[1])
-    bm_x = bm_x.permute(0, 1, 3, 2, 4)
-    bm_x = bm_x.reshape(-1, px_shape[-2], px_shape[-1])
-    bm_x = bm_x[:, :x_shape[-2], :x_shape[-1]]
-    
-    bias_bias = 2**(exponent_bias_width - 1) - 1
-    per_block_exponent_bias = per_block_exponent_bias + bias_bias
-
-
-    return bm_x, per_block_fp_exp, per_block_fp_mant, per_block_exponent_bias
+    # fmt: off
+    # this `is_close_to_0` helps the grad keeps 1 if input x is 0, or the zero-initialized value will be trapped in 0
+    is_close_to_0 = torch.isclose(x, torch.tensor([0.0], dtype=x.dtype, device=x.device))
+    msfp_x = (~is_close_to_0) * msfp_x + (is_close_to_0) * x
+    # fmt: on
+    return msfp_x, per_block_mantissa, scaling
 
 def test_bin_mxint():
     x = torch.randn([4, 16,8])

@@ -134,6 +134,7 @@ class CombinationalTestbench(Testbench):
             for output_name, output_list in self.outputs.items():
                 expected_output = output_list[i]
                 actual_output = getattr(self.dut, output_name).value
+                self.output_name = output_name
                 self.check_output(expected_output, actual_output)
 
         await Timer(num * 10, units="ns")
