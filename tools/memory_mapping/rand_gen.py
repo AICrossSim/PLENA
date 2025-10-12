@@ -6,6 +6,7 @@ from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin
 from cfl_tools.debugger import set_excepthook
 from cfl_tools.logger import set_logging_verbosity, get_logger
 from quant.quantizer.hardware_quantizer import _mx_fp_quantize_hardware, _minifloat_ieee_quantize_hardware
+from quant.quantizer.hardware_quantizer.mxint import _mx_int_quantize_hardware
 
 logger = get_logger("test_bin_mxfp")
 set_logging_verbosity("debug")
@@ -52,11 +53,10 @@ class Random_MXINT_Tensor_Generator:
         but the per_block * will be packed as showns
         [shape_1 * shaped_2 // (block_size[0] * block_size[1]), block_size[0] * block_size[1]]
         '''
-        bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
+        bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_int_quantize_hardware(
             tensor,
-            width               = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
+            width               = self.quant_config["man_width"],
             exponent_width      = self.quant_config["exp_width"],
-            exponent_bias_width = self.quant_config["exp_bias_width"],
             block_size          = self.quant_config["block_size"],
             skip_first_dim      = self.quant_config["skip_first_dim"],
         )
@@ -69,13 +69,7 @@ class Random_MXINT_Tensor_Generator:
         scaling_list   = []
 
         for i in range(per_block_mantissa.shape[0]):
-            bin_block = pack_fp_to_bin(
-                per_block_exponent[i],
-                per_block_mantissa[i],
-                self.quant_config["exp_width"],
-                self.quant_config["man_width"],
-            )
-            block_list.append(bin_block.tolist())
+            block_list.append(per_block_mantissa[i] * 2**(self.quant_config["man_width"] - 1).tolist())
             scaling_list.append(int(per_block_scaling[i]))
             # note here the block_mantissa was represented as unsigned integer
             # the exponent was represented as signed integer
