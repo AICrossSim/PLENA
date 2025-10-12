@@ -10,5 +10,13 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result):
         torch.save(input_weight, f)
     with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
         f.write(generated_code)
+    # Store golden_result in a readable format, including tensor contents.
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
-        f.write(str(golden_result))
+        f.write("Golden Result:\n")
+        f.write("\nInput Tensor:\n")
+        f.write(str(golden_result["input_tensor"].detach().cpu().numpy()))
+        f.write("\n\nWeights (state_dict):\n")
+        for key, value in golden_result["weights"].items():
+            f.write(f"{key}:\n{value.detach().cpu().numpy()}\n")
+        f.write("\n\nOriginal Output:\n")
+        f.write(str(golden_result["original_output"].detach().cpu().numpy()))

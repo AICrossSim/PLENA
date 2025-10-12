@@ -2,8 +2,6 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-
-
 def projection_asm(
     mlen: int,
     blen: int,
@@ -20,6 +18,7 @@ def projection_asm(
 ) -> str:
     """
     Generates assembly code for a general matrix multiplication operation.
+    (Batch, Hidden Size) @ (Hidden Size, Hidden Size) -> (Batch, Hidden Size)
 
     Args:
         mlen (int): The number of rows in the first matrix.
@@ -32,16 +31,19 @@ def projection_asm(
         str: Generated assembly code for projection, including dot product and RoPE(cond)
     """
     generated_code = ""
-    # Dot product of weight (Hidden Size, Hidden Size) and activation (Batch, 1, Hidden Size)
     assert batch <= blen, "Batch size must be less than blen"
     # get two registers from alive_registers, 1 as w address, 1 as a address
-    result_register = alive_registers[0]
-    w_actual_register = alive_registers[1]
-    a_actual_register = alive_registers[2]
-    # reset the registers
-    set_a_base_address   = f"S_LD_INT {a_actual_register}, gp0, {activation_base_address} \n"
-    set_result_address   = f"S_LD_INT {result_register}, gp0, {result_base_address} \n"
+    result_register     = alive_registers[0]
+    w_actual_register   = alive_registers[1]
+    a_actual_register   = alive_registers[2]
 
+    # Set scale offset
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * hidden_size} \n"
+    generated_code += f"C_SET_SCALE_REG gp{a_actual_register} \n"
+
+    # reset the registers
+    set_a_base_address   = f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
+    set_result_address   = f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n"
     increment_w_actual_address = f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * blen} \n"
     increment_a_actual_address = f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
     increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {mlen * blen} \n"
@@ -59,7 +61,7 @@ def projection_asm(
             generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
             generated_code += increment_w_actual_address
             generated_code += increment_a_actual_address
-        generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
+        # generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
     generated_code += increment_result_actual_address
     
     # RoPE

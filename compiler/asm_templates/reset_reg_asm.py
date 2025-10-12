@@ -6,7 +6,7 @@ def reset_reg_asm(
     """
     Generates assembly code for resetting registers.
     """
-    generated_code = ""
+    generated_code = f"; Reset Registers [{alive_registers}] \n"
     for register in alive_registers:
         generated_code += f"S_ADDI_INT gp{register}, gp0, 0 \n"
     return generated_code
