@@ -185,6 +185,41 @@ impl VectorSram {
 
         *self.tiles[addr_in_tiles as usize].lock().await = Err(tensor);
     }
+
+    /// TODO: used to preload Vector SRAM to facilitate testing.
+    async fn load_from_bytes(&self, bytes: &[u8]) {
+        let element_ty = self.ty.element_type();
+        let element_bits = element_ty.size_in_bits();
+        let bytes_per_element = (element_bits / 8) as usize;
+        
+        // Total number of elements that can be loaded
+        let total_elements = bytes.len() / bytes_per_element;
+        let tile_size = self.tile_size as usize;
+        let num_tiles = (total_elements + tile_size - 1) / tile_size; // Round up
+        
+        for tile_idx in 0..num_tiles.min(self.tiles.len()) {
+            let start_element = tile_idx * tile_size;
+            let end_element = (start_element + tile_size).min(total_elements);
+            let elements_in_tile = end_element - start_element;
+            
+            let start_byte = start_element * bytes_per_element;
+            let end_byte = end_element * bytes_per_element;
+            
+            // Convert bytes to f32 values
+            let mut vec = vec![0f32; elements_in_tile];
+            element_ty.convert_bytes_to_f32_vec(&bytes[start_byte..end_byte], &mut vec);
+            
+            // Pad with zeros if needed
+            if elements_in_tile < tile_size {
+                vec.resize(tile_size, 0.0f32);
+            }
+            
+            // Create QuantTensor and store it
+            let tensor = tch::Tensor::from_slice(&vec);
+            let quant_tensor = QuantTensor::quantize(tensor, self.ty);
+            *self.tiles[tile_idx].lock().await = Ok(quant_tensor);
+        }
+    }
 }
 
 struct MatrixMachine {
@@ -831,6 +866,10 @@ struct Opts {
     #[arg(long)]
     /// Path to file storing HBM contents.
     hbm: PathBuf,
+
+    #[arg(long)]
+    /// Path to file storing Vector SRAM contents (optional).
+    vram: Option<PathBuf>,
 }
 
 async fn start() {
@@ -895,6 +934,12 @@ async fn start() {
     });
     // - FP_SRAM Preload
     accelerator.fp_sram[0] = f16::from_bits(0x3F00); // Preloading a constant at the 0 index
+
+    // - VRAM Preload (if provided)
+    if let Some(vram_path) = opts.vram {
+        let vram_data = std::fs::read(vram_path).unwrap();
+        accelerator.v_machine.vram.load_from_bytes(&vram_data).await;
+    }
 
     // - Execute Instructions
     accelerator

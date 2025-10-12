@@ -6,6 +6,7 @@ from pathlib import Path
 
 def ffn_asm(
     mlen: int,
+    vlen: int,
     blen: int,
     batch: int,
     hidden_size: int,

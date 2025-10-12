@@ -75,7 +75,7 @@ def build_fake_sim_env(data_size=256):
                 grp_blocks.append(block)
                 grp_bias.append(b)
     # generate_golden_result(data, logger, precision_settings, data_config)
-
+    exit()
     env_setup(grp_blocks, grp_bias, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"])
 
 if __name__ == "__main__":

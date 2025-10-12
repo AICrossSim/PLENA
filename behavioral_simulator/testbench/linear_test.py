@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import projection_asm
+from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm
 from create_sim_env import create_sim_env
 
 
@@ -27,7 +27,6 @@ if __name__ == "__main__":
     hidden_size = 128
     batch_size = 4
 
-    
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
     
@@ -38,14 +37,28 @@ if __name__ == "__main__":
     original_output = original_layer(input_tensor)
     
     # Gen Instructions
-    gen_assembly_code = projection_asm(
+    gen_assembly_code = "; Linear Test Generation \n"
+    gen_assembly_code += preload_act_asm(
+        vlen=64,
+        preload_len=4,
+        batch=4,
+        hidden_size=128,
+        alive_registers=[1,2],
+        activation_base_address=0
+    )
+
+    gen_assembly_code += reset_reg_asm(
+        alive_registers=[1,2]
+    )
+
+    gen_assembly_code += projection_asm(
         mlen=64,
         blen=4,
         batch=4,
         hidden_size=128,
         alive_registers=[1,2,3,4,5,6,7,8],
         head_dim=128,
-        w_base_hbm_offset_reg=0,
+        w_base_hbm_offset_reg=128 * 128 + 128 * (128 // 8) * 8,
         rope_hbm_offset_reg=0,
         rope_on_chip_address=0,
         activation_base_address=0,
