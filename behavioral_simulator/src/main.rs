@@ -493,12 +493,13 @@ impl Accelerator {
                 }));
             }
 
+
             futures.collect::<()>().await;
             // eprintln!("HBM Loaded Value: {:08X?}", &bytes);
 
             let mut vec = vec![0f32; len];
             element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
-            // println!("{:?}", vec);
+            
 
             let mut scale_vec = vec![0f32; len / block as usize];
             if let MxDataType::Mx {
@@ -519,7 +520,6 @@ impl Accelerator {
                     }
                 }
             }
-
             let tensor = tch::Tensor::from_slice(&vec);
             let _ = sender.send(QuantTensor::quantize(tensor, sram_type));
         });

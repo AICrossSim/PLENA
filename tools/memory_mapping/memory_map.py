@@ -3,6 +3,20 @@ from bitstring import BitArray
 import torch
 import os
 
+def print_outputfile_contents(output_file):
+    print("\n--- File content hex dump: ---")
+    if not os.path.exists(output_file):
+        print(f"File {output_file} does not exist!")
+        return
+    with open(output_file, "rb") as f:
+        data = f.read()
+        # Print as 16 bytes per line, hex values
+        for i in range(0, len(data), 16):
+            chunk = data[i:i+16]
+            hex_bytes = ' '.join(f"{b:02X}" for b in chunk)
+            print(f"{i:08X}: {hex_bytes}")
+
+
 def map_block_to_value(block, data_width):
     if data_width % 4 != 0:
         raise ValueError("data_width must be a multiple of 4 for hex representation.")
@@ -93,9 +107,9 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
     """
     Maps the quantized blocks and bias to binary memory file for fake HBM memory.
     Writes raw bytes instead of ASCII hex text.
+    blocks: list of blocks, each block is a list of elements
+    bias: list of biases
     """
-    num_blocks_per_row = hbm_row_width // (block_width * element_width)
-    num_bias_per_row = hbm_row_width // bias_width
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -137,7 +151,6 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             # Pad to row width
             row_buffer.extend(b'\x00' * (hbm_row_elem_num - len(row_buffer)))
             f.write(row_buffer)
-        
         # Process bias
         row_buffer = bytearray()
         
@@ -165,8 +178,8 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             padding_needed = hbm_row_bias_num - len(row_buffer)
             row_buffer.extend(b'\x00' * padding_needed)
             f.write(row_buffer)
+    print_outputfile_contents(output_file)
     
-    print(f"Binary HBM data written to: {output_file}")
 
 if __name__ == "__main__":
     directory = "../../test/weight"

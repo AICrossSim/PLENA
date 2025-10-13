@@ -54,23 +54,24 @@ if __name__ == "__main__":
         activation_base_address=0
     )
 
-    gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2]
-    )
+    # gen_assembly_code += reset_reg_asm(
+    #     alive_registers=[1,2]
+    # )
 
-    gen_assembly_code += projection_asm(
-        mlen=64,
-        blen=4,
-        batch=4,
-        hidden_size=128,
-        alive_registers=[1,2,3,4,5,6,7,8],
-        head_dim=128,
-        w_base_hbm_offset_reg=1,
-        rope_hbm_offset_reg=0,
-        rope_on_chip_address=0,
-        activation_base_address=0,
-        result_base_address=0,
-        rope_enabled=False
-    )
-
+    # gen_assembly_code += projection_asm(
+    #     mlen=64,
+    #     blen=4,
+    #     batch=4,
+    #     hidden_size=128,
+    #     alive_registers=[1,2,3,4,5,6,7,8],
+    #     head_dim=128,
+    #     w_base_hbm_offset_reg=1,
+    #     rope_hbm_offset_reg=0,
+    #     rope_on_chip_address=0,
+    #     activation_base_address=0,
+    #     result_base_address=0,
+    #     rope_enabled=False
+    # )
+    # print("input_tensor shape", input_tensor.shape)
+    # exit()
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result)

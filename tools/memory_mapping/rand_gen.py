@@ -152,11 +152,12 @@ class Random_MXFP_Tensor_Generator:
             tensors = [tensor]
 
         for t in tensors:
-            print("quantizing tensor", t.shape) 
+            # print("quantizing tensor", t.shape) 
             # If the input is 1D, add a dimension to make it 2D (row vector)
             if t.ndim == 1:
                 t = t.unsqueeze(0)
                 print("reshaped to", t.shape)
+
             bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
                 t,
                 width               = self.quant_config["exp_width"] + self.quant_config["man_width"] + 1,
@@ -187,7 +188,6 @@ class Random_MXFP_Tensor_Generator:
 
             block_list.append(inner_block_list)
             scaling_list.append(inner_scaling_list)
-
         return block_list, scaling_list
 
 

@@ -30,7 +30,6 @@ build-behave-sim arg:
     python3 behavioral_simulator/testbench/{{arg}}_test.py
     python3 src/system/sys_utils/build_env.py --asm {{arg}} --mode behave_sim
     # 2) Compute absolute paths (so they still work after cd)
-    
     asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
     data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
     cd behavioral_simulator && \
