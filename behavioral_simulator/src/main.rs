@@ -493,8 +493,8 @@ impl Accelerator {
                 }));
             }
 
-
             futures.collect::<()>().await;
+            // println!("scale_bytes: {:02X?}", &scale_bytes);
             // eprintln!("HBM Loaded Value: {:08X?}", &bytes);
 
             let mut vec = vec![0f32; len];
