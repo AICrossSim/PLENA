@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "mxint_default_pe"
+set top_design "fp_adder"
 
 #------------------------------
 # Setup DC logging paths
