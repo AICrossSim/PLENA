@@ -26,7 +26,7 @@ def projection_asm(
         alive_registers (List[int]): List of registers that are alive.
         weight_base_address (int): index for the address mapper pointing to the base addr of the weight matrix.
         rope_base_address (int): index for the address mapper pointing to the base addr of the rope matrix.
-        activation_base_address (int): index for the address mapper pointing to the base addr of the activation matrix.
+        activation_base_address (int): addr pointing to the addr of activations in the vector sram.
     Returns:
         str: Generated assembly code for projection, including dot product and RoPE(cond)
     """
@@ -61,8 +61,8 @@ def projection_asm(
             generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
             generated_code += increment_w_actual_address
             generated_code += increment_a_actual_address
-        # generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
-    generated_code += increment_result_actual_address
+        generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
+        generated_code += increment_result_actual_address
     
     # RoPE
     if rope_enabled:

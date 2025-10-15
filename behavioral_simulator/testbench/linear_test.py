@@ -6,8 +6,9 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm
+from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
+
 
 
 # TODOs: Need to integrate the MX quantizer here.
@@ -26,6 +27,7 @@ if __name__ == "__main__":
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     hidden_size = 128
     batch_size = 4
+    real_data_ratio = (8*8 + 8) / (8 * 8)
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
@@ -51,11 +53,17 @@ if __name__ == "__main__":
         batch=4,
         hidden_size=128,
         alive_registers=[1,2],
-        activation_base_address=0
+        activation_offset_reg=0
     )
 
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2]
+    )
+
+    # Set the addr offset for weight and bias
+    gen_assembly_code += preload_addr_reg_asm(
+        addr_reg_val=[1, 2],
+        alive_registers=[int(hidden_size * real_data_ratio), int((hidden_size + hidden_size * hidden_size) * real_data_ratio)]
     )
 
     gen_assembly_code += projection_asm(

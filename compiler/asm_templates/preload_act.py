@@ -8,7 +8,7 @@ def preload_act_asm(
     batch: int,
     hidden_size: int,
     alive_registers: List[int],
-    activation_base_address: int,
+    activation_offset_reg: int,
 ) -> str:
     """
     Generates assembly code for preloading activation.
@@ -26,6 +26,6 @@ def preload_act_asm(
     generated_code += set_a_base_address
 
     for i in range(batch * (hidden_size // (vlen * preload_len))):
-        generated_code += f"H_PREFETCH_V gp{a_actual_register}, gp{a_actual_register}, a{activation_base_address}, 0, 0 \n"
+        generated_code += f"H_PREFETCH_V gp{a_actual_register}, gp{a_actual_register}, a{activation_offset_reg}, 0, 0 \n"
         generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {vlen * preload_len} \n"
     return generated_code

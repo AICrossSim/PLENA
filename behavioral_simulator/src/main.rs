@@ -2,6 +2,7 @@ mod load_config;
 mod op; // Add this line to include the config module
 
 use std::future::Future;
+use std::io::Write;
 use std::mem::ManuallyDrop;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -134,6 +135,32 @@ impl MatrixSram {
 
         *self.tiles[addr_in_tiles as usize].lock().await = Err(tensor);
     }
+
+    async fn as_bytes(&self) -> Vec<u8> {
+        let element_ty = self.ty.element_type();
+        let bytes_per_element = (element_ty.size_in_bits() / 8) as usize;
+        let elements_per_tile = (self.tile_size * self.tile_size) as usize;
+        let bytes_per_tile = elements_per_tile * bytes_per_element;
+        let mut result = Vec::with_capacity(bytes_per_tile * self.tiles.len());
+        
+        for tile_mutex in &self.tiles {
+            let mut guard = tile_mutex.lock().await;
+            if let Err(ref mut fut) = *guard {
+                *guard = Ok(fut.await.unwrap());
+            }
+            let tensor = guard.as_ref().map_err(|_| ()).unwrap();
+            let tensor_data = tensor.as_tensor();
+            let len = tensor_data.size1().unwrap() as usize;
+            let f32_slice = unsafe { 
+                core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) 
+            };
+            let mut tile_bytes = vec![0u8; bytes_per_tile];
+            element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
+            result.extend_from_slice(&tile_bytes);
+        }
+        
+        result
+    }
 }
 
 /// Behaviour modelling of vector SRAM.
@@ -219,6 +246,32 @@ impl VectorSram {
             let quant_tensor = QuantTensor::quantize(tensor, self.ty);
             *self.tiles[tile_idx].lock().await = Ok(quant_tensor);
         }
+    }
+
+    async fn as_bytes(&self) -> Vec<u8> {
+        let element_ty = self.ty.element_type();
+        let bytes_per_element = (element_ty.size_in_bits() / 8) as usize;
+        let elements_per_tile = self.tile_size as usize;
+        let bytes_per_tile = elements_per_tile * bytes_per_element;
+        let mut result = Vec::with_capacity(bytes_per_tile * self.tiles.len());
+        
+        for tile_mutex in &self.tiles {
+            let mut guard = tile_mutex.lock().await;
+            if let Err(ref mut fut) = *guard {
+                *guard = Ok(fut.await.unwrap());
+            }
+            let tensor = guard.as_ref().map_err(|_| ()).unwrap();
+            let tensor_data = tensor.as_tensor();
+            let len = tensor_data.size1().unwrap() as usize;
+            let f32_slice = unsafe { 
+                core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) 
+            };
+            let mut tile_bytes = vec![0u8; bytes_per_tile];
+            element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
+            result.extend_from_slice(&tile_bytes);
+        }
+        
+        result
     }
 }
 
@@ -954,6 +1007,24 @@ async fn start() {
         "{}",
         accelerator.v_machine.vram.read(0x0000).await.as_tensor()
     );
+    println!(
+        "{}",
+        accelerator.m_machine.mram.read(0x0000).await.as_tensor()
+    );
+
+    // Dump MRAM
+    let mram_dump_path = "mram_dump.bin";
+    let mram_bytes = accelerator.m_machine.mram.as_bytes().await;
+    let mut mram_file = std::fs::File::create(mram_dump_path).unwrap();
+    mram_file.write_all(&mram_bytes).unwrap();
+    eprintln!("Dumped MRAM content to: {:?}", mram_dump_path);
+    
+    // Dump VRAM
+    let vram_dump_path = "vram_dump.bin";
+    let vram_bytes = accelerator.v_machine.vram.as_bytes().await;
+    let mut vram_file = std::fs::File::create(vram_dump_path).unwrap();
+    vram_file.write_all(&vram_bytes).unwrap();
+    eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
 }
 
 #[tokio::main]
