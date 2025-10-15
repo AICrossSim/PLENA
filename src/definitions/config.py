@@ -122,6 +122,113 @@ def modify_toml_file(
             toml.dump(data, f)
         print(f"Updated 'active' values in {toml_path} with mode '{mode}'.")
 
+def generate_plena_sys_config_from_toml(toml_path: str, output_json_path: str = None):
+    """
+    Generates a JSON config file (plena_sys_config.json) based on the current values in the given TOML config file.
+    """
+    import json
+    import os
+
+    # Try to load TOML config (expecting 'CONFIG' as a main section)
+    with open(toml_path, "r") as f:
+        data = toml.load(f)
+    config = data.get("CONFIG", {})
+    precision = data.get("PRECISION", {})
+
+    # Helper to get the "active" value or fallback to default or cast to int if string
+    def get(param, default=None):
+        val = config.get(param, {})
+        if isinstance(val, dict):
+            result = val.get("active", val.get("default", default))
+        else:
+            result = val if val is not None else default
+        try:
+            return int(result)
+        except Exception:
+            return result
+
+    # Handle possible var names, fallback if not found (for demo)
+    mlen = get("MLEN", 512)
+    hlen = get("HLEN", 32)
+    blen = get("BLEN", 32)
+    vlen = get("VLEN", 4096)
+
+    # Example of using precision config param (pick fp_type if present)
+    fp_data_type = precision.get("FP_UNIT_TYPE", {}).get("active", "fp8") if precision else "fp8"
+    mxfp_data_type = precision.get("MX_UNIT_TYPE", {}).get("active", "mxfp") if precision else "mxfp"
+
+    # Prepare the JSON structure as in the reference
+    json_conf = {
+        "name": "PLENA",
+        "device_count": 1,
+        "interconnect": {},
+        "device": {
+            "frequency_Hz": 1e9,
+            "compute_chiplet_count": 1,
+            "compute_chiplet": {
+                "physical_core_count": 128,
+                "core_count": mlen // hlen if hlen else 1,
+                "process_node": "7nm",
+                "core": {
+                    "sublane_count": 1,
+                    "systolic_array": {
+                        "array_width": hlen,
+                        "array_height": blen,
+                        "data_type": mxfp_data_type,
+                        "mac_per_cycle": 1,
+                    },
+                    "vector_unit": {
+                        "vector_width": vlen // (mlen // hlen) if mlen and hlen else vlen,
+                        "flop_per_cycle": 4,
+                        "data_type": fp_data_type,
+                        "int32_count": 0,
+                        "fp16_count": 0,
+                        "fp32_count": 0,
+                        "fp64_count": 0
+                    },
+                    "register_file": {
+                        "num_reg_files": 1,
+                        "num_registers": 32,
+                        "register_bitwidth": 32,
+                        "num_rdwr_ports": 2
+                    },
+                    "SRAM_KB": vlen
+                }
+            },
+            "memory_protocol": "HBM2e",
+            "_memory_protocol_list": [
+                "HBM2e",
+                "DDR4",
+                "DDR5",
+                "PCIe4",
+                "PCIe5"
+            ],
+            "io": {
+                "process_node": "7nm",
+                "global_buffer_MB": 48,
+                "physical_global_buffer_MB": 48,
+                "global_buffer_bandwidth_per_cycle_byte": 5120,
+                "memory_channel_physical_count": 6,
+                "memory_channel_active_count": 5,
+                "pin_count_per_channel": 1024,
+                "bandwidth_per_pin_bit": 3.2e9
+            },
+            "memory": {
+                "total_capacity_GB": 80
+            }
+        }
+    }
+
+    if output_json_path is None:
+        parent_path = os.path.dirname(os.path.abspath(__file__))
+        output_json_path = os.path.join(parent_path, "plena_sys_config.json")
+
+    with open(output_json_path, "w") as fout:
+        json.dump(json_conf, fout, indent=4)
+    print(f"Generated system config to {output_json_path}")
+
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Update TOML active values.")
@@ -169,4 +276,4 @@ def main():
         )
 
 if __name__ == "__main__":
-    main()
+    generate_plena_sys_config_from_toml("plena_settings.toml", "plena_sys_config.json")
