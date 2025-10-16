@@ -45,25 +45,29 @@ if __name__ == "__main__":
         "weights": weights,
         "original_output": original_output
     }
-    # Gen Instructions
+
     gen_assembly_code = "; Linear Test Generation \n"
+    
+    # Set the addr offset for weight and bias
+    gen_assembly_code += preload_addr_reg_asm(
+        addr_reg_val=[1, 2],
+        alive_registers=[int(hidden_size * hidden_size * real_data_ratio), int((hidden_size + hidden_size * hidden_size) * real_data_ratio)]
+    )
+    print("hidden_size * hidden_size * real_data_ratio", hidden_size * hidden_size * real_data_ratio)
+    print("(hidden_size + hidden_size * hidden_size) * real_data_ratio", (hidden_size + hidden_size * hidden_size) * real_data_ratio)
+    
+    # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
         vlen=64,
         preload_len=1,
         batch=4,
         hidden_size=128,
         alive_registers=[1,2],
-        activation_offset_reg=0
+        activation_offset_reg=2
     )
 
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2]
-    )
-
-    # Set the addr offset for weight and bias
-    gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_val=[1, 2],
-        alive_registers=[int(hidden_size * real_data_ratio), int((hidden_size + hidden_size * hidden_size) * real_data_ratio)]
     )
 
     gen_assembly_code += projection_asm(
@@ -73,13 +77,14 @@ if __name__ == "__main__":
         hidden_size=128,
         alive_registers=[1,2,3,4,5,6,7,8],
         head_dim=128,
-        w_base_hbm_offset_reg=1,
+        w_base_hbm_offset_reg=0,
         rope_hbm_offset_reg=0,
         rope_on_chip_address=0,
         activation_base_address=0,
         result_base_address=0,
         rope_enabled=False
     )
+
     # print("input_tensor shape", input_tensor.shape)
     # exit()
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result)

@@ -1004,11 +1004,11 @@ async fn start() {
     println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
     println!("scale = {}", accelerator.reg_file.scale);
     println!(
-        "{}",
+        "Vector SRAM Contents: \n {}",
         accelerator.v_machine.vram.read(0x0000).await.as_tensor()
     );
     println!(
-        "{}",
+        "Matrix SRAM Contents: \n {}",
         accelerator.m_machine.mram.read(0x0000).await.as_tensor()
     );
 
