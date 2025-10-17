@@ -23,7 +23,6 @@ test-sw:
     python3 tools/quant/quant_operations/sqrt.py
     python3 tools/quant/quant_operations/reciprocal.py
 
-
 build-behave-sim arg:
     # 1) Build env for the given target
     rm -rf behavioral_simulator/testbench/build
@@ -45,6 +44,7 @@ build-behave-sim-debug arg:
     data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
     cd behavioral_simulator && \
     RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" 
+    cd behavioral_simulator/testbench && python3 view_mem.py
 
 build-rtl-sim arg:
     rm -rf test/Instr_Level_Benchmark/build/{{arg}}

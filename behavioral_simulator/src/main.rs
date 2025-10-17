@@ -292,10 +292,11 @@ impl MatrixMachine {
         println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         let full_mat = self.mram.read(mat_base).await;
+        // Slice columns instead of rows: [tile_size, blen]
         let mat = full_mat
             .as_tensor()
             .view([self.tile_size as i64, self.tile_size as i64])
-            .i((mat_offset as i64..(mat_offset + self.blen) as i64, ..));
+            .i((.., mat_offset as i64..(mat_offset + self.blen) as i64));
         let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
         for i in 0..self.blen {
@@ -307,9 +308,12 @@ impl MatrixMachine {
                     .shallow_clone(),
             );
         }
-        let vec = tch::Tensor::stack(&tensors, -1);
-        println!("vec = {:?}", vec);
-        self.m_accum += mat.matmul(&vec);
+        // Stack along dimension 0 to get [blen, tile_size]
+        let vec = tch::Tensor::stack(&tensors, 0);
+        println!("vec = {}", vec);
+        // Now vec @ mat: [blen, tile_size] @ [tile_size, blen] = [blen, blen]
+        self.m_accum += vec.matmul(&mat);
+        println!("m_accum = {}", self.m_accum);
     }
 
     async fn tmm(&mut self, v_addr: u32, m_addr: u32) {
@@ -317,11 +321,12 @@ impl MatrixMachine {
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
         assert!(mat_offset.is_multiple_of(self.blen));
         let full_mat = self.mram.read(mat_base).await;
+        // Transpose then slice columns: [tile_size, blen]
         let mat = full_mat
             .as_tensor()
             .view([self.tile_size as i64, self.tile_size as i64])
             .transpose(-1, -2)
-            .i((mat_offset as i64..(mat_offset + self.blen) as i64, ..));
+            .i((.., mat_offset as i64..(mat_offset + self.blen) as i64));
         let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
         for i in 0..self.blen {
@@ -333,13 +338,15 @@ impl MatrixMachine {
                     .shallow_clone(),
             );
         }
-        let vec = tch::Tensor::stack(&tensors, -1);
-
-        self.m_accum += mat.matmul(&vec);
+        // Stack along dimension 0 to get [blen, tile_size]
+        let vec = tch::Tensor::stack(&tensors, 0);
+        // Now vec @ mat: [blen, tile_size] @ [tile_size, blen] = [blen, blen]
+        self.m_accum += vec.matmul(&mat);
     }
 
     async fn mm_wo(&mut self, v_addr: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.tile_size);
+        println!("vec_base = {}, vec_offset = {}", vec_base, vec_offset);
         assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
         for i in 0..self.blen {
@@ -366,14 +373,18 @@ impl MatrixMachine {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
         cycle!(self.tile_size);
-        self.v_accum += mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64]).matmul(vec.as_tensor());
+        // vec @ mat: [1, tile_size] @ [tile_size, tile_size] = [1, tile_size], then squeeze
+        let result = vec.as_tensor().unsqueeze(0).matmul(&mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64])).squeeze_dim(0);
+        self.v_accum += result;
     }
 
     async fn tmv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
         cycle!(self.tile_size);
-        self.v_accum += mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64]).transpose(-1, -2).matmul(vec.as_tensor());
+        // vec @ transpose(mat): [1, tile_size] @ [tile_size, tile_size] = [1, tile_size], then squeeze
+        let result = vec.as_tensor().unsqueeze(0).matmul(&mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64]).transpose(-1, -2)).squeeze_dim(0);
+        self.v_accum += result;
     }
 
     async fn mv_wo(&mut self, v_addr: u32) {
