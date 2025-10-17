@@ -54,6 +54,9 @@ static MATRIX_WEIGHT_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_weight
 static MATRIX_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_kv_type());
 static VECTOR_ACTIVATION_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_activation_type());
 static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type());
+static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount());
+static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
+static WRITEBACK_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_writeback_amount());
 
 /// Address handling utilities.
 ///
@@ -311,6 +314,7 @@ impl MatrixMachine {
         // Stack along dimension 0 to get [blen, tile_size]
         let vec = tch::Tensor::stack(&tensors, 0);
         println!("vec = {}", vec);
+        println!("mat = {}", mat);
         // Now vec @ mat: [blen, tile_size] @ [tile_size, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
         println!("m_accum = {}", self.m_accum);
@@ -495,35 +499,57 @@ struct AcceeleratorRegFile {
     fp_reg: [f16; 8],
     hbm_addr_reg: [u64; 8],
     scale: u32,
+    stride: u32,
 }
 
 impl Accelerator {
     /// Transfer a vector from HBM to host.
-    ///
-    /// `len` is size in bytes.
+    /// Transfer data from HBM with strided loading pattern.
+    /// Parameters:
+    /// - index: Starting address for element data in HBM
+    /// - scale_index: Starting address for scale data in HBM (for MXFP/MXINT types)
+    /// - hbm_type: Data type format in HBM
+    /// - sram_type: Target data type format for SRAM
+    /// - stride: Byte offset between consecutive loads
+    /// - load_dim: Number of elements to load per iteration
+    /// - load_amount: Number of strided loads to perform
     fn transfer_from_hbm(
         &mut self,
         index: u64,
-        // For MXFP/MXINT, load from this index.
         scale_index: u64,
-        len: usize,
         hbm_type: MxDataType,
         sram_type: MxDataType,
+        rstride: u8,
+        load_dim: u32,
+        load_amount: u32,
     ) -> Receiver<QuantTensor> {
         let (sender, receiver) = oneshot::channel();
 
         // Launch the data transfer in parallel.
         let hbm_clone = self.hbm.clone();
+        let stride = if rstride == 1 { self.reg_file.stride} else { 1 };
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
             let element_bits = element_ty.size_in_bits();
+
+            // Extract scale bits if Mx type, otherwise use element_bits as default
+            let scale_bits = if let MxDataType::Mx { elem: _, scale, block: _ } = hbm_type {
+                scale.size_in_bits()
+            } else {
+                element_bits  // For Plain types, no separate scale
+            };
+            
+            let element_scale_ratio = element_bits / scale_bits;
+            let stride_scale = stride as u32 / element_scale_ratio as u32;
             assert!(element_bits.is_power_of_two());
 
-            let len_in_bits = element_bits as u32 * len as u32;
-            assert!(len_in_bits.is_multiple_of(8 * 64));
-            let len_in_bytes = len_in_bits / 8;
+            // Calculate bytes per load iteration
+            let len_in_bits_per_load = element_bits as u32 * load_dim;
+            assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
+            let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
-            let (scale_len_in_bytes, block) = if let MxDataType::Mx {
+            // Calculate scale bytes per load iteration (for Mx types)
+            let (scale_len_in_bytes_per_load, block) = if let MxDataType::Mx {
                 elem: _,
                 scale,
                 block,
@@ -531,59 +557,100 @@ impl Accelerator {
             {
                 let scale_bits = scale.size_in_bits();
                 assert!(scale_bits.is_power_of_two());
-                let scale_len_in_bits = scale_bits as u32 * len as u32;
-                assert!(scale_len_in_bits.is_multiple_of(8 * 64));
-                (scale_len_in_bits / 8, block as usize)
+                let scale_len_in_bits_per_load = scale_bits as u32 * (load_dim / block);
+                assert!(scale_len_in_bits_per_load.is_multiple_of(8 * 64));
+                (scale_len_in_bits_per_load / 8, block as usize)
             } else {
                 (0, usize::MAX)
             };
 
-            let mut bytes = vec![0; len_in_bytes as usize];
-            let mut scale_bytes = vec![0; scale_len_in_bytes as usize];
-            let hbm_clone = &hbm_clone;
-            let futures = FuturesUnordered::<Pin<Box<dyn Future<Output = _> + Send>>>::new();
-
-            for (i, x) in bytes.chunks_mut(64).enumerate() {
-                futures.push(Box::pin(async move {
-                    let chunk = hbm_clone.read(index + i as u64 * 64).await;
-                    x.copy_from_slice(&chunk[..x.len()]);
-                }));
-            }
-
-            for (i, x) in scale_bytes.chunks_mut(64).enumerate() {
-                futures.push(Box::pin(async move {
-                    let chunk = hbm_clone.read(scale_index + i as u64 * 64).await;
-                    x.copy_from_slice(&chunk[..x.len()]);
-                }));
-            }
-
-            futures.collect::<()>().await;
-            // println!("scale_bytes: {:02X?}", &scale_bytes);
-            // eprintln!("HBM Loaded Value: {:08X?}", &bytes);
-
-            let mut vec = vec![0f32; len];
-            element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
+            // Allocate buffers for all loaded data
+            let total_elements = (load_dim * load_amount) as usize;
+            let total_bytes = (len_in_bytes_per_load * load_amount) as usize;
+            let total_scale_bytes = (scale_len_in_bytes_per_load * load_amount) as usize;
             
+            let mut bytes = vec![0u8; total_bytes];
+            let mut scale_bytes = vec![0u8; total_scale_bytes];
+            let hbm_clone = &hbm_clone;
+            
+            // Use enum to distinguish between element and scale data
+            enum ChunkType {
+                Element(usize, [u8; 64], usize), // (buffer_offset, data, size)
+                Scale(usize, [u8; 64], usize),   // (buffer_offset, data, size)
+            }
+            
+            let mut futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ChunkType> + Send>>>::new();
 
-            let mut scale_vec = vec![0f32; len / block as usize];
+            // Perform strided loads
+            for load_iter in 0..load_amount {
+                let element_addr = index + (load_iter * stride) as u64;
+                let scale_addr = scale_index + (load_iter * stride_scale) as u64;
+                
+                let byte_offset = (load_iter * len_in_bytes_per_load) as usize;
+                let scale_byte_offset = (load_iter * scale_len_in_bytes_per_load) as usize;
+
+                // Load element data in 64-byte chunks
+                for i in 0..(len_in_bytes_per_load as usize + 63) / 64 {
+                    let chunk_offset = byte_offset + i * 64;
+                    let chunk_size = std::cmp::min(64, total_bytes - chunk_offset);
+                    let addr = element_addr + (i * 64) as u64;
+                    futures.push(Box::pin(async move {
+                        let data = hbm_clone.read(addr).await;
+                        ChunkType::Element(chunk_offset, data, chunk_size)
+                    }));
+                }
+
+                // Load scale data in 64-byte chunks (if Mx type)
+                if scale_len_in_bytes_per_load > 0 {
+                    for i in 0..(scale_len_in_bytes_per_load as usize + 63) / 64 {
+                        let chunk_offset = scale_byte_offset + i * 64;
+                        let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
+                        let addr = scale_addr + (i * 64) as u64;
+                        futures.push(Box::pin(async move {
+                            let data = hbm_clone.read(addr).await;
+                            ChunkType::Scale(chunk_offset, data, chunk_size)
+                        }));
+                    }
+                }
+            }
+
+            // Collect all HBM reads
+            while let Some(chunk_result) = futures.next().await {
+                match chunk_result {
+                    ChunkType::Element(offset, data, size) => {
+                        bytes[offset..offset + size].copy_from_slice(&data[..size]);
+                    }
+                    ChunkType::Scale(offset, data, size) => {
+                        scale_bytes[offset..offset + size].copy_from_slice(&data[..size]);
+                    }
+                }
+            }
+
+            // Convert bytes to f32 values
+            let mut vec = vec![0f32; total_elements];
+            element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
+
+            // Apply scaling if Mx type
             if let MxDataType::Mx {
                 elem: _,
                 scale,
                 block,
             } = hbm_type
             {
+                let mut scale_vec = vec![0f32; total_elements / block as usize];
                 scale.convert_bytes_to_f32_vec(&scale_bytes, &mut scale_vec);
 
-            for (i, (elem_block, scale_val)) in vec
-                .chunks_mut(block as usize)
-                .zip(scale_vec.iter().copied())
-                .enumerate()
+                for (elem_block, scale_val) in vec
+                    .chunks_mut(block as usize)
+                    .zip(scale_vec.iter().copied())
                 {
                     for elem in elem_block.iter_mut() {
                         *elem *= scale_val;
                     }
                 }
             }
+
+            // Create tensor and send result
             let tensor = tch::Tensor::from_slice(&vec);
             let _ = sender.send(QuantTensor::quantize(tensor, sram_type));
         });
@@ -853,9 +920,11 @@ impl Accelerator {
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
-                        (*MLEN * *MLEN) as usize,
                         dtype,
                         self.m_machine.mram.ty,
+                        rstride,
+                        *MLEN,
+                        *PREFETCH_M_AMOUNT,
                     );
 
                     self.m_machine
@@ -890,9 +959,11 @@ impl Accelerator {
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
-                        *VLEN as usize,
                         dtype,
                         self.v_machine.vram.ty,
+                        rstride,
+                        *VLEN,
+                        *PREFETCH_V_AMOUNT,
                     );
                 
                     let dest = self.reg_file.gp_reg[rd as usize];
@@ -913,6 +984,10 @@ impl Accelerator {
                 }
                 op::Opcode::C_SET_SCALE_REG { rd } => {
                     self.reg_file.scale = self.reg_file.gp_reg[rd as usize];
+                    cycle!(1);
+                }
+                op::Opcode::C_SET_STRIDE_REG { rd } => {
+                    self.reg_file.stride = self.reg_file.gp_reg[rd as usize];
                     cycle!(1);
                 }
                 op::Opcode::C_BREAK => todo!(),
@@ -969,6 +1044,7 @@ async fn start() {
             fp_reg: [f16::ZERO; 8],
             hbm_addr_reg: [0; 8],
             scale: 0,
+            stride: 1,
         },
         int_sram: vec![0; 1024],
         fp_sram: vec![f16::ZERO; 1024],

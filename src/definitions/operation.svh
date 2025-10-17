@@ -154,12 +154,13 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     // CSR Setting
     C_SET_ADDR_REG         = 6'h25,
     C_SET_SCALE_REG        = 6'h26,
+    C_SET_STRIDE_REG       = 6'h27,
 
     // Extentions
-    V_PS_V                 = 6'h27,
-    V_SHFT_V               = 6'h28,
-    C_HADAMARD_TRANSFORM   = 6'h29,
-    C_BREAK                = 6'h2A
+    V_PS_V                 = 6'h28,
+    V_SHFT_V               = 6'h29,
+    C_HADAMARD_TRANSFORM   = 6'h2A,
+    C_BREAK                = 6'h2B
 } CUSTOM_ISA_OPCODE;
 
 

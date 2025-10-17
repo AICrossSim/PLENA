@@ -204,6 +204,9 @@ pub enum Opcode {
     C_SET_SCALE_REG {
         rd: u8,
     },
+    C_SET_STRIDE_REG {
+        rd: u8,
+    },
     C_BREAK,
 }
 
@@ -298,10 +301,10 @@ impl Opcode {
             // 0x32 => Self::H_STORE_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x25 => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
             0x26 => Self::C_SET_SCALE_REG { rd },
+            0x27 => Self::C_SET_STRIDE_REG { rd },
 
             // TODO: Add Hadamard_transform and mamba extension.
             0x2A => Self::C_BREAK,
-
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

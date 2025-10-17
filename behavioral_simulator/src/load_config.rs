@@ -374,6 +374,18 @@ pub fn matrix_weight_type() -> MxDataType {
     CONFIG.precision.hbm_m_weight_type.clone().into()
 }
 
+pub fn hbm_m_prefetch_amount() -> u32 {
+    CONFIG.config.hbm_m_prefetch_amount.value
+}
+
+pub fn hbm_v_prefetch_amount() -> u32 {
+    CONFIG.config.hbm_v_prefetch_amount.value
+}
+
+pub fn hbm_v_writeback_amount() -> u32 {
+    CONFIG.config.hbm_v_writeback_amount.value
+}
+
 pub fn matrix_kv_type() -> MxDataType {
     CONFIG.precision.hbm_m_kv_type.clone().into()
 }
