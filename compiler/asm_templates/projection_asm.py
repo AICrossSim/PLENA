@@ -46,7 +46,7 @@ def projection_asm(
     set_result_address   = f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n"
     increment_w_actual_address = f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * blen} \n"
     increment_a_actual_address = f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
-    increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {mlen * blen} \n"
+    increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen * blen} \n"
 
     row_loop_over_hid = hidden_size // blen
     col_loop_over_hid = hidden_size // mlen
@@ -58,10 +58,10 @@ def projection_asm(
         generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_actual_register}, a{w_base_hbm_offset_reg}, 0, 0 \n"
         for j in range(col_loop_over_hid):
             generated_code += f"; <---- Generating New Column Tile at row {i} col {j} \n"
-            # generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
+            generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
             generated_code += increment_w_actual_address
             generated_code += increment_a_actual_address
-        # generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
+        generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
         generated_code += increment_result_actual_address
     
     # RoPE

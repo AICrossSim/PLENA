@@ -57,7 +57,12 @@ if __name__ == "__main__":
 
     print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
     print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
-
+    
+    # Reset the registers
+    gen_assembly_code += reset_reg_asm(
+        alive_registers=[1,2]
+    )
+    
     # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
         vlen=64,
@@ -68,6 +73,7 @@ if __name__ == "__main__":
         activation_offset_reg=0
     )
 
+    # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2]
     )
@@ -83,7 +89,7 @@ if __name__ == "__main__":
         rope_hbm_offset_reg=0,
         rope_on_chip_address=0,
         activation_base_address=0,
-        result_base_address=0,
+        result_base_address=hidden_size * batch_size,
         rope_enabled=False
     )
 
