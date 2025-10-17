@@ -57,7 +57,8 @@ def build_fake_sim_env(data_size=256):
         # The provided path (args.data) is a directory. Enumerate all .pt and .pth files within,
         # then load and quantize all of them. Collect the results in dictionaries keyed by filename.
         target_dir = PROJECT_PATH / "behavioral_simulator" / "testbench" / "build"
-        pt_files = list(target_dir.glob("*.pt")) + list(target_dir.glob("*.pth"))
+        # pt_files = list(target_dir.glob("*.pt")) + list(target_dir.glob("*.pth"))
+        pt_files = ["input_tensor.pt", "model_weight.pt"]
         grp_blocks = []
         grp_bias = []
         for pt_file in pt_files:

@@ -50,12 +50,14 @@ if __name__ == "__main__":
     
     # Set the addr offset for weight and bias
     gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_val=[1, 2],
-        alive_registers=[int(hidden_size * hidden_size * real_data_ratio), int((hidden_size + hidden_size * hidden_size) * real_data_ratio)]
+        addr_reg_to_set=[1, 2],
+        available_registers=[1, 2],
+        addr_reg_val=[int(hidden_size * batch_size * real_data_ratio), int((hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)]
     )
-    print("hidden_size * hidden_size * real_data_ratio", hidden_size * hidden_size * real_data_ratio)
-    print("(hidden_size + hidden_size * hidden_size) * real_data_ratio", (hidden_size + hidden_size * hidden_size) * real_data_ratio)
-    
+
+    print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
+    print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
+
     # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
         vlen=64,
@@ -63,7 +65,7 @@ if __name__ == "__main__":
         batch=4,
         hidden_size=128,
         alive_registers=[1,2],
-        activation_offset_reg=2
+        activation_offset_reg=0
     )
 
     gen_assembly_code += reset_reg_asm(
@@ -77,7 +79,7 @@ if __name__ == "__main__":
         hidden_size=128,
         alive_registers=[1,2,3,4,5,6,7,8],
         head_dim=128,
-        w_base_hbm_offset_reg=0,
+        w_base_hbm_offset_reg=1,
         rope_hbm_offset_reg=0,
         rope_on_chip_address=0,
         activation_base_address=0,
