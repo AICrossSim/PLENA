@@ -60,22 +60,23 @@ if __name__ == "__main__":
     
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2]
+        alive_registers=[1,2,3]
     )
     
     # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
         vlen=64,
-        preload_len=1,
+        preload_len=4,
         batch=4,
         hidden_size=128,
-        alive_registers=[1,2],
+        alive_registers=[1,2,3],
+        act_vram_offset=0,
         activation_offset_reg=0
     )
 
     # # Reset the registers
     # gen_assembly_code += reset_reg_asm(
-    #     alive_registers=[1,2]
+    #     alive_registers=[1,2,3]
     # )
 
     # gen_assembly_code += projection_asm(

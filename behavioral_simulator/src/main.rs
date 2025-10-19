@@ -139,6 +139,15 @@ impl MatrixSram {
         *self.tiles[addr_in_tiles as usize].lock().await = Err(tensor);
     }
 
+    // async fn continous_write_delayed(&self, addr: u32, write_amount: u32, tensor: Receiver<QuantTensor>) {
+    //     let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
+        
+    //     for i in 0..write_amount {
+    //         *self.tiles[(addr_in_tiles + i) as usize].lock().await = Err(tensor);
+    //     }
+    // }
+
+
     async fn as_bytes(&self) -> Vec<u8> {
         let element_ty = self.ty.element_type();
         let mut result = Vec::new();
@@ -214,6 +223,25 @@ impl VectorSram {
         let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
 
         *self.tiles[addr_in_tiles as usize].lock().await = Err(tensor);
+    }
+
+    async fn continous_write_delayed(&self, addr: u32, write_amount: u32, tensor: Receiver<QuantTensor>) {
+        let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
+        // Await the tensor from the channel (blocks until data arrives)
+        if let Ok(tensor) = tensor.await {
+            let dims = tensor.as_tensor().size();
+            let chunk_size = self.tile_size as i64;
+            let total = dims[0];
+
+            // Split the tensor into chunks of self.tile_size and store each in self.tiles.
+            for i in 0..write_amount.min((total as u32 + self.tile_size - 1) / self.tile_size) {
+                let start = (i as i64) * chunk_size;
+                let end = ((i as i64 + 1) * chunk_size).min(total);
+                let chunk = tensor.as_tensor().narrow(0, start, end - start).shallow_clone();
+                let chunk_qt = QuantTensor::quantize(chunk, self.ty);
+                *self.tiles[(addr_in_tiles + i) as usize].lock().await = Ok(chunk_qt);
+            }
+        }
     }
 
     /// TODO: used to preload Vector SRAM to facilitate testing.
@@ -546,11 +574,8 @@ impl Accelerator {
                 _ => (element_bits, 1)  // Plain type: each element is "scaled" by 1
             };
 
-            println!("element_bits = {:?}, scale_bits = {:?}", element_bits, scale_bits);
             let element_scale_ratio = (element_bits * blocksize as u8) / scale_bits;
             let stride_scale = stride as u32 / element_scale_ratio as u32;
-            println!("element_scale_ratio = {:?}", element_scale_ratio);
-            println!("stride_scale = {:?}", stride_scale);
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
@@ -599,11 +624,6 @@ impl Accelerator {
                         + block_idx as usize * len_in_bytes_per_load as usize;
                     let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load) as usize
                         + block_idx as usize * scale_len_in_bytes_per_load as usize;
-
-                    println!("write_idx = {:?}, block_idx = {:?}", write_idx, block_idx);
-                    println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
-                    println!("byte_offset = {:?}, scale_byte_offset = {:?}", byte_offset, scale_byte_offset);
-
                     // Element chunks:
                     for i in 0..(len_in_bytes_per_load as usize + 63) / 64 {
                         let chunk_offset = byte_offset + i * 64;
@@ -623,10 +643,6 @@ impl Accelerator {
                         let within_chunk_offset = (scale_addr % 64) as usize;
                         let chunk_offset = scale_byte_offset; // where to write in scale_bytes
                         let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
-                        println!(
-                            "scale_addr = {:?}, aligned_scale_addr = {:?}, within_chunk_offset = {:?}",
-                            scale_addr, aligned_scale_addr, within_chunk_offset
-                        );
                         futures.push(Box::pin(async move {
                             let data = hbm_clone.read(aligned_scale_addr).await;
                             // Copy out only the relevant bytes for this scale_addr
@@ -650,14 +666,9 @@ impl Accelerator {
                     }
                     ChunkType::Scale(offset, data, size) => {
                         scale_bytes[offset..offset + size].copy_from_slice(&data[..size]);
-                        println!("scale data = {:?}", &data[..size]);
                     }
                 }
             }
-
-
-            println!("bytes = {:?}", bytes);
-            println!("scale_bytes = {:?}", scale_bytes);
 
             // Process each write batch
             let mut all_results: Vec<QuantTensor> = Vec::with_capacity(num_writes as usize);
@@ -1020,7 +1031,7 @@ impl Accelerator {
                     );
                 
                     let dest = self.reg_file.gp_reg[rd as usize];
-                    self.v_machine.vram.write_delayed(dest, xfer).await;
+                    self.v_machine.vram.continous_write_delayed(dest, *PREFETCH_V_AMOUNT, xfer).await;
                 }
                 op::Opcode::H_STORE_V {
                     rd,
