@@ -141,10 +141,7 @@ impl MatrixSram {
 
     async fn as_bytes(&self) -> Vec<u8> {
         let element_ty = self.ty.element_type();
-        let bytes_per_element = (element_ty.size_in_bits() / 8) as usize;
-        let elements_per_tile = (self.tile_size * self.tile_size) as usize;
-        let bytes_per_tile = elements_per_tile * bytes_per_element;
-        let mut result = Vec::with_capacity(bytes_per_tile * self.tiles.len());
+        let mut result = Vec::new();
         
         for tile_mutex in &self.tiles {
             let mut guard = tile_mutex.lock().await;
@@ -157,7 +154,10 @@ impl MatrixSram {
             let f32_slice = unsafe { 
                 core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) 
             };
-            let mut tile_bytes = vec![0u8; bytes_per_tile];
+            // Calculate bytes needed for THIS tile's actual size
+            let total_bits = len * element_ty.size_in_bits() as usize;
+            let bytes_needed = (total_bits + 7) / 8;
+            let mut tile_bytes = vec![0u8; bytes_needed];
             element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
             result.extend_from_slice(&tile_bytes);
         }
@@ -253,10 +253,7 @@ impl VectorSram {
 
     async fn as_bytes(&self) -> Vec<u8> {
         let element_ty = self.ty.element_type();
-        let bytes_per_element = (element_ty.size_in_bits() / 8) as usize;
-        let elements_per_tile = self.tile_size as usize;
-        let bytes_per_tile = elements_per_tile * bytes_per_element;
-        let mut result = Vec::with_capacity(bytes_per_tile * self.tiles.len());
+        let mut result = Vec::new();
         
         for tile_mutex in &self.tiles {
             let mut guard = tile_mutex.lock().await;
@@ -269,7 +266,10 @@ impl VectorSram {
             let f32_slice = unsafe { 
                 core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) 
             };
-            let mut tile_bytes = vec![0u8; bytes_per_tile];
+            // Calculate bytes needed for THIS tile's actual size
+            let total_bits = len * element_ty.size_in_bits() as usize;
+            let bytes_needed = (total_bits + 7) / 8;
+            let mut tile_bytes = vec![0u8; bytes_needed];
             element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
             result.extend_from_slice(&tile_bytes);
         }
@@ -522,12 +522,20 @@ impl Accelerator {
         rstride: u8,
         load_dim: u32,
         load_amount: u32,
+        write_amount: u32,
     ) -> Receiver<QuantTensor> {
+        // input: load_amount is how many "reads", write_amount is how many sram writes
+        // write_dim = load_dim * write_amount per write, repeat for (load_amount / write_amount) times
+
+        assert!(load_dim.is_multiple_of(write_amount));
+        assert!(load_amount % write_amount == 0); // must divide evenly
+
+        let write_dim = load_dim * write_amount; // Number of elements per write to sram
+        let num_writes = load_amount / write_amount;
         let (sender, receiver) = oneshot::channel();
 
-        // Launch the data transfer in parallel.
         let hbm_clone = self.hbm.clone();
-        let stride = if rstride == 1 { self.reg_file.stride} else { 1 };
+        let stride = if rstride == 1 { self.reg_file.stride } else { 1 };
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
             let element_bits = element_ty.size_in_bits();
@@ -536,14 +544,12 @@ impl Accelerator {
             let scale_bits = if let MxDataType::Mx { elem: _, scale, block: _ } = hbm_type {
                 scale.size_in_bits()
             } else {
-                element_bits  // For Plain types, no separate scale
+                element_bits
             };
-            
             let element_scale_ratio = element_bits / scale_bits;
             let stride_scale = stride as u32 / element_scale_ratio as u32;
             assert!(element_bits.is_power_of_two());
 
-            // Calculate bytes per load iteration
             let len_in_bits_per_load = element_bits as u32 * load_dim;
             assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
@@ -558,58 +564,61 @@ impl Accelerator {
                 let scale_bits = scale.size_in_bits();
                 assert!(scale_bits.is_power_of_two());
                 let scale_len_in_bits_per_load = scale_bits as u32 * (load_dim / block);
-                assert!(scale_len_in_bits_per_load.is_multiple_of(8 * 64));
+                assert!(scale_len_in_bits_per_load.is_multiple_of(8));
                 (scale_len_in_bits_per_load / 8, block as usize)
             } else {
                 (0, usize::MAX)
             };
 
-            // Allocate buffers for all loaded data
-            let total_elements = (load_dim * load_amount) as usize;
-            let total_bytes = (len_in_bytes_per_load * load_amount) as usize;
-            let total_scale_bytes = (scale_len_in_bytes_per_load * load_amount) as usize;
-            
+            // Total elements/bytes for all writes:
+            let total_elements = (write_dim * num_writes) as usize;
+            let total_bytes = (len_in_bytes_per_load * write_amount * num_writes) as usize;
+            let total_scale_bytes = (scale_len_in_bytes_per_load * write_amount * num_writes) as usize;
+
             let mut bytes = vec![0u8; total_bytes];
             let mut scale_bytes = vec![0u8; total_scale_bytes];
             let hbm_clone = &hbm_clone;
-            
-            // Use enum to distinguish between element and scale data
+
             enum ChunkType {
-                Element(usize, [u8; 64], usize), // (buffer_offset, data, size)
-                Scale(usize, [u8; 64], usize),   // (buffer_offset, data, size)
+                Element(usize, [u8; 64], usize), // (offset, data, size)
+                Scale(usize, [u8; 64], usize),
             }
-            
             let mut futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ChunkType> + Send>>>::new();
 
-            // Perform strided loads
-            for load_iter in 0..load_amount {
-                let element_addr = index + (load_iter * stride) as u64;
-                let scale_addr = scale_index + (load_iter * stride_scale) as u64;
-                
-                let byte_offset = (load_iter * len_in_bytes_per_load) as usize;
-                let scale_byte_offset = (load_iter * scale_len_in_bytes_per_load) as usize;
+            // Outer loop: For each "write". Inner: gather blocks for all loads for this write.
+            for write_idx in 0..num_writes {
+                for block_idx in 0..write_amount {
+                    let load_iter = write_idx * write_amount + block_idx;
+                    let element_addr = index + (load_iter * stride) as u64;
+                    let scale_addr = scale_index + (load_iter * stride_scale) as u64;
 
-                // Load element data in 64-byte chunks
-                for i in 0..(len_in_bytes_per_load as usize + 63) / 64 {
-                    let chunk_offset = byte_offset + i * 64;
-                    let chunk_size = std::cmp::min(64, total_bytes - chunk_offset);
-                    let addr = element_addr + (i * 64) as u64;
-                    futures.push(Box::pin(async move {
-                        let data = hbm_clone.read(addr).await;
-                        ChunkType::Element(chunk_offset, data, chunk_size)
-                    }));
-                }
+                    let byte_offset = (write_idx * write_amount * len_in_bytes_per_load) as usize
+                        + block_idx as usize * len_in_bytes_per_load as usize;
+                    let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load) as usize
+                        + block_idx as usize * scale_len_in_bytes_per_load as usize;
 
-                // Load scale data in 64-byte chunks (if Mx type)
-                if scale_len_in_bytes_per_load > 0 {
-                    for i in 0..(scale_len_in_bytes_per_load as usize + 63) / 64 {
-                        let chunk_offset = scale_byte_offset + i * 64;
-                        let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
-                        let addr = scale_addr + (i * 64) as u64;
+                    // Element chunks:
+                    for i in 0..(len_in_bytes_per_load as usize + 63) / 64 {
+                        let chunk_offset = byte_offset + i * 64;
+                        let chunk_size = std::cmp::min(64, total_bytes - chunk_offset);
+                        let addr = element_addr + (i * 64) as u64;
                         futures.push(Box::pin(async move {
                             let data = hbm_clone.read(addr).await;
-                            ChunkType::Scale(chunk_offset, data, chunk_size)
+                            ChunkType::Element(chunk_offset, data, chunk_size)
                         }));
+                    }
+
+                    // Scale chunks (if Mx type)
+                    if scale_len_in_bytes_per_load > 0 {
+                        for i in 0..(scale_len_in_bytes_per_load as usize + 63) / 64 {
+                            let chunk_offset = scale_byte_offset + i * 64;
+                            let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
+                            let addr = scale_addr + (i * 64) as u64;
+                            futures.push(Box::pin(async move {
+                                let data = hbm_clone.read(addr).await;
+                                ChunkType::Scale(chunk_offset, data, chunk_size)
+                            }));
+                        }
                     }
                 }
             }
@@ -626,33 +635,49 @@ impl Accelerator {
                 }
             }
 
-            // Convert bytes to f32 values
-            let mut vec = vec![0f32; total_elements];
-            element_ty.convert_bytes_to_f32_vec(&bytes, &mut vec);
+            // Process each write batch
+            let mut all_results: Vec<QuantTensor> = Vec::with_capacity(num_writes as usize);
+            for write_idx in 0..num_writes {
+                let offset = write_idx * write_dim;
+                let write_elements = write_dim as usize;
 
-            // Apply scaling if Mx type
-            if let MxDataType::Mx {
-                elem: _,
-                scale,
-                block,
-            } = hbm_type
-            {
-                let mut scale_vec = vec![0f32; total_elements / block as usize];
-                scale.convert_bytes_to_f32_vec(&scale_bytes, &mut scale_vec);
+                let mut vec = vec![0f32; write_elements];
 
-                for (elem_block, scale_val) in vec
-                    .chunks_mut(block as usize)
-                    .zip(scale_vec.iter().copied())
-                {
-                    for elem in elem_block.iter_mut() {
-                        *elem *= scale_val;
+                // Fill `vec` with elements for this write
+                let elements_offset = write_idx * write_amount * load_dim;
+                let bytes_start = (write_idx * write_amount) as usize * len_in_bytes_per_load as usize;
+                element_ty.convert_bytes_to_f32_vec(
+                    &bytes[bytes_start..bytes_start + write_elements * (element_bits as usize / 8)],
+                    &mut vec,
+                );
+
+                // Apply scaling if needed
+                if let MxDataType::Mx { elem: _, scale, block } = hbm_type {
+                    let nblocks = write_elements / block as usize;
+                    let scale_bytes_start = (write_idx * write_amount) as usize * scale_len_in_bytes_per_load as usize;
+                    let mut scale_vec = vec![0f32; nblocks];
+                    scale.convert_bytes_to_f32_vec(
+                        &scale_bytes[scale_bytes_start..scale_bytes_start + nblocks * (scale_bits as usize / 8)],
+                        &mut scale_vec,
+                    );
+                    for (elem_block, scale_val) in vec.chunks_mut(block as usize).zip(scale_vec.iter().copied()) {
+                        for elem in elem_block.iter_mut() {
+                            *elem *= scale_val;
+                        }
                     }
                 }
+
+                let tensor = tch::Tensor::from_slice(&vec);
+                all_results.push(QuantTensor::quantize(tensor, sram_type));
             }
 
-            // Create tensor and send result
-            let tensor = tch::Tensor::from_slice(&vec);
-            let _ = sender.send(QuantTensor::quantize(tensor, sram_type));
+            // Send all results as a concatenated tensor
+            // (To maintain compatibility: flatten and send as one QuantTensor)
+            let full_tensor = tch::Tensor::cat(
+                &all_results.iter().map(|qt| qt.as_tensor()).collect::<Vec<_>>(),
+                0,
+            );
+            let _ = sender.send(QuantTensor::quantize(full_tensor, sram_type));
         });
 
         receiver
@@ -925,6 +950,7 @@ impl Accelerator {
                         rstride,
                         *MLEN,
                         *PREFETCH_M_AMOUNT,
+                        *MLEN
                     );
 
                     self.m_machine
@@ -964,6 +990,7 @@ impl Accelerator {
                         rstride,
                         *VLEN,
                         *PREFETCH_V_AMOUNT,
+                        1
                     );
                 
                     let dest = self.reg_file.gp_reg[rd as usize];

@@ -62,7 +62,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "C_SET_SCALE_REG"]:
+        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG"]:
             binary_instruction = (
                 (rd << opw) +
                 opcode

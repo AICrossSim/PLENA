@@ -16,6 +16,7 @@ def preload_act_asm(
     generated_code = "; Preload Activation Generation \n"
     # get two registers from alive_registers, 1 as a address
     a_actual_register = alive_registers[0]
+    set_stride_register = alive_registers[1]
 
     # Set scale offset
     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * batch} \n"
@@ -25,7 +26,16 @@ def preload_act_asm(
     set_a_base_address = f"S_ADDI_INT gp{a_actual_register}, gp0, 0 \n"
     generated_code += set_a_base_address
 
-    for i in range(batch * (hidden_size // (vlen * preload_len))):
-        generated_code += f"H_PREFETCH_V gp{a_actual_register}, gp{a_actual_register}, a{activation_offset_reg}, 0, 0 \n"
-        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {vlen * preload_len} \n"
+    if batch == 1:
+        for i in range(hidden_size // (vlen * preload_len)):
+            generated_code += f"H_PREFETCH_V gp{a_actual_register}, gp{a_actual_register}, a{activation_offset_reg}, 0, 0 \n"
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {vlen * preload_len} \n"
+    else:
+        generated_code += f"S_ADDI_INT gp{set_stride_register}, gp0, {hidden_size} \n"
+        generated_code += f"C_SET_STRIDE_REG gp{set_stride_register} \n"
+        for i in range(batch * (hidden_size // (vlen * preload_len))):
+            generated_code += f"H_PREFETCH_V gp{a_actual_register}, gp{a_actual_register}, a{activation_offset_reg}, 1, 0 \n"
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {vlen} \n"
+            break
+        # need to change result reg as well TODO
     return generated_code
