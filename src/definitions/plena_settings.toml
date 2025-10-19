@@ -20,7 +20,7 @@ value = 1024
 value = 1024
 
 [CONFIG.HBM_M_Prefetch_Amount]
-value = 16
+value = 64
 
 [CONFIG.HBM_V_Prefetch_Amount]
 value = 4
