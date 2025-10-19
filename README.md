@@ -50,6 +50,11 @@ nix develop
 ## Run Behavioral Simulation
 
 ```
-just build-behave-sim [ Task to simulate ]
+just build-behave-sim [ Task to simulate e.g. linear]
 ```
+Debug mode
+```
+just build-behave-sim-debug [ Task to simulate e.g. linear]
+```
+
 

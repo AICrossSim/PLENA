@@ -540,14 +540,17 @@ impl Accelerator {
             let element_ty = hbm_type.element_type();
             let element_bits = element_ty.size_in_bits();
 
-            // Extract scale bits if Mx type, otherwise use element_bits as default
-            let scale_bits = if let MxDataType::Mx { elem: _, scale, block: _ } = hbm_type {
-                scale.size_in_bits()
-            } else {
-                element_bits
+            // Extract scale bits and block size if Mx type, otherwise use element_bits/1 as default
+            let (scale_bits, blocksize) = match hbm_type {
+                MxDataType::Mx { elem: _, scale, block } => (scale.size_in_bits(), block),
+                _ => (element_bits, 1)  // Plain type: each element is "scaled" by 1
             };
-            let element_scale_ratio = element_bits / scale_bits;
+
+            println!("element_bits = {:?}, scale_bits = {:?}", element_bits, scale_bits);
+            let element_scale_ratio = (element_bits * blocksize as u8) / scale_bits;
             let stride_scale = stride as u32 / element_scale_ratio as u32;
+            println!("element_scale_ratio = {:?}", element_scale_ratio);
+            println!("stride_scale = {:?}", stride_scale);
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
@@ -596,6 +599,10 @@ impl Accelerator {
                         + block_idx as usize * len_in_bytes_per_load as usize;
                     let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load) as usize
                         + block_idx as usize * scale_len_in_bytes_per_load as usize;
+
+                    println!("write_idx = {:?}, block_idx = {:?}", write_idx, block_idx);
+                    println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
+                    println!("byte_offset = {:?}, scale_byte_offset = {:?}", byte_offset, scale_byte_offset);
 
                     // Element chunks:
                     for i in 0..(len_in_bytes_per_load as usize + 63) / 64 {
