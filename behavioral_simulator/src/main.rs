@@ -617,30 +617,47 @@ impl Accelerator {
 
                     // Scale chunks (if Mx type)
                     if scale_len_in_bytes_per_load > 0 {
-                        for i in 0..(scale_len_in_bytes_per_load as usize + 63) / 64 {
-                            let chunk_offset = scale_byte_offset + i * 64;
-                            let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
-                            let addr = scale_addr + (i * 64) as u64;
-                            futures.push(Box::pin(async move {
-                                let data = hbm_clone.read(addr).await;
-                                ChunkType::Scale(chunk_offset, data, chunk_size)
-                            }));
-                        }
+                        // Always align to 64-byte chunk boundary for loading
+                        // For scale_addr, we fetch the aligned 64-byte block, and mask/select out only what is needed
+                        let aligned_scale_addr = (scale_addr / 64) * 64;
+                        let within_chunk_offset = (scale_addr % 64) as usize;
+                        let chunk_offset = scale_byte_offset; // where to write in scale_bytes
+                        let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
+                        println!(
+                            "scale_addr = {:?}, aligned_scale_addr = {:?}, within_chunk_offset = {:?}",
+                            scale_addr, aligned_scale_addr, within_chunk_offset
+                        );
+                        futures.push(Box::pin(async move {
+                            let data = hbm_clone.read(aligned_scale_addr).await;
+                            // Copy out only the relevant bytes for this scale_addr
+                            // scale_len_in_bytes_per_load says how many bytes to copy from within the chunk
+                            let end_offset = std::cmp::min(within_chunk_offset + scale_len_in_bytes_per_load as usize, 64);
+                            let mut selected = [0u8; 64];
+                            let len_to_copy = end_offset - within_chunk_offset;
+                            selected[..len_to_copy].copy_from_slice(&data[within_chunk_offset..end_offset]);
+                            ChunkType::Scale(chunk_offset, selected, len_to_copy)
+                        }));
                     }
                 }
             }
 
             // Collect all HBM reads
             while let Some(chunk_result) = futures.next().await {
+
                 match chunk_result {
                     ChunkType::Element(offset, data, size) => {
                         bytes[offset..offset + size].copy_from_slice(&data[..size]);
                     }
                     ChunkType::Scale(offset, data, size) => {
                         scale_bytes[offset..offset + size].copy_from_slice(&data[..size]);
+                        println!("scale data = {:?}", &data[..size]);
                     }
                 }
             }
+
+
+            println!("bytes = {:?}", bytes);
+            println!("scale_bytes = {:?}", scale_bytes);
 
             // Process each write batch
             let mut all_results: Vec<QuantTensor> = Vec::with_capacity(num_writes as usize);
@@ -653,6 +670,8 @@ impl Accelerator {
                 // Fill `vec` with elements for this write
                 let elements_offset = write_idx * write_amount * load_dim;
                 let bytes_start = (write_idx * write_amount) as usize * len_in_bytes_per_load as usize;
+
+
                 element_ty.convert_bytes_to_f32_vec(
                     &bytes[bytes_start..bytes_start + write_elements * (element_bits as usize / 8)],
                     &mut vec,
