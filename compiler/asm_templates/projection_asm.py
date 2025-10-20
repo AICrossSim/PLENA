@@ -55,8 +55,6 @@ def projection_asm(
     increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen * blen} \n"
 
 
-
-
     row_loop_over_hid = hidden_size // blen
     col_loop_over_hid = hidden_size // mlen
     generated_code += set_a_base_address

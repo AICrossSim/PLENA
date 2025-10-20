@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
+        alive_registers=[1,2,3,4]
     )
 
     gen_assembly_code += projection_asm(
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         blen=4,
         batch=4,
         hidden_size=128,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4],
         head_dim=128,
         w_base_hbm_offset_reg=1,
         rope_hbm_offset_reg=0,
@@ -94,6 +94,4 @@ if __name__ == "__main__":
         rope_enabled=False
     )
 
-    # print("input_tensor shape", input_tensor.shape)
-    # exit()
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result)

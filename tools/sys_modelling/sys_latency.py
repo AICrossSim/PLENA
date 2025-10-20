@@ -5,42 +5,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import math
 
-
-def find_max_x(const1, const2):
-    """
-    Finds the maximum power-of-2 integer x satisfying the inequality:
-    x^2 * const1 + x * const1 <= const2
-    
-    :param const1: A given constant (real number)
-    :param const2: A given constant (real number)
-    :return: The maximum power-of-2 integer x satisfying the inequality
-    """
-    if const1 <= 0:
-        return None  # Avoid invalid cases where const1 is non-positive
-    
-    # Solve the quadratic equation x^2 * const1 + x * const1 - const2 = 0
-    a, b, c = const1, const1, -const2
-    
-    # Compute the discriminant
-    discriminant = b**2 - 4*a*c
-    
-    if discriminant < 0:
-        return None  # No real solutions exist
-    
-    # Compute the two roots
-    sqrt_discriminant = math.sqrt(discriminant)
-    x1 = (-b + sqrt_discriminant) / (2 * a)
-    x2 = (-b - sqrt_discriminant) / (2 * a)
-    
-    # The maximum integer satisfying the inequality is the floor of the positive root
-    max_x = math.floor(max(x1, x2))
-    
-    # Find the maximum power of 2 less than or equal to max_x
-    power_of_2_x = 2 ** int(math.log2(max_x)) if max_x > 0 else None
-    
-    return power_of_2_x
-
-
 class model_config:
     def __init__(self, model_param_path, hardware_config, batch_size = 1, seq_len = 2048, output_token = 128, device_num = 1):
         model_param = json.load(open(model_param_path))
