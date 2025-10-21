@@ -327,8 +327,9 @@ struct MatrixMachine {
 }
 
 impl MatrixMachine {
-    async fn mm(&mut self, v_addr: u32, m_addr: u32) {
+    async fn mm(&mut self, m_addr: u32, v_addr: u32) {
         println!("m_addr = {:?}", m_addr);
+        println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
         let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
         println!("mat_offset = {:?}", mat_offset);
@@ -627,11 +628,11 @@ impl Accelerator {
             // Outer loop: For each "write". Inner: gather blocks for all loads for this write.
             for write_idx in 0..num_writes {
                 for block_idx in 0..write_amount {
-                    println!("stride = {:?}, stride_scale = {:?}", stride, stride_scale);
+                    // println!("stride = {:?}, stride_scale = {:?}", stride, stride_scale);
                     let load_iter = write_idx * write_amount + block_idx;
                     let element_addr = index + (load_iter * stride) as u64;
                     let scale_addr = scale_index + (load_iter as f32 * stride_scale) as u64;
-                    println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
+                    // println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
                     let byte_offset = (write_idx * write_amount * len_in_bytes_per_load) as usize
                         + block_idx as usize * len_in_bytes_per_load as usize;
                     let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load) as usize

@@ -34,9 +34,42 @@ if __name__ == "__main__":
     
     torch.manual_seed(42)
     input_tensor = torch.randn(batch_size, hidden_size)
-    original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+    # Print input_tensor split in half along columns, as two (4, 64) tensors
+    print("input_tensor lhs (4, 64):\n", input_tensor[:, :64])
+    print("input_tensor rhs (4, 64):\n", input_tensor[:, 64:])
+
+    original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size, bias=False)
     weights = original_layer.state_dict()
 
+    # Print weight k, (128, 128) -> print 4 quadrants of (64, 64) each
+    # Quadrant indices:
+    # 0: [0:64, 0:64]
+    # 1: [0:64, 64:128]
+    # 2: [64:128, 0:64]
+    # 3: [64:128, 64:128]
+    w_k = weights['weight'] if isinstance(weights, dict) else weights
+    print("Weight k shape:", w_k.shape)
+    for idx, (r_slice, c_slice) in enumerate([
+        (slice(0, 64), slice(0, 64)),
+        (slice(0, 64), slice(64, 128)),
+        (slice(64, 128), slice(0, 64)),
+        (slice(64, 128), slice(64, 128)),
+    ]):
+        print(f"---------- Quadrant {idx}: Rows {r_slice}, Cols {c_slice} ----------")
+        print(w_k[r_slice, c_slice])
+
+
+    # Print the matmul result of input_tensor[:, :64] and weight[0:64, 0:4]
+    matmul_result_11 = input_tensor[:, :64] @ w_k[:64, :4]
+    print("Matmul result of input_tensor[:, :64] @ weight[0:64, 0:4]:")
+    print(matmul_result_11)
+
+    matmul_result_22 = input_tensor[:, 64:] @ w_k[64:, :4]
+    print("Matmul result of input_tensor[:, 64:] @ weight[64:, :4]:")
+    print(matmul_result_22)
+
+    print ("sum of two matmul results:", 
+           matmul_result_11 + matmul_result_22)
 
     original_output = original_layer(input_tensor)
 
@@ -58,6 +91,7 @@ if __name__ == "__main__":
     print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
     print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
     
+
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3]
@@ -94,4 +128,4 @@ if __name__ == "__main__":
         rope_enabled=False
     )
 
-    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result)
+    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result)
