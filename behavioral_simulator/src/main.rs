@@ -512,7 +512,8 @@ impl VectorMachine {
     async fn reduce_sum(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_SUM_CYCLES);
-        let val: f32 = a.as_tensor().sum(tch::Kind::Float).i(0).try_into().unwrap();
+        println!("Debug: a.as_tensor().size() = {:?}", a.as_tensor().size());
+        let val: f32 = a.as_tensor().sum(tch::Kind::Float).try_into().unwrap();
         f + val
     }
 
@@ -1149,8 +1150,11 @@ async fn start() {
     hbm.data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
     });
+
+
     // - FP_SRAM Preload
-    accelerator.fp_sram[0] = f16::from_bits(0x3F00); // Preloading a constant at the 0 index
+    accelerator.fp_sram[0] = f16::from_bits(0x0000); // Preloading a constant 0.0 (hex 0x0000) at the 0 index
+    accelerator.fp_sram[1] = f16::from_bits(0x2480); // Preloading a constant 1e-6 (hex 0x2480) at the 1 index
 
     // - VRAM Preload (if provided)
     if let Some(vram_path) = opts.vram {

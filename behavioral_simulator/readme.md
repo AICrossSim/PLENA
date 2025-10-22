@@ -24,3 +24,10 @@ Write a (BLEN, BLEN) acc matrix (m_accum) to the Vector SRAM. This involves load
 
 ## Notes
 - Currently the MLEN and VLEN are assumed to be the same for this simulator.
+
+
+
+
+## Support Experiments
+- Linear Projection Testing (linear)
+- RMSNorm Testing (rms)
