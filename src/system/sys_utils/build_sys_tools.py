@@ -2,6 +2,7 @@ import torch
 import os
 from pathlib import Path
 import argparse
+import numpy as np
 
 from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin, fp_2_bin
@@ -84,6 +85,8 @@ def env_setup(grp_blocks, grp_bias, build_path: str, data_config, quant_config, 
                                 directory       =build_path,
                                 append          =True,
                                 hbm_row_width   =hbm_row_width)
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', type=str, required=True, help='Path to the test assembly file')
@@ -115,25 +118,10 @@ def init_mem(build_path):
     hbm_write_scale_v_file.touch()
     vector_mem_result_file.touch()
 
-    fp_mem_file                 = build_path / "fp.mem"
-    fixed_mem_file              = build_path / "fixed.mem"
     addr_mapper_file            = build_path / "hbm_addr_mapper.mem"
-
-    fp_mem_file.touch()
-    # with open(fp_mem_file, "w") as f:
-    #     f.write("3F00\n")
-    with open(fp_mem_file, "w") as f:
-        f.write("@0\n")  # Start address
-        f.write("3F800000\n")  # 1.0 in IEEE 754 floating-point
-        f.write("40000000\n")  # 2.0
-        f.write("40400000\n")  # 3.0
-        f.write("40800000\n")  # 4.0
-
-    fixed_mem_file.touch()
     addr_mapper_file.touch()
 
-    os.environ["FP_MEM_INIT_FILE"] = str(fp_mem_file)
-    os.environ["INT_MEM_INIT_FILE"] = str(fixed_mem_file)
+
     os.environ["VECTOR_MEM_RESULT_FILE"] = str(vector_mem_result_file)
     os.environ["HBM_ADDR_MAPPER_FILE"] = str(addr_mapper_file)
     os.environ["FAKE_HBM_ELEMENT_WRITE_M_FILE"] = str(hbm_write_element_m_file)

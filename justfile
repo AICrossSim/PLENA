@@ -42,8 +42,9 @@ build-behave-sim-debug arg:
     # 2) Compute absolute paths (so they still work after cd)
     asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
     data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
+    fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
     cd behavioral_simulator && \
-    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" 
+    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path"
     cd behavioral_simulator/testbench && python3 view_mem.py
 
 build-rtl-sim arg:

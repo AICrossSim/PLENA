@@ -531,8 +531,8 @@ struct Accelerator {
     hbm: Arc<dyn MemoryModel>,
     tile_size: u32,
     reg_file: AcceeleratorRegFile,
-    int_sram: Vec<u32>,
-    fp_sram: Vec<f16>,
+    intsram: Vec<u32>,
+    fpsram: Vec<f16>,
 }
 
 struct AcceeleratorRegFile {
@@ -865,6 +865,7 @@ impl Accelerator {
                             self.reg_file.fp_reg[rd as usize].into(),
                         )
                         .await;
+                    println!("v_red_sum result = {:?}", result);
                     self.reg_file.fp_reg[rd as usize] = f16::from_f32(result);
                 }
                 op::Opcode::V_RED_MAX { rd, rs1 } => {
@@ -926,11 +927,11 @@ impl Accelerator {
                 }
                 op::Opcode::S_LD_FP { rd, rs1, imm } => {
                     self.reg_file.fp_reg[rd as usize] =
-                        self.fp_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
+                        self.fpsram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
                     cycle!(1);
                 }
                 op::Opcode::S_ST_FP { rd, rs1, imm } => {
-                    self.fp_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
+                    self.fpsram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.fp_reg[rd as usize];
                     cycle!(1);
                 }
@@ -962,11 +963,11 @@ impl Accelerator {
                 }
                 op::Opcode::S_LD_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[rd as usize] =
-                        self.int_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
+                        self.intsram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize];
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_ST_INT { rd, rs1, imm } => {
-                    self.int_sram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
+                    self.intsram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.gp_reg[rd as usize];
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
                 }
@@ -1077,12 +1078,20 @@ impl Accelerator {
 #[derive(Parser)]
 struct Opts {
     #[arg(long)]
-    /// Path to file storing opcodes.
+    /// Path to Instruction to be executed.
     opcode: PathBuf,
 
     #[arg(long)]
-    /// Path to file storing HBM contents.
+    /// Path to HBM contents for preloading.
     hbm: PathBuf,
+
+    #[arg(long)]
+    /// Path to FP SRAM contents for preloading.
+    fpsram: PathBuf,
+
+    #[arg(long)]
+    /// Path to INT SRAM contents for preloading.
+    intsram: Option<PathBuf>,
 
     #[arg(long)]
     /// Path to file storing Vector SRAM contents (optional).
@@ -1124,8 +1133,8 @@ async fn start() {
             scale: 0,
             stride: 1,
         },
-        int_sram: vec![0; 1024],
-        fp_sram: vec![f16::ZERO; 1024],
+        intsram: vec![0; 1024],
+        fpsram: vec![f16::ZERO; 1024],
     };
 
     use std::fs;
@@ -1144,18 +1153,36 @@ async fn start() {
 
     // Memory Initialization
     // - HBM Preload
-    
     let hbm_data = std::fs::read(opts.hbm).unwrap();
 
     hbm.data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
     });
 
+    // Load fpsram and intsram as raw bytes and map to the vector files.
+    // - fpsram Preload
+    let fpsram_data = std::fs::read(opts.fpsram).unwrap();
+    let fp_vals: &[f16] = unsafe {
+        std::slice::from_raw_parts(
+            fpsram_data.as_ptr() as *const f16,
+            fpsram_data.len() / std::mem::size_of::<f16>(),
+        )
+    };
+    accelerator.fpsram.clear();
+    accelerator.fpsram.extend_from_slice(fp_vals);
 
-    // - FP_SRAM Preload
-    accelerator.fp_sram[0] = f16::from_bits(0x0000); // Preloading a constant 0.0 (hex 0x0000) at the 0 index
-    accelerator.fp_sram[1] = f16::from_bits(0x2480); // Preloading a constant 1e-6 (hex 0x2480) at the 1 index
-
+    // - INT SRAM Preload
+    if let Some(intsram_path) = opts.intsram {
+        let intsram_data = std::fs::read(intsram_path).unwrap();
+        let int_vals: &[u32] = unsafe {
+            std::slice::from_raw_parts(
+                intsram_data.as_ptr() as *const u32,
+                intsram_data.len() / std::mem::size_of::<u32>(),
+            )
+        };
+        accelerator.intsram.clear();
+        accelerator.intsram.extend_from_slice(int_vals);
+    }
     // - VRAM Preload (if provided)
     if let Some(vram_path) = opts.vram {
         let vram_data = std::fs::read(vram_path).unwrap();
@@ -1179,6 +1206,7 @@ async fn start() {
         "Matrix SRAM Contents: \n {}",
         accelerator.m_machine.mram.read(0x0000).await.as_tensor()
     );
+    println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
 
     // Dump MRAM
     let mram_dump_path = "mram_dump.bin";

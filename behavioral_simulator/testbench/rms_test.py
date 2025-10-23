@@ -41,6 +41,10 @@ class RMSNorm(torch.nn.Module):
             torch.Tensor: The normalized tensor.
 
         """
+        print("x", x)
+        print("x.pow(2)", x.pow(2))
+        print("x.pow(2).mean(-1, keepdim=True)", x.pow(2).mean(-1, keepdim=True))
+        
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x):
@@ -63,6 +67,7 @@ if __name__ == "__main__":
     hidden_size = 128
     batch_size = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
+    fp_preload = [0.0, 1e-6, 1/hidden_size]
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
@@ -129,4 +134,4 @@ if __name__ == "__main__":
         hidden_dim=128
     )
 
-    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result)
+    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result, fp_preload)

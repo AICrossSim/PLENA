@@ -14,7 +14,7 @@ def np_array_to_str_2f(arr):
         # For higher dimensions, default to numpy's print (rare for this context)
         return np.array2string(arr, formatter={'float_kind':lambda x: "%.2f" % x})
 
-def create_sim_env(input_tensor, input_weight, generated_code, golden_result):
+def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp_preload = None, int_preload = None):
     build_dir = os.path.join(os.path.dirname(__file__), "build")
     os.makedirs(build_dir, exist_ok=True)
     with open(os.path.join(build_dir, "input_tensor.pt"), "wb") as f:
@@ -24,7 +24,14 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result):
     with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
         f.write(generated_code)
     # Store golden_result in a readable format, including tensor contents.
-
+    if fp_preload is not None:
+        with open(os.path.join(build_dir, "fp_sram.bin"), "wb") as f:
+            fp16_array = np.array(fp_preload, dtype=np.float16)
+            f.write(fp16_array.tobytes())
+    if int_preload is not None:
+        int_array = np.array(int_preload, dtype=np.uint32)
+        with open(os.path.join(build_dir, "int_sram.bin"), "wb") as f:
+            f.write(int_array.tobytes())
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
         f.write("Golden Result:\n")
         f.write("\nInput Tensor:\n")
