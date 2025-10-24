@@ -1,5 +1,5 @@
 from .projection_asm import projection_asm
-# from .flash_attn_asm import flash_attn_asm
+from .flash_attn_asm import flash_attn_asm
 from .ffn_asm import ffn_asm
 from .normalization_asm import rms_norm_asm
 from .embedding_asm import embedding_asm
@@ -13,7 +13,7 @@ __all__ = [
     "preload_act_asm",
     "reset_reg_asm",
     "preload_addr_reg_asm",
-    # "flash_attn_asm",
+    "flash_attn_asm",
     "ffn_asm",
     "rms_norm_asm",
     "elementwise_add_asm",

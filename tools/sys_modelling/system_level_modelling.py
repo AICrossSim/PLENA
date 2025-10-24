@@ -4,6 +4,8 @@ import numpy as np
 from utils import load_json
 from pathlib import Path
 import os
+import toml
+from sys_latency import sys_latency_config
 
 # HBM Settings
 Operate_Freq = 1e9      # 1 GHz
@@ -16,13 +18,15 @@ SEQ_LENGTH_REASONING = 6500
 PLENA_with_3D_STACKED_SRAM = {
     "HBM_Capacity": HBM_Capacity,  # HBM 3e
     "HBM_Bandwidth": HBM_Bandwidth,  # 512 GB/s
+    "HBM_Latency": 100, # nanoseconds
     "Operate_Freq": 1e9,  # 1 GHz
     "M" : 8,
     "K" : 512,
     "N" : 8,
     "SRAM_Capacity": 4,
     "SRAM_Bandwidth": 32768, # 32 TB/s
-    "DataWidth": 2 
+    "DataWidth": 2,
+    "SRAM_Latency": 3 # nanoseconds
 }
 
 def select_powers_of_two_with_last(max_batch):
@@ -81,8 +85,6 @@ def device_performance(device_model, seq_context_length, max_batch, model_config
 
     return roofline_performance, actual_performance, batch_bound
 
-    # INSERT_YOUR_CODE
-
 class MemoryRooflineModel:
     def __init__(self, peak_flops, mem_bandwidth, label):
         """
@@ -100,9 +102,9 @@ class MemoryRooflineModel:
         # But operational_intensity is already in FLOPs/Byte, so mem_bandwidth in GB/s x 1e9 x oper_intensity in FLOPs/Byte gives us FLOPs/s, /1e9 = GFLOPs/s
         return np.minimum(self.peak_flops, np.array(operational_intensity) * self.mem_bandwidth)  # GFLOPs/s
 
-class DeviceModel:
-    def __init__(self, operate_freq, M, K, N, data_width, hbm_bandwidth, hbm_capacity, sram_bandwidth=None, sram_capacity=None):
-        self.operate_freq = operate_freq
+class GEMM_Device_Model:
+    def __init__(self,  M, K, N, data_width, hbm_bandwidth, hbm_capacity, sram_bandwidth=None, sram_capacity=None):
+        self.operate_freq = 1e9 # 1 GHz
         self.M = M
         self.K = K
         self.N = N
@@ -140,14 +142,29 @@ def plot_device_rooflines(ax, device_model):
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_title("Device Roofline Model (SRAM & HBM)")
 
+
+class System_Model:
+    def __init__(self, config_def_path, model_config_path, batch_size=1, seq_len=2048, output_token=128, device_num=1):
+        with open(config_def_path, "r") as f:
+            self.config = toml.load(f)
+        self.latency_model = sys_latency_config(model_config_path, self.config["CONFIG"], PLENA_with_3D_STACKED_SRAM, batch_size, seq_len, output_token, device_num)
+        self.roofline_model = GEMM_Device_Model(
+            M=self.config["CONFIG"]["BLEN"], K=self.config["CONFIG"]["MLEN"], N=self.config["CONFIG"]["BLEN"], data_width=1,
+            hbm_bandwidth=PLENA_with_3D_STACKED_SRAM["HBM_Bandwidth"], hbm_capacity=PLENA_with_3D_STACKED_SRAM["HBM_Capacity"],
+            sram_bandwidth=PLENA_with_3D_STACKED_SRAM["SRAM_Bandwidth"], sram_capacity=PLENA_with_3D_STACKED_SRAM["SRAM_Capacity"]  # 32 TB/s for SRAM
+        )
+
+    def evaluate_latency(self):
+        ttft, tps = self.latency_model.compute_overall_perf()
+        print(f"TTFT: {ttft}")
+        print(f"TPS: {tps}")
+        return ttft, tps
+
 # Example usage (can be used in __main__ or in a notebook)
 if __name__ == "__main__":
-    fig, ax = plt.subplots(figsize=(8,6))
-    device = DeviceModel(
-        operate_freq=1e9, M=8, K=512, N=8, data_width=2,
-        hbm_bandwidth=512, hbm_capacity=144,
-        sram_bandwidth=32768, sram_capacity=4  # 32 TB/s for SRAM
-    )
-    plot_device_rooflines(ax, device)
-    plt.savefig("device_roofline.png")
-
+    import sys
+    config_def_path = Path(sys.path[0]).parent.parent / "src" / "definitions" / "plena_settings.toml"
+    print(f"Config def path: {config_def_path}")
+    model_config_path = Path(sys.path[0]).parent.parent / "doc" / "Model_Lib" / "llama-3.3-70b.json"
+    System_Model = System_Model(config_def_path=config_def_path, model_config_path=model_config_path, batch_size=1, seq_len=2048, output_token=128, device_num=1)
+    System_Model.evaluate_latency()
