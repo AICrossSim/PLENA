@@ -449,67 +449,67 @@ def flash_attn_asm(
                 s_address=s_address,
             )
 
-            generated_code += _online_softmax_code(
-                mlen=mlen,
-                alive_registers_fix=alive_registers_fix,
-                alive_registers_fp=alive_registers_fp,
-                s_address=s_address,
-                m_last_address=m_last_base_address,
-                m_res_address=m_res_base_address,
-                l_old_address=l_old_base_address,
-            )
+        #     generated_code += _online_softmax_code(
+        #         mlen=mlen,
+        #         alive_registers_fix=alive_registers_fix,
+        #         alive_registers_fp=alive_registers_fp,
+        #         s_address=s_address,
+        #         m_last_address=m_last_base_address,
+        #         m_res_address=m_res_base_address,
+        #         l_old_address=l_old_base_address,
+        #     )
 
-            generated_code += _computing_pv_code(
-                mlen=mlen,
-                alive_registers_fix=alive_registers_fix,
-                alive_registers_fp=alive_registers_fp,
-                v_hbm_address=v_hbm_address,
-                v_base_address=v_base_address,
-                p_base_address=s_address,
-                v_block_size_address=FIXED_SRAM_ADDRESS_MAP["v_block_size_address"],
-                p_block_size_address=FIXED_SRAM_ADDRESS_MAP["p_block_size_address"],
-                head_dim=head_dim,
-                blen=blen,
-                pv_result_address=pv_result_address,
-            )
+        #     generated_code += _computing_pv_code(
+        #         mlen=mlen,
+        #         alive_registers_fix=alive_registers_fix,
+        #         alive_registers_fp=alive_registers_fp,
+        #         v_hbm_address=v_hbm_address,
+        #         v_base_address=v_base_address,
+        #         p_base_address=s_address,
+        #         v_block_size_address=FIXED_SRAM_ADDRESS_MAP["v_block_size_address"],
+        #         p_block_size_address=FIXED_SRAM_ADDRESS_MAP["p_block_size_address"],
+        #         head_dim=head_dim,
+        #         blen=blen,
+        #         pv_result_address=pv_result_address,
+        #     )
 
-            generated_code += _computing_o_code(
-                mlen=mlen,
-                alive_registers_fix=alive_registers_fix,
-                alive_registers_fp=alive_registers_fp,
-                m_res_base_address=m_res_base_address,
-                pv_base_address=pv_result_address,
-                o_old_base_address=o_old_address,
-                head_dim=head_dim,
-            )
+        #     generated_code += _computing_o_code(
+        #         mlen=mlen,
+        #         alive_registers_fix=alive_registers_fix,
+        #         alive_registers_fp=alive_registers_fp,
+        #         m_res_base_address=m_res_base_address,
+        #         pv_base_address=pv_result_address,
+        #         o_old_base_address=o_old_address,
+        #         head_dim=head_dim,
+        #     )
 
-            general_address_register = alive_registers_fix[0]
-            tmp_fix_register = alive_registers_fix[1]
+        #     general_address_register = alive_registers_fix[0]
+        #     tmp_fix_register = alive_registers_fix[1]
 
-            # update k base address
-            generated_code += f"S_LD_FIX {general_address_register}, gp0, {k_base_address} \n"
-            generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["k_block_size_address"]} \n"
-            generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-            generated_code += f"S_ST_FIX {general_address_register}, gp0, {k_base_address} \n"
+        #     # update k base address
+        #     generated_code += f"S_LD_FIX {general_address_register}, gp0, {k_base_address} \n"
+        #     generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["k_block_size_address"]} \n"
+        #     generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
+        #     generated_code += f"S_ST_FIX {general_address_register}, gp0, {k_base_address} \n"
 
-            # update s address
-            generated_code += f"S_LD_FIX {general_address_register}, gp0, {s_address} \n"
-            generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["s_block_size_address"]} \n"
-            generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-            generated_code += f"S_ST_FIX {general_address_register}, gp0, {s_address} \n"
+        #     # update s address
+        #     generated_code += f"S_LD_FIX {general_address_register}, gp0, {s_address} \n"
+        #     generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["s_block_size_address"]} \n"
+        #     generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
+        #     generated_code += f"S_ST_FIX {general_address_register}, gp0, {s_address} \n"
 
-        generated_code += _computing_row_wise_scaling_code(
-            mlen=mlen,
-            alive_registers_fix=alive_registers_fix,
-            alive_registers_fp=alive_registers_fp,
-            o_old_base_address=o_old_address,
-            l_old_base_address=l_old_base_address,
-        )
+        # generated_code += _computing_row_wise_scaling_code(
+        #     mlen=mlen,
+        #     alive_registers_fix=alive_registers_fix,
+        #     alive_registers_fp=alive_registers_fp,
+        #     o_old_base_address=o_old_address,
+        #     l_old_base_address=l_old_base_address,
+        # )
 
-        # update q base address
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {q_base_address} \n"
-        generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["q_block_size_address"]} \n"
-        generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-        generated_code += f"S_ST_FIX {general_address_register}, gp0, {q_base_address} \n"
+        # # update q base address
+        # generated_code += f"S_LD_FIX {general_address_register}, gp0, {q_base_address} \n"
+        # generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["q_block_size_address"]} \n"
+        # generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
+        # generated_code += f"S_ST_FIX {general_address_register}, gp0, {q_base_address} \n"
     
     return generated_code

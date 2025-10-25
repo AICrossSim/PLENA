@@ -14,12 +14,19 @@ pub enum VectorPrecision {
 #[derive(Debug)]
 pub enum Opcode {
     Invalid,
-
     M_MM {
         rs1: u8,
         rs2: u8,
     },
     M_TMM {
+        rs1: u8,
+        rs2: u8,
+    },
+    M_BMM {
+        rs1: u8,
+        rs2: u8,
+    },
+    M_BTMM {
         rs1: u8,
         rs2: u8,
     },
@@ -35,11 +42,18 @@ pub enum Opcode {
         rs1: u8,
         rs2: u8,
     },
+    M_BMV {
+        rs1: u8,
+        rs2: u8,
+    },
+    M_BTMV {
+        rs1: u8,
+        rs2: u8,
+    },
     M_MV_WO {
         rd: u8,
         imm: u32,
     },
-
     V_ADD_VV {
         rd: u8,
         rs1: u8,
@@ -237,74 +251,76 @@ impl Opcode {
             // Matrix Operations
             0x01 => Self::M_MM      { rs1, rs2 },
             0x02 => Self::M_TMM     { rs1, rs2 },
-            0x03 => Self::M_MM_WO   { rd, imm: imm2 },
-            0x04 => Self::M_MV      { rs1, rs2 },
-            0x05 => Self::M_TMV     { rs1, rs2 },
-            0x06 => Self::M_MV_WO   { rd, imm: imm2 },
+            0x03 => Self::M_BMM     { rs1, rs2 },
+            0x04 => Self::M_BTMM    { rs1, rs2 },
+            0x05 => Self::M_MM_WO   { rd, imm: imm2 },
+            0x06 => Self::M_MV      { rs1, rs2 },
+            0x07 => Self::M_TMV     { rs1, rs2 },
+            0x08 => Self::M_BMV     { rs1, rs2 },
+            0x09 => Self::M_BTMV    { rs1, rs2 },
+            0x0A => Self::M_MV_WO   { rd, imm: imm2 },
 
             // Vector Operations
-            0x07 => Self::V_ADD_VV  { rd, rs1, rs2 },
-            0x08 => Self::V_ADD_VF  { rd, rs1, rs2 },
-            0x09 => Self::V_SUB_VV  { rd, rs1, rs2 },
-            0x0A => Self::V_SUB_VF  { rd, rs1, rs2 },
-            0x0B => Self::V_MUL_VV  { rd, rs1, rs2 },
-            0x0C => Self::V_MUL_VF  { rd, rs1, rs2 },
-            0x0D => Self::V_EXP_V   { rd, rs1 },
-            0x0E => Self::V_RECI_V  { rd, rs1 },
-            0x0F => Self::V_RED_SUM { rd, rs1 },
-            0x10 => Self::V_RED_MAX { rd, rs1 },
+            0x0B => Self::V_ADD_VV  { rd, rs1, rs2 },
+            0x0C => Self::V_ADD_VF  { rd, rs1, rs2 },
+            0x0D => Self::V_SUB_VV  { rd, rs1, rs2 },
+            0x0E => Self::V_SUB_VF  { rd, rs1, rs2 },
+            0x0F => Self::V_MUL_VV  { rd, rs1, rs2 },
+            0x10 => Self::V_MUL_VF  { rd, rs1, rs2 },
+            0x11 => Self::V_EXP_V   { rd, rs1 },
+            0x12 => Self::V_RECI_V  { rd, rs1 },
+            0x13 => Self::V_RED_SUM { rd, rs1 },
+            0x14 => Self::V_RED_MAX { rd, rs1 },
 
             // Scalar Operations (Floating-Point)
-            0x11 => Self::S_ADD_FP   { rd, rs1, rs2 },
-            0x12 => Self::S_SUB_FP   { rd, rs1, rs2 },
-            0x13 => Self::S_MAX_FP   { rd, rs1, rs2 },
-            0x14 => Self::S_MUL_FP   { rd, rs1, rs2 },
-            0x15 => Self::S_EXP_FP   { rd, rs1 },
-            0x16 => Self::S_RECI_FP  { rd, rs1 },
-            0x17 => Self::S_SQRT_FP  { rd, rs1 },
-            0x18 => Self::S_LD_FP    { rd, rs1, imm: imm2 },
-            0x19 => Self::S_ST_FP    { rd, rs1, imm: imm2 },
-            0x1A => Self::S_MAP_V_FP { rd, rs1, imm: imm2 },
+            0x15 => Self::S_ADD_FP   { rd, rs1, rs2 },
+            0x16 => Self::S_SUB_FP   { rd, rs1, rs2 },
+            0x17 => Self::S_MAX_FP   { rd, rs1, rs2 },
+            0x18 => Self::S_MUL_FP   { rd, rs1, rs2 },
+            0x19 => Self::S_EXP_FP   { rd, rs1 },
+            0x1A => Self::S_RECI_FP  { rd, rs1 },
+            0x1B => Self::S_SQRT_FP  { rd, rs1 },
+            0x1C => Self::S_LD_FP    { rd, rs1, imm: imm2 },
+            0x1D => Self::S_ST_FP    { rd, rs1, imm: imm2 },
+            0x1E => Self::S_MAP_V_FP { rd, rs1, imm: imm2 },
 
             // Scalar Operations (INT)
-            0x1B => Self::S_ADD_INT  { rd, rs1, rs2 },
-            0x1C => Self::S_ADDI_INT { rd, rs1, imm: imm2 },
-            0x1D => Self::S_SUB_INT  { rd, rs1, rs2 },
-            0x1E => Self::S_MUL_INT  { rd, rs1, rs2 },
-            0x1F => Self::S_LUI_INT  { rd, imm },
-            0x20 => Self::S_LD_INT   { rd, rs1, imm: imm2 },
-            0x21 => Self::S_ST_INT   { rd, rs1, imm: imm2 },
+            0x1F => Self::S_ADD_INT  { rd, rs1, rs2 },
+            0x20 => Self::S_ADDI_INT { rd, rs1, imm: imm2 },
+            0x21 => Self::S_SUB_INT  { rd, rs1, rs2 },
+            0x22 => Self::S_MUL_INT  { rd, rs1, rs2 },
+            0x23 => Self::S_LUI_INT  { rd, imm },
+            0x24 => Self::S_LD_INT   { rd, rs1, imm: imm2 },
+            0x25 => Self::S_ST_INT   { rd, rs1, imm: imm2 },
 
-            0x22 => Self::H_PREFETCH_M {
+            0x26 => Self::H_PREFETCH_M {
                 rd,
                 rs1,
                 rs2,
                 rstride: rs3,
                 precision: MatrixPrecision::Weights,
             },
-            // 0x2A => Self::H_PREFETCH_M { rd, rs1, rs2, rstride: rs3, precision: MatrixPrecision::KeyValue },
-            0x23 => Self::H_PREFETCH_V {
+            // 0x27 => Self::H_PREFETCH_M { rd, rs1, rs2, rstride: rs3, precision: MatrixPrecision::KeyValue },
+            0x27 => Self::H_PREFETCH_V {
                 rd,
                 rs1,
                 rs2,
                 rstride: rs3,
                 precision: VectorPrecision::KeyValue,
             },
-            // 0x2E => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
-            0x24 => Self::H_STORE_V {
+            // 0x29 => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
+            0x28 => Self::H_STORE_V {
                 rd,
                 rs1,
                 rs2,
                 rstride: rs3,
                 precision: VectorPrecision::Activation,
             },
-            // 0x32 => Self::H_STORE_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
-            0x25 => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
-            0x26 => Self::C_SET_SCALE_REG { rd },
-            0x27 => Self::C_SET_STRIDE_REG { rd },
-
-            // TODO: Add Hadamard_transform and mamba extension.
-            0x2A => Self::C_BREAK,
+            // 0x2B => Self::H_STORE_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
+            0x29 => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
+            0x2A => Self::C_SET_SCALE_REG { rd },
+            0x2B => Self::C_SET_STRIDE_REG { rd },
+            0x2C => Self::C_BREAK,
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

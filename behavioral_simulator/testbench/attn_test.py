@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from torch import Tensor, nn
-# from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
+from kernels import get_kernel
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import flash_attn_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
@@ -32,22 +32,26 @@ def flatten_and_split_by_rows(x, mem_row_size):
 
 if __name__ == "__main__":
 
-    batch_size = 1
+    batch_size = 4
     s_q =2
     s_kv = 2
     num_q_heads = 8
     num_kv_heads = 4
-    h_qkv = 64
-    mlen = 16
+    h_qkv = 128
+    mlen = 64
     qk_scale = 1.0 / math.sqrt(h_qkv)
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, qk_scale]
     mem_row_size = 512
     torch.manual_seed(42)
 
-    q = torch.randn(batch_size, s_q, num_q_heads, h_qkv, dtype=torch.bfloat16)
-    k = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16)
-    v = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16)
+    # Set device - use CUDA if available, otherwise CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    q = torch.randn(batch_size, s_q, num_q_heads, h_qkv, dtype=torch.bfloat16, device=device)
+    k = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16, device=device)
+    v = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16, device=device) 
     # Reshape q, k, v to (batch_size, s_q * num_q_heads * h_qkv) and merge into (3 * batch_size, s_q * num_q_heads * h_qkv)
     q_reshaped = q.reshape(batch_size, -1)
     k_reshaped = k.reshape(batch_size, -1)
@@ -66,6 +70,18 @@ if __name__ == "__main__":
     input_tensor = torch.cat([q_rows, k_rows, v_rows], dim=0)
     weights = torch.zeros(h_qkv)
 
+    # TODO: Add a reference flashattention output to ensure the flash_attn2_gemv is correct.
+    # flash_attn = get_kernel("kernels-community/flash-attn")
+    # ref_original_output = out_flash = flash_attn.fwd(
+    #     q=q, 
+    #     k=k, 
+    #     v=v, 
+    #     is_causal=False,
+    # )[0]
+
+    # print("ref_original_output", ref_original_output)
+    # quit()
+    
     original_output = flash_attn2_gemv(
         q,
         k,
