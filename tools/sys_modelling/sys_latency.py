@@ -35,15 +35,16 @@ class sys_latency_config:
         # Convert weight_size from billion to bytes, then to GB, where wt_datatype is the element size in bytes
         # Assume weight_size is in billions (e.g., 8 for 8B)
         self.weight_size = self.weight_size * 1e9 * self.wt_datatype / (1024**3)  # size in GB
+        # print("model weight size: ", self.weight_size)
         self.theoratical_frequency = 10**9                  # 1 GHz
         self.hardware_config = hardware_config
         self.output_token = output_token
         self.batch_size = batch_size
-        self.kv_size = seq_len
+        self.kv_size = 0
         self.device_num = device_num
         self.sram_latency   = sys_config["SRAM_Latency"] # nanoseconds
         self.sram_bandwidth = sys_config["SRAM_Bandwidth"] # GB/s
-        self.sram_capacity  = sys_config["SRAM_Capacity"] # bytes
+        self.sram_capacity  = sys_config["SRAM_Capacity"] # GB
         self.hbm_bandwidth  = sys_config["HBM_Bandwidth"] # GB/s
         self.hbm_latency    = sys_config["HBM_Latency"] # nanoseconds
 
@@ -51,27 +52,26 @@ class sys_latency_config:
         self.weight_latency = None # nanoseconds
         self.kv_bandwidth = None # GB/s
         self.kv_latency = None # nanoseconds
-        self.sys_perf()
 
-    def sys_perf(self):
+
+    def sys_mem_dist_update(self):
         # Assuming the activations are stored on-chip SRAM, so excluded from the 3D Stacked Modelling.
         # KV are primarily stored on HBM, 
-        kv_size = 2 * self.num_key_value_heads * self.head_dim * self.input_seq_len * self.num_hidden_layers *self.kv_datatype
+        kv_size = 2 * self.batch_size * self.num_key_value_heads * self.head_dim * (self.kv_size) * self.num_hidden_layers *self.kv_datatype
         kv_size = kv_size / 1024 / 1024 / 1024 # GB
         if kv_size > self.sram_capacity:
             self.kv_latency = ((kv_size - self.sram_capacity) * self.hbm_latency + self.sram_capacity * self.sram_latency) / kv_size
-            self.kv_bandwidth = ((kv_size - self.sram_capacity) * self.hbm_bandwidth + self.sram_capacity * self.sram_bandwidth) / kv_size
+            self.kv_bandwidth = ((kv_size - self.sram_capacity) * self.hbm_bandwidth + self.sram_capacity * self.sram_bandwidth) / kv_size / self.kv_datatype
             self.weight_latency = self.hbm_latency
             self.weight_bandwidth = self.hbm_bandwidth
+            # print("KV Cannot fit in 3D Stacked SRAM, using HBM")
         else:
             self.kv_latency = self.sram_latency
             self.kv_bandwidth = self.sram_bandwidth
             self.weight_latency = ((self.weight_size - (self.sram_capacity - kv_size)) * self.hbm_latency + (self.sram_capacity - kv_size) * self.sram_latency) / self.weight_size
-            self.weight_bandwidth = ((self.weight_size - (self.sram_capacity - kv_size)) * self.hbm_bandwidth + (self.sram_capacity - kv_size) * self.sram_bandwidth) / self.weight_size
-        print(f"KV latency: {self.kv_latency}")
-        print(f"KV bandwidth: {self.kv_bandwidth}")
-        print(f"Weight latency: {self.weight_latency}")
-        print(f"Weight bandwidth: {self.weight_bandwidth}")
+            self.weight_bandwidth = ((self.weight_size - (self.sram_capacity - kv_size)) * self.hbm_bandwidth + (self.sram_capacity - kv_size) * self.sram_bandwidth) / self.weight_size / self.wt_datatype
+
+
     def rms_layer(self, mode = "prefill"):
         if mode == "prefill":
             setting_inst_num = 10
@@ -92,9 +92,10 @@ class sys_latency_config:
     def projection(self, mode = "prefill"):
 
         if self.weight_bandwidth > 2 * self.hardware_config["MLEN"]["value"]:
-            mem_access_delay_ratio = 0
+            mem_access_delay_ratio = 1
         else:
             mem_access_delay_ratio = 2 * self.hardware_config["MLEN"]["value"] / self.weight_bandwidth
+            # print("Memory Bandwidth Bounded by Projection Write & Read Bandwidth")
         
         if mode == "prefill":
             overall_exe_cycle = 0
@@ -129,7 +130,7 @@ class sys_latency_config:
         tile_in_atten = min(self.head_dim, mlen)
         assert self.num_key_value_heads <= (self.hardware_config["MLEN"]["value"] // self.hardware_config["BLEN"]["value"]) , "num_key_value_heads must be less than or equal to (MLEN // BLEN)"
         if self.kv_bandwidth > self.hardware_config["MLEN"]["value"]:
-            mem_access_delay_ratio = 0
+            mem_access_delay_ratio = 1
         else:
             mem_access_delay_ratio = self.hardware_config["MLEN"]["value"] / self.kv_bandwidth
 
@@ -171,7 +172,7 @@ class sys_latency_config:
         vlen = self.hardware_config["VLEN"]["value"]
         blen = self.hardware_config["BLEN"]["value"]
         if self.weight_bandwidth > 2 * self.hardware_config["MLEN"]["value"]:
-            mem_access_delay_ratio = 0
+            mem_access_delay_ratio = 1
         else:
             mem_access_delay_ratio = 2 * self.hardware_config["MLEN"]["value"] / self.weight_bandwidth
 
@@ -210,6 +211,8 @@ class sys_latency_config:
 
     def compute_prefill_time(self):
         mode = "prefill"
+        self.kv_size = 0
+        self.sys_mem_dist_update()
         overall_exe_cycle = 0
         overall_exe_cycle += self.embeddings(mode)
         for i in range(self.num_hidden_layers):
@@ -219,6 +222,7 @@ class sys_latency_config:
             overall_exe_cycle += self.residual(mode)
             overall_exe_cycle += self.rms_layer(mode)
             overall_exe_cycle += self.feed_forward(mode)
+
         # overall_exe_cycle += self.rms_layer()
         overall_exe_cycle += self.lm_head()
         # print("Overall instruction number: ", overall_exe_cycle)
@@ -230,7 +234,9 @@ class sys_latency_config:
     def compute_decode_time(self, output_token_size):
         mode = "decode"
         overall_exe_cycle = 0
+        self.kv_size = self.input_seq_len
         for j in range (output_token_size):
+            self.sys_mem_dist_update()
             for i in range (self.num_hidden_layers):
                 overall_exe_cycle += self.rms_layer(mode)
                 overall_exe_cycle += self.projection(mode)
@@ -238,14 +244,23 @@ class sys_latency_config:
                 overall_exe_cycle += self.residual(mode)
                 overall_exe_cycle += self.rms_layer(mode)
                 overall_exe_cycle += self.feed_forward(mode)
+            self.kv_size = self.kv_size + 1
         # print("Overall instruction number: ", overall_exe_cycle)
-        overall_exe_cycle = overall_exe_cycle * 2 # avg 3 execution cycles
+        overall_exe_cycle = overall_exe_cycle # avg 3 execution cycles
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
         # print("Theoratical execution time: ", theoratical_execution_time)
         return theoratical_execution_time
 
 
     def compute_overall_perf(self):
+        kv_size = 2 * self.batch_size * self.num_key_value_heads * self.head_dim * (self.input_seq_len + self.output_token) * self.num_hidden_layers *self.kv_datatype
+        kv_size = kv_size / 1024 / 1024 / 1024 # GB
+        print(f"KV size: {kv_size}GB, Input Sequence Length: {self.input_seq_len}, Output Token: {self.output_token}")
+        if kv_size > self.sram_capacity:
+            print("KV Cannot fit in 3D Stacked SRAM, using HBM")
+        else:
+            print("KV fits in 3D Stacked SRAM")
+        
         ttft = (self.compute_prefill_time() + self.compute_decode_time(1)) / self.device_num
         tps = (self.device_num * (self.batch_size * self.output_token)) / self.compute_decode_time(self.output_token // self.device_num)
         return ttft, tps

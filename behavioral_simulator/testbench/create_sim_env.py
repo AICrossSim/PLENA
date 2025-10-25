@@ -35,9 +35,19 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
         f.write("Golden Result:\n")
         f.write("\nInput Tensor:\n")
-        f.write(np_array_to_str_2f(golden_result["input_tensor"].detach().cpu().numpy()))
+        # Convert BFloat16 to float32 before converting to numpy
+        input_np = golden_result["input_tensor"].detach().cpu().float().numpy()
+        f.write(np_array_to_str_2f(input_np))
         f.write("\n\nWeights (state_dict):\n")
-        for key, value in golden_result["weights"].items():
-            f.write(f"{key}:\n{np_array_to_str_2f(value.detach().cpu().numpy())}\n")
+        if isinstance(golden_result["weights"], dict):
+            for key, value in golden_result["weights"].items():
+                # Convert BFloat16 to float32 before converting to numpy
+                value_np = value.detach().cpu().float().numpy()
+                f.write(f"{key}:\n{np_array_to_str_2f(value_np)}\n")
+        else:
+            value_np = golden_result["weights"].detach().cpu().float().numpy()
+            f.write(np_array_to_str_2f(value_np))
         f.write("\n\nOriginal Output:\n")
-        f.write(np_array_to_str_2f(golden_result["original_output"].detach().cpu().numpy()))
+        # Convert BFloat16 to float32 before converting to numpy
+        output_np = golden_result["original_output"].detach().cpu().float().numpy()
+        f.write(np_array_to_str_2f(output_np))

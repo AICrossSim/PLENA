@@ -163,8 +163,79 @@ class System_Model:
 # Example usage (can be used in __main__ or in a notebook)
 if __name__ == "__main__":
     import sys
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from pathlib import Path
+
+    input_seq_len = 2048
+    output_token = 128
+    batch_size = 4
     config_def_path = Path(sys.path[0]).parent.parent / "src" / "definitions" / "plena_settings.toml"
     print(f"Config def path: {config_def_path}")
     model_config_path = Path(sys.path[0]).parent.parent / "doc" / "Model_Lib" / "llama-3.3-70b.json"
-    System_Model = System_Model(config_def_path=config_def_path, model_config_path=model_config_path, batch_size=1, seq_len=2048, output_token=128, device_num=1)
-    System_Model.evaluate_latency()
+
+    sram_capacities = [1, 2, 3, 4]  # in GB
+    # output_tokens = np.linspace(128, 4096, num=5)
+    output_tokens = [128, 256, 512, 1024, 2048]
+
+    # For each SRAM capacity, store ttft and tps as lists over growing output_token
+    ttft_results = {gb: [] for gb in sram_capacities}
+    tps_results = {gb: [] for gb in sram_capacities}
+
+    for sram_gb in sram_capacities:
+        # Make a deep copy of PLENA_with_3D_STACKED_SRAM with the new SRAM capacity for this trial
+        import copy
+        sram_settings = copy.deepcopy(PLENA_with_3D_STACKED_SRAM)
+        sram_settings["SRAM_Capacity"] = sram_gb  # in GB
+
+        # Re-init System_Model for each SRAM size
+        SysModel = System_Model(
+            config_def_path=config_def_path,
+            model_config_path=model_config_path,
+            batch_size=batch_size,
+            seq_len=input_seq_len,
+            output_token=output_token,
+            device_num=1
+        )
+        # Patch the System_Model's latency_model and roofline_model to new SRAM cap
+        SysModel.latency_model.sram_capacity = sram_gb
+        SysModel.roofline_model.sram_capacity = sram_gb
+
+        this_ttft = []
+        this_tps = []
+        for ot in output_tokens:
+            ot_int = int(max(1, ot))
+            SysModel.latency_model.output_token = ot_int
+            # (The rest of config—batch size, seq len, etc.—remain fixed except for SRAM)
+            ttft, tps = SysModel.latency_model.compute_overall_perf()
+            this_ttft.append(ttft)
+            this_tps.append(tps)
+            print(f"SRAM: {sram_gb}GB | Output Tokens: {ot_int} => TTFT: {ttft:.4f}, TPS: {tps:.4f}")
+        ttft_results[sram_gb] = this_ttft
+        tps_results[sram_gb] = this_tps
+
+    # Draw plots: compare TPS for different SRAM on one, and TTFT on another, side by side.
+    fig, axs = plt.subplots(1, 2, figsize=(15, 6))
+
+    colors = plt.get_cmap("tab10")
+
+    # TPS plot
+    for idx, sram_gb in enumerate(sram_capacities):
+        axs[0].plot(output_tokens, tps_results[sram_gb], marker='o', color=colors(idx), label=f"SRAM {sram_gb}GB")
+    axs[0].set_xlabel('Output Token Size')
+    axs[0].set_ylabel('TPS')
+    axs[0].set_title(f"TPS vs Output Token Size (input_seq_len={input_seq_len}, batch_size={batch_size})")
+    axs[0].legend()
+    axs[0].grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+
+    # TTFT plot
+    for idx, sram_gb in enumerate(sram_capacities):
+        axs[1].plot(output_tokens, ttft_results[sram_gb], marker='x', color=colors(idx), label=f"SRAM {sram_gb}GB")
+    axs[1].set_xlabel('Output Token Size')
+    axs[1].set_ylabel('TTFT (s)')
+    axs[1].set_title(f"TTFT vs Output Token Size (input_seq_len={input_seq_len}, batch_size={batch_size})")
+    axs[1].legend()
+    axs[1].grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig(f"tps_ttft_compare_sram_cap_batch_size_{batch_size}.png")

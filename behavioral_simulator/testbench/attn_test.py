@@ -1,36 +1,83 @@
+
+# This test is about the prefilling stage of the flash attention process.
+
 import sys
+import math
+import torch
+
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import flash_attn_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-from flash_attn.flash_attention import FlashAttention
+from transformers.modeling_flash_attention_utils import _flash_attention_forward as _flash_attention_forward_ref
+from aria_lm_ops.models.llama import flash_attn2_gemv
 
+
+# Reshape q, k, v so that each batch's data stays together and rows are of length mem_row_size
+def flatten_and_split_by_rows(x, mem_row_size):
+    b = x.shape[0]
+    x_flat = x.reshape(b, -1)
+    total = x_flat.shape[1]
+    pad = (mem_row_size - (total % mem_row_size)) % mem_row_size
+    # Pad each batch along feature dim so divisible
+    if pad > 0:
+        x_flat = torch.cat([x_flat, torch.zeros((b, pad), dtype=x.dtype, device=x.device)], dim=1)
+    x_2d = x_flat.reshape(b, -1, mem_row_size)
+    return x_2d
 
 
 if __name__ == "__main__":
-    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    hidden_size = 128
-    batch_size = 4
+
+    batch_size = 1
+    s_q =2
+    s_kv = 2
+    num_q_heads = 8
+    num_kv_heads = 4
+    h_qkv = 64
+    mlen = 16
+    qk_scale = 1.0 / math.sqrt(h_qkv)
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    fp_preload = [0.0, 1e-6, 1/hidden_size]
-
-    # Gen Weight and Test Data
-    # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
-    
+    fp_preload = [0.0, qk_scale]
+    mem_row_size = 512
     torch.manual_seed(42)
-    input_tensor = torch.randn(batch_size, hidden_size)
-    # Print input_tensor split in half along columns, as two (4, 64) tensors
-    print("input_tensor lhs (4, 64):\n", input_tensor[:, :64])
-    print("input_tensor rhs (4, 64):\n", input_tensor[:, 64:])
 
-    original_layer = FlashAttention(dim=hidden_size)
-    weights = original_layer.state_dict()
-    original_output = original_layer(input_tensor)  
+    q = torch.randn(batch_size, s_q, num_q_heads, h_qkv, dtype=torch.bfloat16)
+    k = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16)
+    v = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16)
+    # Reshape q, k, v to (batch_size, s_q * num_q_heads * h_qkv) and merge into (3 * batch_size, s_q * num_q_heads * h_qkv)
+    q_reshaped = q.reshape(batch_size, -1)
+    k_reshaped = k.reshape(batch_size, -1)
+    v_reshaped = v.reshape(batch_size, -1)
+
+    q_mem = flatten_and_split_by_rows(q, mem_row_size)    # (batch_size, nrows_q, mem_row_size)
+    k_mem = flatten_and_split_by_rows(k, mem_row_size)
+    v_mem = flatten_and_split_by_rows(v, mem_row_size)
+
+    # Concatenate all batches' data for q, then k, then v, in row order, so data from the same batch is still contiguous for that tensor
+    q_rows = q_mem.reshape(-1, mem_row_size)
+    k_rows = k_mem.reshape(-1, mem_row_size)
+    v_rows = v_mem.reshape(-1, mem_row_size)
+
+    # Concatenate so the order is: all q rows for all batches, then all k rows, then all v rows
+    input_tensor = torch.cat([q_rows, k_rows, v_rows], dim=0)
+    weights = torch.zeros(h_qkv)
+
+    original_output = flash_attn2_gemv(
+        q,
+        k,
+        v,
+        qk_scale=qk_scale,
+        s_q=s_q,
+        s_kv=s_kv,
+        h_qkv=h_qkv,
+        num_q_heads=num_q_heads,
+        num_kv_heads=num_kv_heads,
+        Bc=mlen,
+    )
 
     golden_result = {
         "input_tensor": input_tensor,
@@ -38,30 +85,22 @@ if __name__ == "__main__":
         "original_output": original_output
     }
 
-    gen_assembly_code = "; RMSNorm Test Generation \n"
+    gen_assembly_code = "; FlashAttn Test Generation \n"
     
-    # Set the addr offset for weight and bias
+    # Set the Q, K, V addr offset for weight and bias
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1, 2],
         available_registers=[1, 2],
-        addr_reg_val=[int(hidden_size * batch_size * real_data_ratio), int((hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)]
+        addr_reg_val=[int((h_qkv * num_q_heads) * batch_size * s_q * real_data_ratio), int((h_qkv * num_kv_heads * batch_size * s_kv + h_qkv * num_q_heads * batch_size * s_q) * real_data_ratio)]
     )
 
-    print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
-    print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
     
-
-    # Reset the registers
-    gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
-    )
-    
-    # Gen Activation Preload
+    # Gen Activation Preload Q
     gen_assembly_code += preload_act_asm(
         vlen=64,
         preload_len=4,
-        batch=4,
-        hidden_size=128,
+        batch=batch_size,
+        hidden_size=h_qkv * num_q_heads,
         alive_registers=[1,2,3],
         act_vram_offset=0,
         activation_offset_reg=0
@@ -69,27 +108,60 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4]
+        alive_registers=[1,2,3]
     )
 
-    gen_assembly_code += flash_attn_asm(
-        q_hbm_address="a2",
-        k_hbm_address="a3",
-        v_hbm_address="a4",
-        q_base_address=0,
-        k_base_address=0,
-        v_base_address=0,
-        mlen=64,
-        head_dim=128,
-        blen=4,
-        seq_len=2048,
-        alive_registers_fix=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
-        alive_registers_fp=[1,2,3,4,5,6,7],
-        l_old_base_address=8,
-        m_res_base_address=9,
-        m_last_base_address=10,
-        s_address=11,
-        pv_result_address=12,
+    # Gen Activation Preload K
+    gen_assembly_code += preload_act_asm(
+        vlen=64,
+        preload_len=4,
+        batch=batch_size,
+        hidden_size=h_qkv * num_kv_heads,
+        alive_registers=[1,2,3],
+        act_vram_offset=(h_qkv * num_q_heads) * batch_size * s_q,
+        activation_offset_reg=1
     )
 
-    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result, fp_preload)
+    # Reset the registers
+    gen_assembly_code += reset_reg_asm(
+        alive_registers=[1,2,3]
+    )
+
+    # Gen Activation Preload V
+    gen_assembly_code += preload_act_asm(
+        vlen=64,
+        preload_len=4,
+        batch=batch_size,
+        hidden_size=h_qkv * num_kv_heads,
+        alive_registers=[1,2,3],
+        act_vram_offset=(h_qkv * num_kv_heads * batch_size * s_kv + h_qkv * num_q_heads * batch_size * s_q),
+        activation_offset_reg=2
+    )
+    # Reset the registers
+    gen_assembly_code += reset_reg_asm(
+        alive_registers=[1,2,3]
+    )
+
+    # # Start the flash attention process
+
+    # gen_assembly_code += flash_attn_asm(
+    #     q_hbm_address="a2",
+    #     k_hbm_address="a3",
+    #     v_hbm_address="a4",
+    #     q_base_address=0,
+    #     k_base_address=0,
+    #     v_base_address=0,
+    #     mlen=64,
+    #     head_dim=128,
+    #     blen=4,
+    #     seq_len=2048,
+    #     alive_registers_fix=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+    #     alive_registers_fp=[1,2,3,4,5,6,7],
+    #     l_old_base_address=8,
+    #     m_res_base_address=9,
+    #     m_last_base_address=10,
+    #     s_address=11,
+    #     pv_result_address=12,
+    # )
+
+    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)

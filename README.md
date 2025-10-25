@@ -45,6 +45,7 @@ source ~/.bashrc
 ```
 direnv allow
 nix develop
+git submodule update --init --recursive
 ```
 
 ## Run Behavioral Simulation
