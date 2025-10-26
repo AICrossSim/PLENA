@@ -45,6 +45,8 @@ static SCALAR_INT_BASIC_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_int_basi
 static MLEN: LazyLock<u32> = LazyLock::new(|| mlen());
 static VLEN: LazyLock<u32> = LazyLock::new(|| vlen());
 static BLEN: LazyLock<u32> = LazyLock::new(|| blen());
+static HLEN: LazyLock<u32> = LazyLock::new(|| hlen());
+static BROADCAST_AMOUNT: LazyLock<u32> = LazyLock::new(|| broadcast_amount());
 static HBM_SIZE: LazyLock<usize> = LazyLock::new(|| hbm_size());
 static MATRIX_SRAM_SIZE: LazyLock<usize> = LazyLock::new(|| matrix_sram_size());
 static VECTOR_SRAM_SIZE: LazyLock<usize> = LazyLock::new(|| vector_sram_size());
@@ -321,87 +323,144 @@ struct MatrixMachine {
     mram: Arc<MatrixSram>,
     vram: Arc<VectorSram>,
     m_accum: Tensor,
+    h_accum: Tensor,
     v_accum: Tensor,
-    tile_size: u32,
+    mlen: u32,
+    hlen: u32,
     blen: u32,
+    broadcast_amount: u32,
 }
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
         println!("m_addr = {:?}", m_addr);
         println!("v_addr = {:?}", v_addr);
-        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
-        let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
+        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
+        let mat_offset = mat_offset.assert_multiple_of(self.mlen);
         println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         let full_mat = self.mram.read(mat_base).await;
-        // Slice columns instead of rows: [tile_size, blen]
+        // Slice columns instead of rows: [mlen, blen]
         let mat = full_mat
             .as_tensor()
-            .view([self.tile_size as i64, self.tile_size as i64])
+            .view([self.mlen as i64, self.mlen as i64])
             .i((.., mat_offset as i64..(mat_offset + self.blen) as i64));
         let mut tensors = Vec::with_capacity(self.blen as usize);
-        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
+        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
         for i in 0..self.blen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.tile_size)
+                    .read(v_addr + i * self.mlen)
                     .await
                     .as_tensor()
                     .shallow_clone(),
             );
         }
-        // Stack along dimension 0 to get [blen, tile_size]
+        // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
         println!("vec = {}", vec);
         println!("mat = {}", mat);
-        // Now vec @ mat: [blen, tile_size] @ [tile_size, blen] = [blen, blen]
+        // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
         println!("m_accum = {}", self.m_accum);
     }
 
-    async fn tmm(&mut self, v_addr: u32, m_addr: u32) {
-        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.tile_size * self.tile_size);
-        let mat_offset = mat_offset.assert_multiple_of(self.tile_size);
+    async fn bmm(&mut self, m_addr: u32, v_addr: u32, head_index: u32) {
+        println!("m_addr = {:?}", m_addr);
+        println!("v_addr = {:?}", v_addr);
+        assert!(self.broadcast_amount * self.hlen == self.mlen);
+        // Load matrix from matrix SRAM.
+        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
+        let (mat_offset, head_offset) = mat_offset.multiple_and_offset(self.mlen);
+
+        println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
+        assert!(head_offset.is_multiple_of(self.hlen));
         let full_mat = self.mram.read(mat_base).await;
-        // Transpose then slice columns: [tile_size, blen]
+
+        // Slice columns instead of rows: [hlen, blen]
         let mat = full_mat
             .as_tensor()
-            .view([self.tile_size as i64, self.tile_size as i64])
-            .transpose(-1, -2)
-            .i((.., mat_offset as i64..(mat_offset + self.blen) as i64));
+            .view([self.mlen as i64, self.mlen as i64])
+            .i((head_offset as i64..(head_offset + self.hlen) as i64, mat_offset as i64..(mat_offset + self.blen) as i64));
+
         let mut tensors = Vec::with_capacity(self.blen as usize);
-        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.tile_size);
+        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
         for i in 0..self.blen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.tile_size)
+                    .read(v_addr + i * self.mlen)
                     .await
                     .as_tensor()
                     .shallow_clone(),
             );
         }
-        // Stack along dimension 0 to get [blen, tile_size]
+        // Stack along dimension 0 to get [blen, hlen, broadcast_amount]
+        let vec = tch::Tensor::stack(&tensors, 0)
+            .view([self.blen as i64, self.hlen as i64, self.broadcast_amount as i64]);
+
+
+        println!("vec = {}", vec);
+        println!("mat = {}", mat);
+        
+        // Now vec @ mat: [broadcast_amount, blen, hlen] @ [hlen, blen] = [broadcast_amount, blen, blen]
+        let mut result_tensors = Vec::with_capacity(self.broadcast_amount as usize);
+        for i in 0..self.broadcast_amount {
+            // vec: [blen, hlen, broadcast_amount]
+            // For each i, select the corresponding slice along broadcast_amount
+            let vec_i = vec.i((.., .., i as i64)).squeeze_dim(-1); // [blen, hlen]
+            // mat: [hlen, blen]
+            let result = vec_i.matmul(&mat); // [blen, blen]
+            result_tensors.push(result);
+        }
+        let result_tensor = tch::Tensor::stack(&result_tensors, 0); // [broadcast_amount, blen, blen]
+
+        self.h_accum += result_tensor;
+        println!("h_accum = {}", self.h_accum);
+    }
+
+    async fn tmm(&mut self, v_addr: u32, m_addr: u32) {
+        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
+        let mat_offset = mat_offset.assert_multiple_of(self.mlen);
+        assert!(mat_offset.is_multiple_of(self.blen));
+        let full_mat = self.mram.read(mat_base).await;
+        // Transpose then slice columns: [mlen, blen]
+        let mat = full_mat
+            .as_tensor()
+            .view([self.mlen as i64, self.mlen as i64])
+            .transpose(-1, -2)
+            .i((.., mat_offset as i64..(mat_offset + self.blen) as i64));
+        let mut tensors = Vec::with_capacity(self.blen as usize);
+        cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
+        for i in 0..self.blen {
+            tensors.push(
+                self.vram
+                    .read(v_addr + i * self.mlen)
+                    .await
+                    .as_tensor()
+                    .shallow_clone(),
+            );
+        }
+        // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
-        // Now vec @ mat: [blen, tile_size] @ [tile_size, blen] = [blen, blen]
+        // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
     }
 
     async fn mm_wo(&mut self, v_addr: u32) {
-        let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.tile_size);
+        let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
         println!("vec_base = {}, vec_offset = {}", vec_base, vec_offset);
         assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
         for i in 0..self.blen {
             let tensor = self.m_accum.i((i as i64, ..));
-            let old = self.vram.read(vec_base + i * self.tile_size).await;
+            let old = self.vram.read(vec_base + i * self.mlen).await;
             let new = old.as_tensor().copy();
             new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
                 .copy_(&tensor);
             self.vram
                 .write(
-                    vec_base + i * self.tile_size,
+                    vec_base + i * self.mlen,
                     QuantTensor::quantize(new, old.data_type()),
                 )
                 .await;
@@ -413,21 +472,48 @@ impl MatrixMachine {
         );
     }
 
+    async fn bmm_wo(&mut self, v_addr: u32, stride: u32,) {
+        let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
+        println!("vec_base = {}, vec_offset = {}", vec_base, vec_offset);
+        assert!(vec_offset.is_multiple_of(self.blen));
+        cycle!(1);
+        for j in 0..self.broadcast_amount {
+            for i in 0..self.blen {
+                let tensor = self.h_accum.i((j as i64, i as i64, ..));
+                let old = self.vram.read(vec_base + i * self.mlen).await;
+                let new = old.as_tensor().copy();
+                new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
+                    .copy_(&tensor);
+                self.vram
+                    .write(
+                        vec_base + i * stride,
+                        QuantTensor::quantize(new, old.data_type()),
+                    )
+                    .await;
+            }
+        }
+        self.h_accum = Tensor::zeros(
+            [self.broadcast_amount as i64, self.blen as i64, self.blen as i64],
+            (tch::Kind::Float, tch::Device::Cpu),
+        );
+    }
+
+
     async fn mv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
-        cycle!(self.tile_size);
-        // vec @ mat: [1, tile_size] @ [tile_size, tile_size] = [1, tile_size], then squeeze
-        let result = vec.as_tensor().unsqueeze(0).matmul(&mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64])).squeeze_dim(0);
+        cycle!(self.mlen);
+        // vec @ mat: [1, mlen] @ [mlen, mlen] = [1, mlen], then squeeze
+        let result = vec.as_tensor().unsqueeze(0).matmul(&mat.as_tensor().view([self.mlen as i64, self.mlen as i64])).squeeze_dim(0);
         self.v_accum += result;
     }
 
     async fn tmv(&mut self, v_addr: u32, m_addr: u32) {
         let mat = self.mram.read(m_addr).await;
         let vec = self.vram.read(v_addr).await;
-        cycle!(self.tile_size);
-        // vec @ transpose(mat): [1, tile_size] @ [tile_size, tile_size] = [1, tile_size], then squeeze
-        let result = vec.as_tensor().unsqueeze(0).matmul(&mat.as_tensor().view([self.tile_size as i64, self.tile_size as i64]).transpose(-1, -2)).squeeze_dim(0);
+        cycle!(self.mlen);
+        // vec @ transpose(mat): [1, mlen] @ [mlen, mlen] = [1, mlen], then squeeze
+        let result = vec.as_tensor().unsqueeze(0).matmul(&mat.as_tensor().view([self.mlen as i64, self.mlen as i64]).transpose(-1, -2)).squeeze_dim(0);
         self.v_accum += result;
     }
 
@@ -436,7 +522,7 @@ impl MatrixMachine {
         self.vram.write(v_addr, quant).await;
         cycle!(1);
         self.v_accum = Tensor::zeros(
-            [self.tile_size as i64],
+            [self.mlen as i64],
             (tch::Kind::Float, tch::Device::Cpu),
         );
     }
@@ -761,17 +847,27 @@ impl Accelerator {
                         )
                         .await;
                 }
+                op::Opcode::M_BMM { rs1, rs2, rd } => {
+                    self.m_machine
+                        .bmm(
+                            self.reg_file.gp_reg[rs1 as usize],
+                            self.reg_file.gp_reg[rs2 as usize],
+                            self.reg_file.gp_reg[rd as usize],
+                        )
+                        .await;
+                }
+                op::Opcode::M_BTMM { rs1, rs2, rd } => todo!(),
+                op::Opcode::M_BMM_WO { rd, imm } => {
+                    self.m_machine
+                        .bmm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32, self.reg_file.stride)
+                        .await;
+                }
                 op::Opcode::M_MV { rs1, rs2 } => {
                     self.m_machine
                         .mv(
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.gp_reg[rs2 as usize],
                         )
-                        .await;
-                }
-                op::Opcode::M_MV_WO { rd, imm } => {
-                    self.m_machine
-                        .mv_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
                         .await;
                 }
                 op::Opcode::M_TMV { rs1, rs2 } => {
@@ -782,6 +878,14 @@ impl Accelerator {
                         )
                         .await;
                 }
+                op::Opcode::M_BMV { rs1, rs2, rd } => todo!(),
+                op::Opcode::M_BTMV { rs1, rs2, rd } => todo!(),
+                op::Opcode::M_MV_WO { rd, imm } => {
+                    self.m_machine
+                        .mv_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
+                        .await;
+                }
+                op::Opcode::M_BMV_WO { rd, imm } => todo!(),
 
                 op::Opcode::V_ADD_VV { rd, rs1, rs2 } => {
                     self.v_machine
@@ -1106,13 +1210,19 @@ async fn start() {
     let machine = MatrixMachine {
         mram,
         vram: vram.clone(),
-        tile_size: *MLEN,
+        mlen: *MLEN,
+        hlen: *HLEN,
         blen: *BLEN,
         m_accum: Tensor::zeros(
             [*BLEN as i64, *BLEN as i64],
             (tch::Kind::Float, tch::Device::Cpu),
         ),
+        h_accum: Tensor::zeros(
+            [*BROADCAST_AMOUNT as i64, *BLEN as i64, *BLEN as i64],
+            (tch::Kind::Float, tch::Device::Cpu),
+        ),
         v_accum: Tensor::zeros([*MLEN as i64], (tch::Kind::Float, tch::Device::Cpu)),
+        broadcast_amount: *BROADCAST_AMOUNT,
     };
     let v_machine = VectorMachine { vram }; // Share same dim with VSRAM
 

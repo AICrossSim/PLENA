@@ -37,7 +37,7 @@ if __name__ == "__main__":
     s_kv = 2
     num_q_heads = 8
     num_kv_heads = 4
-    h_qkv = 128
+    h_qkv = 16
     mlen = 64
     qk_scale = 1.0 / math.sqrt(h_qkv)
     real_data_ratio = (8*8 + 8) / (8 * 8)
@@ -160,24 +160,18 @@ if __name__ == "__main__":
 
     # # Start the flash attention process
 
-    # gen_assembly_code += flash_attn_asm(
-    #     q_hbm_address="a2",
-    #     k_hbm_address="a3",
-    #     v_hbm_address="a4",
-    #     q_base_address=0,
-    #     k_base_address=0,
-    #     v_base_address=0,
-    #     mlen=64,
-    #     head_dim=128,
-    #     blen=4,
-    #     seq_len=2048,
-    #     alive_registers_fix=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
-    #     alive_registers_fp=[1,2,3,4,5,6,7],
-    #     l_old_base_address=8,
-    #     m_res_base_address=9,
-    #     m_last_base_address=10,
-    #     s_address=11,
-    #     pv_result_address=12,
-    # )
+    gen_assembly_code += flash_attn_asm(
+        mlen=mlen,
+        blen=4,
+        hq=num_q_heads,
+        hkv=num_kv_heads,
+        d=h_qkv,
+        seq_len=32,
+        alive_registers_int=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+        alive_registers_fp=[1,2,3,4,5,6,7],
+        q_base_address=0,
+        k_base_address=0,
+        k_base_hbm_offset_reg=0
+    )
 
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)

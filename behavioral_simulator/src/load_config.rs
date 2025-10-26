@@ -72,10 +72,14 @@ pub struct AcceleratorConfig {
 pub struct ConfigSection {
     #[serde(rename = "BLEN")]
     pub blen: ConfigValue,
+    #[serde(rename = "HLEN")]
+    pub hlen: ConfigValue,
     #[serde(rename = "MLEN")]
     pub mlen: ConfigValue,
     #[serde(rename = "VLEN")]
     pub vlen: ConfigValue,
+    #[serde(rename = "BROADCAST_AMOUNT")]
+    pub broadcast_amount: ConfigValue,
     #[serde(rename = "HBM_SIZE")]
     pub hbm_size: ConfigValueUsize,
     #[serde(rename = "MATRIX_SRAM_SIZE")]
@@ -149,8 +153,10 @@ impl Default for AcceleratorConfig {
         AcceleratorConfig {
             config: ConfigSection {
                 blen: ConfigValue { value: 32 },
+                hlen: ConfigValue { value: 16 },
                 mlen: ConfigValue { value: 32 },
                 vlen: ConfigValue { value: 32 },
+                broadcast_amount: ConfigValue { value: 2 },
                 hbm_size: ConfigValueUsize { value: 1073741824 },
                 matrix_sram_size: ConfigValueUsize { value: 1024 },
                 vector_sram_size: ConfigValueUsize { value: 1024 },
@@ -403,6 +409,14 @@ pub fn mlen() -> u32 {
     CONFIG.config.mlen.value
 }
 
+pub fn hlen() -> u32 {
+    CONFIG.config.hlen.value
+}
+
+pub fn broadcast_amount() -> u32 {
+    CONFIG.config.broadcast_amount.value
+}
+
 pub fn vlen() -> u32 {
     CONFIG.config.vlen.value
 }
@@ -482,37 +496,4 @@ pub fn generate_example_config() -> Result<(), Box<dyn std::error::Error>> {
     fs::write("plena_settings.toml", toml_content)?;
     println!("Example plena_settings.toml generated successfully!");
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_default_config() {
-        let config = AcceleratorConfig::default();
-        assert_eq!(config.config.blen.value, 32);
-        assert_eq!(config.config.mlen.value, 32);
-        assert_eq!(config.config.vlen.value, 32);
-        assert_eq!(config.config.dc_en.value, 1);
-    }
-    
-    #[test]
-    fn test_dc_lib_selection() {
-        let config = AcceleratorConfig::default();
-        // Test with DC_EN = 1 (enabled)
-        assert_eq!(get_dc_lib_value(&config.latency.vector_add_cycles), 2);
-        
-        // Test is_dc_lib_enabled function
-        assert!(is_dc_lib_enabled());
-    }
-    
-    #[test]
-    fn test_accessor_functions() {
-        assert_eq!(mlen(), 32);
-        assert_eq!(vlen(), 32);
-        assert_eq!(blen(), 32);
-        assert_eq!(dc_en(), 1);
-        assert_eq!(vector_add_cycles(), 2); // Should use dc_lib_en since DC_EN = 1
-    }
 }

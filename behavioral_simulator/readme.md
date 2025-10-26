@@ -31,3 +31,4 @@ Write a (BLEN, BLEN) acc matrix (m_accum) to the Vector SRAM. This involves load
 ## Support Experiments
 - Linear Projection Testing (linear)
 - RMSNorm Testing (rms)
+- Attention Testing (attn)

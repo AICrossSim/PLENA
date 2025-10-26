@@ -4,6 +4,9 @@ value = 1
 [CONFIG.BLEN]
 value = 4
 
+[CONFIG.HLEN]
+value = 16
+
 [CONFIG.MLEN]
 value = 64
 
