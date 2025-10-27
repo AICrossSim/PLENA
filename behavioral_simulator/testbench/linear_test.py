@@ -8,7 +8,7 @@ from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-
+from sim_env_utils import build_fake_sim_env
 
 
 # TODOs: Need to integrate the MX quantizer here.
@@ -129,3 +129,4 @@ if __name__ == "__main__":
     )
 
     create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result)
+    build_fake_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["input_tensor", "weights"])

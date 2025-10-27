@@ -148,6 +148,8 @@ class Random_MXFP_Tensor_Generator:
             tensors = list(tensor.values())
         elif isinstance(tensor, dict):  # in case sometimes dict is used, not strictly OrderedDict
             tensors = list(tensor.values())
+        elif tensor == None:
+            return block_list, scaling_list
         else:
             tensors = [tensor]
 

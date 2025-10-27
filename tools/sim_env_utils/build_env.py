@@ -1,4 +1,4 @@
-from build_sys_tools import *
+from .build_sys_tools import *
 import logging
 from cfl_cocotb import SRC_PATH
 from cfl_tools.logger import get_logger
@@ -9,19 +9,14 @@ from pathlib import Path
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 
-def build_fake_sim_env(data_size=256):
-    parser = argparse.ArgumentParser(description="Build simulation environment")
-    parser.add_argument('--mode', type=str, default=None, help='Mode for Simulation')
-    parser.add_argument('--asm', type=str, required=True, help='Path to assembly file')
-    parser.add_argument('--data', type=str, default=None, help='Output directory for build files')
-    args = parser.parse_args()
+def build_fake_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
     
     config_settings = load_svh_settings(str(SRC_PATH / "definitions" / "configuration.svh"))
     precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
-    if args.mode == "behave_sim":
+    if mode == "behave_sim":
         asm_file = Path(PROJECT_PATH / "behavioral_simulator" / "testbench" / "build" / "generated_asm_code.asm")
     else:
-        asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{args.asm}.asm")
+        asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{asm}.asm")
     
     init_mem(Path(asm_file.parent))
 
@@ -38,7 +33,7 @@ def build_fake_sim_env(data_size=256):
             "skip_first_dim": False,
         }
 
-    if args.mode != "behave_sim":
+    if mode != "behave_sim":
         grp_blocks = []
         grp_bias = []
         raw_data = Random_MXFP_Tensor_Generator(
@@ -46,7 +41,7 @@ def build_fake_sim_env(data_size=256):
             quant_config=quant_config,
             config_settings=config_settings,
             directory=Path(asm_file).parent,
-            filename= Path(f"{args.asm}/fake_test_raw_data.pt")
+            filename= Path(f"{asm}/fake_test_raw_data.pt")
         )
         raw_data.tensor_gen()
         data = raw_data.tensor_load()
@@ -57,18 +52,21 @@ def build_fake_sim_env(data_size=256):
         # The provided path (args.data) is a directory. Enumerate all .pt and .pth files within,
         # then load and quantize all of them. Collect the results in dictionaries keyed by filename.
         target_dir = PROJECT_PATH / "behavioral_simulator" / "testbench" / "build"
-        # pt_files = list(target_dir.glob("*.pt")) + list(target_dir.glob("*.pth"))
-        pt_files = ["input_tensor.pt", "model_weight.pt"]
+        if specified_data_order is not None:
+            pt_files = [target_dir / f"{data}.pt" for data in specified_data_order]
+        else:
+            pt_files = list(target_dir.glob("*.pt")) + list(target_dir.glob("*.pth"))
+        
         grp_blocks = []
         grp_bias = []
         for pt_file in pt_files:
             print("loading file", pt_file)
             file_raw_data = Random_MXFP_Tensor_Generator(
-                shape=tuple(data_config["tensor_size"]),
-                quant_config=quant_config,
-                config_settings=config_settings,
-                directory=Path(asm_file).parent,
-                filename=pt_file
+                shape           =   tuple(data_config["tensor_size"]),
+                quant_config    =   quant_config,
+                config_settings =   config_settings,
+                directory       =   Path(asm_file).parent,
+                filename        =   pt_file
             )
             file_tensor = file_raw_data.tensor_load()
             blocks, bias = file_raw_data.quantize_tensor(file_tensor)

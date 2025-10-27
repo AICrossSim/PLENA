@@ -19,13 +19,15 @@ typedef struct {
     logic [1:0] wreq_from_m;
 } MEM_WREQ_INFO;
 
-typedef enum logic [2:0] {
+typedef enum logic [3:0] {
     MV_IC           = 3'h1,
     MV_BIC          = 3'h2,
     MV_WO           = 3'h3,
-    MM_IC           = 3'h4,
-    MM_BIC          = 3'h5,
-    MM_WO           = 3'h6,
+    BMV_WO          = 3'h4,
+    MM_IC           = 3'h5,
+    MM_BIC          = 3'h6,
+    MM_WO           = 3'h7,
+    BMM_WO          = 3'h8,
     STALL_M         = 3'h0
 } M_OP;
 
@@ -112,61 +114,63 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     M_TMM                  = 6'h02,
     M_BMM                  = 6'h03,
     M_BTMM                 = 6'h04,
-    M_MM_WO                = 6'h05,
-    M_MV                   = 6'h06,
-    M_TMV                  = 6'h07,
-    M_BMV                  = 6'h08,
-    M_BTMV                 = 6'h09,
-    M_MV_WO                = 6'h0A,
+    M_BMM_WO               = 6'h05,
+    M_MM_WO                = 6'h06,
+    M_MV                   = 6'h07,
+    M_TMV                  = 6'h08,
+    M_BMV                  = 6'h09,
+    M_BTMV                 = 6'h0A,
+    M_BMV_WO               = 6'h0B,
+    M_MV_WO                = 6'h0C,
 
     // Vector Operations
-    V_ADD_VV               = 6'h0B,
-    V_ADD_VF               = 6'h0C,
-    V_SUB_VV               = 6'h0D,
-    V_SUB_VF               = 6'h0E,
-    V_MUL_VV               = 6'h0F,
-    V_MUL_VF               = 6'h10,
-    V_EXP_V                = 6'h11,
-    V_RECI_V               = 6'h12,
-    V_RED_SUM              = 6'h13,
-    V_RED_MAX              = 6'h14,
+    V_ADD_VV               = 6'h0D,
+    V_ADD_VF               = 6'h0E,
+    V_SUB_VV               = 6'h0F,
+    V_SUB_VF               = 6'h10,
+    V_MUL_VV               = 6'h11,
+    V_MUL_VF               = 6'h12,
+    V_EXP_V                = 6'h13,
+    V_RECI_V               = 6'h14,
+    V_RED_SUM              = 6'h15,
+    V_RED_MAX              = 6'h16,
 
     // Scalar Operations (Floating-Point)
-    S_ADD_FP               = 6'h15,
-    S_SUB_FP               = 6'h16,
-    S_MAX_FP               = 6'h17,
-    S_MUL_FP               = 6'h18,
-    S_EXP_FP               = 6'h19,
-    S_RECI_FP              = 6'h1A,
-    S_SQRT_FP              = 6'h1B,
-    S_LD_FP                = 6'h1C,
-    S_ST_FP                = 6'h1D,
-    S_MAP_V_FP             = 6'h1E,
+    S_ADD_FP               = 6'h17,
+    S_SUB_FP               = 6'h18,
+    S_MAX_FP               = 6'h19,
+    S_MUL_FP               = 6'h1A,
+    S_EXP_FP               = 6'h1B,
+    S_RECI_FP              = 6'h1C,
+    S_SQRT_FP              = 6'h1D,
+    S_LD_FP                = 6'h1E,
+    S_ST_FP                = 6'h1F,
+    S_MAP_V_FP             = 6'h20,
 
     // Scalar Operations (INT)
-    S_ADD_INT              = 6'h1F,
-    S_ADDI_INT             = 6'h20,
-    S_SUB_INT              = 6'h21,
-    S_MUL_INT              = 6'h22,
-    S_LUI_INT              = 6'h23,
-    S_LD_INT               = 6'h24,
-    S_ST_INT               = 6'h25,
+    S_ADD_INT              = 6'h21,
+    S_ADDI_INT             = 6'h22,
+    S_SUB_INT              = 6'h23,
+    S_MUL_INT              = 6'h24,
+    S_LUI_INT              = 6'h25,
+    S_LD_INT               = 6'h26,
+    S_ST_INT               = 6'h27,
 
     // Memory Operations
-    H_PREFETCH_M           = 6'h26,
-    H_PREFETCH_V           = 6'h27,
-    H_STORE_V              = 6'h28,
+    H_PREFETCH_M           = 6'h28,
+    H_PREFETCH_V           = 6'h29,
+    H_STORE_V              = 6'h2A,
 
     // CSR Setting
-    C_SET_ADDR_REG         = 6'h29,
-    C_SET_SCALE_REG        = 6'h2A,
-    C_SET_STRIDE_REG       = 6'h2B,
+    C_SET_ADDR_REG         = 6'h2B,
+    C_SET_SCALE_REG        = 6'h2C,
+    C_SET_STRIDE_REG       = 6'h2D,
 
-    // Extentions
-    V_PS_V                 = 6'h2C,
-    V_SHFT_V               = 6'h2D,
-    C_HADAMARD_TRANSFORM   = 6'h2E,
-    C_BREAK                = 6'h2F
+    // Extensions
+    V_PS_V                 = 6'h2E,
+    V_SHFT_V               = 6'h2F,
+    C_HADAMARD_TRANSFORM   = 6'h30,
+    C_BREAK                = 6'h31
 } CUSTOM_ISA_OPCODE;
 
 

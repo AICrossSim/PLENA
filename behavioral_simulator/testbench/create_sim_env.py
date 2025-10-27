@@ -17,8 +17,13 @@ def np_array_to_str_2f(arr):
 def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp_preload = None, int_preload = None):
     build_dir = os.path.join(os.path.dirname(__file__), "build")
     os.makedirs(build_dir, exist_ok=True)
-    with open(os.path.join(build_dir, "input_tensor.pt"), "wb") as f:
-        torch.save(input_tensor, f)
+    if isinstance(input_tensor, dict):
+        for key, value in input_tensor.items():
+            with open(os.path.join(build_dir, f"{key}.pt"), "wb") as f:
+                torch.save(value, f)
+    else:
+        with open(os.path.join(build_dir, "input_tensor.pt"), "wb") as f:
+            torch.save(input_tensor, f)
     with open(os.path.join(build_dir, "model_weight.pt"), "wb") as f:
         torch.save(input_weight, f)
     with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
@@ -34,10 +39,13 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
             f.write(int_array.tobytes())
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
         f.write("Golden Result:\n")
-        f.write("\nInput Tensor:\n")
-        # Convert BFloat16 to float32 before converting to numpy
-        input_np = golden_result["input_tensor"].detach().cpu().float().numpy()
-        f.write(np_array_to_str_2f(input_np))
+        if isinstance(input_tensor, dict):
+            for key, value in input_tensor.items():
+                value_np = value.detach().cpu().float().numpy()
+                f.write(f"{key}:\n{np_array_to_str_2f(value_np)}\n")
+        else:
+            value_np = input_tensor.detach().cpu().float().numpy()
+            f.write(np_array_to_str_2f(value_np))
         f.write("\n\nWeights (state_dict):\n")
         if isinstance(golden_result["weights"], dict):
             for key, value in golden_result["weights"].items():

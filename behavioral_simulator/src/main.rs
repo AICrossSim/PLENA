@@ -678,6 +678,9 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
+            println!("element_bits = {:?}", element_bits);
+            println!("load_dim = {:?}", load_dim);
+            println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
             assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
@@ -1137,7 +1140,8 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
-
+                    println!("VLEN = {:?}", *VLEN);
+                    println!("MLEN = {:?}", *MLEN);
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
@@ -1204,7 +1208,6 @@ struct Opts {
 
 async fn start() {
     let opts = Opts::parse();
-
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
     let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
     let machine = MatrixMachine {
