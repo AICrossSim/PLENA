@@ -176,6 +176,7 @@ if __name__ == "__main__":
 
     sram_capacities = [1, 2, 3, 4]  # in GB
     # output_tokens = np.linspace(128, 4096, num=5)
+    input_tokens = [128, 256, 512, 1024, 2048]
     output_tokens = [128, 256, 512, 1024, 2048]
 
     # For each SRAM capacity, store ttft and tps as lists over growing output_token
@@ -203,14 +204,22 @@ if __name__ == "__main__":
 
         this_ttft = []
         this_tps = []
+        SysModel.latency_model.input_seq_len = input_seq_len
         for ot in output_tokens:
             ot_int = int(max(1, ot))
             SysModel.latency_model.output_token = ot_int
             # (The rest of config—batch size, seq len, etc.—remain fixed except for SRAM)
             ttft, tps = SysModel.latency_model.compute_overall_perf()
-            this_ttft.append(ttft)
             this_tps.append(tps)
             print(f"SRAM: {sram_gb}GB | Output Tokens: {ot_int} => TTFT: {ttft:.4f}, TPS: {tps:.4f}")
+        
+        SysModel.latency_model.output_token = 4
+        for it in input_tokens:
+            it_int = int(max(1, it))
+            SysModel.latency_model.input_seq_len = it_int
+            ttft, tps = SysModel.latency_model.compute_overall_perf()
+            this_ttft.append(ttft)
+            print(f"SRAM: {sram_gb}GB | Input Tokens: {it_int} => TTFT: {ttft:.4f}, TPS: {tps:.4f}")
         ttft_results[sram_gb] = this_ttft
         tps_results[sram_gb] = this_tps
 
@@ -231,7 +240,7 @@ if __name__ == "__main__":
     # TTFT plot
     for idx, sram_gb in enumerate(sram_capacities):
         axs[1].plot(output_tokens, ttft_results[sram_gb], marker='x', color=colors(idx), label=f"SRAM {sram_gb}GB")
-    axs[1].set_xlabel('Output Token Size')
+    axs[1].set_xlabel('Input Token Size')
     axs[1].set_ylabel('TTFT (s)')
     axs[1].set_title(f"TTFT vs Output Token Size (input_seq_len={input_seq_len}, batch_size={batch_size})")
     axs[1].legend()

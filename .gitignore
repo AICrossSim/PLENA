@@ -16,6 +16,8 @@ build/
 *.str
 *.jou
 
+doc/figure_gen/*
+
 moduleparamid
 default.svf
 

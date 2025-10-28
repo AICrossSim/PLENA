@@ -28,6 +28,7 @@ if __name__ == "__main__":
     hidden_size = 128
     batch_size = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
+    fp_preload = [0.0, 1e-6, 1/hidden_size]
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
@@ -128,5 +129,5 @@ if __name__ == "__main__":
         rope_enabled=False
     )
 
-    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result)
+    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result, fp_preload)
     build_fake_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["input_tensor", "weights"])
