@@ -1100,7 +1100,9 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         } // Element addr shifted by (element to scale ratio)
                     };
-
+                    println!("addr = {:?}", addr);
+                    println!("offset = {:?}", offset);
+                    println!("scale = {:?}", self.reg_file.scale);
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,

@@ -1,100 +1,9 @@
 from typing import List
-
-
-# Backup for MLEN, MLEN
-def _general_mlen_mlen_multiply_code(
-    mlen: int,
-    blen: int,
-    alive_registers: List[int],
-    reduce_size: int,
-    reduce_unit_size: int,
-    q_base_address: int,
-    k_base_address: int,
-    smallest_q_block_size_address: int,
-    smallest_kt_block_size_address: int,
-    whole_kt_block_size_address: int,
-    whole_q_block_size_address: int,
-    s_address: int,
-) -> str:
-    """
-    MLEN: buffer size (MLEN * MLEN)
-    BLEN: Multiplier block size (BLEN * BLEN)
-    reduce_size: the size of the multiplier contracting dimension (usually head_dim)
-    reduce_unit_size: the size of the multiplier contracting unit (usually MLEN), it can at most do reduce_unit_size dot product at a time
-    q_base_address: Q base address
-    k_base_address: K base address
-    smallest_q_block_size_address: the size of of the smallest operational block of q. Usually (BLEN * reduce_unit_size)
-    smallest_kt_block_size_address: the size of of the smallest operational block of kt. Usually (BLEN * reduce_unit_size)
-    whole_kt_block_size_address: the size of the whole kt block. Usually (BLEN * Head_dim)
-    whole_q_block_size_address: the size of the whole q block. Usually (BLEN * Head_dim)
-    s_address: the target starting address for where to save the result of the dot product
-    """
-
-    # get two registers from alive_registers, 1 as q address, 1 as k address
-    q_base_register = alive_registers[0]
-    k_base_register = alive_registers[1]
-    # q and k actual register are used to store the actual address of q and k
-    q_actual_register = alive_registers[2]
-    k_actual_register = alive_registers[3]
-    # block size register is used to store the block size of q and k
-    # we will use this block size register to store the address of s too
-    block_size_register = alive_registers[4]
-
-    # set q address
-    # set k address
-    set_q_base_address = f"S_LD_FIX {q_base_register}, gp0, {q_base_address} \n"
-    set_k_base_address = f"S_LD_FIX {k_base_register}, gp0, {k_base_address} \n"
-
-    set_q_actual_address = f"S_ADD_FIX {q_actual_register}, gp0, {q_base_register} \n"
-    set_k_actual_address = f"S_ADD_FIX {k_actual_register}, gp0, {q_base_register} \n"
-
-    generated_code = ""
-    # Q and KT internal loop iteration number
-    qkt_loop_iteration_number = mlen // blen
-    # contracting loop iteration number
-    contracting_loop_iteration_number = reduce_size // reduce_unit_size
-
-    generated_code += set_q_base_address
-    generated_code += set_k_base_address
-    for i in range(qkt_loop_iteration_number):
-        for j in range(qkt_loop_iteration_number):
-            generated_code += set_q_actual_address
-            generated_code += set_k_actual_address
-            for k in range(contracting_loop_iteration_number):
-                if k != contracting_loop_iteration_number - 1:
-                    # multiply q and kt
-                    generated_code += f"M_TMM 0, {q_actual_register}, {k_actual_register} \n"
-                else:
-                    # multiply q and kt and store to S. No index needed for S. This is an append operation.
-                    generated_code += f"S_LD_FIX {block_size_register}, gp0, {s_address} \n"
-                    generated_code += f"M_MM_WO {block_size_register}, {q_actual_register}, {k_actual_register} \n"
-
-                # load q block size
-                generated_code += f"S_LD_FIX {block_size_register}, gp0, {smallest_q_block_size_address} \n"
-                # add q block size to q address
-                generated_code += f"S_ADD_FIX {q_actual_register}, {q_actual_register}, {block_size_register} \n"
-                # load kt block size
-                generated_code += f"S_LD_FIX {block_size_register}, gp0, {smallest_kt_block_size_address} \n"
-                # add kt block size to k address
-                generated_code += f"S_ADD_FIX {k_actual_register}, {k_actual_register}, {block_size_register} \n"
-            
-            # load the next internal block of KT
-            generated_code += f"S_LD_FIX {block_size_register}, gp0, {whole_kt_block_size_address} \n"
-            # add kt block size to k base address
-            generated_code += f"S_ADD_FIX {k_base_register}, {k_base_register}, {block_size_register} \n"
-        
-        # load the next internal block of Q
-        generated_code += f"S_LD_FIX {block_size_register}, gp0, {whole_q_block_size_address} \n"
-        # add q block size to q base address
-        generated_code += f"S_ADD_FIX {q_base_register}, {q_base_register}, {block_size_register} \n"
-        # reset k base address
-        generated_code += f"S_ADDI_FIX {k_base_register}, gp0, {k_base_address} \n"
-    
-    return generated_code
-
+import math
 
 
 def qkt_multiply(
+    batch: int,
     mlen: int,
     blen: int,
     hq: int,
@@ -132,19 +41,19 @@ def qkt_multiply(
 
     # Presettings
     if reset_context:
-        generated_code = "QKT Per KV Head Multiplication \n"
-        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv *d * s} \n"
+        generated_code = "; QKT Per KV Head Multiplication \n"
+        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv *d * s * batch} \n"
         generated_code += f"C_SET_SCALE_REG gp{q_base_register} \n"
-        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hq * d} \n"
-        generated_code += f"C_SET_STRIDE_REG gp{q_base_register} \n"
+        # generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv * d * batch} \n"
+        # generated_code += f"C_SET_STRIDE_REG gp{q_base_register} \n"
 
     # Prefetch K from HBM
     generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {q_base_address + k_head_index * d} \n"
     generated_code += f"S_ADDI_INT gp{k_base_register}, gp0, {k_base_address + q_head_index * d} \n"
-    generated_code += f"H_PREFETCH_M gp0, gp{k_base_register}, a{k_base_hbm_offset_reg}, 1, 0 \n"
+    generated_code += f"H_PREFETCH_M gp{k_base_register}, gp{k_base_register}, a{k_base_hbm_offset_reg}, 0, 1 \n"
 
     # QKT multiply
-    generated_code += "M_BMM 0, gp{q_base_register}, gp{k_base_register} \n"
+    # generated_code += f"M_BMM 0, gp{q_base_register}, gp{k_base_register} \n"
 
     return generated_code
 
@@ -459,6 +368,7 @@ FIXED_SRAM_LAYOUT = {
 def flash_attn_asm(
     mlen: int,
     blen: int,
+    batch: int,
     hq: int,
     hkv: int,
     d: int,
@@ -470,8 +380,8 @@ def flash_attn_asm(
     k_base_hbm_offset_reg: int,
 ) -> str:
     generated_code = ""
-    q_seq_iteration_number = seq_len // mlen
-    k_seq_iteration_number = seq_len // mlen
+    q_seq_iteration_number = (seq_len + mlen - 1) // mlen
+    k_seq_iteration_number = (seq_len + mlen - 1) // mlen
     q_index_2_kv_index = hq // hkv
 
     # loop over different sequence blocks
@@ -481,6 +391,7 @@ def flash_attn_asm(
                 generated_code += qkt_multiply(
                     mlen=mlen,
                     blen=blen,
+                    batch=batch,
                     hq=hq,
                     hkv=hkv,
                     d=d,

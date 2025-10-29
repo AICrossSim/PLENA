@@ -16,7 +16,6 @@ def print_outputfile_contents(output_file):
             hex_bytes = ' '.join(f"{b:02X}" for b in chunk)
             print(f"{i:08X}: {hex_bytes}")
 
-
 def map_block_to_value(block, data_width):
     if data_width % 4 != 0:
         raise ValueError("data_width must be a multiple of 4 for hex representation.")
@@ -31,7 +30,6 @@ def map_scale_to_value(scale, data_width):
     hex_digits = data_width // 4  # e.g., 32 bits = 8 hex digits
     return f"{scale:0{hex_digits}X}"
 
-
 def map_fp_data_to_fake_hbm(packed_input, element_width, path):
     assert len(packed_input.shape) == 2, "packed_input must be a 2D tensor"
     with open(os.path.join(path, "hbm.mem"), "a") as f:
@@ -44,6 +42,16 @@ def map_fp_data_to_fake_hbm(packed_input, element_width, path):
             row = ""
             index_in_row += 1
 
+def hex_to_bytes(hex_str):
+    """Convert hex string (with or without 0x prefix) to bytes"""
+    hex_str = hex_str.strip()
+    if hex_str.startswith('0x'):
+        hex_str = hex_str[2:]
+    # Ensure even length
+    if len(hex_str) % 2 != 0:
+        hex_str = '0' + hex_str
+    return bytes.fromhex(hex_str)
+    
 def map_data_to_fake_hbm_for_rtl_sim(blocks, element_width, block_width, bias, bias_width, directory, combined_blk_dim, append = True, hbm_row_width=64):
     """
     Maps the quantized blocks and bias to two memory files as the fake HBM memory.
@@ -119,16 +127,6 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
     for row_idx, row in enumerate(blocks):
         hex_row = " ".join(f"0x{val:02X}" for val in row)
 
-    def hex_to_bytes(hex_str):
-        """Convert hex string (with or without 0x prefix) to bytes"""
-        hex_str = hex_str.strip()
-        if hex_str.startswith('0x'):
-            hex_str = hex_str[2:]
-        # Ensure even length
-        if len(hex_str) % 2 != 0:
-            hex_str = '0' + hex_str
-        return bytes.fromhex(hex_str)
-    
     hbm_row_elem_num = hbm_row_width // (element_width)
     hbm_row_bias_num = hbm_row_width // (bias_width)
 
@@ -175,8 +173,8 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
         # For Big Endian Purpose
         if len(row_buffer) > 0:
             # Calculate padding needed
-            padding_needed = hbm_row_bias_num - len(row_buffer)
-            row_buffer.extend(b'\x00' * padding_needed)
+            # padding_needed = hbm_row_bias_num - len(row_buffer)
+            # row_buffer.extend(b'\x00' * padding_needed)
             f.write(row_buffer)
     print_outputfile_contents(output_file)
     
