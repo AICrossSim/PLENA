@@ -44,17 +44,17 @@ def qkt_multiply(
         generated_code = "; QKT Per KV Head Multiplication \n"
         generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv *d * s * batch} \n"
         generated_code += f"C_SET_SCALE_REG gp{q_base_register} \n"
-        # generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv * d * batch} \n"
-        # generated_code += f"C_SET_STRIDE_REG gp{q_base_register} \n"
+        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv * d * batch} \n"
+        generated_code += f"C_SET_STRIDE_REG gp{q_base_register} \n"
 
     # Prefetch K from HBM
-    generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {q_base_address + k_head_index * d} \n"
-    generated_code += f"S_ADDI_INT gp{k_base_register}, gp0, {k_base_address + q_head_index * d} \n"
-    generated_code += f"H_PREFETCH_M gp{k_base_register}, gp{k_base_register}, a{k_base_hbm_offset_reg}, 0, 1 \n"
+    generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {q_base_address + q_head_index * d} \n"
+    generated_code += f"S_ADDI_INT gp{k_base_register}, gp0, {k_base_address + k_head_index * d} \n"
+    generated_code += f"H_PREFETCH_M gp{k_base_register}, gp{k_base_register}, a{k_base_hbm_offset_reg}, 1, 1 \n"
 
     # QKT multiply
-    # generated_code += f"M_BMM 0, gp{q_base_register}, gp{k_base_register} \n"
-
+    generated_code += f"M_BTMM 0, gp{q_base_register}, gp{k_base_register} \n"
+    generated_code += f"M_BMM_WO gp0, 0 \n"
     return generated_code
 
 
