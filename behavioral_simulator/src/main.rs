@@ -311,6 +311,8 @@ impl VectorSram {
             let total_bits = len * element_ty.size_in_bits() as usize;
             let bytes_needed = (total_bits + 7) / 8;
             let mut tile_bytes = vec![0u8; bytes_needed];
+            println!("f32_slice = {:?}", f32_slice);
+            println!("tile_bytes = {:?}", tile_bytes);
             element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
             result.extend_from_slice(&tile_bytes);
         }
@@ -455,6 +457,7 @@ impl MatrixMachine {
 
         println!("vec = {}", vec);
         println!("mat = {}", mat);
+        println!("broadcast_amount = {:?}", self.broadcast_amount);
         
         // Now vec @ mat: [broadcast_amount, mlen, hlen] @ [hlen, mlen] = [broadcast_amount, mlen, mlen]
         let mut result_tensors = Vec::with_capacity(self.broadcast_amount as usize);
@@ -469,7 +472,6 @@ impl MatrixMachine {
         let result_tensor = tch::Tensor::stack(&result_tensors, 0); // [broadcast_amount, mlen, mlen]
 
         self.h_accum += result_tensor;
-        println!("h_accum = {}", self.h_accum);
     }
 
     async fn tmm(&mut self, v_addr: u32, m_addr: u32) {
@@ -533,7 +535,16 @@ impl MatrixMachine {
         for j in 0..self.broadcast_amount {
             for i in 0..self.mlen {
                 let tensor = self.h_accum.i((j as i64, i as i64, ..));
-                self.vram.write(vec_base + i * self.mlen, QuantTensor::quantize(tensor, self.vram.ty)).await;
+
+                let old = self.vram.read(vec_base + (j * self.mlen + i) * self.mlen).await;
+                let new = old.as_tensor().copy();
+                new.i(vec_offset as i64..(vec_offset + self.mlen) as i64)
+                    .copy_(&tensor);
+                self.vram.write(
+                    vec_base + (j * self.mlen + i) * self.mlen, 
+                    QuantTensor::quantize(new, old.data_type()),
+                )
+                .await;
             }
         }
         self.h_accum = Tensor::zeros(
