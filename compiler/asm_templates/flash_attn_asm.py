@@ -1,6 +1,12 @@
 from typing import List
 import math
 
+# Memory Layout:
+# FP SRAM:
+# m old (MLEN)
+# m res (MLEN)
+
+
 
 def qkt_multiply(
     batch: int,
@@ -68,32 +74,35 @@ def _online_softmax_code(
     l_old_address: int,
 ) -> str:
     """
+    Args:
     s_address: the starting address of the QKT result
     alive_registers_int: the list of alive registers for fix point operations
     alive_registers_fp: the list of alive registers for floating point operations
     mlen: also Br: the number of row of the QKT result
     address_of_mlen: the address that contains the mlen (number of row of the QKT result) value 
+    Description:
+        This part of asm is for the inner loop of the flash attention, mapping to line 9 to line 10 process,
+        which requires per row level computation, hence with the loop mlen times.
     """
+
     # get two registers from alive_registers, 1 as m_last address, 1 as m_curr address
     m_last_register = alive_registers_fp[0]
     m_curr_register = alive_registers_fp[1]
     l_old_register = alive_registers_fp[2]
+
     # get a general address register
     s_address_register = alive_registers_int[0]
     general_address_register = alive_registers_int[1]
+    
     # get a general tmp fp register for intermediate result
     tmp_fp_register = alive_registers_fp[3]
     sum_p_register = alive_registers_fp[4]
 
+    generated_code = "; Online Softmax Code \n"
 
-    # NOTE: you can change this if you have other way to load the address of m_last, m_curr, l_old
-
-    load_s_address = f"""
-    S_LD_FIX {general_address_register}, gp0, {s_address} \n
-    """
-
-    generated_code = ""
-    generated_code += load_s_address
+    # Presettings
+    # Load the starting address of S, which is the QKT result of the current head, in shape of (MLEN, MLEN)
+    generated_code += f"S_ADDI_INT gp{s_address_register}, gp0, {s_address} \n"
 
     for i in range(mlen):
         # load m_last
@@ -105,7 +114,7 @@ def _online_softmax_code(
         generated_code += load_m_last
 
         # copy m_last to a tmp fp register
-        generated_code += f"S_MV_FP {tmp_fp_register}, {m_last_register}, 0 \n"
+        generated_code += f"S_MV_FP gp{tmp_fp_register}, gp{m_last_register}, 0 \n"
 
         # find max of (P[x4], m_last) and store at m_curr
         generated_code += f"V_RED_MAX {m_last_register}, {s_address_register}, {0} \n"
@@ -404,19 +413,16 @@ def flash_attn_asm(
                     k_head_index=kv_head_index,
                     reset_context=True,
                 )
-                break
-            break
-        break
 
-        #     generated_code += _online_softmax_code(
-        #         mlen=mlen,
-        #         alive_registers_int=alive_registers_int,
-        #         alive_registers_fp=alive_registers_fp,
-        #         s_address=s_address,
-        #         m_last_address=m_last_base_address,
-        #         m_res_address=m_res_base_address,
-        #         l_old_address=l_old_base_address,
-        #     )
+                generated_code += _online_softmax_code(
+                    mlen=mlen,
+                    alive_registers_int=alive_registers_int,
+                    alive_registers_fp=alive_registers_fp,
+                    s_address=s_address,
+                    m_last_address=m_last_base_address,
+                    m_res_address=m_res_base_address,
+                    l_old_address=l_old_base_address,
+                )
 
         #     generated_code += _computing_pv_code(
         #         mlen=mlen,

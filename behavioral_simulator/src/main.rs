@@ -311,8 +311,6 @@ impl VectorSram {
             let total_bits = len * element_ty.size_in_bits() as usize;
             let bytes_needed = (total_bits + 7) / 8;
             let mut tile_bytes = vec![0u8; bytes_needed];
-            println!("f32_slice = {:?}", f32_slice);
-            println!("tile_bytes = {:?}", tile_bytes);
             element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
             result.extend_from_slice(&tile_bytes);
         }

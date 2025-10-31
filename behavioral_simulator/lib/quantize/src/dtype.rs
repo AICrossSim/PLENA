@@ -56,7 +56,7 @@ impl FpType {
 
         let new_exponent_mask = mask(new_ty.exponent);
 
-        let converted_exponent = match exponent {
+        let mut converted_exponent = match exponent {
             // Subnormal -> subnormal
             0 => 0,
             // Inf/NaN -> Inf/NaN
@@ -80,7 +80,7 @@ impl FpType {
             }
         };
 
-        let converted_mantissa = if self.mantissa <= new_ty.mantissa {
+        let mut converted_mantissa = if self.mantissa <= new_ty.mantissa {
             mantissa_bits << (new_ty.mantissa - self.mantissa)
         } else {
             // In this case, the conversion is lossy, we need to perform rounding.
@@ -98,9 +98,18 @@ impl FpType {
             };
             let shift = (prelim_shift + round_dir) >> 1;
             if shift >> new_ty.mantissa != 0 {
-                todo!();
+                // Rounding overflow: increment exponent and zero mantissa (saturate to Inf on overflow)
+                if converted_exponent < new_exponent_mask {
+                    converted_exponent += 1;
+                }
+                // Saturate to Inf if exponent overflowed
+                if converted_exponent >= new_exponent_mask {
+                    converted_exponent = new_exponent_mask;
+                }
+                0
+            } else {
+                shift
             }
-            shift
         };
 
         sign << (new_ty.exponent + new_ty.mantissa)
