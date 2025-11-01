@@ -42,12 +42,13 @@ if __name__ == "__main__":
     blen = 4
     qk_scale = 1.0 / math.sqrt(h_qkv)
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    fp_preload = [0.0, qk_scale]
+    fp_preload = [0.0, qk_scale, -float("inf")]
     mem_row_size = 512
 
     # Set device - use CUDA if available, otherwise CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+    print("fp preload:", fp_preload)
 
     torch.manual_seed(42)
     q = torch.randn(batch_size, s_q, num_q_heads, h_qkv, dtype=torch.bfloat16, device=device)
@@ -131,7 +132,7 @@ if __name__ == "__main__":
         alive_registers_int=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
         alive_registers_fp=[1,2,3,4,5,6,7],
         vector_sram_base_address=0,
-        fp_sram_start_address=0,
+        fp_sram_start_address=3,
         k_base_hbm_offset_reg=1,
         v_base_hbm_offset_reg=2
     )

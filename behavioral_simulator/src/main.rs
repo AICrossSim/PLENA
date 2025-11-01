@@ -593,6 +593,7 @@ impl VectorMachine {
     }
 
     async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
+        println!("mul_scalar: vd = {:?}, vs1 = {:?}, f = {:?}", vd, vs1, f);
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
         cycle!(*VECTOR_MUL_CYCLES);
@@ -1096,6 +1097,7 @@ impl Accelerator {
                 op::Opcode::S_ST_FP { rd, rs1, imm } => {
                     self.fpsram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.fp_reg[rd as usize];
+                    println!("write: addr = {:?}, value = {:?}", self.reg_file.gp_reg[rs1 as usize] + imm, self.reg_file.fp_reg[rd as usize]);
                     cycle!(1);
                 }
                 op::Opcode::S_MAP_V_FP { rd, rs1, imm } => todo!(),
@@ -1339,6 +1341,7 @@ async fn start() {
             fpsram_data.len() / std::mem::size_of::<f16>(),
         )
     };
+
     // Replace the beginning of accelerator.fpsram with fp_vals
     accelerator.fpsram[..fp_vals.len()].copy_from_slice(&fp_vals[..fp_vals.len()]);
 
