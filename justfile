@@ -2,46 +2,58 @@ alias ts := test-sw
 alias th := test-hw
 
 test-hw:
-	python3 src/basic_components/fp_operation/test/fp_ieee_partition_tb.py
-	python3 src/basic_components/fp_operation/test/fp_ieee_normalize_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_ieee_casting_tb.py
-	python3 src/basic_components/fp_operation/test/fp_cp_adder_tb.py
-	python3 src/basic_components/fp_operation/test/fp_cp_mult_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_asym_mult_tb.py
+    python3 src/basic_components/fp_operation/test/fp_ieee_partition_tb.py
+    python3 src/basic_components/fp_operation/test/fp_ieee_normalize_tb.py
+    # python3 src/basic_components/fp_operation/test/fp_ieee_casting_tb.py
+    python3 src/basic_components/fp_operation/test/fp_cp_adder_tb.py
+    python3 src/basic_components/fp_operation/test/fp_cp_mult_tb.py
+    # python3 src/basic_components/fp_operation/test/fp_cp_asym_mult_tb.py
 
-	# python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_exp_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
-	# python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
+    # python3 src/basic_components/fp_operation/test/fp_reciprocal_tb.py
+    # python3 src/basic_components/fp_operation/test/fp_exp_tb.py
+    # python3 src/basic_components/fp_operation/test/fp_cp_reciprocal_tb.py
+    # python3 src/basic_components/fp_operation/test/fp_cp_exp_tb.py
 
-	python3 src/basic_components/fp_operation/test/fp_fix_reciprocal_tb.py	
-	python3 src/basic_components/fp_operation/test/fp_fix_exp_tb.py	
-	python3 src/basic_components/fp_operation/test/fp_fix_adder_tb.py	
-	python3 src/basic_components/fp_operation/test/fp_fix_mult_tb.py	
+    python3 src/basic_components/fp_operation/test/fp_fix_reciprocal_tb.py
+    python3 src/basic_components/fp_operation/test/fp_fix_exp_tb.py
+    python3 src/basic_components/fp_operation/test/fp_fix_adder_tb.py
+    python3 src/basic_components/fp_operation/test/fp_fix_mult_tb.py
 
 test-sw:
-	python3 tools/quant/quant_operations/sqrt.py
-	python3 tools/quant/quant_operations/reciprocal.py
+    python3 tools/quant/quant_operations/sqrt.py
+    python3 tools/quant/quant_operations/reciprocal.py
 
-# test-sw:
-# 	# cmd line interface is no longer supported
-# 	# bash scripts/test-machop.sh
-# 	pytest --log-level=DEBUG --verbose \
-# 		-n 1 \
-# 		--cov=src/chop/ --cov-report=html \
-# 		--html=report.html --self-contained-html \
-# 		--junitxml=test/report.xml \
-# 		--profile --profile-svg \
-# 		test/
+build-behave-sim arg:
+    # 1) Build env for the given target
+    rm -rf behavioral_simulator/testbench/build
+    python3 behavioral_simulator/testbench/{{arg}}_test.py
+    # 2) Compute absolute paths (so they still work after cd)
+    asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
+    data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
+    cd behavioral_simulator && \
+    cargo run --release -- --opcode "$asm_path" --hbm "$data_path" 
 
+build-behave-sim-debug arg:
+    # 1) Build env for the given target
+    rm -rf behavioral_simulator/testbench/build
+    python3 behavioral_simulator/testbench/{{arg}}_test.py
+    # 2) Compute absolute paths (so they still work after cd)
+    asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
+    data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
+    fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
+    cd behavioral_simulator && \
+    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path"
+    cd behavioral_simulator/testbench && python3 view_mem.py
 
-# # This test will test all the available component
+build-rtl-sim arg:
+    rm -rf test/Instr_Level_Benchmark/build/{{arg}}
+    python3 src/system/sys_utils/build_env.py --asm {{arg}}
+    
+
 reformat:
-	# format python files
-	black *.py
-	black src/chop
-	black src/mase_components
-	black src/mase_cocotb
-	black test
-	# format verilog
-	# find src/mase_components -name '*.sv' -exec verible-verilog-format --inplace {} +;
+    black *.py
+    black src/chop
+    black src/mase_components
+    black src/mase_cocotb
+    black test
+    # find src/mase_components -name '*.sv' -exec verible-verilog-format --inplace {} +;

@@ -238,7 +238,7 @@ module matrix_machine_v2 import precision_pkg::*; import configuration_pkg::*; #
         .K                  (MLEN),
         .N                  (BLEN),
         .ACC_ADDR_WIDTH     (ACC_ADDR_WIDTH),
-        .L_MX_INT_EN         (WT_MX_INT_ENABLE)
+        .L_MX_INT_EN        (WT_MX_INT_ENABLE)
     ) matrix_compute_unit (
         .clk                (clk),
         .rst                (rst),

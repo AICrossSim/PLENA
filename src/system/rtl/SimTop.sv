@@ -38,7 +38,7 @@ import configuration_pkg::*;
 `TL_DECLARE(HBM_SCALE_WIDTH, HBM_ADDR_WIDTH, SourceWidth, SinkWidth, v_scale_link);
 
 // Processor
-coprocessor #(
+plena #(
     .FP_MEM_INIT_FILE(FP_MEM_INIT_FILE),
     .INT_MEM_INIT_FILE(INT_MEM_INIT_FILE),
     .V_SRAM_RESULT_FILE(VECTOR_MEM_RESULT_FILE),

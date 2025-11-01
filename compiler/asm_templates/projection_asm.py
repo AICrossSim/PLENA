@@ -2,8 +2,6 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-
-
 def projection_asm(
     mlen: int,
     blen: int,
@@ -20,6 +18,7 @@ def projection_asm(
 ) -> str:
     """
     Generates assembly code for a general matrix multiplication operation.
+    (Batch, Hidden Size) @ (Hidden Size, Hidden Size) -> (Batch, Hidden Size)
 
     Args:
         mlen (int): The number of rows in the first matrix.
@@ -27,24 +26,33 @@ def projection_asm(
         alive_registers (List[int]): List of registers that are alive.
         weight_base_address (int): index for the address mapper pointing to the base addr of the weight matrix.
         rope_base_address (int): index for the address mapper pointing to the base addr of the rope matrix.
-        activation_base_address (int): index for the address mapper pointing to the base addr of the activation matrix.
+        activation_base_address (int): addr pointing to the addr of activations in the vector sram.
     Returns:
         str: Generated assembly code for projection, including dot product and RoPE(cond)
     """
     generated_code = ""
-    # Dot product of weight (Hidden Size, Hidden Size) and activation (Batch, 1, Hidden Size)
-    assert batch < blen, "Batch size must be less than blen"
+    assert batch <= blen, "Batch size must be less than blen"
     # get two registers from alive_registers, 1 as w address, 1 as a address
-    result_register = alive_registers[0]
-    w_actual_register = alive_registers[1]
-    a_actual_register = alive_registers[2]
-    # reset the registers
-    set_a_base_address   = f"S_LD_INT {a_actual_register}, gp0, {activation_base_address} \n"
-    set_result_address   = f"S_LD_INT {result_register}, gp0, {result_base_address} \n"
+    result_register     = alive_registers[0]
+    w_actual_register   = alive_registers[1]
+    w_hbm_offset_register = alive_registers[2]
+    a_actual_register   = alive_registers[3]
 
-    increment_w_actual_address = f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen} \n"
-    increment_a_actual_address = f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen} \n"
-    increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {mlen} \n"
+    # Set scale offset
+    #TODO: when hidden is large, cannot use addi command.
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * hidden_size} \n"
+    generated_code += f"C_SET_SCALE_REG gp{a_actual_register} \n"
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size} \n"
+    generated_code += f"C_SET_STRIDE_REG gp{a_actual_register} \n"
+
+    # reset the registers
+    set_a_base_address   = f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
+    set_result_address   = f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n"
+
+
+    increment_w_actual_address      = f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
+    increment_a_actual_address      = f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
+    increment_result_actual_address = f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen * blen} \n"
 
     row_loop_over_hid = hidden_size // blen
     col_loop_over_hid = hidden_size // mlen
@@ -52,15 +60,26 @@ def projection_asm(
     generated_code += set_result_address
 
     for i in range(row_loop_over_hid):
-        generated_code += f"; <---- Generating New Row Tile at index {i} ----> \n"
+        if i % (mlen // blen) == 0:
+            # Load a complete col of hidden size into on-chip memory
+            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
+            for k in range (hidden_size // mlen):
+                generated_code += f"; <---- Generating New Row Tile at index {i} col {k} ----> \n"
+                generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_hbm_offset_register}, a{w_base_hbm_offset_reg}, 1, 0 \n"
+                generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp{w_hbm_offset_register}, {mlen * hidden_size} \n"
+                generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
+            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
+
         for j in range(col_loop_over_hid):
+            # Loop over the hidden size dimension
             generated_code += f"; <---- Generating New Column Tile at row {i} col {j} \n"
-            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_actual_register}, a{w_base_hbm_offset_reg} 0, 1 \n"
             generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
             generated_code += increment_w_actual_address
             generated_code += increment_a_actual_address
         generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
-    generated_code += increment_result_actual_address
+        generated_code += set_a_base_address
+        generated_code += increment_result_actual_address
+        break
     
     # RoPE
     if rope_enabled:

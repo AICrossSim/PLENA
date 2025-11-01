@@ -1,10 +1,20 @@
+S_LUI_INT gp1, 0;                  // scale (unchanged)
 
-S_LUI_FIX i1, 0; 
-C_SET_ADDR_REG a1, i1, i1; 
-H_PREFETCH_V_H_C i1, i1, a1; 
+// rs1 base pointer in a GP reg
+S_LUI_INT gp2, 0;                  // base = 0
 
-S_LD_FP f1, i1, 0; 
-V_ADD_VF i1, i1, f1; 
-V_EXP_V i1, i1, 0;
-S_LUI_FIX i2, 1; 
-H_STORE_V_H_C i1, i2, a2; 
+// Program address reg a1 from gp2 (base) and gp0 (stride=0 here)
+C_SET_ADDR_REG a1, gp2, gp0;
+
+// Prefetch with non-zero stride (use 4 if stride is in bytes)
+H_PREFETCH_V gp0, gp0, a1, 1, 0;
+
+// Optional add for visibility
+S_LD_FP f1, gp1, 0;
+V_ADD_VF gp1, gp1, f1;
+
+// EXP interface: (rd, rs1, x). Use rs1 = gp2 (the base GP reg), not a1.
+V_EXP_V gp1, gp2, 0;
+
+// Optional store (use supported store mnemonic if needed)
+// H_STORE_V gp1, gp2, a2;

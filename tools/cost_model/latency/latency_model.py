@@ -41,7 +41,7 @@ def build_instr_model(
 
 
 class instr_latency_model:
-    def __init__(self, hardware_settings_file: str = "config.toml", custom_isa_lib_file: str = "customISA_lib.json", model_config_file: str = "model_config.json"):
+    def __init__(self, hardware_settings_file: str = "plena_settings.toml", custom_isa_lib_file: str = "customISA_lib.json", model_config_file: str = "model_config.json"):
         self.instr_model = build_instr_model(hardware_settings_file, custom_isa_lib_file)
         self.model_config_file = model_config_file
         self.hardware_config = load_svh_settings(hardware_settings_file)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     import toml
     config_parent_path      = Path(__file__).resolve().parents[3]
     config_path             = os.path.join(config_parent_path, "src/definitions/configuration.svh")
-    toml_path               = os.path.join(config_parent_path, "src/definitions/config.toml")
+    toml_path               = os.path.join(config_parent_path, "src/definitions/plena_settings.toml")
     custom_isa_parent_path  = os.path.dirname(os.path.abspath(__file__))
     custom_isa_path         = os.path.join(custom_isa_parent_path, "customISA_lib.json")
     # model_config_path       = os.path.join(config_parent_path, "doc/Model_Lib/qwen2_5_7b.json")

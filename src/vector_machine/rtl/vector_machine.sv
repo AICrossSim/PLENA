@@ -20,10 +20,10 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     input   logic rst,
 
     // Control
-    input   logic broadcast_fp2,
-    input   V_ELEMENT_OP element_v_control,
-    input   V_REDUCT_OP  reduct_v_control,
-    output  logic in_preparation_stage,
+    input   logic           broadcast_fp2,
+    input   V_ELEMENT_OP    element_v_control,
+    input   V_REDUCT_OP     reduct_v_control,
+    output  logic           in_preparation_stage,
 
     // Vector a
     input   logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]    v_a_in,
@@ -96,15 +96,32 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     logic element_v_in_b_valid, element_v_in_b_ready;
     logic element_v_out_valid,  element_v_out_ready;
     logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_v_out;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_v_out;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH):0]   result_v_out;
+    logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   result_v_out;
     logic [VLEN-1:0] [(V_FP_MANT_WIDTH + V_FP_EXP_WIDTH):0]   p1_result_v_out;
-
-    logic hadamard_transform_in_valid, hadamard_transform_out_valid;
-    logic hadamard_transform_in_ready, hadamard_transform_out_ready;
-    
     logic [ADDR_WIDTH-1:0] stored_result_waddr;
     logic compute_result_valid;
+    // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_a;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_b;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] reduct_in_v;
+
+
+// Special Extension Definitions
+`ifdef HADAMARD_EN
+    logic hadamard_transform_in_valid, hadamard_transform_out_valid;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_v_in;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_v_out;
+`endif
+
+`ifdef MAMBA_EXTENSION_EN
+    logic prefix_scan_in_valid, prefix_scan_out_valid;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prefix_scan_v_in;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] prefix_scan_v_out;
+    logic shift_in_valid, shift_out_valid;
+    logic [$clog2(VLEN)-1:0] shift_amount;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] shift_v_in;
+    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] shift_v_out;
+`endif
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -154,9 +171,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             for (int i = 0; i < VECTOR_LONGEST_OPERATE_CYCLES - 1; i++) begin
                 pipeline_compute_track[i + 1] <= pipeline_compute_track[i];
             end
-
             in_preparation_stage <= next_preparation_stage;
-
         end
     end
 
@@ -174,13 +189,38 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
                 next_preparation_stage = 1'b1;
             end
 
-            if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) || ((recorded_element_v_control != STALL_V_ELEMENT) & recorded_broadcast_en & v_port_a_valid)) begin
+            // FIX: prefix-scan needs only port A
+            if ((recorded_element_v_control == PREFIX_SCAN_V_ELEMENT) && v_port_a_valid) begin
+                complete_element_prepare    = 1'b1;
+                complete_reduct_prepare     = 1'b0;
+            end else if ((recorded_element_v_control == SHIFT_V_LANES_ELEMENT) && v_port_a_valid) begin
+                complete_element_prepare    = 1'b1;
+                complete_reduct_prepare     = 1'b0;
+            // Original element ops: need A & B unless broadcasting B from scalar
+            end else 
+            
+            if (((recorded_element_v_control != STALL_V_ELEMENT) & !recorded_broadcast_en & v_port_a_valid & v_port_b_valid) ||
+                         ((recorded_element_v_control != STALL_V_ELEMENT) &  recorded_broadcast_en & v_port_a_valid)) begin
                 complete_element_prepare    = 1'b1;
                 complete_reduct_prepare     = 1'b0;
             end else if ((recorded_reduct_v_control != STALL_V_REDUCT) & v_port_a_valid & s_acc_in_valid) begin
                 complete_element_prepare    = 1'b0;
                 complete_reduct_prepare     = 1'b1;
-            end else begin
+            end 
+        `ifdef HADAMARD_EN
+            else if ((recorded_element_v_control == INNER_HADAMARD_TRANSFORM) & v_port_a_valid) begin
+                complete_element_prepare    = 1'b1;
+                complete_reduct_prepare     = 1'b0;
+            end
+        `endif
+
+        `ifdef MAMBA_EXTENSION_EN
+            else if (((recorded_element_v_control == PREFIX_SCAN_V_ELEMENT) || (recorded_element_v_control == SHIFT_V_LANES_ELEMENT)) & v_port_a_valid) begin
+                complete_element_prepare    = 1'b1;
+                complete_reduct_prepare     = 1'b0;
+            end 
+        `endif
+            else begin
                 complete_element_prepare    = 1'b0;
                 complete_reduct_prepare     = 1'b0;
             end
@@ -196,6 +236,21 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
         .in_data(s_in),
         .out_data(unpacked_v_s)
     );
+    // v_in_valid was being de asserted one clock cycle early so it meant that prepared_v_a couldn't latch onto the
+    // v_a_in so it the element wise compute unit would receive an input vector of just 0s. this is for the testing of prefix scan
+    // it may be necessary for the other element wise operations? could confirm later with more testing but there may be a more robust
+    // workaround.
+    // One-cycle delayed valid for prefix-scan only
+    logic v_a_valid_d1;
+    always_ff @(posedge clk) begin
+        if (rst) v_a_valid_d1 <= 1'b0;
+        else     v_a_valid_d1 <= v_a_valid;
+    end
+
+    wire ps_mode_now = (recorded_element_v_control == PREFIX_SCAN_V_ELEMENT);
+    wire shift_mode_now = (recorded_element_v_control == SHIFT_V_LANES_ELEMENT);
+// Effective valid into A buffer: PS delayed, otherwise pass-through
+    wire v_a_valid_eff = (ps_mode_now|shift_mode_now) ? v_a_valid_d1 : v_a_valid;
 
     // Vector Port A Storage
     register_slice #(
@@ -203,13 +258,9 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     ) v_a_buffer (
         .clk(clk),
         .rst(rst),
-
-        // Input
         .data_in        (v_a_in),
-        .data_in_valid  (v_a_valid),
+        .data_in_valid  (v_a_valid), // FIX: use original valid
         .data_in_ready  (v_a_ready),
-
-        // Output
         .data_out       (prepared_v_a),
         .data_out_valid (v_port_a_valid),
         .data_out_ready (v_port_a_ready)
@@ -221,13 +272,9 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     ) v_b_buffer (
         .clk(clk),
         .rst(rst),
-
-        // Input
         .data_in        (recorded_broadcast_en ? unpacked_v_s : v_b_in ),
         .data_in_valid  (recorded_broadcast_en ? s_in_valid : v_b_valid),
         .data_in_ready  (v_b_ready),
-
-        // Output
         .data_out       (prepared_v_b),
         .data_out_valid (v_port_b_valid),
         .data_out_ready (v_port_b_ready)
@@ -239,69 +286,56 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     ) s_in_buffer (
         .clk(clk),
         .rst(rst),
-
-        // Input
         .data_in        (s_in),
-        .data_in_valid  (recorded_reduct_v_control != STALL_V_REDUCT ? s_in_valid : 1'b0),
-        .data_in_ready  (), // Not used
-
-        // Output
+        .data_in_valid  ((recorded_reduct_v_control != STALL_V_REDUCT) ? s_in_valid : 1'b0),
+        .data_in_ready  (),
         .data_out       (s_acc_in),
         .data_out_valid (s_acc_in_valid),
         .data_out_ready (s_acc_in_ready)
     );
     
 
-    // Assuming the recorded_reduct_v_control and recorded_element_v_control can not have operation at the same time.
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_a;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] element_in_v_b;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] hadamard_transform_in_v;
-    logic [VLEN-1:0] [(V_FP_EXP_WIDTH + V_FP_MANT_WIDTH) : 0] reduct_in_v;
-    assign hadamard_transform_in_ready = 1'b1;
     assign v_port_a_ready = 1'b1;
     assign v_port_b_ready = 1'b1;
 
     always_ff @(posedge clk) begin
-        if ((recorded_element_v_control == INNER_HADAMARD_TRANSFORM)) begin
-            hadamard_transform_in_valid <= v_port_a_valid;
-            element_v_in_b_valid        <= 1'b0;
-            red_v_in_a_valid            <= 1'b0;
-            element_v_in_a_valid        <= 1'b0;
-            element_v_in_b_valid        <= 1'b0;
-            element_in_v_a              <= 'b0;
-            element_in_v_b              <= 'b0;
-            reduct_in_v                 <= 'b0;
-            hadamard_transform_in_v     <= prepared_v_a;
-        end else if ((recorded_element_v_control != STALL_V_ELEMENT)) begin
-            hadamard_transform_in_valid     <= 1'b0;
+        `ifdef HADAMARD_EN
+            hadamard_transform_in_valid <= v_port_a_valid & (recorded_element_v_control == INNER_HADAMARD_TRANSFORM);
+            hadamard_transform_v_in     <= prepared_v_a;
+        `endif
+
+        `ifdef MAMBA_EXTENSION_EN
+            prefix_scan_in_valid <= v_port_a_valid & (recorded_element_v_control == PREFIX_SCAN_V_ELEMENT);
+            shift_in_valid       <= v_port_a_valid & (recorded_element_v_control == SHIFT_V_LANES_ELEMENT);
+            prefix_scan_v_in     <= prepared_v_a;
+            shift_v_in           <= prepared_v_a;
+            shift_amount         <= s_acc_in[$clog2(VLEN)-1:0];
+        `endif
+
+         // FIX: prefix-scan only needs A
+        if (((recorded_element_v_control != STALL_V_ELEMENT) && (recorded_element_v_control != INNER_HADAMARD_TRANSFORM) && (recorded_element_v_control != PREFIX_SCAN_V_ELEMENT) && (recorded_element_v_control != SHIFT_V_LANES_ELEMENT))) begin
             element_v_in_a_valid            <= v_port_a_valid;
             element_v_in_b_valid            <= v_port_b_valid;
             red_v_in_a_valid                <= 1'b0;
             element_in_v_a                  <= prepared_v_a;
             element_in_v_b                  <= prepared_v_b;
             reduct_in_v                     <= 'b0;
-            hadamard_transform_in_v         <= 'b0;
         end else if (recorded_reduct_v_control != STALL_V_REDUCT) begin
             element_v_in_a_valid <= 1'b0;
             element_v_in_b_valid <= 1'b0;
             red_v_in_a_valid     <= v_port_a_valid; 
-            hadamard_transform_in_valid <= 1'b0;   
             element_in_v_a       <= 'b0;
             element_in_v_b       <= 'b0;
             reduct_in_v          <= prepared_v_a;
-            hadamard_transform_in_v <= 'b0;
         end else begin
             element_v_in_a_valid <= 1'b0;
             element_v_in_b_valid <= 1'b0;
             red_v_in_a_valid     <= 1'b0;
-            hadamard_transform_in_valid <= 1'b0;
             element_in_v_a       <= 'b0;
             element_in_v_b       <= 'b0;
             reduct_in_v          <= 'b0;
-            hadamard_transform_in_v <= 'b0;
         end
     end
-
 
     //----------------------------//
     // Elementwise Compute Unit
@@ -329,7 +363,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     );
 
 
-    /*  Elementwise Result Selection
+    /*  Elementwise Vector Out Result Selection
         Note: Different vector operations can end and trigger write to the memory at different cycles,
         Here we assume all the vector operations on flight does not have data dependency and can be directly write to memory once it is completed.
         The pipeline control unit will in charge of removing possible data dependency by inserting stall cycles.
@@ -345,29 +379,50 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_ADD_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[VECTOR_MUL_CYCLES - 1].ele_op  == MUL_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_MUL_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[VECTOR_EXP_CYCLES - 1].ele_op == EXP_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_EXP_CYCLES-1].waddr;
+
         end else if (pipeline_compute_track[VECTOR_RECI_CYCLES - 1].ele_op == RECI_V_ELEMENT) begin
             result_v_out            = element_v_out;
             compute_result_valid    = element_v_out_valid;
             stored_result_waddr     = pipeline_compute_track[VECTOR_RECI_CYCLES-1].waddr;
-        end else if (pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES - 1].ele_op == INNER_HADAMARD_TRANSFORM) begin
-            result_v_out            = element_v_out;
-            compute_result_valid    = hadamard_transform_out_valid;
-            stored_result_waddr     = pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES-1].waddr;
-        end else begin
+        end 
+        
+        `ifdef MAMBA_EXTENSION_EN
+            else if (pipeline_compute_track[VECTOR_PREFIX_SCAN_CYCLES - 1].ele_op == PREFIX_SCAN_V_ELEMENT) begin
+                result_v_out            = prefix_scan_v_out;
+                compute_result_valid    = prefix_scan_out_valid;
+                stored_result_waddr     = pipeline_compute_track[VECTOR_PREFIX_SCAN_CYCLES-1].waddr;
+            end else if (pipeline_compute_track[VECTOR_SHIFT_CYCLES - 1].ele_op == SHIFT_V_LANES_ELEMENT) begin
+                result_v_out            = shift_v_out;
+                compute_result_valid    = shift_out_valid;
+                stored_result_waddr     = pipeline_compute_track[VECTOR_SHIFT_CYCLES-1].waddr;
+            end 
+        `endif
+
+        `ifdef HADAMARD_EN
+            else if (pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES - 1].ele_op == INNER_HADAMARD_TRANSFORM) begin
+                result_v_out            = hadamard_transform_v_out;
+                compute_result_valid    = hadamard_transform_out_valid;
+                stored_result_waddr     = pipeline_compute_track[HADAMARD_TRANSFORM_CYCLES-1].waddr;
+            end 
+        `endif
+
+        else begin
             result_v_out            = 'b0;
             compute_result_valid    = 1'b0;
             stored_result_waddr     = 'b0;
         end
 
-        if (compute_result_valid)begin
+        if (compute_result_valid) begin
             v_wreq  = 1'b1;
             v_waddr = stored_result_waddr;
         end else begin
@@ -384,7 +439,7 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
             if (compute_result_valid & v_out_ready) begin
                 p1_result_v_out <= result_v_out;
             end else begin
-                p1_result_v_out <= 'b0; // Reset output when not valid
+                p1_result_v_out <= 'b0;
             end
             v_out <= p1_result_v_out;
         end
@@ -426,19 +481,53 @@ module vector_machine import precision_pkg::*; import configuration_pkg::*; #(
     //----------------------------//
     // Hadamard Transform Unit
     //----------------------------//
-`ifdef HADAMARD_EN
-    per_tile_hadamard_transform #(
-        .TILESIZE   (VLEN),
-        .EXP_WIDTH  (V_FP_EXP_WIDTH),
-        .MANT_WIDTH (V_FP_MANT_WIDTH)
-    ) hadamard_transform_unit (
-        .clk(clk),
-        .rst(rst),
-        .data_in_valid      (hadamard_transform_in_valid),
-        .data_in            (prepared_v_a),
-        .data_out_valid     (hadamard_transform_out_valid),
-        .data_out           (hadamard_transform_v_out)
-    );
-`endif
+    `ifdef HADAMARD_EN
+        per_tile_hadamard_transform #(
+            .TILESIZE   (VLEN),
+            .EXP_WIDTH  (V_FP_EXP_WIDTH),
+            .MANT_WIDTH (V_FP_MANT_WIDTH)
+        ) hadamard_transform_unit (
+            .clk(clk),
+            .rst(rst),
+            .data_in_valid      (hadamard_transform_in_valid),
+            .data_in            (prepared_v_a),
+            .data_out_valid     (hadamard_transform_out_valid),
+            .data_out           (hadamard_transform_v_out)
+        );
+    `endif
+
+    //----------------------------//
+    // Extension for Mamba: Prefix-Scan and Shift
+    //----------------------------//
+
+    `ifdef MAMBA_EXTENSION_EN
+        //  Vector Shift Unit
+        fp_vec_shift #(
+            .VLEN   (VLEN),
+            .BITWIDTH (V_FP_EXP_WIDTH + V_FP_MANT_WIDTH + 1)
+        ) vec_shift_unit (
+            .clk            (clk),
+            .rst            (rst),
+            .v_in_valid     (shift_in_valid),
+            .v_in           (shift_v_in),
+            .shift_amount   (shift_amount),
+            .v_out_valid    (shift_out_valid),
+            .v_out          (shift_v_out)
+        );
+
+        fp_prefix_scan_syn #(
+            .VLEN(VLEN),
+            .EXP_WIDTH(V_FP_EXP_WIDTH),
+            .MANT_WIDTH(V_FP_MANT_WIDTH)
+        ) prefix_scan_unit (
+            .clk        (clk),
+            .rst        (rst),
+            .vin        (prefix_scan_v_in),
+            .vout       (prefix_scan_v_out),
+            .in_valid   (prefix_scan_in_valid),
+            .out_valid  (prefix_scan_out_valid)
+        );
+
+    `endif
 
 endmodule

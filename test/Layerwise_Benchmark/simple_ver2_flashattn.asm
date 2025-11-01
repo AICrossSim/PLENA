@@ -19,7 +19,7 @@ S_LD_FIX gp1, gp0, 13; Counter for Tr
 ; S_LD_FIX x2, gp0, 6; Q block size
 S_ADDI_FIX gp2, gp0, 0; Q block offset
 S_MUL_FIX gp2, gp2, gp1; Q block address
-HPrefetchV { rd: gp0, rs1: gp2, rs2: a2, rstride: 0, precision: activation }; Load MLEN * Head Dimension elements of Q
+H_PREFETCH_V { rd: gp0, rs1: gp2, rs2: a2, rstride: 0, precision: activation }; Load MLEN * Head Dimension elements of Q
 S_ADDI_FIX gp1, gp1, 1; Increment Tr counter 
 S_ST_FIX gp1, gp0, 13; Store Tr counter
 ;<--------------------------------  LOOP Tc Iteration 0 -------------------------------->
@@ -27,7 +27,7 @@ S_LD_FIX gp1, gp0, 14; Counter for Tc
 ; S_LD_FIX gp2, gp0, 5; K block size
 S_ADDI_FIX gp2, gp0, 0; K block offset
 S_MUL_FIX gp2, gp2, gp1; K block address
-HPrefetchM { rd: gp0, rs1: gp2, rs2: a2, rstride: 1, precision: kv }; Load MLEN * Head Dimension elements of KT
+H_PREFETCH_M { rd: gp0, rs1: gp2, rs2: a2, rstride: 1, precision: kv }; Load MLEN * Head Dimension elements of KT
 S_ADDI_FIX gp1, gp1, 1; Increment Tc counter
 S_ST_FIX gp1, gp0, 14; Store Tc counter
 
@@ -121,7 +121,7 @@ S_ADD_FIX  gp7, gp7, 1; next row of m_res
 ; Multiplying with V
 ; compute sequence address of V      
 S_ADDI_FIX  gp2, gp0, 0;                      gp2 = 0 Offset for V (different sequences of V)
-HPrefetchM { rd: gp0, rs1: gp2, rs2: a4, rstride: 1, precision: kv }; Load MLEN * Head Dimension elements of V
+H_PREFETCH_M { rd: gp0, rs1: gp2, rs2: a4, rstride: 1, precision: kv }; Load MLEN * Head Dimension elements of V
 ;<------- PV (MLEN, MLEN) @ (MLEN, head_dim) 1st LOOP  Head_dim / MLEN ------>
 
 

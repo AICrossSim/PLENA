@@ -2,42 +2,41 @@
 
 # This script tests the fixed point linear
 import os, logging
-
+import sys
+import torch
+import pytest
 import cocotb
+from pathlib import Path
+from functools import partial
 from cocotb.log import SimLog
 from cocotb.triggers import *
+from cocotb.triggers import Timer, RisingEdge
 from cfl_cocotb.runner import veri_runner, SRC_PATH
 from cfl_cocotb.testbench import Testbench
 from cfl_cocotb.streaming import (
     StreamDriver,
     StreamMonitor,
 )
-
-import pytest
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from cfl_cocotb.runner import veri_runner
-from cocotb.triggers import Timer, RisingEdge
-
-from typing import Literal, Optional, Tuple, Union, Dict, List
-import math
-from functools import partial
-import random
-import argparse
-from pathlib import Path
-from cfl_cocotb.fp_generation import FpGenerator
 from cfl_cocotb import SRC_PATH
-
-from assembler.instruction_mapping_pipeline import instruction_mapping_pipeline, parse_args
-from cfl_tools import PROJECT_PATH
-from pathlib import Path
-from assembler.memory_mapping.rand_gen import RandomTensorGenerator
-from utils.load_config import load_svh_settings
-from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
-from quant.quantizer.hardware_quantizer.minifloat import _minifloat_ieee_quantize_hardware
 from cfl_cocotb.torch_fp_conversion import bin_2_fp
 
-import torch
+from memory_mapping.rand_gen import Random_MXFP_Tensor_Generator
+from utils.load_config import load_svh_settings
+from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+from quant.quantizer.hardware_quantizer import _minifloat_ieee_quantize_hardware
+
 from cfl_tools.logger import get_logger
 from cfl_tools.debugger import set_excepthook
+from cfl_tools import PROJECT_PATH
+
+from sys_utils.build_sys_tools import (
+    generate_golden_result,
+    env_setup,
+    init_mem
+)
+
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 current_path = Path(__file__).resolve().parent
@@ -45,53 +44,6 @@ current_path = Path(__file__).resolve().parent
 testcase_name = "matrix"
 INSTRUCTION_LENGTH = 32
 set_excepthook()
-
-from cfl_cocotb.torch_fp_conversion import pack_fp_to_bin, fp_2_bin
-
-def generate_golden_result(data, precision_settings, data_config):
-    qdata, pbexp, pbmant, pbbias = _mx_fp_quantize_hardware(
-        data, 
-        width=precision_settings["ACT_MXFP_EXP_WIDTH"] + precision_settings["ACT_MXFP_MANT_WIDTH"] + 1, 
-        exponent_width=precision_settings["ACT_MXFP_EXP_WIDTH"], 
-        exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
-        block_size=data_config["block_size"])
-    qele = pbmant * 2**pbexp
-    logger.debug("---- mxfp_input ----")
-    logger.debug(f"data: {data}")
-    logger.debug(f"pbexp: {pbexp}")
-    logger.debug(f"pbmant: {pbmant}")
-    logger.debug(f"qele: {qele}")
-    bin_ele = pack_fp_to_bin(pbexp, pbmant, precision_settings["ACT_MXFP_EXP_WIDTH"], precision_settings["ACT_MXFP_MANT_WIDTH"])
-    bin_bias = pbbias
-    logger.debug(f"-- hardware bin --")
-    logger.debug(f"bin_ele: {bin_ele}")
-    logger.debug(f"bin_bias: {bin_bias}")
-
-
-    logger.debug("---- fp_input ----")
-    qdata_fp, bin_fp = fp_2_bin(qdata, precision_settings["V_FP_EXP_WIDTH"], precision_settings["V_FP_MANT_WIDTH"])
-    logger.debug(f"qdata_fp: {qdata_fp}")
-    logger.debug(f"--hardware bin--")
-    logger.debug(f"bin_fp: {bin_fp}")
-
-    logger.debug("---- exp_out ----")
-    exp_fp = torch.exp(qdata_fp)
-    qexp_fp, bin_exp_fp = fp_2_bin(exp_fp, precision_settings["V_FP_EXP_WIDTH"], precision_settings["V_FP_MANT_WIDTH"])
-    logger.debug(f"exp_fp: {qexp_fp}")
-    logger.debug(f"--hardware bin--")
-    logger.debug(f"bin_exp_fp: {bin_exp_fp}")
-
-    logger.debug("---- 1 + exp(x) ----")
-    q1_exp_fp, bin_1_exp_fp = fp_2_bin(1 + qexp_fp, precision_settings["V_FP_EXP_WIDTH"], precision_settings["V_FP_MANT_WIDTH"])
-    logger.debug(f"1_exp_fp: {q1_exp_fp}")
-    logger.debug(f"--hardware bin--")
-    logger.debug(f"bin_1_exp_fp: {bin_1_exp_fp}")
-    
-
-    return qdata
-
-    
-
 
 class SimTOP(Testbench):
     def __init__(self, dut, element_file, scale_file, instr_file) -> None:
@@ -114,6 +66,7 @@ class SimTOP(Testbench):
     def generate_inputs(self):
         torch.manual_seed(52)
         precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
+
         asm_file_name = os.environ["ASM_FILE"]
         asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{asm_file_name}.asm")
         data_config = {
@@ -124,12 +77,12 @@ class SimTOP(Testbench):
         quant_config = {
                 "exp_width": precision_settings["ACT_MXFP_EXP_WIDTH"],
                 "man_width": precision_settings["ACT_MXFP_MANT_WIDTH"],
-                "exp_bias_width": precision_settings["MXFP_SCALE_WIDTH"],
+                "exp_bias_width": precision_settings["MX_SCALE_WIDTH"],
                 "block_size": data_config["block_size"],
                 "skip_first_dim": False,
             }
 
-        rand_gen_high = RandomTensorGenerator(
+        rand_gen_high = Random_MXFP_Tensor_Generator(
             shape=tuple(data_config["tensor_size"]),
             directory=PROJECT_PATH / "test" / Path(asm_file).parent.stem / "build",
             filename="test_projection_data.pt",
@@ -139,11 +92,12 @@ class SimTOP(Testbench):
         # Expect shape, blocks.shape = (32, 4), bias.shape = (32, 1)
         rand_gen_high.tensor_gen()
         data = rand_gen_high.tensor_load()
+
         qdata, pbexp, pbmant, _ = _mx_fp_quantize_hardware(
             data, 
             width=precision_settings["ACT_MXFP_EXP_WIDTH"] + precision_settings["ACT_MXFP_MANT_WIDTH"] + 1, 
             exponent_width=precision_settings["ACT_MXFP_EXP_WIDTH"], 
-            exponent_bias_width=precision_settings["MXFP_SCALE_WIDTH"],
+            exponent_bias_width=precision_settings["MX_SCALE_WIDTH"],
             block_size=data_config["block_size"])
         qele = pbmant * 2**pbexp
 
@@ -151,15 +105,12 @@ class SimTOP(Testbench):
             qdata, 
             width=precision_settings["V_FP_EXP_WIDTH"] + precision_settings["V_FP_MANT_WIDTH"] + 1, 
             exponent_width=precision_settings["V_FP_EXP_WIDTH"])
-        print(f"input ref data: {data}")
+
         blocks, bias = rand_gen_high.quantize_tensor(data)
-
-        generate_golden_result(data, precision_settings, data_config)
-
-        instruction_mapping_pipeline(
-            blocks, bias, asm_file, data_config, quant_config)
+        generate_golden_result(data, logger, precision_settings, data_config)
+        env_setup(blocks, bias, asm_file, data_config, quant_config)
+        
         inputs = []
-
         with open(self.instr_file, 'r') as file:
             for line in file:
                 stripped_line = line.strip()
@@ -234,6 +185,7 @@ def SimToP_test():
             str(SRC_PATH / "basic_components/cast"),
             str(SRC_PATH / "basic_components/systolic_gemm_mx"),
             str(SRC_PATH / "basic_components/gemv"),
+            str(SRC_PATH / "basic_components/synopsis/rtl"),
             str(SRC_PATH / "basic_components/synopsis"),
             str(SRC_PATH / "basic_components/synopsis_ip_inst"),
             str(SRC_PATH / "basic_components/hadamard_transform"),
@@ -247,7 +199,7 @@ def SimToP_test():
             str(SRC_PATH / "memory/scratch_sram"),
             str(SRC_PATH / "memory/scalar_sram"),
             str(SRC_PATH / "memory/HBM"),
-            str(SRC_PATH / "core")
+            str(SRC_PATH / "core"),
         ],       
         definitions_path = [
             str(SRC_PATH / "definitions"), 
@@ -272,54 +224,12 @@ def SimToP_test():
         skip_build = False
     )
 
-def init_mem():
-    args = parse_args()
-    asm_file = Path(args.path).stem
 
-    build_path = PROJECT_PATH / "test" / Path(args.path).parent.stem / "build" / Path(args.path).stem
-    build_path.mkdir(parents=True, exist_ok=True)
-    hbm_element_file = build_path / "hbm_ele.mem"
-    hbm_scale_file = build_path / "hbm_scale.mem"
-    instr_file = build_path / f"{Path(args.path).stem}.mem"
-
-    os.environ["HBM_ELEMENT_FILE"] = str(hbm_element_file)
-    os.environ["HBM_SCALE_FILE"] = str(hbm_scale_file)
-    os.environ["INSTR_FILE"] = str(instr_file) 
-
-    hbm_write_element_m_file    = build_path / "hbm_write_m_ele.mem"
-    hbm_write_element_v_file    = build_path / "hbm_write_v_ele.mem"
-    hbm_write_scale_m_file      = build_path / "hbm_write_m_scale.mem"
-    hbm_write_scale_v_file      = build_path / "hbm_write_v_scale.mem"
-    vector_mem_result_file      = build_path / "vector_result.mem"
-    # same 
-    hbm_write_element_m_file.touch()
-    hbm_write_element_v_file.touch()
-    hbm_write_scale_m_file.touch()
-    hbm_write_scale_v_file.touch()
-    vector_mem_result_file.touch()
-
-    fp_mem_file                 = build_path / "fp.mem"
-    fixed_mem_file              = build_path / "fixed.mem"
-    addr_mapper_file            = build_path / "hbm_addr_mapper.mem"
-
-    fp_mem_file.touch()
-    with open(fp_mem_file, "w") as f:
-        f.write("3F00\n")
-    fixed_mem_file.touch()
-    addr_mapper_file.touch()
-
-    os.environ["FP_MEM_INIT_FILE"] = str(fp_mem_file)
-    os.environ["INT_MEM_INIT_FILE"] = str(fixed_mem_file)
-    os.environ["VECTOR_MEM_RESULT_FILE"] = str(vector_mem_result_file)
-    os.environ["HBM_ADDR_MAPPER_FILE"] = str(addr_mapper_file)
-    os.environ["FAKE_HBM_ELEMENT_WRITE_M_FILE"] = str(hbm_write_element_m_file)
-    os.environ["FAKE_HBM_ELEMENT_WRITE_V_FILE"] = str(hbm_write_element_v_file)
-    os.environ["FAKE_HBM_SCALE_WRITE_M_FILE"] = str(hbm_write_scale_m_file)
-    os.environ["FAKE_HBM_SCALE_WRITE_V_FILE"] = str(hbm_write_scale_v_file)
-    os.environ["ASM_FILE"] = str(asm_file)
 
 if __name__ == "__main__":
     init_mem()
+    #init_vector_sram()
+    #init_vector_hbm_for_test()
     
     SimToP_test()
 

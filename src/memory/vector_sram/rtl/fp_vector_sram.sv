@@ -88,7 +88,7 @@ module fp_vector_sram #(
     output  logic data_not_ready
 );
 
-    localparam  INTERNAL_ADDR_LEN           = $clog2(SRAM_DEPTH);
+    localparam int INTERNAL_ADDR_LEN           = $clog2(SRAM_DEPTH);
 
     initial begin
         if (VLEN < MLEN) begin

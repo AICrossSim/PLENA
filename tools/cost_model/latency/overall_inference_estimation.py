@@ -197,7 +197,7 @@ class model_config:
         # overall_inst_num += self.rms_layer()
         overall_inst_num += self.lm_head()
         # print("Overall instruction number: ", overall_inst_num)
-        overall_exe_cycle = overall_inst_num * 2 # avg 3 execution cycles
+        overall_exe_cycle = overall_inst_num * 2
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
         # print("Theoratical execution time: ", theoratical_execution_time)
         return theoratical_execution_time

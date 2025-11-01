@@ -108,7 +108,7 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 continue  # Invalid line
             opcode = parts[0]
             operands = [part.strip() for part in ' '.join(parts[1:]).split(',')]
-            print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
+            # print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
             # Decode based on number of operands
             if len(operands) > 0:
                 operand_0 = operands[0]

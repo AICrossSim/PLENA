@@ -1,271 +1,199 @@
 from typing import List
+import math
+from .reset_reg_asm import reset_reg_asm, reset_fpreg_asm
 
-def _general_mlen_mlen_multiply_code(
-    mlen: int,
-    blen: int,
+IMM2_BOUND = 2**18 - 1
+
+
+# def
+
+
+def qkt_multiply(
+    batch: int,
+    hkv: int,
+    d: int,
+    kv_len: int,
     alive_registers: List[int],
-    reduce_size: int,
-    reduce_unit_size: int,
     q_base_address: int,
-    k_base_address: int,
-    smallest_q_block_size_address: int,
-    smallest_kt_block_size_address: int,
-    whole_kt_block_size_address: int,
-    whole_q_block_size_address: int,
-    s_address: int,
+    k_base_hbm_offset_reg: int,
+    q_head_index: int,
+    k_head_index: int,
+    reset_context: bool = False,
+    s_base_address: int = 0,
 ) -> str:
     """
-    MLEN: buffer size (MLEN * MLEN)
-    BLEN: Multiplier block size (BLEN * BLEN)
-    reduce_size: the size of the multiplier contracting dimension (usually head_dim)
-    reduce_unit_size: the size of the multiplier contracting unit (usually MLEN), it can at most do reduce_unit_size dot product at a time
-    q_base_address: Q base address
-    k_base_address: K base address
-    smallest_q_block_size_address: the size of of the smallest operational block of q. Usually (BLEN * reduce_unit_size)
-    smallest_kt_block_size_address: the size of of the smallest operational block of kt. Usually (BLEN * reduce_unit_size)
-    whole_kt_block_size_address: the size of the whole kt block. Usually (BLEN * Head_dim)
-    whole_q_block_size_address: the size of the whole q block. Usually (BLEN * Head_dim)
-    s_address: the target starting address for where to save the result of the dot product
+    Args:
+        mlen: the number of rows in the first matrix.
+        blen: the number of columns in the second matrix.
+        hq: the number of heads in the query.
+        hkv: the number of heads in the key and value.
+        d: the head dimension
+        q_len: the query length
+        kv_len: the key and value length
+        alive_registers: the list of alive registers.
+        q_base_address: the base address of the query.
+        k_base_address: the base address of the key.
+    Description:
+        This part of asm code gen template is used to compute QKT result.
+        Assuming Q is in dim of (B, S, Hq, D), K is in dim of (B, S, Hkv, D)
+        The num of Hq // Hkv of Q heads share the same K head.
+        This template will perform, single batch, MLEN tiled, per KV head, QKT multiplication.
+        (MLEN, Hq // Hkv, D) @ broadcast(D, 1, MLEN) = (Hq // Hkv, MLEN, MLEN)
     """
-
-    # get two registers from alive_registers, 1 as q address, 1 as k address
     q_base_register = alive_registers[0]
     k_base_register = alive_registers[1]
-    # q and k actual register are used to store the actual address of q and k
-    q_actual_register = alive_registers[2]
-    k_actual_register = alive_registers[3]
-    # block size register is used to store the block size of q and k
-    # we will use this block size register to store the address of s too
-    block_size_register = alive_registers[4]
-
-    # set q address
-    # set k address
-    set_q_base_address = f"S_LD_FIX {q_base_register}, gp0, {q_base_address} \n"
-    set_k_base_address = f"S_LD_FIX {k_base_register}, gp0, {k_base_address} \n"
-
-    set_q_actual_address = f"S_ADD_FIX {q_actual_register}, gp0, {q_base_register} \n"
-    set_k_actual_address = f"S_ADD_FIX {k_actual_register}, gp0, {q_base_register} \n"
-
-    generated_code = ""
-    # Q and KT internal loop iteration number
-    qkt_loop_iteration_number = mlen // blen
-    # contracting loop iteration number
-    contracting_loop_iteration_number = reduce_size // reduce_unit_size
-
-    generated_code += set_q_base_address
-    generated_code += set_k_base_address
-    for i in range(qkt_loop_iteration_number):
-        for j in range(qkt_loop_iteration_number):
-            generated_code += set_q_actual_address
-            generated_code += set_k_actual_address
-            for k in range(contracting_loop_iteration_number):
-                if k != contracting_loop_iteration_number - 1:
-                    # multiply q and kt
-                    generated_code += f"M_TMM 0, {q_actual_register}, {k_actual_register} \n"
-                else:
-                    # multiply q and kt and store to S. No index needed for S. This is an append operation.
-                    generated_code += f"S_LD_FIX {block_size_register}, gp0, {s_address} \n"
-                    generated_code += f"M_MM_WO {block_size_register}, {q_actual_register}, {k_actual_register} \n"
-
-                # load q block size
-                generated_code += f"S_LD_FIX {block_size_register}, gp0, {smallest_q_block_size_address} \n"
-                # add q block size to q address
-                generated_code += f"S_ADD_FIX {q_actual_register}, {q_actual_register}, {block_size_register} \n"
-                # load kt block size
-                generated_code += f"S_LD_FIX {block_size_register}, gp0, {smallest_kt_block_size_address} \n"
-                # add kt block size to k address
-                generated_code += f"S_ADD_FIX {k_actual_register}, {k_actual_register}, {block_size_register} \n"
-            
-            # load the next internal block of KT
-            generated_code += f"S_LD_FIX {block_size_register}, gp0, {whole_kt_block_size_address} \n"
-            # add kt block size to k base address
-            generated_code += f"S_ADD_FIX {k_base_register}, {k_base_register}, {block_size_register} \n"
-        
-        # load the next internal block of Q
-        generated_code += f"S_LD_FIX {block_size_register}, gp0, {whole_q_block_size_address} \n"
-        # add q block size to q base address
-        generated_code += f"S_ADD_FIX {q_base_register}, {q_base_register}, {block_size_register} \n"
-        # reset k base address
-        generated_code += f"S_ADDI_FIX {k_base_register}, gp0, {k_base_address} \n"
+    s_base_register = q_base_register
+    generated_code = "; QKT Per KV Head Multiplication \n"
     
+    # Presettings
+    if reset_context:
+        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv *d * kv_len * batch} \n"
+        generated_code += f"C_SET_SCALE_REG gp{q_base_register} \n"
+        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv * d * kv_len * batch} \n"
+        generated_code += f"C_SET_STRIDE_REG gp{q_base_register} \n"
+
+    # Prefetch K from HBM
+    generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {q_base_address + q_head_index * d} \n"
+    generated_code += f"S_ADDI_INT gp{k_base_register}, gp0, {k_head_index * d} \n"
+    generated_code += f"H_PREFETCH_M gp{k_base_register}, gp{k_base_register}, a{k_base_hbm_offset_reg}, 1, 1 \n"
+
+    # QKT multiply
+    generated_code += f"M_BTMM 0, gp{q_base_register}, gp{k_base_register} \n"
+    generated_code += f"S_ADDI_INT gp{s_base_register}, gp0, {s_base_address} \n"
+    generated_code += f"M_BMM_WO gp{s_base_register}, 0 \n"
     return generated_code
 
 
 def _online_softmax_code(
     mlen: int,
-    alive_registers_fix: List[int],
+    alive_registers_int: List[int],
     alive_registers_fp: List[int],
     s_address: int,
-    m_last_address: int,
-    m_res_address: int,
-    l_old_address: int,
+    m_start_address: int
 ) -> str:
     """
+    Args:
     s_address: the starting address of the QKT result
-    alive_registers_fix: the list of alive registers for fix point operations
+    alive_registers_int: the list of alive registers for fix point operations
     alive_registers_fp: the list of alive registers for floating point operations
     mlen: also Br: the number of row of the QKT result
     address_of_mlen: the address that contains the mlen (number of row of the QKT result) value 
+    Description:
+        This part of asm is for the inner loop of the flash attention, mapping to line 9 to line 10 process,
+        which requires per row level computation, hence with the loop mlen times.
     """
     # get two registers from alive_registers, 1 as m_last address, 1 as m_curr address
     m_last_register = alive_registers_fp[0]
     m_curr_register = alive_registers_fp[1]
     l_old_register = alive_registers_fp[2]
-    # get a general address register
-    s_address_register = alive_registers_fix[0]
-    general_address_register = alive_registers_fix[1]
-    # get a general tmp fp register for intermediate result
     tmp_fp_register = alive_registers_fp[3]
     sum_p_register = alive_registers_fp[4]
 
+    # get a general address register
+    s_address_register      = alive_registers_int[0] # general address register
+    m_last_address_register = alive_registers_int[1]
+    m_res_address_register  = alive_registers_int[2] # m_res address register
+    l_old_address_register  = alive_registers_int[3] # l_old address register
+    general_address_register = alive_registers_int[4] # general address register
+    
 
-    # NOTE: you can change this if you have other way to load the address of m_last, m_curr, l_old
+    generated_code = "; Online Softmax Code \n"
 
-    load_s_address = f"""
-    S_LD_FIX {general_address_register}, gp0, {s_address} \n
-    """
-
-    generated_code = ""
-    generated_code += load_s_address
+    # Presettings
+    # Load the starting address of S, which is the QKT result of the current head, in shape of (MLEN, MLEN)
+    generated_code += f"S_ADDI_INT gp{s_address_register}, gp0, {s_address} \n"
+    generated_code += f"S_ADDI_INT gp{m_last_address_register}, gp0, {m_start_address} \n"
+    generated_code += f"S_ADDI_INT gp{m_res_address_register}, gp{m_last_address_register}, {mlen} \n"
+    generated_code += f"S_ADDI_INT gp{l_old_address_register}, gp{m_res_address_register}, {mlen} \n"
 
     for i in range(mlen):
         # load m_last
-        load_m_last = f"""
-        S_LD_FIX {general_address_register}, gp0, {m_last_address} \n
-        S_ADDI_FIX {general_address_register}, {general_address_register}, {i-1} \n
-        S_LD_FP {m_last_register}, gp0, {general_address_register}
-        """
-        generated_code += load_m_last
+        assert m_start_address < IMM2_BOUND, f"m_start_address must be less than {IMM2_BOUND}"
 
+        generated_code += f"S_LD_FP f{m_last_register}, gp{m_last_address_register}, {i} \n"
         # copy m_last to a tmp fp register
-        generated_code += f"S_MV_FP {tmp_fp_register}, {m_last_register}, 0 \n"
+        generated_code += f"S_ADD_FP f{tmp_fp_register}, f{m_last_register}, f0 \n"
 
         # find max of (P[x4], m_last) and store at m_curr
-        generated_code += f"V_RED_MAX {m_last_register}, {s_address_register}, {0} \n"
-        m_curr_register = m_last_register
+        generated_code += f"V_RED_MAX f{m_last_register}, gp{s_address_register}, {0} \n"
 
         # m_res = m_last - m_curr
-        generated_code += f"S_SUB_FP {tmp_fp_register}, {tmp_fp_register}, {m_curr_register} \n"
-        m_res_register = tmp_fp_register
+        generated_code += f"S_SUB_FP f{tmp_fp_register}, f{tmp_fp_register}, f{m_curr_register} \n"
 
         # exp(m_res)
-        generated_code += f"S_EXP_FP {m_res_register}, {m_res_register}, 0 \n"
+        generated_code += f"S_EXP_FP f{tmp_fp_register}, f{tmp_fp_register}, 0 \n"
 
         # store m_res
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {m_res_address} \n"
-        generated_code += f"S_ADDI_FIX {general_address_register}, {general_address_register}, {i} \n"
-        generated_code += f"S_ST_FP {m_res_register}, {general_address_register}, {0} \n"
+        generated_code += f"S_ST_FP f{tmp_fp_register}, gp{m_res_address_register}, {i} \n"
 
         # store m_curr
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {m_last_address} \n"
-        generated_code += f"S_ADDI_FIX {general_address_register}, {general_address_register}, {i} \n"
-        generated_code += f"S_ST_FP {m_curr_register}, {general_address_register}, {0} \n"
+        generated_code += f"S_ST_FP f{m_curr_register}, gp{m_last_address_register}, {i} \n"
         
         # S' = S - m_curr
-        generated_code += f"V_SUB_VF {s_address_register}, {s_address_register}, {m_curr_register} \n"
+        generated_code += f"V_SUB_VF gp{s_address_register}, gp{s_address_register}, f{m_curr_register} \n"
+
         # P = exp(S')
-        generated_code += f"V_EXP_V {s_address_register}, {s_address_register}, 0 \n"
+        generated_code += f"V_EXP_V gp{s_address_register}, gp{s_address_register}, 0 \n"
 
         # load l_old 
-        load_l_old = f"""
-        S_LD_FIX {general_address_register}, gp0, {l_old_address} \n
-        S_ADDI_FIX {general_address_register}, {general_address_register}, {i-1} \n
-        S_LD_FP {l_old_register}, gp0, {general_address_register}
-        """
-        generated_code += load_l_old
+        generated_code += f"S_LD_FP f{l_old_register}, gp{l_old_address_register}, {i} \n"
 
         # P = sum(P)
-        generated_code += f"V_RED_SUM {sum_p_register}, {s_address_register}, 0 \n"
+        generated_code += f"V_RED_SUM f{sum_p_register}, gp{s_address_register}, 0 \n"
 
         # l_s = l_old * exp(m_res)
-        generated_code += f"S_MUL_FP {l_old_register}, {l_old_register}, {m_res_register} \n"
+        generated_code += f"S_MUL_FP f{l_old_register}, f{l_old_register}, f{tmp_fp_register} \n"
         l_s_register = l_old_register
 
         # l_s = l_old * exp(m_res) + sum(P)
-        generated_code += f"S_ADD_FP {l_s_register}, {sum_p_register}, {l_s_register} \n"
+        generated_code += f"S_ADD_FP f{l_s_register}, f{sum_p_register}, f{l_s_register} \n"
 
         # store l_s
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {l_old_address} \n"
-        generated_code += f"S_ADDI_FIX {general_address_register}, {general_address_register}, {i} \n"
-        generated_code += f"S_ST_FP {l_s_register}, {general_address_register}, 0 \n"
+        generated_code += f"S_ST_FP f{l_s_register}, gp{l_old_address_register}, {i} \n"
 
         # next row of S
-        generated_code += f"S_ADD_FIX {s_address_register}, {s_address_register}, {mlen} \n"
+        generated_code += f"S_ADDI_INT gp{s_address_register}, gp{s_address_register}, {mlen} \n"
 
     return generated_code
 
 def _computing_pv_code(
-    mlen: int,
-    alive_registers_fix: List[int],
-    alive_registers_fp: List[int],
-    v_hbm_address: int,
-    v_base_address: int,
+    d: int,
+    alive_registers: List[int],
     p_base_address: int,
-    v_block_size_address: int,
-    p_block_size_address: int,
-    head_dim: int,
-    blen: int,
-    pv_result_address: int,
+    v_base_hbm_offset_reg: int,
+    q_head_index: int,
+    v_head_index: int,
+    pv_base_address: int,
 ) -> str:
     """
-    mlen: the number of row of the QKT result
-    head_dim: the head dimension
-    blen: the block size
-    alive_registers_fix: the list of alive registers for fix point operations
-    alive_registers_fp: the list of alive registers for floating point operations
-    v_base_address: the base address of V
-    p_base_address: the base address of P
-    v_actual_address: the actual address of V
-    p_actual_address: the actual address of P
-    v_block_size_address: the address of the block size of V: address pointing to BLEN * MLEN
-    p_block_size_address: the address of the block size of P: address pointing to BLEN * MLEN
-    pv_result_address: the address of the result of the PV operation
+    Args:
+    
+    Description:
+        This part of asm is for the computing of the PV operation, mapping to line 10 process,
+        which requires per head dimension level computation, hence with the loop head_dim // mlen times.
+        (mlen, mlen) @ (mlen, head_dim) = (mlen, head_dim)
     """
-    v_head_dim_iteration_number = head_dim // mlen
+    generated_code = "; PV Per KV Head Multiplication \n"
+    p_base_register = alive_registers[0]
+    v_base_register = alive_registers[1]
+    pv_base_register = alive_registers[2]
+    assert p_base_address + q_head_index * d < IMM2_BOUND, f"p_base_address must be less than {IMM2_BOUND}"
+    assert v_head_index * d < IMM2_BOUND, f"v_base_address must be less than {IMM2_BOUND}"
+    assert pv_base_address < IMM2_BOUND, f"pv_base_address must be less than {IMM2_BOUND}"
+    # Prefetch K from HBM
+    generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * d} \n"
+    generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {v_head_index * d} \n"
+    generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address} \n"
+    generated_code += f"H_PREFETCH_M gp{v_base_register}, gp{v_base_register}, a{v_base_hbm_offset_reg}, 1, 1 \n"
 
-    general_address_register = alive_registers_fix[0]
-    tmp_fix_register = alive_registers_fix[1]
-    generated_code = ""
-
-    # load v from hbm
-    generated_code += f"HPrefetchV [rd: gp0, rs1: gp2, rs2: {v_hbm_address}, rstride: 0, precision: kv ];"
-
-    for i in range(v_head_dim_iteration_number):
-        p_actual_address = p_base_address
-
-        # update pv_result_address
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {pv_result_address} \n"
-        generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["s_block_size_address"]} \n"
-        generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-        generated_code += f"S_ST_FIX {general_address_register}, gp0, {pv_result_address} \n"
-
-        # update v_actual_address
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {v_base_address} \n"
-        generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["s_block_size_address"]} \n"
-        generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-        generated_code += f"S_ST_FIX {general_address_register}, gp0, {v_base_address} \n"
-
-
-        generated_code += _general_mlen_mlen_multiply_code(
-            mlen=mlen,
-            blen=blen,
-            alive_registers=alive_registers_fix,
-            reduce_size=mlen,
-            reduce_unit_size=mlen,
-            q_base_address=v_base_address,
-            k_base_address=p_actual_address,
-            smallest_q_block_size_address=v_block_size_address,
-            smallest_kt_block_size_address=p_block_size_address,
-            whole_kt_block_size_address=v_block_size_address,
-            whole_q_block_size_address=p_block_size_address,
-            s_address=pv_result_address,
-        )
-        # ;<<<< -------Complete PV------- >>>>
+    # QKT multiply
+    generated_code += f"M_BTMM 0, gp{p_base_register}, gp{v_base_register} \n"
+    generated_code += f"M_BMM_WO gp{pv_base_register}, 0 \n"
     return generated_code
 
 def _computing_o_code(
     mlen: int,
-    alive_registers_fix: List[int],
+    alive_registers_int: List[int],
     alive_registers_fp: List[int],
     m_res_base_address: int,
     pv_base_address: int,
@@ -273,45 +201,52 @@ def _computing_o_code(
     head_dim: int,
 ) -> str:
     """
-    line 10 in flash attention algorithm
-
+    Args:
     head_dim: the head dimension
     mlen: the number of row of the QKT result
-    alive_registers_fix: the list of alive registers for fix point operations
+    alive_registers_int: the list of alive registers for fix point operations
     alive_registers_fp: the list of alive registers for floating point operations
     m_res_address: the address of the m_res
     pv_result_address: the address of the PV result
     o_old_base_address: the base address of the old O
+    Description:
+        This part of asm is for the computing of the O operation, mapping to line 10 process
+        
     """
-    m_res_vector_address_register = alive_registers_fix[0]
-    o_old_vector_address_register = alive_registers_fix[1]
+    m_res_vector_address_register = alive_registers_int[0]
+    o_old_vector_address_register = alive_registers_int[1]
+    pv_vector_address_register = alive_registers_int[2]
+
     m_res_fp_register = alive_registers_fp[0]
-    generated_code = ""
-    head_dim_iteration_number = head_dim // mlen
+    generated_code = "; Computing O Code \n"
+    assert head_dim < mlen, "head_dim must be less than mlen"
     # break diag(MLEN) * (MLEN * Head_dim) into diag(MLEN) * [(MLEN * MLEN) ... (MLEN * MLEN)]
 
     # load o_old base address
-    generated_code += f"S_LD_FIX {o_old_vector_address_register}, gp0, {o_old_base_address} \n"
+    assert o_old_base_address < IMM2_BOUND, f"o_old_base_address must be less than {IMM2_BOUND}"
+    generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp0, {o_old_base_address} \n"
 
-    # computing the diag(MLEN) * (MLEN * MLEN)
-    for i in range(head_dim_iteration_number):
-        # reload m_res base address
-        generated_code += f"S_LD_FIX {m_res_vector_address_register}, gp0, {m_res_base_address} \n"
+    # reload m_res base address
+    assert m_res_base_address < IMM2_BOUND, f"m_res_base_address must be less than {IMM2_BOUND}"
+    generated_code += f"S_ADDI_INT gp{m_res_vector_address_register}, gp0, {m_res_base_address} \n"
 
-        # loop over different row of m_res
-        for j in range(mlen):
-            # load m_res
-            generated_code += f"S_LD_FP {m_res_fp_register}, {m_res_vector_address_register}, {j} \n"
-            # boardcast m_res to multiply with a row of a block of O_old and write to o_old
-            generated_code += f"V_MUL_VF {o_old_vector_address_register}, {o_old_vector_address_register}, {m_res_vector_address_register} \n"
-            # add pv row to o_old
-            generated_code += f"V_ADD_VV {o_old_vector_address_register}, {o_old_vector_address_register}, {pv_base_address} \n"
+    # load pv base address
+    assert pv_base_address < IMM2_BOUND, f"pv_base_address must be less than {IMM2_BOUND}"
+    generated_code += f"S_ADDI_INT gp{pv_vector_address_register}, gp0, {pv_base_address} \n"
 
-            # update o_old base address
-            generated_code += f"S_ADDI_FIX {o_old_vector_address_register}, {o_old_vector_address_register}, {mlen} \n"
-            # update pv base address
-            generated_code += f"S_ADDI_FIX {pv_base_address}, {pv_base_address}, {mlen} \n"
+    # loop over different row of m_res
+    for j in range(mlen):
+        # load m_res
+        generated_code += f"S_LD_FP f{m_res_fp_register}, gp{m_res_vector_address_register}, {j} \n"
+        # boardcast m_res to multiply with a row of a block of O_old and write to o_old
+        generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{m_res_vector_address_register} \n"
+        # add pv row to o_old
+        generated_code += f"V_ADD_VV gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, gp{pv_vector_address_register} \n"
 
+        # update o_old base address
+        generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {mlen} \n"
+        # update pv base address
+        generated_code += f"S_ADDI_INT gp{pv_vector_address_register}, gp{pv_vector_address_register}, {mlen} \n"
 
     # now o_old should contain the result of the current o, diag(exp(m_res)) * O_old + PV
     return generated_code
@@ -319,7 +254,7 @@ def _computing_o_code(
 
 def _computing_row_wise_scaling_code(
     mlen: int,
-    alive_registers_fix: List[int],
+    alive_registers_int: List[int],
     alive_registers_fp: List[int],
     o_old_base_address: int,
     l_old_base_address: int,
@@ -329,187 +264,243 @@ def _computing_row_wise_scaling_code(
 
 
     mlen: the number of row of the QKT result
-    alive_registers_fix: the list of alive registers for fix point operations
+    alive_registers_int: the list of alive registers for fix point operations
     alive_registers_fp: the list of alive registers for floating point operations
     o_old_base_address: the base address of the old O
     """
-    o_old_vector_address_register = alive_registers_fix[0]
-    l_old_vector_address_register = alive_registers_fix[1]
+    o_old_vector_address_register = alive_registers_int[0]
+    l_old_vector_address_register = alive_registers_int[1]
     l_old_fp_register = alive_registers_fp[0]
 
     generated_code = ""
     # load l_old base address
-    generated_code += f"S_LD_FIX {l_old_vector_address_register}, gp0, {l_old_base_address} \n"
+    generated_code += f"S_ADDI_INT gp{l_old_vector_address_register}, gp0, {l_old_base_address} \n"
     # load o_old base address
-    generated_code += f"S_LD_FIX {o_old_vector_address_register}, gp0, {o_old_base_address} \n"
+    generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp0, {o_old_base_address} \n"
 
     # loop over different row of Br
     for i in range(mlen):
         # load l_old
-        generated_code += f"S_LD_FP {l_old_fp_register}, {l_old_vector_address_register}, {i} \n"
+        generated_code += f"S_LD_FP f{l_old_fp_register}, gp{l_old_vector_address_register}, {i} \n"
         # compute the inverse of l_old
-        generated_code += f"S_RECI_FP {l_old_fp_register}, {l_old_fp_register}, 0 \n"
+        generated_code += f"S_RECI_FP f{l_old_fp_register}, f{l_old_fp_register}, 0 \n"
         # multiply o_old with the inverse of l_old
-        generated_code += f"V_MUL_VF {o_old_vector_address_register}, {o_old_vector_address_register}, {l_old_fp_register} \n"
+        generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{l_old_fp_register} \n"
 
         # update o_old base address
-        generated_code += f"S_ADDI_FIX {o_old_vector_address_register}, {o_old_vector_address_register}, {mlen} \n"
+        generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {mlen} \n"
 
     return generated_code
 
+def _reset_fpsram_code(
+    reset_start_address: int,
+    per_stride_dim: int,
+    reset_stride: int,
+    reset_amount: int,
+    reset_val_address: int,
+    alive_registers_fp: List[int],
+    alive_registers_int: List[int],
+) -> str:
+    """
+    Args:
+    reset_start_address: the start address of the reset
+    per_stride_dim: the dimension of the reset per stride
+    reset_stride: the stride of the reset
+    reset_amount: the amount of the reset
+    reset_val_address: the address of the reset value
+    """
+    generated_code = f"; Reset FPSRAM Code from {reset_start_address} to {reset_start_address + reset_amount * reset_stride} with value {reset_val_address}\n"
+    
+    generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {reset_start_address} \n"
+    generated_code += f"S_LD_FP f{alive_registers_fp[0]}, gp0, {reset_val_address} \n"
+    for i in range(reset_amount):
+        for j in range(per_stride_dim):
+            generated_code += f"S_ST_FP f{alive_registers_fp[0]}, gp{alive_registers_int[0]}, {i * reset_stride + j} \n"
+    return generated_code
 
-MLEN = 16
-BLEN = 16
-HEAD_DIM = 128
-SEQ_LEN = 2048
-ALIVE_REGISTERS_FIX = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-ALIVE_REGISTERS_FP = [0, 1, 2, 3, 4, 5, 6, 7]
-
-FIXED_SRAM_ADDRESS_MAP = {
-    "q_block_size_address": 2,
-    "k_block_size_address": 2,
-    "q_mm_block_size_address": 3,
-    "k_mm_block_size_address": 3,
-    "q_dot_product_block_size_address": 4,
-    "k_dot_product_block_size_address": 4,
-    "v_block_size_address": 4,
-    "p_block_size_address": 4,
-    "s_block_size_address": 5,
-    "m_res_address": 6,
-    "m_last_address": 7,
-    "l_old_address": 8,
-    "pv_result_address": 9,
-    "o_old_address": 10,
-    "s_address": 11,
-}
-
-FIXED_SRAM_LAYOUT = {
-    0: 0,
-    1: None,
-    2: (MLEN * HEAD_DIM),
-    3: (BLEN * HEAD_DIM),
-    4: (BLEN * MLEN),
-    5: (MLEN * MLEN),
-    6: MLEN,
-    7: 2*MLEN,
-    8: 3 * MLEN,
-    9: (HEAD_DIM * MLEN) + (MLEN * MLEN),
-    10: 2 * (HEAD_DIM * MLEN) + (MLEN * MLEN),
-    11: (MLEN * MLEN),
-}
+def _reset_vssram_code(
+    reset_start_address: int,
+    vect_dim: int,
+    per_stride_dim: int,
+    reset_stride: int,
+    reset_amount: int,
+    alive_registers_int: List[int],
+) -> str:
+    """
+    Args:
+    reset_start_address: the start address of the reset
+    per_stride_dim: the dimension of the reset per stride
+    reset_stride: the stride of the reset
+    reset_amount: the amount of the reset
+    reset_val_address: the address of the reset value
+    """
+    generated_code = f"; Reset VSSRAM Code from {reset_start_address} to {reset_start_address + reset_amount * reset_stride} with value 0\n"
+    generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {reset_start_address} \n"
+    for i in range(reset_amount):
+        for j in range(per_stride_dim):
+            generated_code += f"V_MUL_VF gp{alive_registers_int[0]}, gp{alive_registers_int[0]}, f{0} \n"
+            generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp{alive_registers_int[0]}, {vect_dim} \n"
+    return generated_code
 
 def flash_attn_asm(
-    # qk hbm addresses
-    q_hbm_address: int = "a2",
-    k_hbm_address: int = "a3",
-    v_hbm_address: int = "a4",
-    # qkv sram addresses
-    q_base_address: int = 0,
-    k_base_address: int = 0,
-    v_base_address: int = 0,
-    # model info
-    mlen: int = MLEN,
-    head_dim: int = HEAD_DIM,
-    blen: int = BLEN,
-    seq_len: int = SEQ_LEN,
-    # alive registers
-    alive_registers_fix: List[int] = ALIVE_REGISTERS_FIX,
-    alive_registers_fp: List[int] = ALIVE_REGISTERS_FP,
-    # FPSRAM l_old, m_res, m_last addresses
-    l_old_base_address: int = FIXED_SRAM_ADDRESS_MAP["l_old_address"],
-    m_res_base_address: int = FIXED_SRAM_ADDRESS_MAP["m_res_address"],
-    m_last_base_address: int = FIXED_SRAM_ADDRESS_MAP["m_last_address"],
-    # Vector SRAM S, PV, O_old addresses
-    s_address: int = FIXED_SRAM_ADDRESS_MAP["s_address"],
-    pv_result_address: int = FIXED_SRAM_ADDRESS_MAP["pv_result_address"],
-    o_old_address: int = FIXED_SRAM_ADDRESS_MAP["o_old_address"],
+    mlen: int,
+    blen: int,
+    batch: int,
+    hq: int,
+    hkv: int,
+    d: int,
+    q_len: int,
+    kv_len: int,
+    alive_registers_int: List[int],
+    alive_registers_fp: List[int],
+    vector_sram_base_address: int,
+    fp_sram_start_address: int,
+    k_base_hbm_offset_reg: int,
+    v_base_hbm_offset_reg: int,
 ) -> str:
-    generated_code = ""
-    q_seq_iteration_number = seq_len // mlen
-    k_seq_iteration_number = seq_len // mlen
+    """
+    Args:
+    vector_sram_base_address: the base address of the vector SRAM
+    fp_sram_start_address: the start address of the fp SRAM
+    k_base_hbm_offset_reg: the offset register of the k base address in HBM
+    v_base_hbm_offset_reg: the offset register of the v base address in HBM
+    Description:
+        This part of asm takes the multi-loops, looping over kv head, then two loops for the flash atten, with small loops over q head per kv head within the inner loop.
+    """
+    # Iteration Settings
+    q_seq_iteration_number = (q_len + mlen - 1) // mlen
+    k_seq_iteration_number = (kv_len + mlen - 1) // mlen
+    q_index_2_kv_index = hq // hkv
 
-    # load q from hbm
-    generated_code += f"HPrefetchV [rd: gp0, rs1: gp2, rs2: {q_hbm_address}, rstride: 0, precision: activation ];"
-    generated_code += f"HPrefetchM [rd: gp0, rs1: gp2, rs2: {k_hbm_address}, rstride: 1, precision: kv ];"
-    # loop over different sequence blocks
-    for i in range(q_seq_iteration_number):
-        for j in range(k_seq_iteration_number):
-            generated_code += _general_mlen_mlen_multiply_code(
-                mlen=mlen,
-                blen=blen,
-                alive_registers=alive_registers_fix,
-                reduce_size=mlen,
-                reduce_unit_size=mlen,
-                q_base_address=q_base_address,
-                k_base_address=k_base_address,
-                smallest_q_block_size_address=FIXED_SRAM_ADDRESS_MAP["q_dot_product_block_size_address"],
-                smallest_kt_block_size_address=FIXED_SRAM_ADDRESS_MAP["k_dot_product_block_size_address"],
-                whole_kt_block_size_address=FIXED_SRAM_ADDRESS_MAP["k_mm_block_size_address"],
-                whole_q_block_size_address=FIXED_SRAM_ADDRESS_MAP["q_mm_block_size_address"],
-                s_address=s_address,
+    # Memory Layout:
+    # -- FP SRAM --
+    # Defalt 0 - zero
+    # 1 - infinity
+    # fp_sram_start_address - 1 - qk_scale
+    # per head dimension * q_index_2_kv_index level {
+    m_fp_sram_start_address = fp_sram_start_address
+    # - m old (MLEN) - 0
+    # - m res (MLEN) - 1
+    # - l old (MLEN) - 2
+    # }
+
+    # -- Vector SRAM --
+    # Q, PV (q_len, HEAD_DIM * Hq * batch)
+    q_base_address = vector_sram_base_address
+    # tmp S (MLEN, MLEN)
+    s_base_address = vector_sram_base_address + d * hq * mlen
+    # O_Old (q_len, HEAD_DIM * Hq * batch)
+    o_old_base_address = vector_sram_base_address + d * hq * mlen + mlen * mlen
+
+    generated_code = "; Flash Attention Generation \n"
+    # loop over kv heads
+    for kv_head_index in range(hkv):
+        # loop over per kv head kv_len // MLEN
+        for i in range(k_seq_iteration_number):
+            # Reset m old for every q_index_2_kv_index q heads with -inf
+            generated_code += _reset_fpsram_code(
+                reset_start_address=m_fp_sram_start_address,
+                per_stride_dim = mlen,
+                reset_stride=3 * mlen,
+                reset_amount=q_index_2_kv_index,
+                reset_val_address=2,
+                alive_registers_fp=alive_registers_fp[0:1], 
+                alive_registers_int=alive_registers_int[0:1],
             )
 
-            generated_code += _online_softmax_code(
-                mlen=mlen,
-                alive_registers_fix=alive_registers_fix,
-                alive_registers_fp=alive_registers_fp,
-                s_address=s_address,
-                m_last_address=m_last_base_address,
-                m_res_address=m_res_base_address,
-                l_old_address=l_old_base_address,
+            # Reset l with zeros
+            generated_code += _reset_fpsram_code(
+                reset_start_address=m_fp_sram_start_address + 2 * mlen,
+                per_stride_dim = mlen,
+                reset_stride=3 *mlen,
+                reset_amount=q_index_2_kv_index,
+                reset_val_address=0,
+                alive_registers_fp=alive_registers_fp[0:1],
+                alive_registers_int=alive_registers_int[0:1],
             )
 
-            generated_code += _computing_pv_code(
-                mlen=mlen,
-                alive_registers_fix=alive_registers_fix,
-                alive_registers_fp=alive_registers_fp,
-                v_hbm_address=v_hbm_address,
-                v_base_address=v_base_address,
-                p_base_address=s_address,
-                v_block_size_address=FIXED_SRAM_ADDRESS_MAP["v_block_size_address"],
-                p_block_size_address=FIXED_SRAM_ADDRESS_MAP["p_block_size_address"],
-                head_dim=head_dim,
-                blen=blen,
-                pv_result_address=pv_result_address,
+            # Reset O_old with zeros
+            generated_code += _reset_vssram_code(
+                reset_start_address=o_old_base_address,
+                vect_dim=mlen,
+                per_stride_dim=d,
+                reset_stride=q_index_2_kv_index * mlen,
+                reset_amount=q_index_2_kv_index,
+                alive_registers_int=alive_registers_int[0:1],
             )
 
-            generated_code += _computing_o_code(
-                mlen=mlen,
-                alive_registers_fix=alive_registers_fix,
-                alive_registers_fp=alive_registers_fp,
-                m_res_base_address=m_res_base_address,
-                pv_base_address=pv_result_address,
-                o_old_base_address=o_old_address,
-                head_dim=head_dim,
-            )
+            # loop over per q_index_2_kv_index q heads (q_len // MLEN), compute q_index_2_kv_index heads in parallel.
+            for j in range(q_seq_iteration_number):
+                # Compute S = QKT result
+                generated_code += qkt_multiply(
+                    batch=batch,
+                    hkv=hkv,
+                    d=d,
+                    kv_len=kv_len,
+                    alive_registers=alive_registers_int[0:2],
+                    q_base_address=q_base_address + j * mlen,
+                    k_base_hbm_offset_reg=k_base_hbm_offset_reg,
+                    q_head_index=q_index_2_kv_index * kv_head_index,
+                    k_head_index=kv_head_index,
+                    reset_context=True,
+                    s_base_address=s_base_address,
+                )
+                break
 
-            general_address_register = alive_registers_fix[0]
-            tmp_fix_register = alive_registers_fix[1]
+                # generated_code += reset_reg_asm(alive_registers_int[0:2])
+                # stored_m_fp_res_address = m_fp_sram_start_address + mlen
+                
+                # for head_index in range(hq // hkv):
+                #     # Per Q head level online softmax
+                #     generated_code += _online_softmax_code(
+                #         mlen=mlen,
+                #         alive_registers_int=alive_registers_int[0:5],
+                #         alive_registers_fp=alive_registers_fp[0:5],
+                #         s_address=s_base_address + head_index * mlen * mlen,
+                #         m_start_address=m_fp_sram_start_address
+                #     )
+                #     m_fp_sram_start_address += mlen * 3
+                #     generated_code += reset_fpreg_asm(alive_registers_fp[0:5])
+                #     generated_code += reset_reg_asm(alive_registers_int[0:5])
+                #     break
 
-            # update k base address
-            generated_code += f"S_LD_FIX {general_address_register}, gp0, {k_base_address} \n"
-            generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["k_block_size_address"]} \n"
-            generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-            generated_code += f"S_ST_FIX {general_address_register}, gp0, {k_base_address} \n"
+                # generated_code += _computing_pv_code(
+                #     d=d,
+                #     alive_registers=alive_registers_int[0:3],
+                #     p_base_address=s_base_address,
+                #     v_base_hbm_offset_reg=v_base_hbm_offset_reg,
+                #     q_head_index=q_index_2_kv_index * kv_head_index,
+                #     v_head_index=kv_head_index,
+                #     pv_base_address=q_base_address + q_index_2_kv_index * kv_head_index * mlen,
+                # )
 
-            # update s address
-            generated_code += f"S_LD_FIX {general_address_register}, gp0, {s_address} \n"
-            generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["s_block_size_address"]} \n"
-            generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-            generated_code += f"S_ST_FIX {general_address_register}, gp0, {s_address} \n"
+                # generated_code += reset_reg_asm(alive_registers_int[0:3])
 
-        generated_code += _computing_row_wise_scaling_code(
-            mlen=mlen,
-            alive_registers_fix=alive_registers_fix,
-            alive_registers_fp=alive_registers_fp,
-            o_old_base_address=o_old_address,
-            l_old_base_address=l_old_base_address,
-        )
+                # for head_index in range(hq // hkv):
+                #     generated_code += _computing_o_code(
+                #         mlen=mlen,
+                #         alive_registers_int=alive_registers_int,
+                #         alive_registers_fp=alive_registers_fp,
+                #         m_res_base_address=stored_m_fp_res_address,
+                #         pv_base_address=q_base_address + q_index_2_kv_index * kv_head_index * mlen,
+                #         o_old_base_address=o_old_base_address + head_index * mlen,
+                #         head_dim=d,
+                #     )
+                #     stored_m_fp_res_address += 3 * mlen
+                #     break
+                # break
+            break
+        break
 
         # update q base address
-        generated_code += f"S_LD_FIX {general_address_register}, gp0, {q_base_address} \n"
-        generated_code += f"S_LD_FIX {tmp_fix_register}, gp0, {FIXED_SRAM_ADDRESS_MAP["q_block_size_address"]} \n"
-        generated_code += f"S_ADD_FIX {general_address_register}, {general_address_register}, {tmp_fix_register} \n"
-        generated_code += f"S_ST_FIX {general_address_register}, gp0, {q_base_address} \n"
+        q_base_address += q_index_2_kv_index * q_len * d
+
+        # generated_code += _computing_row_wise_scaling_code(
+        #     mlen=mlen,
+        #     alive_registers_int=alive_registers_int,
+        #     alive_registers_fp=alive_registers_fp,
+        #     o_old_base_address=o_old_address,
+        #     l_old_base_address=l_old_base_address,
+        # )
     
     return generated_code

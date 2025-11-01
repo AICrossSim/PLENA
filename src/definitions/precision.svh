@@ -20,7 +20,7 @@ package precision_pkg;
     parameter   WT_MX_INT_ENABLE    = 0;
     parameter   MX_SCALE_WIDTH      = 8;
     
-    parameter   BLOCK_DIM = 16;
+    parameter   BLOCK_DIM = 8;
     // Per Unit Precision
     parameter   V_FP_EXP_WIDTH  = 6;
     parameter   V_FP_MANT_WIDTH = 5;
