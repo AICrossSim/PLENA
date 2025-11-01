@@ -650,7 +650,6 @@ impl VectorMachine {
     async fn reduce_sum(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_SUM_CYCLES);
-        println!("Debug: a.as_tensor().size() = {:?}", a.as_tensor().size());
         let val: f32 = a.as_tensor().sum(tch::Kind::Float).try_into().unwrap();
         f + val
     }
@@ -658,7 +657,7 @@ impl VectorMachine {
     async fn reduce_max(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_MAX_CYCLES);
-        let val: f32 = a.as_tensor().max().i(0).try_into().unwrap();
+        let val: f32 = a.as_tensor().i(0).max().try_into().unwrap();
         f32::max(val, f)
     }
 }
@@ -1030,7 +1029,6 @@ impl Accelerator {
                             self.reg_file.fp_reg[rd as usize].into(),
                         )
                         .await;
-                    println!("v_red_sum result = {:?}", result);
                     self.reg_file.fp_reg[rd as usize] = f16::from_f32(result);
                 }
                 op::Opcode::V_RED_MAX { rd, rs1 } => {
@@ -1341,8 +1339,8 @@ async fn start() {
             fpsram_data.len() / std::mem::size_of::<f16>(),
         )
     };
-    accelerator.fpsram.clear();
-    accelerator.fpsram.extend_from_slice(fp_vals);
+    // Replace the beginning of accelerator.fpsram with fp_vals
+    accelerator.fpsram[..fp_vals.len()].copy_from_slice(&fp_vals[..fp_vals.len()]);
 
     // - INT SRAM Preload
     if let Some(intsram_path) = opts.intsram {
