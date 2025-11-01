@@ -91,73 +91,111 @@ def mxint_quantizer_sim(
     quantile_search: bool = False,
     cali_batch_size: int = 32,
 ) -> Tensor:
-    out_dq = torch.zeros_like(tensor)
+    tensor_dtype = tensor.dtype
     if quantile_search:
         qtensor = tensor.flatten()
         B = mxint_meta.block_size
 
         qtensor = qtensor.reshape(-1, B)  
-        # [n_blocks, B], reshape when taking in the whole block for rtn
-        # [Hidden, B], for gptq
-        best = torch.full([qtensor.shape[0]], float('inf'), device=tensor.device,  dtype=tensor.dtype)
-        best_scales, best_elements, tensor_meta = extract_mxint_components(
-            tensor, block_dim, mxint_meta, percentile=1.0
+
+        # percentiles=torch.tensor([1.0, 0.999, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.85, 0.8, 0.75, 0.70, 0.5, 0.60, 0.50, 0.40], device=tensor.device, dtype=torch.float32)
+        percentiles=torch.tensor([1.0, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.80, 0.70, 0.60, 0.50], device=tensor.device, dtype=torch.float32)
+        device = str(tensor.device)
+        ori_shape = tuple(tensor.shape)
+        ori_dtype = str(tensor.dtype).removeprefix("torch.")
+        ndim = len(ori_shape)
+        assert block_dim < ndim and block_dim >= -ndim
+        tensor = flatten_for_quantize(tensor, block_dim)
+
+        # assert x.numel() % B == 0, (
+        #     f"Input tensor size {x.numel()} is not divisible by block size {B}."
+        # )
+        x = tensor
+        B = mxint_meta.block_size
+        n_blocks = x.numel() // B
+
+        x = x.flatten()
+        x = x.reshape(n_blocks, B)  # [n_blocks, B]
+
+        tem_dtype = x.dtype
+        # quantile need fp32
+        x_max = x.abs().to(torch.float32).quantile(percentiles, dim=1, keepdim=True).to(tem_dtype)
+        # x_max = x.abs().max(dim=1, keepdim=True).values
+        # x_max = x_max * percentiles[:, None, None]
+        
+        scale = x_max.log2().ceil()
+        scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+        x = x / 2**scale
+        x_mant = x * 2**(mxint_meta.element_bits - 1)
+        scale = scale + scale_bias
+        scale = scale.clamp(min=0, max=2**mxint_meta.scale_bits-1)
+        x_mant = x_mant.round().clamp(min=-2**(mxint_meta.element_bits-1), max=2**(mxint_meta.element_bits-1)-1)
+
+        quant_tensor = x_mant / 2**(mxint_meta.element_bits - 1) * 2**(scale - scale_bias)
+
+        del x, x_max, scale, x_mant
+        torch.cuda.empty_cache()
+        quant_tensor = quant_tensor.reshape(len(percentiles), n_blocks, B)
+
+        if act_tensor is None:
+            err = torch.norm(quant_tensor - qtensor, p=2, dim=-1)
+            min_err_idx = torch.argmin(err, dim=0).reshape(-1)
+        else:
+            BATCH_SIZE = cali_batch_size
+            # act_tensor is of shape [num_calibrations, sequnce_len, blocksize]
+            last_dim = act_tensor.shape[-1]
+            if last_dim != B:
+                assert last_dim % B == 0, "Last dimension must be divisible by block size for GPTQ Clip output search"
+                act_tensor = act_tensor.view(*act_tensor.shape[:-1], last_dim // B, B)
+
+            total_batches = act_tensor.shape[0]
+
+            err = torch.zeros([percentiles.shape[0], qtensor.shape[0]], device=tensor.device, dtype=tensor.dtype)
+
+            with torch.no_grad():
+                for _, b in enumerate(tqdm(range(0, total_batches, BATCH_SIZE), desc="Batching quant output", disable = True)):
+                    act_b = act_tensor[b : b + BATCH_SIZE]  # [B, seq_len, hidden]
+                    out_orig = torch.matmul(act_b, qtensor.T)
+                    out_q = torch.einsum('asb,phb->pash', act_b, quant_tensor.to(act_tensor.dtype))
+                    err += torch.norm(out_q - out_orig, p=2, dim=(1, 2))
+
+                    del act_b, out_q, out_orig
+
+            min_err_idx = torch.argmin(err, dim=0)
+            torch.cuda.empty_cache()
+            # last_dim = act_tensor.shape[-1]
+            # if last_dim != B:
+            #     assert last_dim % B == 0, "Last dimension must be divisible by block size for GPTQ Clip output search"
+            #     act_tensor = act_tensor.view(*act_tensor.shape[:-1], last_dim // B, B)
+            
+            # out_orig = torch.matmul(act_tensor, qtensor.T)
+
+            # err = torch.norm(out_q - out_orig, p=2, dim=(1, 2))
+
+        
+        # best_scales = scale[min_err_idx, torch.arange(scale.shape[1])]
+        # best_elements = x_mant[min_err_idx, torch.arange(x_mant.shape[1])]
+        quant_tensor = quant_tensor[min_err_idx, torch.arange(quant_tensor.shape[1])]
+
+        tensor_meta = MXIntTensorMeta(
+            device=device,
+            dtype=ori_dtype,
+            shape=ori_shape,
+            block_dim=block_dim,
+            meta=mxint_meta,
         )
 
-        percentiles=[1.0, 0.995, 0.99, 0.97, 0.95, 0.93, 0.90, 0.80, 0.70, 0.60, 0.50]
-        for percentile in percentiles:
-            # this scales is float(), need to fix later
-            scales, elements, tensor_meta = extract_mxint_components(
-                tensor, block_dim, mxint_meta, percentile=percentile
-            )
-            scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
-            q = elements / 2**(mxint_meta.element_bits - 1) * 2**(scales - scale_bias)
-
-            # search clipping based on output XW 
-            if act_tensor != None:
-                BATCH_SIZE = cali_batch_size
-                # act_tensor is of shape [num_calibrations, sequnce_len, blocksize]
-                last_dim = act_tensor.shape[-1]
-                if last_dim != B:
-                    assert last_dim % B == 0, "Last dimension must be divisible by block size for GPTQ Clip output search"
-                    act_tensor = act_tensor.view(*act_tensor.shape[:-1], last_dim // B, B)
-
-                total_batches = act_tensor.shape[0]
-
-                err = torch.zeros(qtensor.shape[0], device=tensor.device, dtype=tensor.dtype)
-
-                with torch.no_grad():
-                    for _, b in enumerate(tqdm(range(0, total_batches, BATCH_SIZE), desc="Batching quant output", disable = True)):
-                        act_b = act_tensor[b : b + BATCH_SIZE]  # [B, seq_len, hidden]
-                        out_q = torch.matmul(act_b, q.T )
-                        out_orig = torch.matmul(act_b, qtensor.T)
-                        err += torch.norm(out_q - out_orig, p=2, dim=(0, 1))
-
-                        del act_b, out_q, out_orig
-                        torch.cuda.empty_cache()
-
-                torch.cuda.empty_cache()
-            else:
-                breakpoint()
-                q -= qtensor
-                q.abs_()
-                q.pow_(2)
-                err = torch.sum(q, 1)
-
-            tmp = err < best
-            if torch.any(tmp):
-                best[tmp] = err[tmp]
-                best_scales[tmp] = scales[tmp]
-                best_elements[tmp] = elements[tmp]
+        tensor = permute_for_dequantize(
+            quant_tensor, ori_shape=tensor_meta.shape, block_dim=tensor_meta.block_dim
+        )
+        out_dq = tensor.to(tensor_dtype)
 
     else:
         scales, elements, tensor_meta = extract_mxint_components(
             tensor, block_dim, mxint_meta, percentile=1.0
         )
         best_scales = scales
-        best_elements = elements
-    
-    out_dq = compose_mxint_tensor(best_scales, best_elements, tensor_meta, dtype=dtype)
+        best_elements = elements 
+        out_dq = compose_mxint_tensor(best_scales, best_elements, tensor_meta, dtype=dtype)
     return out_dq
-
 

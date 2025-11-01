@@ -186,7 +186,7 @@ def setup_model(model_name, model_parallel, dtype, device):
         logger.info(f"Tokenizer setup complete")
 
         model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=dtype, attn_implementation="eager"
+            model_name, torch_dtype=dtype, attn_implementation="eager", trust_remote_code=True
         )
         logger.info(f"Model setup complete")
         # Temp, load on cpu only

@@ -61,6 +61,10 @@ def llama_eval(
     cali_batch_size: int = 8,
     save_dir: str = None,
     resume_from_checkpoint: Union[str, None] = None,
+
+    full_system_sim: bool = False,
+    # gptq_ckpt_dir: Union[str, None] = None,
+
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -119,7 +123,7 @@ def llama_eval(
     # TODO: set the model path to the models checkpoints already stored inside .data/models/hw1020/
     tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16, 
                                    device=device_id if not model_parallel else None)
-
+    # breakpoint()
     model.eval()
 
     if preset != "original":
