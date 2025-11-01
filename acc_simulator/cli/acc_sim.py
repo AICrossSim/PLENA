@@ -58,7 +58,6 @@ def llama_eval(
     clip_search_y: bool = False,
     seqlen: int = 2048,
     save_gptq_model: bool = False,
-<<<<<<< HEAD
     cali_batch_size: int = 8,
     save_dir: str = None,
     resume_from_checkpoint: Union[str, None] = None,
@@ -66,9 +65,6 @@ def llama_eval(
     full_system_sim: bool = False,
     # gptq_ckpt_dir: Union[str, None] = None,
 
-=======
-    cali_batch_size: int = 16,
->>>>>>> main
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
