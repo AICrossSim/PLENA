@@ -40,6 +40,7 @@ src/basic_components/synopsis/
 
 *.pt
 *.asm
+specific.sh
 acc_simulator/results/
 
 acc_simulator/third_party/
@@ -51,6 +52,9 @@ kube/
 *.out
 temp/
 ckpts_*
+<<<<<<< HEAD
 *.db
 *.db-journal
 co_design/interface/config.toml
+=======
+>>>>>>> main

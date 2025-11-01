@@ -13,7 +13,7 @@ set WORK_DIR "./"
 #------------------------------
 # set the top design
 #------------------------------
-set top_design "matrix_machine_v2"
+set top_design "mxint_default_pe"
 
 #------------------------------
 # Setup DC logging paths
@@ -66,7 +66,7 @@ lappend search_path  ${src}
 #---------------------------------------
 set top_clk_name    "clk"
 set reset           "rst"
-set clk_period      "666"
+set clk_period      "1000"
 
 #--------------------------
 # Read RTL files
@@ -113,8 +113,8 @@ write_file -f ddc     -hierarchy -output ${run}/${top_design}_unmapped.ddc
 #-------------------------
 
 # optimize_registers
-compile_ultra -retime
-# compile
+# compile_ultra -retime
+compile
 
 
 #-------------------------

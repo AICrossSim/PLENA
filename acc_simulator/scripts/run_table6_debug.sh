@@ -1,8 +1,8 @@
 # MODEL_NAME_LIST=( "meta-llama/Llama-2-13b" "meta-llama/Meta-Llama-3-8B")
 
-# model_name="meta-llama/Llama-2-7b-hf"
-# model_name="meta-llama/Meta-Llama-3-8B"
 model_name="meta-llama/Llama-2-7b-hf"
+# model_name="meta-llama/Meta-Llama-3-8B"
+# model_name="meta-llama/Llama-2-7b-hf"
 CUDA_DEVICE="cuda:1"
 echo $CUDA_DEVICE
 
