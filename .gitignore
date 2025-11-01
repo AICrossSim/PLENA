@@ -52,9 +52,6 @@ kube/
 *.out
 temp/
 ckpts_*
-<<<<<<< HEAD
 *.db
 *.db-journal
 co_design/interface/config.toml
-=======
->>>>>>> main
