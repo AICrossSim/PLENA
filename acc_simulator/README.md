@@ -5,7 +5,9 @@ From the **project root**:
 ```bash
 conda env create -f acc_simulator/environment.yml
 conda activate acc-sim
-cd acc_simulator/third_party/fast_hadamard_transform
+git submodule update --init --recursive
+cd acc_simulator/third_party
+cd fast_hadamard_transform
 pip install -e .
 ```
 

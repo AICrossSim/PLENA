@@ -1,18 +1,42 @@
 from torch import Tensor
 import warnings
 
+import torch
+
 from .quantizer.mxfp import MXFPMeta, mxfp_quantizer_sim
 from .quantizer.mxint import MXIntMeta, mxint_quantizer_sim
 from .quantizer.minifloat import MinifloatMeta, minifloat_quantizer_sim
 
 
-def quantize_tensor(input: Tensor, block_dim: int, meta: MXFPMeta | MXIntMeta, quantile_search: bool = False):
+def quantize_tensor(
+        input: Tensor, 
+        block_dim: int, 
+        meta: MXFPMeta | MXIntMeta | MinifloatMeta,   
+        quantile_search: bool,
+        act_tensor: Tensor | None = None,
+        dtype: torch.dtype | None = None,
+        cali_batch_size: int | None = None,
+):
     if isinstance(meta, MXFPMeta):
-        return mxfp_quantizer_sim(input, block_dim=block_dim, mxfp_meta=meta, quantile_search=quantile_search)
+        return mxfp_quantizer_sim(input, 
+                                  block_dim=block_dim, 
+                                  mxfp_meta=meta, 
+                                  act_tensor=act_tensor, 
+                                  dtype=dtype, 
+                                  quantile_search=quantile_search, 
+                                  cali_batch_size=cali_batch_size)
     elif isinstance(meta, MXIntMeta):
-        return mxint_quantizer_sim(input, block_dim=block_dim, mxint_meta=meta, quantile_search=quantile_search)
+        return mxint_quantizer_sim(input, 
+                                   block_dim=block_dim, 
+                                   mxint_meta=meta, 
+                                   act_tensor=act_tensor, 
+                                   dtype=dtype, 
+                                   quantile_search=quantile_search, 
+                                   cali_batch_size=cali_batch_size)
     elif isinstance(meta, MinifloatMeta):
-        return minifloat_quantizer_sim(input, block_dim=block_dim, minifloat_meta=meta)
+        return minifloat_quantizer_sim(input, 
+                                       block_dim=block_dim, 
+                                       minifloat_meta=meta)
     else:
         print(f"[DEBUG] Invalid meta: {meta}, returning input as is")
         return input

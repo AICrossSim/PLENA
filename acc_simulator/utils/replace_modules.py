@@ -4,8 +4,14 @@ from typing import Optional, Callable
 
 import torch
 from torch import nn
+from tqdm import tqdm
 
 from transformers.models.llama.modeling_llama import LlamaForCausalLM
+
+from ..utils.logger import get_logger, set_logging_verbosity
+
+logger = get_logger(__name__)
+# set_logging_verbosity("debug")
 
 
 def get_layer_by_name(model: nn.Module, name: str) -> nn.Module:
@@ -33,6 +39,27 @@ def set_layer_by_name(module: torch.nn.Module, name: str, new_layer: torch.nn.Mo
         setattr(module, name, new_layer)
 
 
+def apply_online_rotate(layer_for_online_rotate: str | None, name: str) -> bool:
+    '''
+    The online rotation will assume the layers will be pass in with
+    "down_proj, up_proj, gate_proj, q_proj, k_proj, v_proj, o_proj, mlp"
+    will be parsed into ["down_proj", "up_proj"]
+    '''
+    if layer_for_online_rotate is None or layer_for_online_rotate == "None":
+        return False
+    
+    parse_layers = layer_for_online_rotate.split(",")
+    parse_layers = [x.strip() for x in parse_layers]
+    logger.debug(f"parse_layers: {parse_layers}")
+    is_linear = name.endswith("proj")
+    for layer in parse_layers:
+        if is_linear and layer.endswith("proj") and layer in name:
+            return True
+        elif layer in name and not is_linear:
+            return True
+
+    return False
+
 def replace_modules(
     model: nn.Module,
     target_class: type,
@@ -42,6 +69,7 @@ def replace_modules(
     skip_names: Optional[list[str]] = None,
     label: str = "layer", 
     online_rotate: bool = False,
+    layer_for_online_rotate: str | None = None,
 ) -> nn.Module:
     assert isinstance(model, LlamaForCausalLM)
     replaced = 0
@@ -52,7 +80,7 @@ def replace_modules(
         if isinstance(layer, target_class)
     ]
 
-    for name in layer_names:
+    for name in tqdm(layer_names, desc=f"Replacing {label} layers"):
         old_layer = get_layer_by_name(model, name)
 
         if isinstance(old_layer, replacement_class):
@@ -63,11 +91,12 @@ def replace_modules(
             continue
         
         # Only rotate activation in down-projection
-        if target_class == nn.Linear:
-            if "down_proj" not in name:
-                kwargs["online_rotate"] = online_rotate
-            else:
-                kwargs["online_rotate"] = False
+        logger.debug(f"layer_for_online_rotate: {layer_for_online_rotate}")
+        if apply_online_rotate(layer_for_online_rotate, name):
+            kwargs["online_rotate"] = online_rotate
+        else:
+            kwargs["online_rotate"] = False
+        logger.debug(f"apply rotation {kwargs.get('online_rotate', False)} to {name}")
 
         new_layer = factory_fn(old_layer, **kwargs)
         set_layer_by_name(model, name, new_layer)

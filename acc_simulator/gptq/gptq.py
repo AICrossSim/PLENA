@@ -3,7 +3,7 @@ import tqdm
 import torch
 
 from .utils import cleanup_memory
-from ..quantize.quantizer.mxint import MXIntMeta, mxint_quantizer_sim
+from ..quantize.utils import quantize_tensor
 
 
 class GPTQ:
@@ -39,7 +39,7 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(
-        self, activation, w_meta, percdamp=.01, cali_batch_size=32
+        self, activation, w_meta, percdamp=.01, cali_batch_size=32, layer_name=None, quant_search=True
     ): 
         W = self.layer.weight.data.clone()
 
@@ -62,17 +62,17 @@ class GPTQ:
 
         # set blocksize in gptq to be the same as the mx block from meta
         blocksize = w_meta.block_size
-        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc="Quantizing blocks", disable=False):
+        for i1 in tqdm.tqdm(range(0, self.columns, blocksize), desc=f"Quantizing blocks {layer_name}", disable=False):
             i2 = min(i1 + blocksize, self.columns)
 
             W1 = W[:, i1:i2].clone()
             
             if activation != None:
                 Act1 = activation[:, :, i1:i2].clone()
-                Q1 = mxint_quantizer_sim(W1, act_tensor=Act1, block_dim=1, mxint_meta=w_meta, quantile_search=True, cali_batch_size=cali_batch_size)
+                Q1 = quantize_tensor(W1, act_tensor=Act1, block_dim=1, meta=w_meta, quantile_search=quant_search, cali_batch_size=cali_batch_size)
             else:
-                Q1 = mxint_quantizer_sim(W1, block_dim=1, mxint_meta=w_meta, quantile_search=True)
-            
+                Q1 = quantize_tensor(W1, block_dim=1, meta=w_meta, quantile_search=quant_search)
+
             Hinv1 = Hinv[i1:i2, i1:i2]
             Err1 = (W1 - Q1) / torch.diag(Hinv1).unsqueeze(0)
             Losses1 = ((W1 - Q1) ** 2) / (torch.diag(Hinv1) ** 2).unsqueeze(0)

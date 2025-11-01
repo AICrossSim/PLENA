@@ -32,6 +32,10 @@ from ..eval import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms
 from ..gptq import quantize_model_gptq, get_loaders
+from ..utils import get_logger, set_logging_verbosity
+
+logger = get_logger(__name__)
+set_logging_verbosity("debug")
 
 def llama_eval(
     # Use Meta 3 hf checkpoints to match with SOTA paper: meta-llama/Meta-Llama-3-nB
@@ -49,10 +53,18 @@ def llama_eval(
     use_gptq: bool = False,
     offline_rotate: bool = False,
     online_rotate: bool = False,
+    layer_for_online_rotate: Union[str, None] = None,
+    clip_search: bool = False,
     clip_search_y: bool = False,
     seqlen: int = 2048,
     save_gptq_model: bool = False,
-    cali_batch_size: int = 16,
+    cali_batch_size: int = 8,
+    save_dir: str = None,
+    resume_from_checkpoint: Union[str, None] = None,
+
+    full_system_sim: bool = False,
+    # gptq_ckpt_dir: Union[str, None] = None,
+
 ):
     """
     Evaluate the perplexity of a model on lm-eval tasks with MXFP and minifloat quantization
@@ -78,8 +90,11 @@ def llama_eval(
             Defaults to True.
         offline_rotate: Whether to apply offline hadamard rotation.
         online_rotate: Whether to apply online inner layer activation rotation.
+        layer_for_online_rotate: The layer to apply online inner layer activation rotation.
         clip_search_y: Set True to enable linear W clip search based on output, default False to search clipping based on l2(W, Wq).
         cali_batch_size: The batch size used to matmul the calibration set with sliced W block for quantization error search. Could play with this if your Vram is sufficient.
+        save_dir (str): Directory to save/load quantization checkpoints. Enables automatic checkpoint saving after each layer.
+        resume_from_checkpoint (str): Resume quantization from checkpoint. Use 'latest' to automatically find the latest checkpoint, or provide a specific checkpoint file path.
     """
     preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
         preset,
@@ -108,45 +123,59 @@ def llama_eval(
     # TODO: set the model path to the models checkpoints already stored inside .data/models/hw1020/
     tokenizer, model = setup_model(model_name, model_parallel, dtype=torch.float16, 
                                    device=device_id if not model_parallel else None)
-
+    # breakpoint()
     model.eval()
 
     if preset != "original":
         # TODO: Quantization Holder
         if use_gptq:
             # TODO: deal with args later on
+            logger.info(f"Getting loaders")
             trainloader = get_loaders(
                 "wikitext2", nsamples=128,
                 seed=0, model=model_name,
                 seqlen=seqlen, eval_mode=False
             )
+            logger.info(f"Loaders got")
             # GPTQ first quantize and repalce linear, 
             # move each decoder block on gpu to quantize, 
             # disable model parallel for gptq for now, hence use model's device rn.
-            if clip_search_y:
-                cp = "/data/models/hw1020/ckpts_y_search"
+            if clip_search:
+                if clip_search_y:
+                    checkpoint_dir = f"{save_dir}/ckpts_y_search/{model_name.replace('/', '_')}"
+                else:
+                    checkpoint_dir = f"{save_dir}/ckpts_w_search/{model_name.replace('/', '_')}"
             else:
-                cp = "/data/models/hw1020/ckpts_w_search"
-            ckpt_dir = Path(cp) / model_name.replace('/', '_')
-            ckpt_file = ckpt_dir / "model.safetensors"
-            print(f"Loading GPTQ model from {ckpt_file}")
-            if ckpt_file.exists():
-                model=load_gptq(model, ckpt_dir)
-            else:
+                checkpoint_dir = f"{save_dir}/ckpts_no_search/{model_name.replace('/', '_')}"
+            # ckpt_dir = Path(checkpoint_dir) / model_name.replace('/', '_')
+            # ckpt_file = ckpt_dir / "model.safetensors"
+            # if ckpt_file.exists():
+            #     print(f"Loading GPTQ model from {ckpt_file}")
+            #     model=load_gptq(model, ckpt_dir)
+            # else:
                 # load the model on cpu before gptq, device_id is used to load model decoder layer on gpu, once per layer.
-                model.to("cpu")
-                quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size)
-                # right now always save the weights after gptq, and not rewrite
-                if save_gptq_model and not ckpt_file.exists():
-                    ckpt_dir.mkdir(parents=True, exist_ok=True)
-                    save_gptq(model, ckpt_dir)
-            # could move back to parallel for eval but kept this false on tiamat
-            model=move_to_gpu(model, model_parallel)
-            # quantize and replace the rest
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate)
+            # model.to("cpu")
+            logger.info(f"Quantizing GPTQ")
+            start_time = time.time()
+            quantize_model_gptq(model=model, dataloader=trainloader, quant_args=quant_args, clip_search=clip_search, dev=device_id, save_q_model=True, cali_batch_size = cali_batch_size, checkpoint_dir=checkpoint_dir, resume_from_checkpoint=resume_from_checkpoint)
+            logger.info(f"GPTQ quantized")
+            logger.info(f"Time taken to quantize GPTQ: {time.time() - start_time} seconds")
+            # right now always save the weights after gptq, and not rewrite
+            if model_parallel:
+                logger.info(f"Model device: {model.device}")
+                model=move_to_gpu(model, model_parallel)
+                logger.info(f"Model moved to GPU: {model.device}")
+            else:
+                model.to(device_id)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=True, full_system_sim=False, online_rotate=online_rotate, clip_search=clip_search, layer_for_online_rotate=layer_for_online_rotate)
         else:
             # Direct cast without GPTQ, round-to-nearest mode
-            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate)
+            if model_parallel:
+                model=move_to_gpu(model, model_parallel)
+                # logger.info(f"Model moved to GPU: {model.device}")
+            else:
+                model.to(device_id)
+            quantize_model(model=model, quant_args=quant_args, linear_quantized=False, online_rotate=online_rotate, clip_search=clip_search, layer_for_online_rotate=layer_for_online_rotate)
 
 
     if enable_eval_harness:

@@ -13,6 +13,7 @@ class LlamaMLPActFP(LlamaMLP):
         config,
         silu_meta: MinifloatMeta | None,
         silu_func_type: Literal["X", "Xq"] | None,
+        online_rotate: bool = False,
     ):
         super().__init__(config)
         self.silu_meta = silu_meta
@@ -32,7 +33,8 @@ class LlamaMLPActFP(LlamaMLP):
         cls,
         mlp: LlamaMLP,
         silu_meta: MinifloatMeta | None,
-        silu_func_type: Literal["X", "Xq"] | None
+        silu_func_type: Literal["X", "Xq"] | None,
+        online_rotate: bool = False,
     ):
         new_mlp = cls(
             config=mlp.config,
