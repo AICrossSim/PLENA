@@ -130,8 +130,12 @@ if __name__ == "__main__":
         alive_registers_int=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
         alive_registers_fp=[1,2,3,4,5,6,7],
         q_base_address=0,
+        s_base_address=num_q_heads * h_qkv * s_q,
         k_base_address=0,
-        k_base_hbm_offset_reg=1
+        v_base_address=0,
+        m_start_address=0,
+        k_base_hbm_offset_reg=1,
+        v_base_hbm_offset_reg=2
     )
 
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
