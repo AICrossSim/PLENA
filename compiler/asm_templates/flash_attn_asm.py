@@ -4,10 +4,6 @@ from .reset_reg_asm import reset_reg_asm, reset_fpreg_asm
 
 IMM2_BOUND = 2**18 - 1
 
-
-# def
-
-
 def qkt_multiply(
     batch: int,
     hkv: int,
@@ -18,7 +14,6 @@ def qkt_multiply(
     k_base_hbm_offset_reg: int,
     q_head_index: int,
     k_head_index: int,
-    reset_context: bool = False,
     s_base_address: int = 0,
 ) -> str:
     """
@@ -44,13 +39,6 @@ def qkt_multiply(
     k_base_register = alive_registers[1]
     s_base_register = q_base_register
     generated_code = "; QKT Per KV Head Multiplication \n"
-    
-    # Presettings
-    if reset_context:
-        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv *d * kv_len * batch} \n"
-        generated_code += f"C_SET_SCALE_REG gp{q_base_register} \n"
-        generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {hkv * d * kv_len * batch} \n"
-        generated_code += f"C_SET_STRIDE_REG gp{q_base_register} \n"
 
     # Prefetch K from HBM
     generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {q_base_address + q_head_index * d} \n"
@@ -342,6 +330,23 @@ def _reset_vssram_code(
             generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp{alive_registers_int[0]}, {vect_dim} \n"
     return generated_code
 
+def _reset_kv_prefetch(
+    hkv: int,
+    d: int,
+    kv_len: int,
+    batch: int,
+    alive_registers_int: List[int],
+) -> str:
+    generated_code = f"; Reset KV Prefetch Code \n"
+    assert hkv * d * kv_len * batch < IMM2_BOUND, f"hkv * d * kv_len * batch must be less than {IMM2_BOUND}"
+    assert hkv * d * kv_len * batch < IMM2_BOUND, f"hkv * d * kv_len * batch must be less than {IMM2_BOUND}"
+    generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {hkv *d * kv_len * batch} \n"
+    generated_code += f"C_SET_SCALE_REG gp{alive_registers_int[0]} \n"
+    generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {hkv * d * batch} \n"
+    generated_code += f"C_SET_STRIDE_REG gp{alive_registers_int[0]} \n"
+    return generated_code
+
+
 def flash_attn_asm(
     mlen: int,
     blen: int,
@@ -393,6 +398,15 @@ def flash_attn_asm(
     o_old_base_address = vector_sram_base_address + d * hq * mlen + mlen * mlen
 
     generated_code = "; Flash Attention Generation \n"
+
+    generated_code += _reset_kv_prefetch(
+        hkv=hkv,
+        d=d,
+        kv_len=kv_len,
+        batch=batch,
+        alive_registers_int=alive_registers_int[0:1],
+    )
+
     # loop over kv heads
     for kv_head_index in range(hkv):
         # loop over per kv head kv_len // MLEN
@@ -442,7 +456,6 @@ def flash_attn_asm(
                     k_base_hbm_offset_reg=k_base_hbm_offset_reg,
                     q_head_index=q_index_2_kv_index * kv_head_index,
                     k_head_index=kv_head_index,
-                    reset_context=True,
                     s_base_address=s_base_address,
                 )
                 break

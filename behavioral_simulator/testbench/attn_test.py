@@ -86,6 +86,7 @@ if __name__ == "__main__":
         num_q_heads=num_q_heads,
         num_kv_heads=num_kv_heads,
         Bc=mlen,
+        Br=mlen
     )
 
     golden_result = {

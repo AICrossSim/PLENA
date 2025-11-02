@@ -398,9 +398,6 @@ impl MatrixMachine {
         // Stack along dimension 0 to get [mlen, hlen, broadcast_amount]
         let vec = tch::Tensor::stack(&tensors, 0)
             .view([self.mlen as i64, self.hlen as i64, self.broadcast_amount as i64]);
-
-        println!("vec = {}", vec);
-        println!("mat = {}", mat);
         
         // Now vec @ mat: [broadcast_amount, mlen, hlen] @ [hlen, mlen] = [broadcast_amount, mlen, mlen]
         let mut result_tensors = Vec::with_capacity(self.broadcast_amount as usize);
@@ -453,8 +450,8 @@ impl MatrixMachine {
         let vec = tch::Tensor::stack(&tensors, 0)
             .view([self.mlen as i64, self.hlen as i64, self.broadcast_amount as i64]);
 
-        println!("vec = {}", vec);
-        println!("mat = {}", mat);
+        println!("bmm vec = {}", vec);
+        println!("bmm mat = {}", mat);
         println!("broadcast_amount = {:?}", self.broadcast_amount);
         
         // Now vec @ mat: [broadcast_amount, mlen, hlen] @ [hlen, mlen] = [broadcast_amount, mlen, mlen]
@@ -730,9 +727,9 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
-            println!("element_bits = {:?}", element_bits);
-            println!("load_dim = {:?}", load_dim);
-            println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
+            // println!("element_bits = {:?}", element_bits);
+            // println!("load_dim = {:?}", load_dim);
+            // println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
             assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
@@ -1200,8 +1197,6 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
-                    println!("VLEN = {:?}", *VLEN);
-                    println!("MLEN = {:?}", *MLEN);
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
