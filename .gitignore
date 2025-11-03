@@ -58,6 +58,9 @@ kube/
 *.out
 temp/
 ckpts_*
+*.db
+*.db-journal
+co_design/interface/config.toml
 
 # behavioral simulator
 behavioral_simulator/target

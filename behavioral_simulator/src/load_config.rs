@@ -1,7 +1,7 @@
 // load_config.rs
 use serde::{Deserialize, Serialize};
-use std::{fs, sync::LazyLock};
 use std::time::Duration;
+use std::{fs, sync::LazyLock};
 
 // Import the types from your main module
 use quantize::{DataType, FpType, MxDataType};
@@ -257,21 +257,66 @@ impl Default for AcceleratorConfig {
                 }),
             },
             latency: LatencySection {
-                systolic_processing_overhead: LatencyValue { dc_lib_en: 0, dc_lib_dis: 0 },
-                vector_add_cycles: LatencyValue { dc_lib_en: 2, dc_lib_dis: 7 },
-                vector_mul_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 5 },
-                vector_exp_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 6 },
-                vector_prefix_scan_cycles: LatencyValue { dc_lib_en: 9, dc_lib_dis: 9 },
-                vector_shift_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 1 },
-                vector_reci_cycles: LatencyValue { dc_lib_en: 2, dc_lib_dis: 7 },
-                vector_max_cycles: LatencyValue { dc_lib_en: 4, dc_lib_dis: 4 },
-                vector_sum_cycles: LatencyValue { dc_lib_en: 8, dc_lib_dis: 20 },
-                scalar_fp_longest_operate_cycles: LatencyValue { dc_lib_en: 4, dc_lib_dis: 4 },
-                scalar_fp_basic_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 1 },
-                scalar_fp_exp_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 2 },
-                scalar_fp_sqrt_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 2 },
-                scalar_fp_reci_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 2 },
-                scalar_int_basic_cycles: LatencyValue { dc_lib_en: 1, dc_lib_dis: 1 },
+                systolic_processing_overhead: LatencyValue {
+                    dc_lib_en: 0,
+                    dc_lib_dis: 0,
+                },
+                vector_add_cycles: LatencyValue {
+                    dc_lib_en: 2,
+                    dc_lib_dis: 7,
+                },
+                vector_mul_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 5,
+                },
+                vector_exp_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 6,
+                },
+                vector_prefix_scan_cycles: LatencyValue {
+                    dc_lib_en: 9,
+                    dc_lib_dis: 9,
+                },
+                vector_shift_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 1,
+                },
+                vector_reci_cycles: LatencyValue {
+                    dc_lib_en: 2,
+                    dc_lib_dis: 7,
+                },
+                vector_max_cycles: LatencyValue {
+                    dc_lib_en: 4,
+                    dc_lib_dis: 4,
+                },
+                vector_sum_cycles: LatencyValue {
+                    dc_lib_en: 8,
+                    dc_lib_dis: 20,
+                },
+                scalar_fp_longest_operate_cycles: LatencyValue {
+                    dc_lib_en: 4,
+                    dc_lib_dis: 4,
+                },
+                scalar_fp_basic_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 1,
+                },
+                scalar_fp_exp_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 2,
+                },
+                scalar_fp_sqrt_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 2,
+                },
+                scalar_fp_reci_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 2,
+                },
+                scalar_int_basic_cycles: LatencyValue {
+                    dc_lib_en: 1,
+                    dc_lib_dis: 1,
+                },
             },
         }
     }
@@ -319,18 +364,15 @@ pub static CONFIG: LazyLock<AcceleratorConfig> = LazyLock::new(|| {
 
 // Configuration loading functions
 pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
+    let config_paths = ["../src/definitions/plena_settings.toml"];
 
-    let config_paths = [
-        "../src/definitions/plena_settings.toml"
-    ];
-    
     for path in &config_paths {
         if let Ok(config) = load_config_from_file(path) {
             println!("Loaded config from: {}", path);
             return Ok(config);
         }
     }
-    
+
     Err("No configuration file found".into())
 }
 
