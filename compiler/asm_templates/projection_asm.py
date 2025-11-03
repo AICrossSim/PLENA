@@ -2,6 +2,8 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
+
+IMM2_BOUND = 2**18
 def projection_asm(
     mlen: int,
     blen: int,
@@ -40,6 +42,7 @@ def projection_asm(
 
     # Set scale offset
     #TODO: when hidden is large, cannot use addi command.
+    assert hidden_size * hidden_size < IMM2_BOUND, f"hidden_size * hidden_size must be less than {IMM2_BOUND}"
     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * hidden_size} \n"
     generated_code += f"C_SET_SCALE_REG gp{a_actual_register} \n"
     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size} \n"
@@ -48,7 +51,6 @@ def projection_asm(
     # reset the registers
     set_a_base_address   = f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
     set_result_address   = f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n"
-
 
     increment_w_actual_address      = f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
     increment_a_actual_address      = f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
@@ -61,8 +63,9 @@ def projection_asm(
 
     for i in range(row_loop_over_hid):
         if i % (mlen // blen) == 0:
-            # Load a complete col of hidden size into on-chip memory
+            # Load a complete col of hidden size into on-chip memory  (hidden_size, mlen)
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
+            generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp0, {i * blen} \n"
             for k in range (hidden_size // mlen):
                 generated_code += f"; <---- Generating New Row Tile at index {i} col {k} ----> \n"
                 generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_hbm_offset_register}, a{w_base_hbm_offset_reg}, 1, 0 \n"
@@ -79,7 +82,6 @@ def projection_asm(
         generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
         generated_code += set_a_base_address
         generated_code += increment_result_actual_address
-        break
     
     # RoPE
     if rope_enabled:

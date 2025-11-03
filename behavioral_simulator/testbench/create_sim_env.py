@@ -24,7 +24,7 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
     else:
         with open(os.path.join(build_dir, "input_tensor.pt"), "wb") as f:
             torch.save(input_tensor, f)
-    with open(os.path.join(build_dir, "model_weight.pt"), "wb") as f:
+    with open(os.path.join(build_dir, "model_weights.pt"), "wb") as f:
         torch.save(input_weight, f)
     with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
         f.write(generated_code)
