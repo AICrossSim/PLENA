@@ -38,7 +38,7 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
         with open(os.path.join(build_dir, "int_sram.bin"), "wb") as f:
             f.write(int_array.tobytes())
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
-        f.write("Golden Result:\n")
+        f.write("Input Tensor:\n")
         if isinstance(input_tensor, dict):
             for key, value in input_tensor.items():
                 value_np = value.detach().cpu().float().numpy()

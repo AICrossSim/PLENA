@@ -79,7 +79,7 @@ def projection_asm(
         generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
         generated_code += set_a_base_address
         generated_code += increment_result_actual_address
-        break
+        #break
     
     # RoPE
     if rope_enabled:
