@@ -381,7 +381,7 @@ impl MatrixMachine {
         println!("m_accum = {}", self.m_accum);
     }
 
-    async fn bmm(&mut self, m_addr: u32, v_addr: u32) {
+    async fn bmm(&mut self, m_addr: u32, v_addr: u32, hvnum: u32, bmm_scale: f32) {
         println!("m_addr = {:?}", m_addr);
         println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
@@ -428,7 +428,8 @@ impl MatrixMachine {
             // For each i, select the corresponding slice along broadcast_amount
             let vec_i = vec.i((.., .., i as i64)).squeeze_dim(-1); // [mlen, hlen]
             // mat: [hlen, mlen]
-            let result = vec_i.matmul(&mat); // [mlen, mlen]
+            let mut result = vec_i.matmul(&mat); // [mlen, mlen]
+            result = &result * (bmm_scale as f64);
             result_tensors.push(result);
         }
         let result_tensor = tch::Tensor::stack(&result_tensors, 0); // [broadcast_amount, mlen, mlen]
@@ -437,7 +438,7 @@ impl MatrixMachine {
         println!("h_accum = {}", self.h_accum);
     }
 
-    async fn btmm(&mut self, m_addr: u32, v_addr: u32) {
+    async fn btmm(&mut self, m_addr: u32, v_addr: u32, hvnum: u32, bmm_scale: f32) {
         println!("m_addr = {:?}", m_addr);
         println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
@@ -454,18 +455,20 @@ impl MatrixMachine {
         let mat = full_mat
             .as_tensor()
             .view([self.mlen as i64, self.mlen as i64])
-            .transpose(-1, -2)
+            // .transpose(-1, -2)
             .i((
-                head_offset as i64..(head_offset + self.hlen) as i64,
                 mat_offset as i64..(mat_offset + self.mlen) as i64,
+                head_offset as i64..(head_offset + self.hlen) as i64,
             ));
 
         let mut tensors = Vec::with_capacity(self.mlen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
+        println!("hvnum = {:?}", hvnum);
+        // B, S, H, D
         for i in 0..self.mlen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.mlen)
+                    .read(v_addr + i * self.mlen * hvnum)
                     .await
                     .as_tensor()
                     .shallow_clone(),
@@ -474,12 +477,12 @@ impl MatrixMachine {
         // Stack along dimension 0 to get [mlen, hlen, broadcast_amount]
         let vec = tch::Tensor::stack(&tensors, 0).view([
             self.mlen as i64,
-            self.hlen as i64,
             self.broadcast_amount as i64,
+            self.hlen as i64,
         ]);
 
-        println!("bmm vec = {}", vec);
-        println!("bmm mat = {}", mat);
+        println!("btmm vec = {}", vec);
+        println!("btmm mat = {}", mat);
         println!("broadcast_amount = {:?}", self.broadcast_amount);
 
         // Now vec @ mat: [broadcast_amount, mlen, hlen] @ [hlen, mlen] = [broadcast_amount, mlen, mlen]
@@ -487,9 +490,12 @@ impl MatrixMachine {
         for i in 0..self.broadcast_amount {
             // vec: [mlen, hlen, broadcast_amount]
             // For each i, select the corresponding slice along broadcast_amount
-            let vec_i = vec.i((.., .., i as i64)).squeeze_dim(-1); // [mlen, hlen]
+            let vec_i = vec.i((.., i as i64, .., )).squeeze_dim(1); // [mlen, hlen]
             // mat: [hlen, mlen]
-            let result = vec_i.matmul(&mat); // [mlen, mlen]
+            println!("vec_i = {}", vec_i);
+            let result = vec_i.matmul(&mat.transpose(-1, -2)); // [mlen, mlen]
+            let result = &result * (bmm_scale as f64);
+            println!("result = {}", result);
             result_tensors.push(result);
         }
         let result_tensor = tch::Tensor::stack(&result_tensors, 0); // [broadcast_amount, mlen, mlen]
@@ -721,6 +727,9 @@ struct AcceeleratorRegFile {
     hbm_addr_reg: [u64; 8],
     scale: u32,
     stride: u32,
+    hvnum: u32,
+    hmnum: u32,
+    bmm_scale: f32,
 }
 
 impl Accelerator {
@@ -977,6 +986,8 @@ impl Accelerator {
                         .bmm(
                             self.reg_file.gp_reg[rs1 as usize] + self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs2 as usize],
+                            self.reg_file.hvnum,
+                            self.reg_file.bmm_scale,
                         )
                         .await;
                 }
@@ -985,6 +996,8 @@ impl Accelerator {
                         .btmm(
                             self.reg_file.gp_reg[rs1 as usize] + self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs2 as usize],
+                            self.reg_file.hvnum,
+                            self.reg_file.bmm_scale,
                         )
                         .await;
                 }
@@ -1384,6 +1397,9 @@ async fn start() {
             hbm_addr_reg: [0; 8],
             scale: 0,
             stride: 1,
+            hvnum: 2,
+            hmnum: 4,
+            bmm_scale: 0.25,
         },
         intsram: vec![0; 1024],
         fpsram: vec![f16::ZERO; 1024],
