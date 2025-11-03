@@ -556,7 +556,7 @@ impl MatrixMachine {
         );
     }
 
-    async fn bmm_wo(&mut self, v_addr: u32) {
+    async fn bmm_wo(&mut self, v_addr: u32, hvnum: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
         println!("vec_base = {}, vec_offset = {}", vec_base, vec_offset);
         assert!(vec_offset.is_multiple_of(self.mlen));
@@ -564,20 +564,7 @@ impl MatrixMachine {
         for j in 0..self.broadcast_amount {
             for i in 0..self.mlen {
                 let tensor = self.h_accum.i((j as i64, i as i64, ..));
-
-                let old = self
-                    .vram
-                    .read(vec_base + (j * self.mlen + i) * self.mlen)
-                    .await;
-                let new = old.as_tensor().copy();
-                new.i(vec_offset as i64..(vec_offset + self.mlen) as i64)
-                    .copy_(&tensor);
-                self.vram
-                    .write(
-                        vec_base + (j * self.mlen + i) * self.mlen,
-                        QuantTensor::quantize(new, old.data_type()),
-                    )
-                    .await;
+                self.vram.write(vec_base + (j * self.mlen + i) * self.mlen, QuantTensor::quantize(tensor, self.vram.ty)).await;
             }
         }
         self.h_accum = Tensor::zeros(
@@ -705,8 +692,12 @@ impl VectorMachine {
 
     async fn reduce_max(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
+        println!("vram address = {:?}", vs1);
         cycle!(*VECTOR_MAX_CYCLES);
         let val: f32 = a.as_tensor().i(0).max().try_into().unwrap();
+        println!("<--- reduce_max --->");
+        println!("reduce_max: val = {:?}", val);
+        println!("reduce_max: f = {:?}", f);
         f32::max(val, f)
     }
 }
@@ -729,7 +720,7 @@ struct AcceeleratorRegFile {
     stride: u32,
     hvnum: u32,
     hmnum: u32,
-    bmm_scale: f32,
+    bmm_scale: f32, // Scale factor during the BMM operation
 }
 
 impl Accelerator {
@@ -1003,7 +994,7 @@ impl Accelerator {
                 }
                 op::Opcode::M_BMM_WO { rd, imm } => {
                     self.m_machine
-                        .bmm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
+                        .bmm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32, self.reg_file.hvnum)
                         .await;
                 }
                 op::Opcode::M_MV { rs1, rs2 } => {
