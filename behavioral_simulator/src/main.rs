@@ -713,6 +713,8 @@ struct Accelerator {
     reg_file: AcceeleratorRegFile,
     intsram: Vec<u32>,
     fpsram: Vec<f16>,
+    total_hbm_bytes_read: usize,
+    total_hbm_bytes_written: usize,
 }
 
 struct AcceeleratorRegFile {
@@ -761,53 +763,54 @@ impl Accelerator {
         } else {
             load_dim
         };
-        Executor::current().spawn(async move {
-            let element_ty = hbm_type.element_type();
-            let element_bits = element_ty.size_in_bits();
 
-            // Extract scale bits and block size if Mx type, otherwise use element_bits/1 as default
-            let (scale_bits, blocksize) = match hbm_type {
-                MxDataType::Mx {
-                    elem: _,
-                    scale,
-                    block,
-                } => (scale.size_in_bits(), block),
-                _ => (element_bits, 1), // Plain type: each element is "scaled" by 1
-            };
+        let element_ty = hbm_type.element_type();
+        let element_bits = element_ty.size_in_bits();
 
-            let element_scale_ratio = (element_bits * blocksize as u8) / scale_bits;
-            let stride_scale = stride as f32 / element_scale_ratio as f32;
-            assert!(element_bits.is_power_of_two());
-
-            let len_in_bits_per_load = element_bits as u32 * load_dim;
-            // println!("element_bits = {:?}", element_bits);
-            // println!("load_dim = {:?}", load_dim);
-            // println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
-            assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
-            let len_in_bytes_per_load = len_in_bits_per_load / 8;
-
-            // Calculate scale bytes per load iteration (for Mx types)
-            let (scale_len_in_bytes_per_load, block) = if let MxDataType::Mx {
+        // Extract scale bits and block size if Mx type, otherwise use element_bits/1 as default
+        let (scale_bits, blocksize) = match hbm_type {
+            MxDataType::Mx {
                 elem: _,
                 scale,
                 block,
-            } = hbm_type
-            {
-                let scale_bits = scale.size_in_bits();
-                assert!(scale_bits.is_power_of_two());
-                let scale_len_in_bits_per_load = scale_bits as u32 * (load_dim / block);
-                assert!(scale_len_in_bits_per_load.is_multiple_of(8));
-                (scale_len_in_bits_per_load / 8, block as usize)
-            } else {
-                (0, usize::MAX)
-            };
+            } => (scale.size_in_bits(), block),
+            _ => (element_bits, 1), // Plain type: each element is "scaled" by 1
+        };
 
-            // Total elements/bytes for all writes:
-            let total_elements = (write_dim * num_writes) as usize;
-            let total_bytes = (len_in_bytes_per_load * write_amount * num_writes) as usize;
-            let total_scale_bytes =
-                (scale_len_in_bytes_per_load * write_amount * num_writes) as usize;
+        let element_scale_ratio = (element_bits * blocksize as u8) / scale_bits;
+        let stride_scale = stride as f32 / element_scale_ratio as f32;
+        assert!(element_bits.is_power_of_two());
 
+        let len_in_bits_per_load = element_bits as u32 * load_dim;
+        // println!("element_bits = {:?}", element_bits);
+        // println!("load_dim = {:?}", load_dim);
+        // println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
+        assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
+        let len_in_bytes_per_load = len_in_bits_per_load / 8;
+
+        // Calculate scale bytes per load iteration (for Mx types)
+        let (scale_len_in_bytes_per_load, block) = if let MxDataType::Mx {
+            elem: _,
+            scale,
+            block,
+        } = hbm_type
+        {
+            let scale_bits = scale.size_in_bits();
+            assert!(scale_bits.is_power_of_two());
+            let scale_len_in_bits_per_load = scale_bits as u32 * (load_dim / block);
+            assert!(scale_len_in_bits_per_load.is_multiple_of(8));
+            (scale_len_in_bits_per_load / 8, block as usize)
+        } else {
+            (0, usize::MAX)
+        };
+
+        // Total elements/bytes for all writes:
+        let total_elements = (write_dim * num_writes) as usize;
+        let total_bytes = (len_in_bytes_per_load * write_amount * num_writes) as usize;
+        let total_scale_bytes = (scale_len_in_bytes_per_load * write_amount * num_writes) as usize;
+        self.total_hbm_bytes_read += total_bytes + total_scale_bytes;
+
+        Executor::current().spawn(async move {
             let mut bytes = vec![0u8; total_bytes];
             let mut scale_bytes = vec![0u8; total_scale_bytes];
             let hbm_clone = &hbm_clone;
@@ -1387,6 +1390,8 @@ async fn start() {
         },
         intsram: vec![0; 1024],
         fpsram: vec![f16::ZERO; 1024],
+        total_hbm_bytes_read: 0,
+        total_hbm_bytes_written: 0,
     };
 
     use std::fs;
@@ -1474,6 +1479,11 @@ async fn start() {
     let mut vram_file = std::fs::File::create(vram_dump_path).unwrap();
     vram_file.write_all(&vram_bytes).unwrap();
     eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+
+    eprintln!(
+        "HBM Utilization - Bytes read: {:?} | Bytes written: {:?}",
+        accelerator.total_hbm_bytes_read, accelerator.total_hbm_bytes_written
+    );
 }
 
 #[tokio::main]
