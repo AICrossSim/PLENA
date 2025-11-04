@@ -5,6 +5,7 @@ Considering stride mode data layout
 """
 
 import re
+import os
 import sys
 
 def parse_golden_input_tensor(filename):
@@ -130,7 +131,11 @@ def compare_with_tolerance(golden, sim, tolerance=0.1):
 
 def main():
     golden_file = "behavioral_simulator/testbench/build/golden_result.txt"
-    sim_file = "simulation.log"
+    script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    # Change golden_file and sim_file to absolute paths
+    golden_file = os.path.join(script_dir, "behavioral_simulator/testbench/build/golden_result.txt")
+    sim_file = os.path.join(script_dir, "simulation.log")
     
     print("=" * 80)
     print("Input Tensor Match Rate Check")

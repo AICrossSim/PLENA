@@ -77,7 +77,8 @@ def projection_asm(
             generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
         generated_code += f"M_MM_WO {result_register}, 0, 0 \n"
         generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
-        generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen * blen} \n"
+        generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen} \n"
+
     
     # RoPE
     if rope_enabled:

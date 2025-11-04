@@ -97,15 +97,18 @@ def view_bin_file_by_row(bin_file,
 # Example usage:
 # view_bin_as_fp("hbm_for_behave_sim.bin", exp_width=4, man_width=3, num_bytes_per_val=1)
 if __name__ == "__main__":
+    script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    vram_file = os.path.join(script_dir, "behavioral_simulator", "vram_dump.bin")
+    mram_file = os.path.join(script_dir, "behavioral_simulator", "mram_dump.bin")
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
     print("Viewing VRAM dump from row 0 to 7 (BF16 format)")
-    view_bin_file_by_row("../vram_dump.bin", exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
+    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
     
     print("\nViewing VRAM dump from row 8 to 12 (BF16 format)")
-    view_bin_file_by_row("../vram_dump.bin", exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=8, load_row_size=4)
+    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=8, load_row_size=4)
     
     print("Viewing MRAM dump 0 to 7 rows (BF16 format)")
-    view_bin_file_by_row("../mram_dump.bin", exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
+    view_bin_file_by_row(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
 
     print("Viewing MRAM dump 64 to 71 rows (BF16 format)")
-    view_bin_file_by_row("../mram_dump.bin", exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=8)
+    view_bin_file_by_row(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=8)
