@@ -5,10 +5,13 @@ use anyhow::Result;
 use runtime::{Duration, Executor, Instant};
 
 use crate::raw::Ramulator as RawRamulator;
+use memory::Statistics;
 
 struct State {
     next_instant: Instant,
     ramulator: RawRamulator,
+    // Utilization stats
+    statistics: Statistics,
 }
 
 struct Inner {
@@ -40,8 +43,11 @@ impl Ramulator {
             mutable: Mutex::new(State {
                 next_instant: Instant::INIT,
                 ramulator,
+                statistics: Statistics {
+                    total_bytes_read: 0,
+                    total_bytes_written: 0,
+                },
             }),
-
             read_lock: tokio::sync::Mutex::new(()),
             write_lock: tokio::sync::Mutex::new(()),
             transfer_size,
@@ -162,7 +168,11 @@ impl Ramulator {
 
 #[async_trait::async_trait]
 impl memory::MemoryTimingModel for Ramulator {
-    async fn read(&self, addr: u64) {
+    async fn read(&mut self, addr: u64) {
+        {
+            let mut guard = self.0.mutable.lock().unwrap();
+            guard.statistics.total_bytes_read += 64;
+        }
         futures::future::join_all(
             (0..64)
                 .step_by(self.0.transfer_size as _)
@@ -171,12 +181,20 @@ impl memory::MemoryTimingModel for Ramulator {
         .await;
     }
 
-    async fn write(&self, addr: u64) {
+    async fn write(&mut self, addr: u64) {
+        {
+            let mut guard = self.0.mutable.lock().unwrap();
+            guard.statistics.total_bytes_written += 64;
+        }
         futures::future::join_all(
             (0..64)
                 .step_by(self.0.transfer_size as _)
                 .map(|offset| self.write_transfer(addr + offset)),
         )
         .await;
+    }
+
+    fn statistics(&self) -> Statistics {
+        self.0.mutable.lock().unwrap().statistics
     }
 }

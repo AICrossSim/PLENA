@@ -708,7 +708,7 @@ impl VectorMachine {
 struct Accelerator {
     m_machine: MatrixMachine,
     v_machine: VectorMachine,
-    hbm: Arc<dyn MemoryModel>,
+    hbm: Arc<Mutex<dyn MemoryModel>>,
     tile_size: u32,
     reg_file: AcceeleratorRegFile,
     intsram: Vec<u32>,
@@ -842,7 +842,8 @@ impl Accelerator {
                         let chunk_size = std::cmp::min(64, total_bytes - chunk_offset);
                         let addr = element_addr + (i * 64) as u64;
                         futures.push(Box::pin(async move {
-                            let data = hbm_clone.read(addr).await;
+                            let mut shared_hbm = hbm_clone.lock().await;
+                            let data = shared_hbm.read(addr).await;
                             ChunkType::Element(chunk_offset, data, chunk_size)
                         }));
                     }
@@ -856,7 +857,8 @@ impl Accelerator {
                         let chunk_offset = scale_byte_offset; // where to write in scale_bytes
                         let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
                         futures.push(Box::pin(async move {
-                            let data = hbm_clone.read(aligned_scale_addr).await;
+                            let mut shared_hbm = hbm_clone.lock().await;
+                            let data = shared_hbm.read(aligned_scale_addr).await;
                             // Copy out only the relevant bytes for this scale_addr
                             // scale_len_in_bytes_per_load says how many bytes to copy from within the chunk
                             let end_offset = std::cmp::min(
@@ -1371,10 +1373,10 @@ async fn start() {
     };
     let v_machine = VectorMachine { vram }; // Share same dim with VSRAM
 
-    let hbm = Arc::new(memory::WithTiming::new(
+    let hbm = Arc::new(Mutex::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
         memory::MemoryBacked::with_capacity(*HBM_SIZE),
-    ));
+    )));
 
     let mut accelerator = Accelerator {
         m_machine: machine,
@@ -1411,10 +1413,11 @@ async fn start() {
     // Memory Initialization
     // - HBM Preload
     let hbm_data = std::fs::read(opts.hbm).unwrap();
-
-    hbm.data().with_data(|f| {
-        f[..hbm_data.len()].copy_from_slice(&hbm_data);
-    });
+    {
+        hbm.lock().await.data().with_data(|f| {
+            f[..hbm_data.len()].copy_from_slice(&hbm_data);
+        });
+    }
 
     // Load fpsram and intsram as raw bytes and map to the vector files.
     // - fpsram Preload
@@ -1480,10 +1483,17 @@ async fn start() {
     vram_file.write_all(&vram_bytes).unwrap();
     eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
 
-    eprintln!(
-        "HBM Utilization - Bytes read: {:?} | Bytes written: {:?}",
-        accelerator.total_hbm_bytes_read, accelerator.total_hbm_bytes_written
-    );
+    {
+        eprintln!(
+            "HBM Utilization - Bytes read: {:?} | Bytes written: {:?}",
+            accelerator.total_hbm_bytes_read, accelerator.total_hbm_bytes_written
+        );
+        let stats = hbm.lock().await.statistics();
+        eprintln!(
+            "[New] HBM Utilization - Bytes read: {:?} | Bytes written: {:?}",
+            stats.total_bytes_read, stats.total_bytes_written
+        );
+    }
 }
 
 #[tokio::main]
