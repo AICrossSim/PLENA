@@ -490,19 +490,19 @@ def flash_attn_asm(
 
                 generated_code += reset_reg_asm(alive_registers_int[0:2])
 
-                for head_index in range(hq // hkv):
-                    generated_code += _computing_o_code(
-                        mlen=mlen,
-                        alive_registers_int=alive_registers_int,
-                        alive_registers_fp=alive_registers_fp,
-                        m_res_base_address=stored_m_fp_res_address,
-                        pv_base_address=q_base_address + q_index_2_kv_index_ratio * kv_head_index * mlen,
-                        o_old_base_address=o_old_base_address + head_index * mlen,
-                        head_dim=d,
-                    )
-                    stored_m_fp_res_address += 3 * mlen
-                    break
-                break
+                # for head_index in range(hq // hkv):
+                #     generated_code += _computing_o_code(
+                #         mlen=mlen,
+                #         alive_registers_int=alive_registers_int,
+                #         alive_registers_fp=alive_registers_fp,
+                #         m_res_base_address=stored_m_fp_res_address,
+                #         pv_base_address=q_base_address + q_index_2_kv_index_ratio * kv_head_index * mlen,
+                #         o_old_base_address=o_old_base_address + head_index * mlen,
+                #         head_dim=d,
+                #     )
+                #     stored_m_fp_res_address += 3 * mlen
+                #     break
+                # break
             break
         break
 

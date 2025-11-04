@@ -92,7 +92,6 @@ if __name__ == "__main__":
     print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
     print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
     
-
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3]
