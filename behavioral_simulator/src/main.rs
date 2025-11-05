@@ -438,14 +438,11 @@ impl MatrixMachine {
     }
 
     async fn btmm(&mut self, m_addr: u32, v_addr: u32, hvnum: u32, bmm_scale: f32) {
-        println!("m_addr = {:?}", m_addr);
-        println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
         // Load matrix from matrix SRAM.
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
         let (mat_offset, head_offset) = mat_offset.multiple_and_offset(self.mlen);
 
-        println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(head_offset.is_multiple_of(self.hlen));
         let full_mat = self.mram.read(mat_base).await;
@@ -691,12 +688,8 @@ impl VectorMachine {
 
     async fn reduce_max(&mut self, vs1: u32, f: f32) -> f32 {
         let a = self.vram.read(vs1).await;
-        println!("vram address = {:?}", vs1);
         cycle!(*VECTOR_MAX_CYCLES);
-        let val: f32 = a.as_tensor().i(0).max().try_into().unwrap();
-        println!("<--- reduce_max --->");
-        println!("reduce_max: val = {:?}", val);
-        println!("reduce_max: f = {:?}", f);
+        let val: f32 = a.as_tensor().max().try_into().unwrap();
         f32::max(val, f)
     }
 }

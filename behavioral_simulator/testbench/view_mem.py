@@ -104,8 +104,8 @@ if __name__ == "__main__":
     print("Viewing VRAM dump from row 0 to 7 (BF16 format)")
     view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
     
-    print("\nViewing VRAM dump from row 8 to 12 (BF16 format)")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=8, load_row_size=4)
+    print("\nViewing VRAM dump from row 128 to 136 (BF16 format)")
+    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=128, load_row_size=8)
     
     print("Viewing MRAM dump 0 to 7 rows (BF16 format)")
     view_bin_file_by_row(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
