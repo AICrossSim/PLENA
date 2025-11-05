@@ -168,7 +168,7 @@ def _computing_pv_code(
     generated_code = "; PV Per KV Head Multiplication \n"
     p_base_register = alive_registers[0]
     v_base_register = alive_registers[1]
-    pv_base_register = p_base_register
+    pv_base_register = alive_registers[2]
     assert p_base_address + q_head_index * head_dim < IMM2_BOUND, f"p_base_address must be less than {IMM2_BOUND}"
     assert v_head_index * head_dim < IMM2_BOUND, f"v_base_address must be less than {IMM2_BOUND}"
     assert pv_base_address < IMM2_BOUND, f"pv_base_address must be less than {IMM2_BOUND}"
@@ -179,25 +179,25 @@ def _computing_pv_code(
         generated_code += f"H_PREFETCH_M gp0, gp{v_base_register}, a{v_base_hbm_offset_reg}, 1, 1 \n"
 
     # Address Settings
-    generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * mlen * mlen} \n"
+    
     v_head_index_msram = v_head_index % (mlen // head_dim)
+    q_head_index_msram = q_head_index % (mlen // head_dim)
+    generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index_msram * mlen * mlen} \n"
     generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {v_head_index_msram * head_dim} \n"
-    generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index * head_dim} \n"
+    generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + (q_head_index // (mlen // head_dim)) * mlen * mlen + q_head_index_msram * mlen} \n"
 
     # PV mult
-    for i in range (head_dim // mlen):
+    for i in range (mlen // head_dim):
         for j in range (mlen // blen):
-            # Keep V stationary in the inner loop
+            # Keep V stationary in the inner loop, shift across p 
             generated_code += f"M_MM 0, gp{v_base_register}, gp{p_base_register} \n"
-            generated_code += f"M_BMM_WO gp{pv_base_register}, 0 \n"
+            generated_code += f"M_MM_WO gp{pv_base_register}, 0 \n"
             generated_code += f"S_ADDI_INT gp{p_base_register}, gp{p_base_register}, {blen * mlen} \n"
             generated_code += f"S_ADDI_INT gp{pv_base_register}, gp{pv_base_register}, {q_head_num * head_dim} \n"
-
         # Update v_base_register and reset p_base_register and pv_base_register
-        generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * mlen * mlen} \n"
-        generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index * head_dim + i * blen} \n"
+        generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index_msram * mlen * mlen} \n"
+        generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index_msram * head_dim + i * blen} \n"
         generated_code += f"S_ADDI_INT gp{v_base_register}, gp{v_base_register}, {blen} \n"
-
     return generated_code
 
 def _computing_o_code(
@@ -270,8 +270,6 @@ def _computing_row_wise_scaling_code(
 ) -> str:
     """ 
     line 12 in flash attention algorithm
-
-
     mlen: the number of row of the QKT result
     alive_registers_int: the list of alive registers for fix point operations
     alive_registers_fp: the list of alive registers for floating point operations
@@ -480,13 +478,13 @@ def flash_attn_asm(
                 generated_code += reset_reg_asm(alive_registers_int[0:2])
                 stored_m_fp_res_address = m_fp_sram_start_address + mlen
                 
-                for head_index in range(hq // hkv):
+                for inner_q_head_index in range(hq // hkv):
                     # Per Q head level online softmax
                     generated_code += _online_softmax_code(
                         mlen=mlen,
                         alive_registers_int=alive_registers_int[0:5],
                         alive_registers_fp=alive_registers_fp[0:4],
-                        s_address=s_base_address + head_index * mlen * mlen,
+                        s_address=s_base_address + inner_q_head_index * mlen * mlen,
                         m_start_address=m_fp_sram_start_address
                     )
 
@@ -500,27 +498,27 @@ def flash_attn_asm(
                         q_head_num=hq,
                         blen=blen,
                         mlen=mlen,
-                        alive_registers=alive_registers_int[0:2],
+                        alive_registers=alive_registers_int[0:3],
                         p_base_address=s_base_address,
                         v_base_hbm_offset_reg=v_base_hbm_offset_reg,
-                        q_head_index=head_index + kv_head_index * q_index_2_kv_index_ratio,
+                        q_head_index=inner_q_head_index + kv_head_index * q_index_2_kv_index_ratio,
                         v_head_index=kv_head_index,
                         pv_base_address=q_base_address,
-                        same_v_head=(head_index != 0),
+                        same_v_head=(inner_q_head_index != 0),
                     )
                     break
                 break
 
-                generated_code += reset_reg_asm(alive_registers_int[0:2])
+                generated_code += reset_reg_asm(alive_registers_int[0:3])
 
-                # for head_index in range(hq // hkv):
+                # for inner_q_head_index in range(hq // hkv):
                 #     generated_code += _computing_o_code(
                 #         mlen=mlen,
                 #         alive_registers_int=alive_registers_int,
                 #         alive_registers_fp=alive_registers_fp,
                 #         m_res_base_address=stored_m_fp_res_address,
                 #         pv_base_address=q_base_address + q_index_2_kv_index_ratio * kv_head_index * mlen,
-                #         o_old_base_address=o_old_base_address + head_index * mlen,
+                #         o_old_base_address=o_old_base_address + inner_q_head_index * mlen,
                 #         head_dim=d,
                 #     )
                 #     stored_m_fp_res_address += 3 * mlen
