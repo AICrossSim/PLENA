@@ -3,8 +3,8 @@ use std::sync::Mutex;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
-    pub total_bytes_read: u32,
-    pub total_bytes_written: u32,
+    pub total_bytes_read: u64,
+    pub total_bytes_written: u64,
 }
 
 #[async_trait::async_trait]

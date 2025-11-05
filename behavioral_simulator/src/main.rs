@@ -1480,10 +1480,12 @@ async fn start() {
     eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
 
     {
-        let stats = hbm.lock().await.statistics();
+        let memory_stats = hbm.lock().await.statistics();
+        let utilization = (memory_stats.total_bytes_read + memory_stats.total_bytes_written) as f64
+            / Executor::current().now().to_secs();
         eprintln!(
-            "HBM Utilization - Bytes read: {:?} | Bytes written: {:?}",
-            stats.total_bytes_read, stats.total_bytes_written
+            "HBM Statistics - Bytes read: {:?} | Bytes written: {:?} | Utilization: {:.2e} bytes/sec",
+            memory_stats.total_bytes_read, memory_stats.total_bytes_written, utilization
         );
     }
 }
