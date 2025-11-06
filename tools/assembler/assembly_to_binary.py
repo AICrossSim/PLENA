@@ -39,18 +39,20 @@ class AssemblyToBinary:
         rstride = instruction.rstride
         funct1 = instruction.funct1
         imm = instruction.imm
+        rmask = instruction.rmask
         binary_instruction = 0
         # print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        if instruction.opcode in ["S_ADDI_INT", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "S_MAP_V_FP", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
+
+        if instruction.opcode in ["S_ADDI_INT",  "M_MM_WO", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "S_MAP_V_FP", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_INT", "M_MM_WO", "M_MV_WO", "M_BMM_WO", "M_BMV_WO"]:
+        elif instruction.opcode in ["S_LUI_INT", "M_MV_WO", "M_BMM_WO", "M_BMV_WO"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +
@@ -62,7 +64,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG"]:
+        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG", "C_SET_V_MASK_REG"]:
             binary_instruction = (
                 (rd << opw) +
                 opcode
@@ -76,12 +78,9 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["V_SHFT_V"]:
-            if rs2 is None and imm is not None:
-                # Optional: mask to clog2(VLEN) if you know it here
-                rs2 = int(imm) & ((1 << ow) - 1)
-                imm = 0
-                binary_instruction = (
+        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_SUB_VV", "V_SUB_VF", "V_MUL_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
+            binary_instruction = (
+                (rmask << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +

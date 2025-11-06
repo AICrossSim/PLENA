@@ -60,6 +60,8 @@ static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount
 static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
 static WRITEBACK_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_writeback_amount());
 
+
+
 /// Address handling utilities.
 ///
 /// Many operations on matrix and vector SRAM operate on entire tiles so it needs to be multiple, but some aren't, so we use
@@ -381,7 +383,7 @@ impl MatrixMachine {
         println!("m_accum = {}", self.m_accum);
     }
 
-    async fn bmm(&mut self, m_addr: u32, v_addr: u32, hvnum: u32, bmm_scale: f32) {
+    async fn bmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
         println!("m_addr = {:?}", m_addr);
         println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
@@ -408,7 +410,7 @@ impl MatrixMachine {
         for i in 0..self.mlen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.mlen)
+                    .read(v_addr + i * self.mlen * stride_len)
                     .await
                     .as_tensor()
                     .shallow_clone(),
@@ -438,7 +440,7 @@ impl MatrixMachine {
         println!("h_accum = {}", self.h_accum);
     }
 
-    async fn btmm(&mut self, m_addr: u32, v_addr: u32, hvnum: u32, bmm_scale: f32) {
+    async fn btmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
         assert!(self.broadcast_amount * self.hlen == self.mlen);
         // Load matrix from matrix SRAM.
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
@@ -460,12 +462,12 @@ impl MatrixMachine {
 
         let mut tensors = Vec::with_capacity(self.mlen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
-        println!("hvnum = {:?}", hvnum);
+        println!("stride_len = {:?}", stride_len);
         // B, S, H, D
         for i in 0..self.mlen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.mlen * hvnum)
+                    .read(v_addr + i * self.mlen * stride_len)
                     .await
                     .as_tensor()
                     .shallow_clone(),
@@ -528,20 +530,20 @@ impl MatrixMachine {
         self.m_accum += vec.matmul(&mat);
     }
 
-    async fn mm_wo(&mut self, v_addr: u32) {
+    async fn mm_wo(&mut self, v_addr: u32, stride_len: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
-        println!("vec_base = {}, vec_offset = {}", vec_base, vec_offset);
         assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
         for i in 0..self.blen {
             let tensor = self.m_accum.i((i as i64, ..));
-            let old = self.vram.read(vec_base + i * self.mlen).await;
+            let old = self.vram.read(vec_base + i * self.mlen * stride_len).await;
+            // println!("old = {}", old.as_tensor());
             let new = old.as_tensor().copy();
             new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
                 .copy_(&tensor);
             self.vram
                 .write(
-                    vec_base + i * self.mlen,
+                    vec_base + i * self.mlen * stride_len,
                     QuantTensor::quantize(new, old.data_type()),
                 )
                 .await;
@@ -614,53 +616,96 @@ impl MatrixMachine {
 
 struct VectorMachine {
     vram: Arc<VectorSram>,
+    tile_size: u32,
+    mask_unit: u32,
 }
 
 impl VectorMachine {
-    async fn add_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
+    async fn add_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
-        let c = QuantTensor::quantize(a.as_tensor() + (f as f64), a.data_type());
-        cycle!(*VECTOR_ADD_CYCLES);
-        self.vram.write(vd, c).await;
+        if rmask == 0 {
+            let c = QuantTensor::quantize(a.as_tensor() + (f as f64), a.data_type());
+            cycle!(*VECTOR_ADD_CYCLES);
+            self.vram.write(vd, c).await;
+        } else {
+            // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
+            let mut result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    // Mask is set for this head
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = &sliced + (f as f64);
+                    // Overwrite this section with calculated values
+                    result.narrow(0, start, end - start).copy_(&updated);
+                }
+                // else leave unchanged
+            }
+            let c = QuantTensor::quantize(result, a.data_type());
+            cycle!(*VECTOR_ADD_CYCLES);
+            self.vram.write(vd, c).await;
+        }
     }
 
-    async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32) {
+    async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32) {
         println!("mul_scalar: vd = {:?}, vs1 = {:?}, f = {:?}", vd, vs1, f);
         let a = self.vram.read(vs1).await;
-        let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
-        cycle!(*VECTOR_MUL_CYCLES);
-        self.vram.write(vd, c).await;
+        if rmask == 0 {
+            let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
+            cycle!(*VECTOR_MUL_CYCLES);
+            self.vram.write(vd, c).await;
+        } else {
+            println!("mul_scalar: mask = {:?}", mask);
+            println!("a = {}", a.as_tensor());
+            let mut result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = &sliced * (f as f64);
+                    result.narrow(0, start, end - start).copy_(&updated);
+                }
+            }
+            let c = QuantTensor::quantize(result, a.data_type());
+            println!("c = {}", c.as_tensor());
+            cycle!(*VECTOR_MUL_CYCLES);
+            self.vram.write(vd, c).await;
+        }
     }
 
-    async fn add(&mut self, vd: u32, vs1: u32, vs2: u32) {
+    async fn add(&mut self, vd: u32, vs1: u32, vs2: u32, rmask: u8, mask: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
         cycle!(*VECTOR_ADD_CYCLES);
         self.vram.write(vd, c).await;
     }
 
-    async fn sub(&mut self, vd: u32, vs1: u32, vs2: u32) {
+    async fn sub(&mut self, vd: u32, vs1: u32, vs2: u32, rmask: u8, mask: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() - b.as_tensor(), a.data_type());
         cycle!(*VECTOR_ADD_CYCLES);
         self.vram.write(vd, c).await;
     }
 
-    async fn mul(&mut self, vd: u32, vs1: u32, vs2: u32) {
+    async fn mul(&mut self, vd: u32, vs1: u32, vs2: u32, rmask: u8, mask: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
         let c = QuantTensor::quantize(a.as_tensor() * b.as_tensor(), a.data_type());
         cycle!(*VECTOR_MUL_CYCLES);
         self.vram.write(vd, c).await;
     }
 
-    async fn exp(&mut self, vd: u32, vs1: u32) {
+    async fn exp(&mut self, vd: u32, vs1: u32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
         cycle!(*VECTOR_EXP_CYCLES);
         self.vram.write(vd, c).await;
     }
 
-    async fn reciprocal(&mut self, vd: u32, vs1: u32) {
+    async fn reciprocal(&mut self, vd: u32, vs1: u32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().reciprocal(), a.data_type());
         cycle!(*VECTOR_RECI_CYCLES);
@@ -680,14 +725,14 @@ impl VectorMachine {
     //     self.vram.write(vd, c).await;
     // }
 
-    async fn reduce_sum(&mut self, vs1: u32, f: f32) -> f32 {
+    async fn reduce_sum(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_SUM_CYCLES);
         let val: f32 = a.as_tensor().sum(tch::Kind::Float).try_into().unwrap();
         f + val
     }
 
-    async fn reduce_max(&mut self, vs1: u32, f: f32) -> f32 {
+    async fn reduce_max(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_MAX_CYCLES);
         let val: f32 = a.as_tensor().max().try_into().unwrap();
@@ -714,6 +759,7 @@ struct AcceeleratorRegFile {
     hvnum: u32,
     hmnum: u32,
     bmm_scale: f32, // Scale factor during the BMM operation
+    v_mask: u32, // HLEN Head Mask for VLEN Vector
 }
 
 impl Accelerator {
@@ -952,9 +998,17 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::M_MM_WO { rd, imm } => {
+                op::Opcode::M_MM_WO { rd, rstride, imm } => {
+                    let stride_len = if rstride == 0 {
+                        1
+                    } else {
+                        self.reg_file.gp_reg[rstride as usize]
+                    };
                     self.m_machine
-                        .mm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
+                        .mm_wo(
+                            self.reg_file.gp_reg[rd as usize] + imm as u32,
+                            stride_len as u32,
+                        )
                         .await;
                 }
                 op::Opcode::M_TMM { rs1, rs2 } => {
@@ -1015,73 +1069,97 @@ impl Accelerator {
                 }
                 op::Opcode::M_BMV_WO { rd, imm } => todo!(),
 
-                op::Opcode::V_ADD_VV { rd, rs1, rs2 } => {
+                op::Opcode::V_ADD_VV { rd, rs1, rs2, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .add(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.gp_reg[rs2 as usize],
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_ADD_VF { rd, rs1, rs2 } => {
+                op::Opcode::V_ADD_VF { rd, rs1, rs2, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .add_scalar(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.fp_reg[rs2 as usize].into(),
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_SUB_VV { rd, rs1, rs2 } => {
+                op::Opcode::V_SUB_VV { rd, rs1, rs2, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .sub(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.gp_reg[rs2 as usize],
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_SUB_VF { rd, rs1, rs2 } => {
+                op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .add_scalar(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             (-self.reg_file.fp_reg[rs2 as usize]).into(),
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_MUL_VV { rd, rs1, rs2 } => {
+                op::Opcode::V_MUL_VV { rd, rs1, rs2, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .mul(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.gp_reg[rs2 as usize],
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_MUL_VF { rd, rs1, rs2 } => {
+                op::Opcode::V_MUL_VF { rd, rs1, rs2, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .mul_scalar(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.fp_reg[rs2 as usize].into(),
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_EXP_V { rd, rs1 } => {
+                op::Opcode::V_EXP_V { rd, rs1, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .exp(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
-                op::Opcode::V_RECI_V { rd, rs1 } => {
+                op::Opcode::V_RECI_V { rd, rs1, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .reciprocal(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
+                            rmask,
+                            mask,
                         )
                         .await;
                 }
@@ -1089,22 +1167,28 @@ impl Accelerator {
                 // Write to fp0 is a no-op.
                 op::Opcode::V_RED_SUM { rd: 0, .. } | op::Opcode::V_RED_MAX { rd: 0, .. } => (),
 
-                op::Opcode::V_RED_SUM { rd, rs1 } => {
+                op::Opcode::V_RED_SUM { rd, rs1, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     let result = self
                         .v_machine
                         .reduce_sum(
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.fp_reg[rd as usize].into(),
+                            rmask,
+                            mask,
                         )
                         .await;
                     self.reg_file.fp_reg[rd as usize] = f16::from_f32(result);
                 }
-                op::Opcode::V_RED_MAX { rd, rs1 } => {
+                op::Opcode::V_RED_MAX { rd, rs1, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     let result = self
                         .v_machine
                         .reduce_max(
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.fp_reg[rd as usize].into(),
+                            rmask,
+                            mask,
                         )
                         .await;
                     self.reg_file.fp_reg[rd as usize] = f16::from_f32(result);
@@ -1164,11 +1248,6 @@ impl Accelerator {
                 op::Opcode::S_ST_FP { rd, rs1, imm } => {
                     self.fpsram[(self.reg_file.gp_reg[rs1 as usize] + imm) as usize] =
                         self.reg_file.fp_reg[rd as usize];
-                    println!(
-                        "write: addr = {:?}, value = {:?}",
-                        self.reg_file.gp_reg[rs1 as usize] + imm,
-                        self.reg_file.fp_reg[rd as usize]
-                    );
                     cycle!(1);
                 }
                 op::Opcode::S_MAP_V_FP { rd, rs1, imm } => todo!(),
@@ -1229,9 +1308,6 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         } // Element addr shifted by (element to scale ratio)
                     };
-                    println!("addr = {:?}", addr);
-                    println!("offset = {:?}", offset);
-                    println!("scale = {:?}", self.reg_file.scale);
                     let xfer = self.transfer_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
@@ -1313,6 +1389,10 @@ impl Accelerator {
                     self.reg_file.stride = self.reg_file.gp_reg[rd as usize];
                     cycle!(1);
                 }
+                op::Opcode::C_SET_V_MASK_REG { rd } => {
+                    self.reg_file.v_mask = self.reg_file.gp_reg[rd as usize];
+                    cycle!(1);
+                }
                 op::Opcode::C_BREAK => todo!(),
             }
         }
@@ -1363,7 +1443,7 @@ async fn start() {
         v_accum: Tensor::zeros([*MLEN as i64], (tch::Kind::Float, tch::Device::Cpu)),
         broadcast_amount: *BROADCAST_AMOUNT,
     };
-    let v_machine = VectorMachine { vram }; // Share same dim with VSRAM
+    let v_machine = VectorMachine { vram, tile_size: *VLEN, mask_unit: *HLEN }; // Share same dim with VSRAM
 
     let hbm = Arc::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
@@ -1384,6 +1464,7 @@ async fn start() {
             hvnum: 2,
             hmnum: 4,
             bmm_scale: 0.25,
+            v_mask: 0,
         },
         intsram: vec![0; 1024],
         fpsram: vec![f16::ZERO; 1024],
