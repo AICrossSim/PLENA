@@ -351,11 +351,11 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
-        println!("======================== M_MM ==========================");
-        println!("m_addr = {:?}", m_addr);
-        println!("v_addr = {:?}", v_addr);
+        // println!("======================== M_MM ==========================");
+        // println!("m_addr = {:?}", m_addr);
+        // println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
-        println!("mat_offset = {:?}", mat_offset);
+        // println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         let full_mat = self.mram.read(mat_base).await;
         // Slice columns instead of rows: [mlen, blen]
@@ -376,11 +376,8 @@ impl MatrixMachine {
         }
         // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
-        println!("vec = {}", vec);
-        println!("mat = {}", mat);
         // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
-        println!("m_accum = {}", self.m_accum);
     }
 
     async fn bmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
@@ -534,13 +531,17 @@ impl MatrixMachine {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
         assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
+        println!("======================== MM_WO ==========================");
+        println!("m accum = {}", self.m_accum);
+        println!("vec_base = {}, vec_offset = {}, stride_len = {}", vec_base, vec_offset, stride_len);
         for i in 0..self.blen {
             let tensor = self.m_accum.i((i as i64, ..));
             let old = self.vram.read(vec_base + i * self.mlen * stride_len).await;
-            // println!("old = {}", old.as_tensor());
+            println!("old = {}", old.as_tensor());
             let new = old.as_tensor().copy();
             new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
                 .copy_(&tensor);
+            println!("new = {}", new);
             self.vram
                 .write(
                     vec_base + i * self.mlen * stride_len,
@@ -650,15 +651,12 @@ impl VectorMachine {
     }
 
     async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32) {
-        println!("mul_scalar: vd = {:?}, vs1 = {:?}, f = {:?}", vd, vs1, f);
         let a = self.vram.read(vs1).await;
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
             cycle!(*VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            println!("mul_scalar: mask = {:?}", mask);
-            println!("a = {}", a.as_tensor());
             let mut result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {

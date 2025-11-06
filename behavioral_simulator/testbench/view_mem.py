@@ -102,7 +102,7 @@ if __name__ == "__main__":
     mram_file = os.path.join(script_dir, "behavioral_simulator", "mram_dump.bin")
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
     print("Viewing VRAM dump from row 0 to 7 (BF16 format)")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
+    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
     print("\nViewing VRAM dump from row 128 to 192 (BF16 format)")
     view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=128, load_row_size=64)

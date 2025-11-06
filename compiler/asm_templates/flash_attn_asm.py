@@ -156,7 +156,6 @@ def _computing_pv_code(
     v_head_index: int,
     pv_base_address: int,
     same_v_head: bool,
-    same_q_head: bool,
 ) -> str:
     """
     Args:
@@ -174,6 +173,7 @@ def _computing_pv_code(
     assert p_base_address + q_head_index * head_dim < IMM2_BOUND, f"p_base_address must be less than {IMM2_BOUND}"
     assert v_head_index * head_dim < IMM2_BOUND, f"v_base_address must be less than {IMM2_BOUND}"
     assert pv_base_address < IMM2_BOUND, f"pv_base_address must be less than {IMM2_BOUND}"
+    q_row_ratio = (q_head_num * head_dim) // mlen
 
     v_head_index_msram = v_head_index % (mlen // head_dim)
     q_head_index_msram = q_head_index % (mlen // head_dim)
@@ -182,10 +182,6 @@ def _computing_pv_code(
         generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {v_head_index * head_dim} \n"
         generated_code += f"H_PREFETCH_M gp0, gp{v_base_register}, a{v_base_hbm_offset_reg}, 1, 1 \n"
 
-    if not same_q_head:
-        generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {1 << q_head_index} \n"
-        generated_code += f"C_SET_V_MASK_REG gp{v_base_register} \n"
-
     # Address Settings
     generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index_msram * mlen * mlen} \n"
     generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {v_head_index_msram * head_dim} \n"
@@ -193,17 +189,18 @@ def _computing_pv_code(
     generated_code += f"S_ADDI_INT gp{mm_wo_stride_register}, gp0, {((q_head_num * head_dim) // mlen)} \n"
 
     # PV mult
-    for i in range (mlen // head_dim):
+    for i in range (head_dim // blen):
         for j in range (mlen // blen):
             # Keep V stationary in the inner loop, shift across p 
             generated_code += f"M_MM 0, gp{v_base_register}, gp{p_base_register} \n"
             generated_code += f"M_MM_WO gp{pv_base_register}, gp{mm_wo_stride_register}, 0 \n"
             generated_code += f"S_ADDI_INT gp{p_base_register}, gp{p_base_register}, {blen * mlen} \n"
-            generated_code += f"S_ADDI_INT gp{pv_base_register}, gp{pv_base_register}, {q_head_num * head_dim} \n"
+            generated_code += f"S_ADDI_INT gp{pv_base_register}, gp{pv_base_register}, {q_row_ratio * mlen * blen} \n"
         # Update v_base_register and reset p_base_register and pv_base_register
         generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index_msram * mlen * mlen} \n"
-        generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index_msram * head_dim + i * blen} \n"
+        generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index_msram * head_dim + (i+1) * blen} \n"
         generated_code += f"S_ADDI_INT gp{v_base_register}, gp{v_base_register}, {blen} \n"
+
     return generated_code
 
 def _computing_o_code(
@@ -214,6 +211,7 @@ def _computing_o_code(
     pv_base_address: int,
     o_old_base_address: int,
     head_dim: int,
+    q_head_num: int,
 ) -> str:
     """
     Args:
@@ -226,6 +224,7 @@ def _computing_o_code(
     o_old_base_address: the base address of the old O
     Description:
         This part of asm is for the computing of the O operation, mapping to line 10 process
+        Assume the C_SET_V_MASK_REG is set already by the PV operation.
         
     """
     m_res_vector_address_register = alive_registers_int[0]
@@ -255,13 +254,12 @@ def _computing_o_code(
         generated_code += f"S_LD_FP f{m_res_fp_register}, gp{m_res_vector_address_register}, {j} \n"
         # boardcast m_res to multiply with a row of a block of O_old and write to o_old
         generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{m_res_vector_address_register}, 1 \n"
-        break
         # add pv row to o_old
-        # generated_code += f"V_ADD_VV gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, gp{pv_vector_address_register}, 1 \n"
+        generated_code += f"V_ADD_VV gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, gp{pv_vector_address_register}, 1 \n"
         # # update o_old base address
-        # generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {mlen} \n"
+        generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {q_head_num * head_dim} \n"
         # # update pv base address
-        # generated_code += f"S_ADDI_INT gp{pv_vector_address_register}, gp{pv_vector_address_register}, {mlen} \n"
+        generated_code += f"S_ADDI_INT gp{pv_vector_address_register}, gp{pv_vector_address_register}, {q_head_num * head_dim} \n"
 
     # now o_old should contain the result of the current o, diag(exp(m_res)) * O_old + PV
     return generated_code
@@ -511,8 +509,8 @@ def flash_attn_asm(
                         v_head_index=kv_head_index,
                         pv_base_address=q_base_address,
                         same_v_head=(inner_q_head_index != 0),
-                        same_q_head=False,
                     )
+
                     generated_code += reset_reg_asm(alive_registers_int[0:4])
                     generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
 
@@ -524,6 +522,7 @@ def flash_attn_asm(
                         pv_base_address=q_base_address + q_index_2_kv_index_ratio * kv_head_index * mlen,
                         o_old_base_address=o_old_base_address + inner_q_head_index * mlen,
                         head_dim=d,
+                        q_head_num=hq,
                     )
                     stored_m_fp_res_address += 3 * mlen
                     break
