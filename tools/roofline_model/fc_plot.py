@@ -70,7 +70,7 @@ class DeviceModel:
         self.K = K
         self.N = N
         self.data_width = data_width
-        self.hbm_bandwidth = hbm_bandwidth
+        self.hbm_bandwidth = hbm_bandwidth * (1024**3)
         self.hbm_capacity = hbm_capacity
 
     def get_peak_performance(self):
@@ -123,6 +123,7 @@ def device_performance(device_model, seq_context_length, max_batch, model_config
     
     actual_performance = {}
     print("device width:", device_model.data_width)
+    print("bandwidth :", device_model.hbm_bandwidth)
     max_tilesize = device_model.hbm_bandwidth / (2 * device_model.operate_freq * device_model.data_width)
     print("batch_bound:", batch_bound, "max_tilesize:", max_tilesize)
     sampled_batch = select_powers_of_two_with_last(batch_bound)
