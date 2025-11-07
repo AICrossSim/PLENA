@@ -556,9 +556,9 @@ impl MatrixMachine {
         );
     }
 
-    async fn bmm_wo(&mut self, v_addr: u32, hvnum: u32) {
+    async fn bmm_wo(&mut self, v_addr: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
-        println!("vec_base = {}, vec_offset = {}", vec_base, vec_offset);
+        println!("======================== BMM_WO ==========================");
         assert!(vec_offset.is_multiple_of(self.mlen));
         cycle!(1);
         for j in 0..self.broadcast_amount {
@@ -657,6 +657,10 @@ impl VectorMachine {
             cycle!(*VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
+            println!("======================== V_ADD_VF ==========================");
+            println!("add: mask = {:?}", mask);
+            println!("a = {}", a.as_tensor());
+            println!("f = {}", f);
             let mut result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
@@ -677,9 +681,31 @@ impl VectorMachine {
 
     async fn add(&mut self, vd: u32, vs1: u32, vs2: u32, rmask: u8, mask: u32) {
         let (a, b) = tokio::join!(self.vram.read(vs1), self.vram.read(vs2));
-        let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
-        cycle!(*VECTOR_ADD_CYCLES);
-        self.vram.write(vd, c).await;
+        if rmask == 0 {
+            let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
+            cycle!(*VECTOR_ADD_CYCLES);
+            self.vram.write(vd, c).await;
+        } else {
+            println!("======================== V_ADD ==========================");
+            println!("add: mask = {:?}", mask);
+            println!("a = {}", a.as_tensor());
+            println!("b = {}", b.as_tensor());
+            let mut result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = &sliced + b.as_tensor().narrow(0, start, end - start);
+                result.narrow(0, start, end - start).copy_(&updated);
+                }
+            }
+            println!("result = {}", result);
+            let c = QuantTensor::quantize(result, a.data_type());
+            cycle!(*VECTOR_ADD_CYCLES);
+            self.vram.write(vd, c).await;
+        }
     }
 
     async fn sub(&mut self, vd: u32, vs1: u32, vs2: u32, rmask: u8, mask: u32) {
@@ -752,12 +778,11 @@ struct AcceeleratorRegFile {
     gp_reg: [u32; 16],
     fp_reg: [f16; 8],
     hbm_addr_reg: [u64; 8],
-    scale: u32,
+    scale:  u32,
     stride: u32,
-    hvnum: u32,
-    hmnum: u32,
-    bmm_scale: f32, // Scale factor during the BMM operation
-    v_mask: u32, // HLEN Head Mask for VLEN Vector
+    mm_load_stride: u32,
+    bmm_scale: f32,     // Scale factor during the BMM operation, apply to every element in the matrix operation.
+    v_mask: u32,        // HLEN Head Mask for VLEN Vector
 }
 
 impl Accelerator {
@@ -1022,7 +1047,7 @@ impl Accelerator {
                         .bmm(
                             self.reg_file.gp_reg[rs1 as usize] + self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs2 as usize],
-                            self.reg_file.hvnum,
+                            self.reg_file.mm_load_stride,
                             self.reg_file.bmm_scale,
                         )
                         .await;
@@ -1032,14 +1057,14 @@ impl Accelerator {
                         .btmm(
                             self.reg_file.gp_reg[rs1 as usize] + self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs2 as usize],
-                            self.reg_file.hvnum,
+                            self.reg_file.mm_load_stride,
                             self.reg_file.bmm_scale,
                         )
                         .await;
                 }
                 op::Opcode::M_BMM_WO { rd, imm } => {
                     self.m_machine
-                        .bmm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32, self.reg_file.hvnum)
+                        .bmm_wo(self.reg_file.gp_reg[rd as usize] + imm as u32)
                         .await;
                 }
                 op::Opcode::M_MV { rs1, rs2 } => {
@@ -1459,8 +1484,7 @@ async fn start() {
             hbm_addr_reg: [0; 8],
             scale: 0,
             stride: 1,
-            hvnum: 2,
-            hmnum: 4,
+            mm_load_stride: 4,
             bmm_scale: 0.25,
             v_mask: 0,
         },
