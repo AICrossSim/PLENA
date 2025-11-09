@@ -2,8 +2,8 @@ import json
 import os
 from pathlib import Path
 from math import log2
-from ...utils import load_svh_settings, load_toml_config
-from .overall_inference_estimation import model_config
+from utils import load_svh_settings, load_toml_config
+from overall_inference_estimation import model_config
 
 
 def load_custom_isa_lib(
@@ -79,7 +79,7 @@ class instr_latency_model:
 
     def obtain_overall_latency(self, updated_config):
         overall_latency = 0
-        batch_size = 128
+        batch_size = 8
         input_seq_len = 1024
         output_seq_len = 128
         device_num = 4

@@ -6,41 +6,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import math
 
 
-def find_max_x(const1, const2):
-    """
-    Finds the maximum power-of-2 integer x satisfying the inequality:
-    x^2 * const1 + x * const1 <= const2
-    
-    :param const1: A given constant (real number)
-    :param const2: A given constant (real number)
-    :return: The maximum power-of-2 integer x satisfying the inequality
-    """
-    if const1 <= 0:
-        return None  # Avoid invalid cases where const1 is non-positive
-    
-    # Solve the quadratic equation x^2 * const1 + x * const1 - const2 = 0
-    a, b, c = const1, const1, -const2
-    
-    # Compute the discriminant
-    discriminant = b**2 - 4*a*c
-    
-    if discriminant < 0:
-        return None  # No real solutions exist
-    
-    # Compute the two roots
-    sqrt_discriminant = math.sqrt(discriminant)
-    x1 = (-b + sqrt_discriminant) / (2 * a)
-    x2 = (-b - sqrt_discriminant) / (2 * a)
-    
-    # The maximum integer satisfying the inequality is the floor of the positive root
-    max_x = math.floor(max(x1, x2))
-    
-    # Find the maximum power of 2 less than or equal to max_x
-    power_of_2_x = 2 ** int(math.log2(max_x)) if max_x > 0 else None
-    
-    return power_of_2_x
-
-
 class model_config:
     def __init__(self, model_param_path, hardware_config, batch_size = 1, seq_len = 2048, output_token = 128, device_num = 1):
         model_param = json.load(open(model_param_path))
@@ -50,14 +15,14 @@ class model_config:
         self.intermediate_size = model_param["intermediate_size"]
         self.num_key_value_heads = model_param["num_key_value_heads"]
         self.vocab_size = model_param["vocab_size"]
-        self.default_seq_len = seq_len
+        self.input_token = seq_len
+        self.output_token = output_token
         self.head_dim = self.hidden_size // self.num_attention_heads
         self.num_head_groups = self.num_attention_heads // self.num_key_value_heads
         self.vocab_size = model_param["vocab_size"]
         self.DataTypeSize = 2
         self.theoratical_frequency = 10**9          # 1 GHz
         self.hardware_config = hardware_config
-        self.output_token = output_token
         self.batch_size = batch_size
         self.kv_size = seq_len
         self.device_num = device_num
@@ -70,7 +35,7 @@ class model_config:
             loop_num = self.hidden_size // self.hardware_config["VLEN"]
             instruction_num = 0
             instruction_num += setting_inst_num
-            instruction_num += loop_num * loop_inst_num * self.default_seq_len
+            instruction_num += loop_num * loop_inst_num * self.input_token
         elif mode == "decode":
             setting_inst_num = 10
             loop_inst_num = 8
@@ -84,14 +49,14 @@ class model_config:
         if mode == "prefill":
             overall_inst_num = 0
             # Q, K Projection + RoPE
-            overall_inst_num += self.batch_size * (math.ceil(self.hidden_size / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.default_seq_len / self.hardware_config["BLEN"]) * 2 + 10)))
-            overall_inst_num += self.batch_size * (self.num_attention_heads * (self.default_seq_len // self.hardware_config["VLEN"])) * 3
+            overall_inst_num += self.batch_size * (math.ceil(self.hidden_size / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.input_token / self.hardware_config["BLEN"]) * 2 + 10)))
+            overall_inst_num += self.batch_size * (self.num_attention_heads * (self.input_token // self.hardware_config["VLEN"])) * 3
 
-            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.default_seq_len / self.hardware_config["BLEN"]) * 2 + 10)))
-            overall_inst_num += self.batch_size * (self.num_key_value_heads * (self.default_seq_len // self.hardware_config["VLEN"])) * 3
+            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.input_token / self.hardware_config["BLEN"]) * 2 + 10)))
+            overall_inst_num += self.batch_size * (self.num_key_value_heads * (self.input_token // self.hardware_config["VLEN"])) * 3
 
             # V
-            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.default_seq_len / self.hardware_config["BLEN"]) * 2 + 10)))
+            overall_inst_num += self.batch_size * (math.ceil((self.num_key_value_heads * self.head_dim) / self.hardware_config["BLEN"]) * (math.ceil(self.hidden_size / self.hardware_config["MLEN"]) * (math.ceil(self.input_token / self.hardware_config["BLEN"]) * 2 + 10)))
         
         elif mode == "decode":
             overall_inst_num = 0
@@ -114,23 +79,25 @@ class model_config:
         tile_in_atten = min(self.head_dim, mlen)
         if mode == "prefill":
         # Outer loop
-            for i in range(self.default_seq_len // self.hardware_config["MLEN"]):
-                for j in range((self.default_seq_len // self.hardware_config["MLEN"]) * self.num_key_value_heads):
-                    overall_inst_num += 4 + (mlen // blen) * 8 + 3 # MLEN * MLEN
-                    overall_inst_num += 2 + mlen * 5  # Softmax
-                    overall_inst_num += math.ceil(self.head_dim / mlen) * (9 + 4 + (math.ceil(tile_in_atten / blen)) * 8 + 3) #PV
-                    overall_inst_num += math.ceil(self.head_dim / mlen) * (1+ tile_in_atten * 3) #Compute O
-                    overall_inst_num += 8
-                    # overall_inst_num += 2 + mlen * 4
+            for kv_head_index in range(self.num_key_value_heads):
+                for i in range(math.ceil(self.input_token // self.hardware_config["MLEN"])):
+                    overall_inst_num += mlen * 2 # Reset                    
+                    for j in range(math.ceil(self.input_token // self.hardware_config["MLEN"])):
+                        overall_inst_num += mlen * 2 # QKT
+                        overall_inst_num += 2 + mlen * 14  # Softmax
+                        overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(mlen / blen) * 4) #PV
+                        overall_inst_num += mlen * 5 + 4 #Compute O
+                        overall_inst_num += 8
+
         elif mode == "decode":
-            for j in range(math.ceil(self.kv_size / self.hardware_config["MLEN"]) ):
-                overall_inst_num += (4 + (tile_in_atten // blen) * 4 + 3) * self.num_key_value_heads
-                overall_inst_num += 2 + mlen * 5  # Softmax
-                overall_inst_num += math.ceil(self.head_dim / mlen) * (9 + 4 + math.ceil((tile_in_atten / blen)) * 8 + 3) #PV
-                overall_inst_num += math.ceil(self.head_dim / mlen) * (1+ tile_in_atten * 3) #Compute O
-                overall_inst_num += 8
-                # overall_inst_num += 2 + mlen * 2
-            self.kv_size = self.kv_size + 1
+            for kv_head_index in range(self.num_key_value_heads):
+                for i in range(math.ceil(self.input_token // self.hardware_config["MLEN"])):
+                    # overall_inst_num += mlen * 2 # Reset                    
+                    overall_inst_num += mlen * 2 # QKT
+                    overall_inst_num += 2 + mlen * 14 # Softmax
+                    overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(mlen / blen) * 4) #PV
+                    overall_inst_num += mlen * 5 + 4 #Compute O
+                    overall_inst_num += 8
         return overall_inst_num * self.batch_size
 
 
@@ -139,7 +106,7 @@ class model_config:
         # -- Residual
         if mode == "prefill":
             iteration = self.hidden_size // self.hardware_config["VLEN"]
-            overall_inst_num = (5 * iteration + 3) * self.default_seq_len
+            overall_inst_num = (5 * iteration + 3) * self.input_token
         elif mode == "decode":
             iteration = self.hidden_size // self.hardware_config["VLEN"]
             overall_inst_num = 5 * iteration + 3
@@ -153,9 +120,9 @@ class model_config:
         overall_inst_num = 0
         # -- MLP
         if mode == "prefill":
-            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4 * (self.default_seq_len // blen)
+            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4 * (self.input_token // blen)
             overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5
-            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4 * (self.default_seq_len // blen)
+            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4 * (self.input_token // blen)
             overall_inst_num = (overall_inst_num) 
         elif mode == "decode":
             overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
@@ -169,7 +136,7 @@ class model_config:
         blen = self.hardware_config["BLEN"]
         overall_inst_num = 3
         if mode == "prefill":
-            overall_inst_num += self.default_seq_len * math.ceil(self.hidden_size / blen) * math.ceil(self.hidden_size / mlen) * (blen * 2 + 1) + 4
+            overall_inst_num += self.input_token * math.ceil(self.hidden_size / blen) * math.ceil(self.hidden_size / mlen) * (blen * 2 + 1) + 4
         elif mode == "decode":
             overall_inst_num += math.ceil(self.hidden_size / blen) * math.ceil(self.hidden_size / mlen) * (blen * 2 + 1) + 4
         return overall_inst_num
