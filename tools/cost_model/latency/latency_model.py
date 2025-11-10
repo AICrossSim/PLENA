@@ -106,6 +106,5 @@ if __name__ == "__main__":
 
     model = instr_latency_model(config_path, custom_isa_path, model_config_path)
     test_from_toml = load_toml_config(toml_path, "active")
-    print("test_from_toml", test_from_toml)
     overall_latency = model.obtain_overall_latency(test_from_toml)
     print(f"Overall latency: {overall_latency} seconds")

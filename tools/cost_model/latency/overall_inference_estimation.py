@@ -26,7 +26,18 @@ class model_config:
         self.batch_size = batch_size
         self.kv_size = seq_len
         self.device_num = device_num
-
+        print("=" * 15, "Model Settings","=" * 15)
+        print("hardware config: \n", self.hardware_config)
+        print("batch size: ", self.batch_size)
+        print("input token: ", self.input_token)
+        print("output token: ", self.output_token)
+        print("head dim: ", self.head_dim)
+        print("num key value heads: ", self.num_key_value_heads)
+        print("num attention heads: ", self.num_attention_heads)
+        print("num hidden layers: ", self.num_hidden_layers)
+        print("intermediate size: ", self.intermediate_size)
+        print("vocab size: ", self.vocab_size)
+        print("=" * 25)
 
     def rms_layer(self, mode = "prefill"):
         if mode == "prefill":
@@ -88,16 +99,17 @@ class model_config:
                         overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(mlen / blen) * 4) #PV
                         overall_inst_num += mlen * 5 + 4 #Compute O
                         overall_inst_num += 8
-
+            self.kv_size = self.input_token 
         elif mode == "decode":
             for kv_head_index in range(self.num_key_value_heads):
-                for i in range(math.ceil(self.input_token // self.hardware_config["MLEN"])):
+                for i in range(math.ceil(self.kv_size // self.hardware_config["MLEN"])):
                     # overall_inst_num += mlen * 2 # Reset                    
                     overall_inst_num += mlen * 2 # QKT
                     overall_inst_num += 2 + mlen * 14 # Softmax
                     overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(mlen / blen) * 4) #PV
                     overall_inst_num += mlen * 5 + 4 #Compute O
                     overall_inst_num += 8
+            self.kv_size = self.kv_size + 1
         return overall_inst_num * self.batch_size
 
 
@@ -163,27 +175,44 @@ class model_config:
             # overall_inst_num += self.residual(mode)
         # overall_inst_num += self.rms_layer()
         overall_inst_num += self.lm_head()
-        # print("Overall instruction number: ", overall_inst_num)
         overall_exe_cycle = overall_inst_num * 2
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
-        # print("Theoratical execution time: ", theoratical_execution_time)
+        print("\n")
+        print("=" * 5,"Prefill Theoratical execution distribution: ","=" * 5)
+        print(f"RMS Layer: {self.rms_layer(mode) * self.num_hidden_layers / overall_inst_num * 100}%")
+        print(f"Projection: {self.projection(mode) * self.num_hidden_layers / overall_inst_num * 100}%")
+        print(f"Flash Attention: {self.flash_attention(mode) * self.num_hidden_layers / overall_inst_num * 100}%")
+        print(f"Residual: {self.residual(mode) * self.num_hidden_layers / overall_inst_num * 100}%")
+        print(f"Feed Forward: {self.feed_forward(mode) * self.num_hidden_layers / overall_inst_num * 100}%")
+        print(f"LM Head: {self.lm_head() / overall_inst_num * 100}%")
         return theoratical_execution_time
 
     def compute_decode_time(self, output_token_size):
         mode = "decode"
         overall_inst_num = 0
+        rms_count = 0
+        projection_count = 0
+        flash_attention_count = 0
+        residual_count = 0
+        feed_forward_count = 0
         for j in range (output_token_size):
             for i in range (self.num_hidden_layers):
-                overall_inst_num += self.rms_layer(mode)
-                overall_inst_num += self.projection(mode)
-                overall_inst_num += self.flash_attention(mode)
-                overall_inst_num += self.residual(mode)
-                overall_inst_num += self.rms_layer(mode)
-                overall_inst_num += self.feed_forward(mode)
-        # print("Overall instruction number: ", overall_inst_num)
-        overall_exe_cycle = overall_inst_num * 2 # avg 3 execution cycles
+                rms_count += self.rms_layer(mode)
+                projection_count += self.projection(mode)
+                flash_attention_count += self.flash_attention(mode)
+                residual_count += self.residual(mode)
+                rms_count += self.rms_layer(mode)
+                feed_forward_count += self.feed_forward(mode)
+        overall_inst_num = rms_count + projection_count + flash_attention_count + residual_count + feed_forward_count
+        overall_exe_cycle = overall_inst_num * 2 # avg 2 execution cycles
         theoratical_execution_time = overall_exe_cycle / self.theoratical_frequency
-        # print("Theoratical execution time: ", theoratical_execution_time)
+        print("\n")
+        print("=" * 5,"Decode Theoratical execution distribution: ","=" * 5)
+        print(f"RMS Layer: {rms_count / overall_inst_num * 100}%")
+        print(f"Projection: {projection_count / overall_inst_num * 100}%")
+        print(f"Flash Attention: {flash_attention_count / overall_inst_num * 100}%")
+        print(f"Residual: {residual_count / overall_inst_num * 100}%")
+        print(f"Feed Forward: {feed_forward_count / overall_inst_num * 100}%")
         return theoratical_execution_time
 
 
@@ -192,15 +221,6 @@ class model_config:
         tps = (self.device_num * (self.batch_size * self.output_token)) / self.compute_decode_time(self.output_token // self.device_num)
         return ttft, tps
 
-
-
-
-if __name__ == "__main__":
-    model = model_config("Model_Lib/llama-3.1-8b.json", batch_size=4)
-    MLEN = 64
-    seq_len = 2048
-    overall_inst_num, theoratical_execution_time = model.compute_overall_inst()
-    print("Overall Instruction Number: ", overall_inst_num)
 
 
 
