@@ -57,6 +57,7 @@ class model_config:
         return instruction_num * self.batch_size
 
     def projection(self, mode = "prefill"):
+        # Compute Q, K, V Projection + RoPE
         if mode == "prefill":
             overall_inst_num = 0
             # Q, K Projection + RoPE
@@ -135,9 +136,9 @@ class model_config:
             overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4 * (self.input_token // blen)
             overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5
             overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4 * (self.input_token // blen)
-            overall_inst_num = (overall_inst_num) 
+            overall_inst_num = (overall_inst_num) * self.batch_size
         elif mode == "decode":
-            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
+            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * (math.ceil(self.batch_size // blen) ) * 4
             overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5
             overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * 4
         return overall_inst_num

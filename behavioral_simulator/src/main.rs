@@ -354,15 +354,18 @@ impl MatrixMachine {
         // println!("======================== M_MM ==========================");
         // println!("m_addr = {:?}", m_addr);
         // println!("v_addr = {:?}", v_addr);
-        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
+        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
         // println!("mat_offset = {:?}", mat_offset);
-        assert!(mat_offset.is_multiple_of(self.blen));
+        // println!("mat_base = {:?}", mat_base);
+        assert!(mat_offset.is_multiple_of(self.mlen));
+        let mat_row_offset = mat_offset as i64 / self.mlen as i64;
+
         let full_mat = self.mram.read(mat_base).await;
         // Slice columns instead of rows: [mlen, blen]
         let mat = full_mat
             .as_tensor()
             .view([self.mlen as i64, self.mlen as i64])
-            .i((.., mat_offset as i64..(mat_offset + self.blen) as i64));
+            .i((.., mat_row_offset as i64..(mat_row_offset + self.blen as i64)));
         let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
         for i in 0..self.blen {
