@@ -59,3 +59,39 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
         # Convert BFloat16 to float32 before converting to numpy
         output_np = golden_result["original_output"].detach().cpu().float().numpy()
         f.write(np_array_to_str_2f(output_np))
+
+
+def create_sim_env_dllm(input_tensor, generated_code, golden_result, fp_preload = None, int_preload = None):
+    build_dir = os.path.join(os.path.dirname(__file__), "build")
+    os.makedirs(build_dir, exist_ok=True)
+    if isinstance(input_tensor, dict):
+        for key, value in input_tensor.items():
+            with open(os.path.join(build_dir, f"{key}.pt"), "wb") as f:
+                torch.save(value, f)
+    else:
+        with open(os.path.join(build_dir, "input_tensor.pt"), "wb") as f:
+            torch.save(input_tensor, f)
+    with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
+        f.write(generated_code)
+    # Store golden_result in a readable format, including tensor contents.
+    if fp_preload is not None:
+        with open(os.path.join(build_dir, "fp_sram.bin"), "wb") as f:
+            fp16_array = np.array(fp_preload, dtype=np.float16)
+            f.write(fp16_array.tobytes())
+    if int_preload is not None:
+        int_array = np.array(int_preload, dtype=np.uint32)
+        with open(os.path.join(build_dir, "int_sram.bin"), "wb") as f:
+            f.write(int_array.tobytes())
+    with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
+        f.write("Input Tensor:\n")
+        if isinstance(input_tensor, dict):
+            for key, value in input_tensor.items():
+                value_np = value.detach().cpu().float().numpy()
+                f.write(f"{key}:\n{np_array_to_str_2f(value_np)}\n")
+        else:
+            value_np = input_tensor.detach().cpu().float().numpy()
+            f.write(np_array_to_str_2f(value_np))
+        f.write("\n\nOriginal Output:\n")
+        # Convert BFloat16 to float32 before converting to numpy
+        output_np = golden_result["original_output"].detach().cpu().float().numpy()
+        f.write(np_array_to_str_2f(output_np))

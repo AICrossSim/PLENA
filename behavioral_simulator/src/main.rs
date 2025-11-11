@@ -656,6 +656,23 @@ impl VectorMachine {
         self.vram.write(vd, c).await;
     }
 
+    async fn select(&mut self, vd: u32, vs1: u32, vs2: u32, vmask: u32) {
+        let (a, b, mask) = tokio::join!(
+            self.vram.read(vs1),
+            self.vram.read(vs2),
+            self.vram.read(vmask)
+        );
+        
+        // vd[i] = vmask[i] ? vs1[i] : vs2[i]
+        // In PyTorch: where(mask, vs1, vs2)
+        // Convert mask to boolean (assuming mask is non-zero for true) and select
+        // Do all tensor operations in one expression to avoid holding references across await
+        let result = a.as_tensor().where_self(&mask.as_tensor().ne(0.0), b.as_tensor());
+        let c = QuantTensor::quantize(result, a.data_type());
+        cycle!(*VECTOR_ADD_CYCLES);
+        self.vram.write(vd, c).await;
+    }
+
     async fn exp(&mut self, vd: u32, vs1: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
@@ -699,6 +716,39 @@ impl VectorMachine {
         println!("reduce_max: val = {:?}", val);
         println!("reduce_max: f = {:?}", f);
         f32::max(val, f)
+    }
+
+    async fn reduce_max_idx(&mut self, vs1: u32, f: f32) -> f32 {
+        let a = self.vram.read(vs1).await;
+        println!("vram address = {:?}", vs1);
+        cycle!(*VECTOR_MAX_CYCLES);
+    
+        let tensor = a.as_tensor();
+    
+        // get length of the first dimension (size returns Vec<i64>)
+        let len_i64 = tensor.size()[0];
+        let len = len_i64 as usize;
+    
+        // find max value and its index
+        let mut max_val = f32::NEG_INFINITY;
+        let mut max_idx: usize = 0;
+    
+        for i in 0..len {
+            // tensor.i expects an integer index; pass i as i64
+            let v: f32 = tensor.i(i as i64).try_into().unwrap();
+            if v > max_val {
+                max_val = v;
+                max_idx = i;
+            }
+        }
+    
+        println!("<--- reduce_max_idx --->");
+        println!("reduce_max_idx: max_val = {:?}", max_val);
+        println!("reduce_max_idx: max_idx = {:?}", max_idx);
+        println!("reduce_max_idx: f = {:?}", f);
+    
+        // Return the index (as f32), keeping the same "compare with f" semantics
+        f32::max(max_idx as f32, f)
     }
 }
 
@@ -1076,6 +1126,16 @@ impl Accelerator {
                         )
                         .await;
                 }
+                op::Opcode::V_SELECT_VVM { rd, rs1, rs2, mask } => {
+                    self.v_machine
+                        .select(
+                            self.reg_file.gp_reg[rd as usize],
+                            self.reg_file.gp_reg[rs1 as usize],
+                            self.reg_file.gp_reg[rs2 as usize],
+                            self.reg_file.gp_reg[mask as usize],
+                        )
+                        .await;
+                }
                 op::Opcode::V_EXP_V { rd, rs1 } => {
                     self.v_machine
                         .exp(
@@ -1110,6 +1170,16 @@ impl Accelerator {
                     let result = self
                         .v_machine
                         .reduce_max(
+                            self.reg_file.gp_reg[rs1 as usize],
+                            self.reg_file.fp_reg[rd as usize].into(),
+                        )
+                        .await;
+                    self.reg_file.fp_reg[rd as usize] = f16::from_f32(result);
+                }
+                op::Opcode::V_RED_MAX_IDX { rd, rs1 } => {
+                    let result = self
+                        .v_machine
+                        .reduce_max_idx(
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.fp_reg[rd as usize].into(),
                         )

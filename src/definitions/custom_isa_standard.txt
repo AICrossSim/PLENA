@@ -20,6 +20,7 @@ pub enum Opcode {
     VLdF { rd: u8, rs1: u8, rs2: u8 },
     V_RED_SUM { rd: u8, rs1: u8, imm: u8 },
     V_RED_MAX { rd: u8, rs1: u8, imm: u8 },
+    V_RED_MAX_IDX { rd: u8, rs1: u8, imm: u8 },
 
     S_ADD_FP { rd: u8, rs1: u8, rs2: u8 },
     S_SUB_FP { rd: u8, rs1: u8, rs2: u8 },

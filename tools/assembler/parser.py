@@ -164,6 +164,18 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
+            if len(operands) > 3:
+                operand_3 = operands[3]
+                if operand_3[-1] == ';':
+                    operand_3 = operand_3[:-1]
+                if operand_3.startswith('gp'):
+                    rstride = int(operand_3[2:], 16)
+                elif operand_3.startswith('f'):
+                    rstride = int(operand_3[1:], 16)
+                elif operand_3.startswith('a'):
+                    rstride = int(operand_3[1:], 16)
+                else:
+                    rstride = int(operand_3)
             if len(operands) == 5:
                 rstride = int(operands[3])
                 funct1 = operands[4]

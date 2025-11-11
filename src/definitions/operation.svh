@@ -134,6 +134,7 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     V_RECI_V               = 6'h14,
     V_RED_SUM              = 6'h15,
     V_RED_MAX              = 6'h16,
+    
 
     // Scalar Operations (Floating-Point)
     S_ADD_FP               = 6'h17,
@@ -170,7 +171,9 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     V_PS_V                 = 6'h2E,
     V_SHFT_V               = 6'h2F,
     C_HADAMARD_TRANSFORM   = 6'h30,
-    C_BREAK                = 6'h31
+    C_BREAK                = 6'h31,
+    V_RED_MAX_IDX          = 6'h32,
+    V_SELECT_VVM           = 6'h33,
 } CUSTOM_ISA_OPCODE;
 
 

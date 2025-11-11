@@ -43,7 +43,7 @@ class AssemblyToBinary:
         # print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
-        if instruction.opcode in ["S_ADDI_INT", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "S_MAP_V_FP", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
+        if instruction.opcode in ["S_ADDI_INT", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "S_MAP_V_FP", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
@@ -56,7 +56,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V", "V_RED_SUM"]:
+        elif instruction.opcode in [ "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V", "V_RED_SUM", "V_RED_MAX", "V_RED_MAX_IDX"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
@@ -71,6 +71,17 @@ class AssemblyToBinary:
             binary_instruction = (
                 (funct1 << (opw + 4 * ow)) +
                 (rstride << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["V_SELECT_VVM"]:
+            # V_SELECT_VVM uses 4 operands: rd, rs1, rs2, mask (rs3)
+            # mask is stored in rstride field from parser
+            mask = instruction.rstride if instruction.rstride is not None else 0
+            binary_instruction = (
+                (mask << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +

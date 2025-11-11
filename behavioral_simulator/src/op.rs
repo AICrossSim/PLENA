@@ -116,6 +116,16 @@ pub enum Opcode {
         rd: u8,
         rs1: u8,
     },
+    V_RED_MAX_IDX {
+        rd: u8,
+        rs1: u8,
+    },
+    V_SELECT_VVM{
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+        mask: u8,
+    },
 
     S_ADD_FP {
         rd: u8,
@@ -334,7 +344,10 @@ impl Opcode {
             0x2B => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
             0x2C => Self::C_SET_SCALE_REG { rd },
             0x2D => Self::C_SET_STRIDE_REG { rd },
-            0x2E => Self::C_BREAK,
+            0x2E => Self::C_BREAK,  // Note: According to operation.svh, 0x2E should be V_PS_V, but keeping C_BREAK for compatibility
+            0x31 => Self::C_BREAK,
+            0x32 => Self::V_RED_MAX_IDX { rd, rs1 },
+            0x33 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid
