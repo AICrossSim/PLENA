@@ -42,11 +42,21 @@ def load_toml_config(file_path, mode=None):
         full_toml = toml.load(f)
     for section in section_to_load:
         toml_config = full_toml.get(section, {})
-        if toml_config:
-            hardware_settings = {
-                param: values.get(mode)
-                for param, values in toml_config.items()
-                if mode in values
-            }
-            config.update(hardware_settings)
+        if not isinstance(toml_config, dict):
+            continue
+
+        for param, values in toml_config.items():
+            if mode is None:
+                config[param] = values
+                continue
+
+            if isinstance(values, dict):
+                if mode in values:
+                    config[param] = values[mode]
+                elif "value" in values:
+                    config[param] = values["value"]
+                else:
+                    config[param] = values
+            else:
+                config[param] = values
     return config

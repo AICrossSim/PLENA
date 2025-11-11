@@ -20,7 +20,7 @@ def preload_act_asm(
     a_actual_register   = alive_registers[0]
     set_stride_register = alive_registers[1]
     result_register     = alive_registers[2]
-    stride_len = hidden_size if stride_size is None else stride_size
+    stride_len = vlen if stride_size is None else stride_size
 
     # Set scale offset
     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * batch} \n"

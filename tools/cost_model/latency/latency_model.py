@@ -2,8 +2,8 @@ import json
 import os
 from pathlib import Path
 from math import log2
-from ...utils import load_svh_settings, load_toml_config
-from .overall_inference_estimation import model_config
+from utils import load_svh_settings, load_toml_config
+from overall_inference_estimation import model_config
 
 
 def load_custom_isa_lib(
@@ -78,8 +78,7 @@ class instr_latency_model:
         print(f"Alone latency model saved to {output_file}")
 
     def obtain_overall_latency(self, updated_config):
-        overall_latency = 0
-        batch_size = 128
+        batch_size = 1024
         input_seq_len = 1024
         output_seq_len = 128
         device_num = 4
@@ -90,11 +89,13 @@ class instr_latency_model:
         ttft, tps = model.compute_overall_perf()
         print(f"TTFT: {ttft}")
         print(f"TPS: {tps}")
-        return overall_latency
+
 
 
 if __name__ == "__main__":
     import toml
+    import time
+    start_time = time.time()
     config_parent_path      = Path(__file__).resolve().parents[3]
     config_path             = os.path.join(config_parent_path, "src/definitions/configuration.svh")
     toml_path               = os.path.join(config_parent_path, "src/definitions/plena_settings.toml")
@@ -106,6 +107,6 @@ if __name__ == "__main__":
 
     model = instr_latency_model(config_path, custom_isa_path, model_config_path)
     test_from_toml = load_toml_config(toml_path, "active")
-    print("test_from_toml", test_from_toml)
-    overall_latency = model.obtain_overall_latency(test_from_toml)
-    print(f"Overall latency: {overall_latency} seconds")
+    model.obtain_overall_latency(test_from_toml)
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")

@@ -71,6 +71,7 @@ class Instruction:
         self.rstride = rstride
         self.funct1 = funct1
         self.imm = imm
+        self.rmask = rstride
 
     def __repr__(self):
         return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, imm={self.imm})"
@@ -109,61 +110,68 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
             opcode = parts[0]
             operands = [part.strip() for part in ' '.join(parts[1:]).split(',')]
             # print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
-            # Decode based on number of operands
-            if len(operands) > 0:
-                operand_0 = operands[0]
-                if operand_0[-1] == ';':
-                    operand_0 = operand_0[:-1]
-                if operand_0.startswith('gp'):
-                    rd = int(operand_0[2:], 16)
-                elif operand_0.startswith('f'):
-                    rd = int(operand_0[1:], 16)
-                elif operand_0.startswith('a'):
-                    rd = int(operand_0[1:], 16)
-                else:
-                    try:
-                        rd = int(operand_0)
-                    except ValueError:
-                        rd = None
-            else:
-                rd = None
+            
+            # Decode based on number of operands, case-structure by length
+            rd = None
             rs1 = None
             rs2 = None
             rstride = None
-            imm = None
             funct1 = None
+            imm = None
 
-            if len(operands) > 1:
+            # Helper to parse a register or int operand
+            def parse_reg_or_int(operand):
+                operand = operand.strip()
+                if operand.endswith(';'):
+                    operand = operand[:-1]
+                if operand.startswith('gp'):
+                    return int(operand[2:], 16)
+                elif operand.startswith('f'):
+                    return int(operand[1:], 16)
+                elif operand.startswith('a'):
+                    return int(operand[1:], 16)
+                else:
+                    try:
+                        return int(operand)
+                    except ValueError:
+                        return None
+
+            if len(operands) == 1:
+                operand_0 = operands[0]
+                rd = parse_reg_or_int(operand_0)
+            elif len(operands) == 2:
+                operand_0 = operands[0]
                 operand_1 = operands[1]
-                if operand_1[-1] == ';':
-                    operand_1 = operand_1[:-1]
-                if operand_1.startswith('gp'):
-                    rs1 = int(operand_1[2:], 16)
-                elif operand_1.startswith('f'):
-                    rs1 = int(operand_1[1:], 16)
-                elif operand_0.startswith('a'):
-                    rs1 = int(operand_1[1:], 16)
+                rd = parse_reg_or_int(operand_0)
+                # rs1 is a register, imm is a number
+                # Heuristics: if it looks like a reg, it's rs1; else, it's imm
+                if operand_1.strip().startswith(('gp','f','a')):
+                    rs1 = parse_reg_or_int(operand_1)
                 else:
                     try:
                         imm = int(operand_1)
                     except ValueError:
                         imm = None
-
-            if len(operands) > 2:
-                operand_2 = operands[2]
-                if operand_2[-1] == ';':
-                    operand_2 = operand_2[:-1]
-                if operand_2.startswith('gp'):
-                    rs2 = int(operand_2[2:], 16)
-                elif operand_2.startswith('f'):
-                    rs2 = int(operand_2[1:], 16)
-                elif operand_2.startswith('a'):
-                    rs2 = int(operand_2[1:], 16)
+            elif len(operands) == 3:
+                operand_0, operand_1, operand_2 = operands
+                rd = parse_reg_or_int(operand_0)
+                # If looks like register, rs1; else, imm
+                if operand_1.strip().startswith(('gp','f','a')):
+                    rs1 = parse_reg_or_int(operand_1)
+                else:
+                    try:
+                        imm = int(operand_1)
+                    except ValueError:
+                        imm = None
+                # If it looks like register, rs2; else, imm (overwrites imm if rs1 not present)
+                if operand_2.strip().startswith(('gp','f','a')):
+                    rs2 = parse_reg_or_int(operand_2)
                 else:
                     try:
                         imm = int(operand_2)
                     except ValueError:
                         pass
+<<<<<<< HEAD
             if len(operands) > 3:
                 operand_3 = operands[3]
                 if operand_3[-1] == ';':
@@ -181,8 +189,59 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 funct1 = operands[4]
                 if (funct1[-1] == ';'):
                     funct1 = int(funct1[:-1])
+=======
+            elif len(operands) == 4:
+                operand_0, operand_1, operand_2, operand_3 = operands
+                rd = parse_reg_or_int(operand_0)
+                if operand_1.strip().startswith(('gp','f','a')):
+                    rs1 = parse_reg_or_int(operand_1)
+>>>>>>> main
                 else:
-                    funct1 = int(funct1)
+                    try:
+                        imm = int(operand_1)
+                    except ValueError:
+                        imm = None
+                if operand_2.strip().startswith(('gp','f','a')):
+                    rs2 = parse_reg_or_int(operand_2)
+                else:
+                    try:
+                        imm = int(operand_2)
+                    except ValueError:
+                        pass
+                # Interpret 4th operand as rstride if int
+                try:
+                    rstride = int(operand_3)
+                except ValueError:
+                    rstride = None
+            elif len(operands) == 5:
+                operand_0, operand_1, operand_2, operand_3, operand_4 = operands
+                rd = parse_reg_or_int(operand_0)
+                if operand_1.strip().startswith(('gp','f','a')):
+                    rs1 = parse_reg_or_int(operand_1)
+                else:
+                    try:
+                        imm = int(operand_1)
+                    except ValueError:
+                        imm = None
+                if operand_2.strip().startswith(('gp','f','a')):
+                    rs2 = parse_reg_or_int(operand_2)
+                else:
+                    try:
+                        imm = int(operand_2)
+                    except ValueError:
+                        pass
+                try:
+                    rstride = int(operand_3)
+                except ValueError:
+                    rstride = None
+                funct1_raw = operand_4.strip()
+                if funct1_raw.endswith(';'):
+                    funct1_raw = funct1_raw[:-1]
+                try:
+                    funct1 = int(funct1_raw)
+                except ValueError:
+                    funct1 = funct1_raw  # fallback, if not int, keep as string
+
 
             instructions.append(Instruction(opcode, rd, rs1, rs2, rstride, funct1, imm))
 

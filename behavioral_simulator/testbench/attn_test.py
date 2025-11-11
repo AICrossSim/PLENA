@@ -35,7 +35,7 @@ if __name__ == "__main__":
     batch_size = 1
     s_q =64
     s_kv = 64
-    num_q_heads = 8
+    num_q_heads = 16
     num_kv_heads = 4
     h_qkv = 16
     mlen = 64

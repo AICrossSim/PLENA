@@ -38,6 +38,7 @@ pub enum Opcode {
     },
     M_MM_WO {
         rd: u8,
+        rstride: u8,
         imm: u32,
     },
     M_MV {
@@ -70,39 +71,47 @@ pub enum Opcode {
         rd: u8,
         rs1: u8,
         rs2: u8,
+        rmask: u8,
     },
     V_ADD_VF {
         rd: u8,
         rs1: u8,
         rs2: u8,
+        rmask: u8,
     },
     V_SUB_VV {
         rd: u8,
         rs1: u8,
         rs2: u8,
+        rmask: u8,
     },
     V_SUB_VF {
         rd: u8,
         rs1: u8,
         rs2: u8,
+        rmask: u8,
     },
     V_MUL_VV {
         rd: u8,
         rs1: u8,
         rs2: u8,
+        rmask: u8,
     },
     V_MUL_VF {
         rd: u8,
         rs1: u8,
         rs2: u8,
+        rmask: u8,
     },
     V_EXP_V {
         rd: u8,
         rs1: u8,
+        rmask: u8,
     },
     V_RECI_V {
         rd: u8,
         rs1: u8,
+        rmask: u8,
     },
     // VBcF {
     //     rd: u8,
@@ -111,10 +120,12 @@ pub enum Opcode {
     V_RED_SUM {
         rd: u8,
         rs1: u8,
+        rmask: u8,
     },
     V_RED_MAX {
         rd: u8,
         rs1: u8,
+        rmask: u8,
     },
     V_RED_MAX_IDX {
         rd: u8,
@@ -243,6 +254,9 @@ pub enum Opcode {
     C_SET_STRIDE_REG {
         rd: u8,
     },
+    C_SET_V_MASK_REG {
+        rd: u8,
+    },
     C_BREAK,
 }
 
@@ -276,7 +290,7 @@ impl Opcode {
             0x03 => Self::M_BMM { rs1, rs2, rd },
             0x04 => Self::M_BTMM { rs1, rs2, rd },
             0x05 => Self::M_BMM_WO { rd, imm: imm2 },
-            0x06 => Self::M_MM_WO { rd, imm: imm2 },
+            0x06 => Self::M_MM_WO { rd, rstride: rs1, imm: imm2 },
             0x07 => Self::M_MV { rs1, rs2 },
             0x08 => Self::M_TMV { rs1, rs2 },
             0x09 => Self::M_BMV { rs1, rs2, rd },
@@ -285,16 +299,16 @@ impl Opcode {
             0x0C => Self::M_BMV_WO { rd, imm: imm2 },
 
             // Vector Operations
-            0x0D => Self::V_ADD_VV { rd, rs1, rs2 },
-            0x0E => Self::V_ADD_VF { rd, rs1, rs2 },
-            0x0F => Self::V_SUB_VV { rd, rs1, rs2 },
-            0x10 => Self::V_SUB_VF { rd, rs1, rs2 },
-            0x11 => Self::V_MUL_VV { rd, rs1, rs2 },
-            0x12 => Self::V_MUL_VF { rd, rs1, rs2 },
-            0x13 => Self::V_EXP_V { rd, rs1 },
-            0x14 => Self::V_RECI_V { rd, rs1 },
-            0x15 => Self::V_RED_SUM { rd, rs1 },
-            0x16 => Self::V_RED_MAX { rd, rs1 },
+            0x0D => Self::V_ADD_VV  { rd, rs1, rs2, rmask: rs3 },
+            0x0E => Self::V_ADD_VF  { rd, rs1, rs2, rmask: rs3 },
+            0x0F => Self::V_SUB_VV  { rd, rs1, rs2, rmask: rs3 },
+            0x10 => Self::V_SUB_VF  { rd, rs1, rs2, rmask: rs3 },
+            0x11 => Self::V_MUL_VV  { rd, rs1, rs2, rmask: rs3 },
+            0x12 => Self::V_MUL_VF  { rd, rs1, rs2, rmask: rs3 },
+            0x13 => Self::V_EXP_V   { rd, rs1, rmask: rs3 },
+            0x14 => Self::V_RECI_V  { rd, rs1, rmask: rs3 },
+            0x15 => Self::V_RED_SUM { rd, rs1, rmask: rs3 },
+            0x16 => Self::V_RED_MAX { rd, rs1, rmask: rs3 },
 
             // Scalar Operations (Floating-Point)
             0x17 => Self::S_ADD_FP { rd, rs1, rs2 },
@@ -344,10 +358,10 @@ impl Opcode {
             0x2B => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
             0x2C => Self::C_SET_SCALE_REG { rd },
             0x2D => Self::C_SET_STRIDE_REG { rd },
-            0x2E => Self::C_BREAK,  // Note: According to operation.svh, 0x2E should be V_PS_V, but keeping C_BREAK for compatibility
-            0x31 => Self::C_BREAK,
             0x32 => Self::V_RED_MAX_IDX { rd, rs1 },
             0x33 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
+            0x2E => Self::C_SET_V_MASK_REG { rd },
+            0x2F => Self::C_BREAK,
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

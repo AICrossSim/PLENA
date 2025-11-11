@@ -166,6 +166,7 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     C_SET_ADDR_REG         = 6'h2B,
     C_SET_SCALE_REG        = 6'h2C,
     C_SET_STRIDE_REG       = 6'h2D,
+    C_SET_V_MASK_REG       = 6'h2E,
 
     // Extensions
     V_PS_V                 = 6'h2E,

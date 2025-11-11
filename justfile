@@ -43,7 +43,8 @@ build-behave-sim-debug arg:
     fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
     cd behavioral_simulator && \
     RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path"
-    cd behavioral_simulator/testbench && python3 view_mem.py
+    python3 behavioral_simulator/testbench/view_mem.py
+    python3 tools/utils/compare_match.py
 
 build-rtl-sim arg:
     rm -rf test/Instr_Level_Benchmark/build/{{arg}}
