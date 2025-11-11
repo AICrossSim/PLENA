@@ -173,8 +173,8 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
         # For Big Endian Purpose
         if len(row_buffer) > 0:
             # Calculate padding needed
-            # padding_needed = hbm_row_bias_num - len(row_buffer)
-            # row_buffer.extend(b'\x00' * padding_needed)
+            padding_needed = hbm_row_bias_num - len(row_buffer)
+            row_buffer.extend(b'\x00' * padding_needed)
             f.write(row_buffer)
     print_outputfile_contents(output_file)
     

@@ -826,6 +826,11 @@ impl Accelerator {
         } else {
             load_dim
         };
+        println!("Call transfer_from_hbm");
+        println!("stride = {:?}", stride);
+        println!("index = {:?}", index);
+        println!("scale_index = {:?}", scale_index);
+
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
             let element_bits = element_ty.size_in_bits();
@@ -891,7 +896,7 @@ impl Accelerator {
                     let load_iter = write_idx * write_amount + block_idx;
                     let element_addr = index + (load_iter * stride) as u64;
                     let scale_addr = scale_index + (load_iter as f32 * stride_scale) as u64;
-                    // println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
+                    println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
                     let byte_offset = (write_idx * write_amount * len_in_bytes_per_load) as usize
                         + block_idx as usize * len_in_bytes_per_load as usize;
                     let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load)
@@ -903,11 +908,13 @@ impl Accelerator {
                         let chunk_offset = byte_offset + i * 64;
                         let chunk_size = std::cmp::min(64, total_bytes - chunk_offset);
                         let addr = element_addr + (i * 64) as u64;
+                        assert!(addr.is_multiple_of(64));
                         futures.push(Box::pin(async move {
                             let data = hbm_clone.read(addr).await;
                             ChunkType::Element(chunk_offset, data, chunk_size)
                         }));
                     }
+
 
                     // Scale chunks (if Mx type)
                     if scale_len_in_bytes_per_load > 0 {
@@ -919,6 +926,7 @@ impl Accelerator {
                         let chunk_size = std::cmp::min(64, total_scale_bytes - chunk_offset);
                         futures.push(Box::pin(async move {
                             let data = hbm_clone.read(aligned_scale_addr).await;
+                            // println!("aligned_scale_addr = {:?}", aligned_scale_addr);
                             // Copy out only the relevant bytes for this scale_addr
                             // scale_len_in_bytes_per_load says how many bytes to copy from within the chunk
                             let end_offset = std::cmp::min(
@@ -929,6 +937,7 @@ impl Accelerator {
                             let len_to_copy = end_offset - within_chunk_offset;
                             selected[..len_to_copy]
                                 .copy_from_slice(&data[within_chunk_offset..end_offset]);
+                            // println!("selected scale = {:?}", selected);
                             ChunkType::Scale(chunk_offset, selected, len_to_copy)
                         }));
                     }

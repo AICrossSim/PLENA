@@ -101,17 +101,21 @@ if __name__ == "__main__":
     vram_file = os.path.join(script_dir, "behavioral_simulator", "vram_dump.bin")
     mram_file = os.path.join(script_dir, "behavioral_simulator", "mram_dump.bin")
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
-    print("Viewing VRAM dump from Q Base Address")
+    
+    print("Viewing VRAM dump from 0 Base Address")
     view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
-    print("\nViewing VRAM dump from S Base Address")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=16)
+    # print("Viewing VRAM dump from Q Base Address")
+    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
-    print("\nViewing VRAM dump from PV Base Address")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=320, load_row_size=16)
+    # print("\nViewing VRAM dump from S Base Address")
+    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=16)
     
-    print("\nViewing VRAM dump from O_Old Base Address")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=576, load_row_size=16)
+    # print("\nViewing VRAM dump from PV Base Address")
+    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=320, load_row_size=16)
+    
+    # print("\nViewing VRAM dump from O_Old Base Address")
+    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=576, load_row_size=16)
     
     # print("Viewing MRAM dump 0 to 7 rows (BF16 format)")
     # view_bin_file_by_row(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
