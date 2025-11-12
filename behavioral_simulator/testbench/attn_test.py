@@ -35,7 +35,7 @@ if __name__ == "__main__":
     batch_size = 1
     s_q =64
     s_kv = 64
-    num_q_heads = 8
+    num_q_heads = 16
     num_kv_heads = 4
     h_qkv = 16
     mlen = 64
@@ -51,15 +51,21 @@ if __name__ == "__main__":
     print("fp preload:", fp_preload)
 
     torch.manual_seed(42)
+    # in shape of b, s, h, d
     q = torch.randn(batch_size, s_q, num_q_heads, h_qkv, dtype=torch.bfloat16, device=device)
     k = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16, device=device)
     v = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16, device=device) 
+
+    # Set print options to avoid "..." truncation for high-dimensional tensors
+    torch.set_printoptions(edgeitems=20, threshold=20000, linewidth=200)
 
     input_tensor = {
         "q": q.reshape(batch_size, -1),
         "k": k.reshape(batch_size, -1),
         "v": v.reshape(batch_size, -1)
     }
+
+    print("q reshaped shape:", q.reshape(batch_size, -1)[:, : num_q_heads * h_qkv - 1])
 
     weights = torch.zeros(h_qkv)
 
@@ -74,7 +80,7 @@ if __name__ == "__main__":
     # print("ref_original_output", ref_original_output)
     # quit()
     
-
+    print("q now shape:", q.shape)
     original_output = flash_attn2_gemv(
         q,
         k,

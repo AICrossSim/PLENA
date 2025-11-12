@@ -73,6 +73,7 @@ if __name__ == "__main__":
            matmul_result_11 + matmul_result_22)
 
     original_output = original_layer(input_tensor)
+    print ("original_output:", original_output)
 
     golden_result = {
         "input_tensor": input_tensor,
@@ -92,7 +93,6 @@ if __name__ == "__main__":
     print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
     print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
     
-
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3]
@@ -130,4 +130,8 @@ if __name__ == "__main__":
     )
 
     create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result, fp_preload)
-    build_fake_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["input_tensor", "weights"])
+    build_fake_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["input_tensor", "model_weights"])
+
+    print("================================================")
+    print("Finished generating assembly code")
+    print("================================================")

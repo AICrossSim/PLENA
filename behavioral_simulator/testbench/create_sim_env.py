@@ -24,7 +24,7 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
     else:
         with open(os.path.join(build_dir, "input_tensor.pt"), "wb") as f:
             torch.save(input_tensor, f)
-    with open(os.path.join(build_dir, "model_weight.pt"), "wb") as f:
+    with open(os.path.join(build_dir, "model_weights.pt"), "wb") as f:
         torch.save(input_weight, f)
     with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
         f.write(generated_code)
@@ -38,7 +38,7 @@ def create_sim_env(input_tensor, input_weight, generated_code, golden_result, fp
         with open(os.path.join(build_dir, "int_sram.bin"), "wb") as f:
             f.write(int_array.tobytes())
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
-        f.write("Golden Result:\n")
+        f.write("Input Tensor:\n")
         if isinstance(input_tensor, dict):
             for key, value in input_tensor.items():
                 value_np = value.detach().cpu().float().numpy()

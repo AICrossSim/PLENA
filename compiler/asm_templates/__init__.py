@@ -7,6 +7,7 @@ from .elementwise_add_asm import elementwise_add_asm
 from .preload_act import preload_act_asm
 from .reset_reg_asm import reset_reg_asm
 from .preload_addr_reg import preload_addr_reg_asm
+from .batched_matmul_asm import batched_matmul_asm
 
 __all__ = [
     "projection_asm",
@@ -18,4 +19,5 @@ __all__ = [
     "rms_norm_asm",
     "elementwise_add_asm",
     "embedding_asm",
+    "batched_matmul_asm",
 ]
