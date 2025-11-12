@@ -110,10 +110,14 @@ impl<T> WithStats<T> {
     pub fn model(&self) -> &T {
         &self.model
     }
+
+    pub fn statistics(&self) -> Statistics {
+        self.statistics.lock().unwrap().clone()
+    }
 }
 
 #[async_trait::async_trait]
-impl<T: MemoryModel> MemoryModel for WithStats<T> {
+impl<T: MemoryTimingModel, M: MemoryModel> MemoryModel for WithStats<WithTiming<T, M>> {
     async fn read(&self, addr: u64) -> [u8; 64] {
         {
             let mut guard = self.statistics.lock().unwrap();
@@ -131,25 +135,6 @@ impl<T: MemoryModel> MemoryModel for WithStats<T> {
     }
 }
 
-#[async_trait::async_trait]
-impl<T: MemoryTimingModel> MemoryTimingModel for WithStats<T> {
-    async fn read(&self, addr: u64) {
-        {
-            let mut guard = self.statistics.lock().unwrap();
-            guard.total_bytes_read += 64;
-        }
-        self.model.read(addr).await
-    }
-
-    async fn write(&self, addr: u64) {
-        {
-            let mut guard = self.statistics.lock().unwrap();
-            guard.total_bytes_written += 64;
-        }
-        self.model.write(addr).await
-    }
-}
-
 /// Combine a data model with an extra timing model.
 pub struct WithTiming<T, M> {
     timing: T,
@@ -163,12 +148,6 @@ impl<T, M> WithTiming<T, M> {
 
     pub fn data(&self) -> &M {
         &self.data
-    }
-}
-
-impl<T, M> WithTiming<WithStats<T>, WithStats<M>> {
-    pub fn statistics(&self) -> Statistics {
-        self.timing.statistics.lock().unwrap().clone()
     }
 }
 

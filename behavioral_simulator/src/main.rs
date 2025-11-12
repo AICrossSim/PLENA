@@ -1480,12 +1480,10 @@ async fn start() {
     };
     let v_machine = VectorMachine { vram, tile_size: *VLEN, mask_unit: *HLEN }; // Share same dim with VSRAM
 
-    let hbm = Arc::new(memory::WithTiming::new(
-        memory::WithStats::new(ManuallyDrop::new(
-            ramulator::Ramulator::hbm2_preset(8).unwrap(),
-        )),
-        memory::WithStats::new(memory::MemoryBacked::with_capacity(*HBM_SIZE)),
-    ));
+    let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
+        ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
+        memory::MemoryBacked::with_capacity(*HBM_SIZE),
+    )));
 
     let mut accelerator = Accelerator {
         m_machine: machine,
@@ -1523,7 +1521,7 @@ async fn start() {
     // Memory Initialization
     // - HBM Preload
     let hbm_data = std::fs::read(opts.hbm).unwrap();
-    hbm.data().model().with_data(|f| {
+    hbm.model().data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
     });
 
