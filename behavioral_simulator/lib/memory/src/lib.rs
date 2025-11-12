@@ -12,65 +12,46 @@ pub trait MemoryTimingModel: Send + Sync {
     /// Read 64-bytes of memory.
     ///
     /// We fix to 64-bytes to accomodate memory emulators.
-    async fn read(&mut self, addr: u64);
+    async fn read(&self, addr: u64);
 
     /// Write 64-bytes of memory.
-    async fn write(&mut self, addr: u64);
-
-    /// Get statistics on the memory usage.
-    fn statistics(&self) -> Statistics;
+    async fn write(&self, addr: u64);
 }
 
 #[async_trait::async_trait]
 impl<T: MemoryTimingModel> MemoryTimingModel for ManuallyDrop<T> {
-    async fn read(&mut self, addr: u64) {
+    async fn read(&self, addr: u64) {
         T::read(self, addr).await
     }
 
-    async fn write(&mut self, addr: u64) {
+    async fn write(&self, addr: u64) {
         T::write(self, addr).await
-    }
-
-    fn statistics(&self) -> Statistics {
-        T::statistics(self)
     }
 }
 
 #[async_trait::async_trait]
 pub trait MemoryModel: Send + Sync {
     /// Read 64-bytes of memory.
-    async fn read(&mut self, addr: u64) -> [u8; 64];
+    async fn read(&self, addr: u64) -> [u8; 64];
 
     /// Write 64-bytes of memory.
-    async fn write(&mut self, addr: u64, bytes: [u8; 64]);
-
-    /// Get statistics on the memory usage.
-    fn statistics(&self) -> Statistics;
+    async fn write(&self, addr: u64, bytes: [u8; 64]);
 }
 
 /// A memory that discards all written data.
 ///
 /// This is useful to just test the timing without caring the actual data.
-pub struct NoData {
-    statistics: Statistics,
-}
+pub struct NoData;
 
 #[async_trait::async_trait]
 impl MemoryModel for NoData {
     /// Read 64-bytes of memory.
-    async fn read(&mut self, _addr: u64) -> [u8; 64] {
-        self.statistics.total_bytes_read += 64;
+    async fn read(&self, _addr: u64) -> [u8; 64] {
         [0; 64]
     }
 
     /// Write 64-bytes of memory.
-    async fn write(&mut self, _addr: u64, _bytes: [u8; 64]) {
-        self.statistics.total_bytes_written += 64;
-    }
-
-    fn statistics(&self) -> Statistics {
-        self.statistics
-    }
+    async fn write(&self, _addr: u64, _bytes: [u8; 64]) {}
 }
 
 /// A simulated memory that is backed by memory.
@@ -78,7 +59,6 @@ impl MemoryModel for NoData {
 /// This is useful to just test the timing without caring the actual data.
 pub struct MemoryBacked {
     data: Mutex<Vec<[u8; 64]>>,
-    statistics: Statistics,
 }
 
 impl MemoryBacked {
@@ -86,10 +66,6 @@ impl MemoryBacked {
         assert!(size.is_multiple_of(64));
         Self {
             data: Mutex::new(vec![[0; 64]; size / 64]),
-            statistics: Statistics {
-                total_bytes_read: 0,
-                total_bytes_written: 0,
-            },
         }
     }
 
@@ -104,19 +80,73 @@ impl MemoryBacked {
 #[async_trait::async_trait]
 impl MemoryModel for MemoryBacked {
     /// Read 64-bytes of memory.
-    async fn read(&mut self, addr: u64) -> [u8; 64] {
-        self.statistics.total_bytes_read += 64;
+    async fn read(&self, addr: u64) -> [u8; 64] {
         self.data.lock().unwrap()[addr as usize / 64]
     }
 
     /// Write 64-bytes of memory.
-    async fn write(&mut self, addr: u64, bytes: [u8; 64]) {
-        self.statistics.total_bytes_written += 64;
+    async fn write(&self, addr: u64, bytes: [u8; 64]) {
         self.data.lock().unwrap()[addr as usize / 64] = bytes;
     }
+}
 
-    fn statistics(&self) -> Statistics {
-        self.statistics
+pub struct WithStats<T> {
+    model: T,
+    statistics: Mutex<Statistics>,
+}
+
+impl<T> WithStats<T> {
+    pub fn new(model: T) -> Self {
+        let stats = Statistics {
+            total_bytes_read: 0,
+            total_bytes_written: 0,
+        };
+        WithStats {
+            model,
+            statistics: Mutex::new(stats),
+        }
+    }
+
+    pub fn model(&self) -> &T {
+        &self.model
+    }
+}
+
+#[async_trait::async_trait]
+impl<T: MemoryModel> MemoryModel for WithStats<T> {
+    async fn read(&self, addr: u64) -> [u8; 64] {
+        {
+            let mut guard = self.statistics.lock().unwrap();
+            guard.total_bytes_read += 64;
+        }
+        self.model.read(addr).await
+    }
+
+    async fn write(&self, addr: u64, bytes: [u8; 64]) {
+        {
+            let mut guard = self.statistics.lock().unwrap();
+            guard.total_bytes_written += 64;
+        }
+        self.model.write(addr, bytes).await
+    }
+}
+
+#[async_trait::async_trait]
+impl<T: MemoryTimingModel> MemoryTimingModel for WithStats<T> {
+    async fn read(&self, addr: u64) {
+        {
+            let mut guard = self.statistics.lock().unwrap();
+            guard.total_bytes_read += 64;
+        }
+        self.model.read(addr).await
+    }
+
+    async fn write(&self, addr: u64) {
+        {
+            let mut guard = self.statistics.lock().unwrap();
+            guard.total_bytes_written += 64;
+        }
+        self.model.write(addr).await
     }
 }
 
@@ -136,21 +166,23 @@ impl<T, M> WithTiming<T, M> {
     }
 }
 
+impl<T, M> WithTiming<WithStats<T>, WithStats<M>> {
+    pub fn statistics(&self) -> Statistics {
+        self.timing.statistics.lock().unwrap().clone()
+    }
+}
+
 #[async_trait::async_trait]
 impl<T: MemoryTimingModel, M: MemoryModel> MemoryModel for WithTiming<T, M> {
     /// Read 64-bytes of memory.
-    async fn read(&mut self, addr: u64) -> [u8; 64] {
+    async fn read(&self, addr: u64) -> [u8; 64] {
         self.timing.read(addr).await;
         self.data.read(addr).await
     }
 
     /// Write 64-bytes of memory.
-    async fn write(&mut self, addr: u64, bytes: [u8; 64]) {
+    async fn write(&self, addr: u64, bytes: [u8; 64]) {
         self.timing.write(addr).await;
         self.data.write(addr, bytes).await
-    }
-
-    fn statistics(&self) -> Statistics {
-        self.timing.statistics()
     }
 }
