@@ -90,51 +90,6 @@ impl MemoryModel for MemoryBacked {
     }
 }
 
-pub struct WithStats<T> {
-    model: T,
-    statistics: Mutex<Statistics>,
-}
-
-impl<T> WithStats<T> {
-    pub fn new(model: T) -> Self {
-        let stats = Statistics {
-            total_bytes_read: 0,
-            total_bytes_written: 0,
-        };
-        WithStats {
-            model,
-            statistics: Mutex::new(stats),
-        }
-    }
-
-    pub fn model(&self) -> &T {
-        &self.model
-    }
-
-    pub fn statistics(&self) -> Statistics {
-        self.statistics.lock().unwrap().clone()
-    }
-}
-
-#[async_trait::async_trait]
-impl<T: MemoryTimingModel, M: MemoryModel> MemoryModel for WithStats<WithTiming<T, M>> {
-    async fn read(&self, addr: u64) -> [u8; 64] {
-        {
-            let mut guard = self.statistics.lock().unwrap();
-            guard.total_bytes_read += 64;
-        }
-        self.model.read(addr).await
-    }
-
-    async fn write(&self, addr: u64, bytes: [u8; 64]) {
-        {
-            let mut guard = self.statistics.lock().unwrap();
-            guard.total_bytes_written += 64;
-        }
-        self.model.write(addr, bytes).await
-    }
-}
-
 /// Combine a data model with an extra timing model.
 pub struct WithTiming<T, M> {
     timing: T,
@@ -163,5 +118,51 @@ impl<T: MemoryTimingModel, M: MemoryModel> MemoryModel for WithTiming<T, M> {
     async fn write(&self, addr: u64, bytes: [u8; 64]) {
         self.timing.write(addr).await;
         self.data.write(addr, bytes).await
+    }
+}
+
+// Memory model with utilization statistics
+pub struct WithStats<T> {
+    model: T,
+    statistics: Mutex<Statistics>,
+}
+
+impl<T> WithStats<T> {
+    pub fn new(model: T) -> Self {
+        let stats = Statistics {
+            total_bytes_read: 0,
+            total_bytes_written: 0,
+        };
+        WithStats {
+            model,
+            statistics: Mutex::new(stats),
+        }
+    }
+
+    pub fn model(&self) -> &T {
+        &self.model
+    }
+
+    pub fn statistics(&self) -> Statistics {
+        self.statistics.lock().unwrap().clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl<T: MemoryModel> MemoryModel for WithStats<T> {
+    async fn read(&self, addr: u64) -> [u8; 64] {
+        {
+            let mut guard = self.statistics.lock().unwrap();
+            guard.total_bytes_read += 64;
+        }
+        self.model.read(addr).await
+    }
+
+    async fn write(&self, addr: u64, bytes: [u8; 64]) {
+        {
+            let mut guard = self.statistics.lock().unwrap();
+            guard.total_bytes_written += 64;
+        }
+        self.model.write(addr, bytes).await
     }
 }
