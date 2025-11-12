@@ -6,12 +6,12 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import rms_norm_asm, select_vvm_debug, rms_norm_asm_debug, argmux_debug, projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm, dllm_asm
+from compiler.asm_templates import  select_vvm_debug, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env, create_sim_env_dllm
 from sim_env_utils import build_fake_sim_env
 import torch.nn.functional as F
 
-
+from tools.memory_mapping.hbm_addr_map import align_addr_to_hbm_bandwidth
 from transformers import AutoTokenizer
 
 
@@ -105,7 +105,9 @@ if __name__ == "__main__":
     hidden_size = 64
     vlen = 64
     batch_size = 4
+    preload_amount = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
+    hbm_data_width = 64
     fp_preload = [0.0, 1e-6, 1/hidden_size]
 
     # Gen Weight and Test Data
@@ -117,17 +119,24 @@ if __name__ == "__main__":
     #print("input_tensor lhs (4, 64):\n", input_tensor[:, :64])
     #print("input_tensor rhs (4, 64):\n", input_tensor[:, 64:])
 
-    input_tensor = logits[:,1,:]
+    input_tensor1 = logits[:,1,:]
     input_tensor2 = logits[:,2,:]
-    mask = torch.rand_like(input_tensor) < 0.5
+    mask = torch.rand_like(input_tensor1) < 0.5
     original_layer = TEST()
     weights = original_layer.state_dict()
-    original_output = original_layer(input_tensor,input_tensor2,mask)
+    original_output = original_layer(input_tensor1,input_tensor2,mask)
+    
+    # Convert mask to float for quantization (simulator requires float input)
+    mask = mask.float()
+
+    input_tensor = {
+        "input_tensor1": input_tensor1,
+        "input_tensor2": input_tensor2,
+        "mask": mask,
+    }
 
     golden_result = {
         "input_tensor": input_tensor,
-        "input_tensor2": input_tensor2,
-        "mask": mask,
         "weights": weights,
         "original_output": original_output
     }
@@ -137,10 +146,11 @@ if __name__ == "__main__":
     gen_assembly_code = "; DLLM Test Generation \n"
     
     # Set the addr offset for weight and bias
+
     gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_to_set=[1,2,3,4],
-        available_registers=[1,2,3,4],
-        addr_reg_val=[int(batch_size * 1 * vocal_size * real_data_ratio), int(2*batch_size * 1 * vocal_size * real_data_ratio), int(3*batch_size * 1 * vocal_size * real_data_ratio), int(4*batch_size*128*real_data_ratio)]
+        addr_reg_to_set=[1,2],
+        available_registers=[1,2],
+        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size * vocal_size * real_data_ratio, hbm_data_width)),int(2*align_addr_to_hbm_bandwidth(batch_size * vocal_size * real_data_ratio, hbm_data_width))]
     )
 
     #print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
@@ -162,6 +172,38 @@ if __name__ == "__main__":
         activation_offset_reg=0
     )
 
+    # # Gen Activation Preload
+    gen_assembly_code += preload_act_asm(
+        vlen=vlen,
+        preload_len=preload_amount,
+        batch=batch_size,
+        hidden_size=1*vocal_size,
+        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_vram_offset=0,
+        activation_offset_reg=0
+    )
+
+    gen_assembly_code += preload_act_asm(
+        vlen=vlen,
+        preload_len=preload_amount,
+        batch=batch_size,
+        hidden_size=1*vocal_size,
+        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_vram_offset=batch_size*vocal_size,
+        activation_offset_reg=1
+    )
+    
+    gen_assembly_code += preload_act_asm(
+        vlen=vlen,
+        preload_len=preload_amount,
+        batch=batch_size,
+        hidden_size=1*vocal_size,
+        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_vram_offset=2*batch_size*vocal_size,
+        activation_offset_reg=2
+    )
+    
+
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4]
@@ -169,16 +211,14 @@ if __name__ == "__main__":
 
     gen_assembly_code += select_vvm_debug(
         alive_registers=[1,2,3,4],
-        activation_base_address = 0,
-        activation2_base_address = 0,
-        activation3_base_address = 0,
-        scratchpad_base_address = batch_size * 1*vocal_size,
+        activation_base_address = 0,                           # input1 starts at VRAM offset 0
+        activation2_base_address = batch_size * vocal_size,    # input2 starts after input1
+        activation3_base_address = 2 * batch_size * vocal_size,# mask starts after input2
+        scratchpad_base_address  = 3 * batch_size * vocal_size,# output starts after mask
         vlen=vlen,
         batch_size=batch_size,
-        hidden_dim=hidden_size
     )
     
 
-    create_sim_env(input_tensor, input_tensor2, mask, weights['weight'].t(), gen_assembly_code, golden_result, fp_preload)
-    build_fake_sim_env(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["input_tensor", "input_tensor2","mask","model_weights"])
-    
+    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
+    build_fake_sim_env(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1", "input_tensor2", "mask"])

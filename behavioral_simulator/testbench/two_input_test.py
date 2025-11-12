@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import rms_norm_asm, projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
+from compiler.asm_templates import preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import build_fake_sim_env
 from tools.memory_mapping.hbm_addr_map import align_addr_to_hbm_bandwidth
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     batch_size = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
-    preload_amount = 4
+    preload_amount = 2
     hbm_data_width = 64
     
     torch.manual_seed(42)
@@ -29,7 +29,8 @@ if __name__ == "__main__":
 
     input_tensor = {
         "input_tensor1": input_tensor1,
-        "input_tensor2": input_tensor1
+        "input_tensor2": input_tensor1,
+        "input_tensor3": input_tensor1
     }
 
     weights = input_tensor1
@@ -45,9 +46,9 @@ if __name__ == "__main__":
     
     # Set the addr offset for weight and bias
     gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_to_set=[1],
-        available_registers=[1],
-        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size * hidden_size * real_data_ratio, hbm_data_width))]
+        addr_reg_to_set=[1,2],
+        available_registers=[1,2],
+        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size * hidden_size * real_data_ratio, hbm_data_width)), int(2*align_addr_to_hbm_bandwidth(batch_size * hidden_size * real_data_ratio, hbm_data_width))]
     )
     print("batch_size * hidden_size * real_data_ratio", batch_size * hidden_size * real_data_ratio)
     # Reset the registers
@@ -76,10 +77,22 @@ if __name__ == "__main__":
         activation_offset_reg=1
     )
 
+    
+    gen_assembly_code += preload_act_asm(
+        vlen=vlen,
+        preload_len=preload_amount,
+        batch=batch_size,
+        hidden_size=hidden_size,
+        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_vram_offset=2*batch_size*hidden_size,
+        activation_offset_reg=2
+    )
+    
+
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4]
     )
 
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
-    build_fake_sim_env(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1","input_tensor2"])
+    build_fake_sim_env(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1","input_tensor2","input_tensor3"])

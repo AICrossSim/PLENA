@@ -1236,7 +1236,8 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_EXP_V { rd, rs1 } => {
+                op::Opcode::V_EXP_V { rd, rs1, rmask } => {
+                    let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
                         .exp(
                             self.reg_file.gp_reg[rd as usize],

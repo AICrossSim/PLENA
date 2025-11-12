@@ -171,31 +171,11 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
-<<<<<<< HEAD
-            if len(operands) > 3:
-                operand_3 = operands[3]
-                if operand_3[-1] == ';':
-                    operand_3 = operand_3[:-1]
-                if operand_3.startswith('gp'):
-                    rstride = int(operand_3[2:], 16)
-                elif operand_3.startswith('f'):
-                    rstride = int(operand_3[1:], 16)
-                elif operand_3.startswith('a'):
-                    rstride = int(operand_3[1:], 16)
-                else:
-                    rstride = int(operand_3)
-            if len(operands) == 5:
-                rstride = int(operands[3])
-                funct1 = operands[4]
-                if (funct1[-1] == ';'):
-                    funct1 = int(funct1[:-1])
-=======
             elif len(operands) == 4:
                 operand_0, operand_1, operand_2, operand_3 = operands
                 rd = parse_reg_or_int(operand_0)
                 if operand_1.strip().startswith(('gp','f','a')):
                     rs1 = parse_reg_or_int(operand_1)
->>>>>>> main
                 else:
                     try:
                         imm = int(operand_1)
@@ -208,11 +188,15 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
-                # Interpret 4th operand as rstride if int
-                try:
-                    rstride = int(operand_3)
-                except ValueError:
-                    rstride = None
+                # Interpret 4th operand as rstride (can be register or int)
+                # For V_SELECT_VVM, this is the mask register
+                if operand_3.strip().startswith(('gp','f','a')):
+                    rstride = parse_reg_or_int(operand_3)
+                else:
+                    try:
+                        rstride = int(operand_3)
+                    except ValueError:
+                        rstride = None
             elif len(operands) == 5:
                 operand_0, operand_1, operand_2, operand_3, operand_4 = operands
                 rd = parse_reg_or_int(operand_0)
