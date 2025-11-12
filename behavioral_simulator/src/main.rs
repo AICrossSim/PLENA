@@ -534,17 +534,17 @@ impl MatrixMachine {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
         assert!(vec_offset.is_multiple_of(self.blen));
         cycle!(1);
-        println!("======================== MM_WO ==========================");
-        println!("m accum = {}", self.m_accum);
-        println!("vec_base = {}, vec_offset = {}, stride_len = {}", vec_base, vec_offset, stride_len);
+        // println!("======================== MM_WO ==========================");
+        // println!("m accum = {}", self.m_accum);
+        // println!("vec_base = {}, vec_offset = {}, stride_len = {}", vec_base, vec_offset, stride_len);
         for i in 0..self.blen {
             let tensor = self.m_accum.i((i as i64, ..));
             let old = self.vram.read(vec_base + i * self.mlen * stride_len).await;
-            println!("old = {}", old.as_tensor());
+            // println!("old = {}", old.as_tensor());
             let new = old.as_tensor().copy();
             new.i(vec_offset as i64..(vec_offset + self.blen) as i64)
                 .copy_(&tensor);
-            println!("new = {}", new);
+            // println!("new = {}", new);
             self.vram
                 .write(
                     vec_base + i * self.mlen * stride_len,
@@ -561,7 +561,7 @@ impl MatrixMachine {
 
     async fn bmm_wo(&mut self, v_addr: u32) {
         let (vec_base, vec_offset) = v_addr.multiple_and_offset(self.mlen);
-        println!("======================== BMM_WO ==========================");
+        // println!("======================== BMM_WO ==========================");
         assert!(vec_offset.is_multiple_of(self.mlen));
         cycle!(1);
         for j in 0..self.broadcast_amount {
@@ -660,10 +660,10 @@ impl VectorMachine {
             cycle!(*VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            println!("======================== V_ADD_VF ==========================");
-            println!("add: mask = {:?}", mask);
-            println!("a = {}", a.as_tensor());
-            println!("f = {}", f);
+            // println!("======================== V_ADD_VF ==========================");
+            // println!("add: mask = {:?}", mask);
+            // println!("a = {}", a.as_tensor());
+            // println!("f = {}", f);
             let mut result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
@@ -689,10 +689,10 @@ impl VectorMachine {
             cycle!(*VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            println!("======================== V_ADD ==========================");
-            println!("add: mask = {:?}", mask);
-            println!("a = {}", a.as_tensor());
-            println!("b = {}", b.as_tensor());
+            // println!("======================== V_ADD ==========================");
+            // println!("add: mask = {:?}", mask);
+            // println!("a = {}", a.as_tensor());
+            // println!("b = {}", b.as_tensor());
             let mut result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
@@ -826,10 +826,10 @@ impl Accelerator {
         } else {
             load_dim
         };
-        println!("Call transfer_from_hbm");
-        println!("stride = {:?}", stride);
-        println!("index = {:?}", index);
-        println!("scale_index = {:?}", scale_index);
+        // println!("Call transfer_from_hbm");
+        // println!("stride = {:?}", stride);
+        // println!("index = {:?}", index);
+        // println!("scale_index = {:?}", scale_index);
 
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
@@ -896,7 +896,7 @@ impl Accelerator {
                     let load_iter = write_idx * write_amount + block_idx;
                     let element_addr = index + (load_iter * stride) as u64;
                     let scale_addr = scale_index + (load_iter as f32 * stride_scale) as u64;
-                    println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
+                    // println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
                     let byte_offset = (write_idx * write_amount * len_in_bytes_per_load) as usize
                         + block_idx as usize * len_in_bytes_per_load as usize;
                     let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load)
