@@ -72,3 +72,4 @@ Writes a (BLEN, BLEN) accumulator matrix (`m_accum`) to the Vector SRAM. This op
 - **Linear Projection Testing** (`linear`)
 - **RMSNorm Testing** (`rms`)
 - **Attention Testing** (`attn`)
+- **FFN Testing** (`ffn`)
