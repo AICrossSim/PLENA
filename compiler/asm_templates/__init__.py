@@ -1,7 +1,7 @@
 from .projection_asm import projection_asm
 from .flash_attn_asm import flash_attn_asm
 from .ffn_asm import ffn_asm
-from .normalization_asm import rms_norm_asm, argmux_debug
+from .normalization_asm import rms_norm_asm
 from .embedding_asm import embedding_asm
 from .elementwise_add_asm import elementwise_add_asm
 from .preload_act import preload_act_asm
@@ -11,6 +11,11 @@ from .batched_matmul_asm import batched_matmul_asm
 
 from .select_vvm_asm import select_vvm_debug
 from .argmux_asm import argmux_debug
+from .vcmp_asm import (
+    vcmp_asm_debug,
+    vcmp_eq_asm,
+    scatter_with_vcmp,
+)
 
 __all__ = [
     "projection_asm",
@@ -26,4 +31,7 @@ __all__ = [
     "batched_matmul_asm",
     "select_vvm_debug",
     "argmux_debug",
+    "vcmp_eq_asm",
+    "scatter_with_vcmp",
+    "vcmp_asm_debug",
 ]

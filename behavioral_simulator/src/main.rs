@@ -742,6 +742,15 @@ impl VectorMachine {
         self.vram.write(vd, c).await;
     }
 
+    async fn cmp_eq(&mut self, vd: u32, vs1: u32, scalar: f32) {
+        let a = self.vram.read(vs1).await;
+        // Compare equal: mask[i] = (vec[i] == scalar) ? 1.0 : 0.0
+        let result = a.as_tensor().eq(scalar as f64).to_kind(tch::Kind::Float);
+        let c = QuantTensor::quantize(result, a.data_type());
+        cycle!(*VECTOR_ADD_CYCLES);
+        self.vram.write(vd, c).await;
+    }
+
     async fn exp(&mut self, vd: u32, vs1: u32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
@@ -1233,6 +1242,15 @@ impl Accelerator {
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.gp_reg[rs2 as usize],
                             self.reg_file.gp_reg[mask as usize],
+                        )
+                        .await;
+                }
+                op::Opcode::V_CMP_EQ_VF { rd, rs1, rs2 } => {
+                    self.v_machine
+                        .cmp_eq(
+                            self.reg_file.gp_reg[rd as usize],
+                            self.reg_file.gp_reg[rs1 as usize],
+                            self.reg_file.fp_reg[rs2 as usize].into(),
                         )
                         .await;
                 }

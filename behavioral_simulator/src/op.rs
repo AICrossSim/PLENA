@@ -137,6 +137,11 @@ pub enum Opcode {
         rs2: u8,
         mask: u8,
     },
+    V_CMP_EQ_VF {
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+    },
 
     S_ADD_FP {
         rd: u8,
@@ -360,6 +365,7 @@ impl Opcode {
             0x2D => Self::C_SET_STRIDE_REG { rd },
             0x32 => Self::V_RED_MAX_IDX { rd, rs1 },
             0x33 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
+            0x34 => Self::V_CMP_EQ_VF { rd, rs1, rs2 },
             0x2E => Self::C_SET_V_MASK_REG { rd },
             0x2F => Self::C_BREAK,
             _ => {
