@@ -3,60 +3,60 @@ import os
 import sys
 import ctypes
 
-print("=== CUDA 诊断信息 ===\n")
+print("=== CUDA Diagnostics ===\n")
 
-# 检查环境变量
+# Check environment variables
 print("1. LD_LIBRARY_PATH:")
 ld_path = os.environ.get('LD_LIBRARY_PATH', 'NOT SET')
 print(f"   {ld_path}")
 
-# 检查 libcuda
-print("\n2. libcuda.so.1 检查:")
+# Check libcuda
+print("\n2. libcuda.so.1 Check:")
 try:
     libcuda = ctypes.CDLL('libcuda.so.1')
-    print("   ✓ libcuda.so.1 可以加载")
+    print("   ✓ libcuda.so.1 can be loaded")
 except Exception as e:
-    print(f"   ✗ libcuda.so.1 无法加载: {e}")
+    print(f"   ✗ libcuda.so.1 cannot be loaded: {e}")
 
-# 检查 PyTorch
-print("\n3. PyTorch 信息:")
+# Check PyTorch
+print("\n3. PyTorch Information:")
 try:
     import torch
     print(f"   Python: {sys.executable}")
-    print(f"   PyTorch 版本: {torch.__version__}")
-    print(f"   PyTorch 路径: {torch.__file__}")
-    print(f"   CUDA 版本 (编译): {torch.version.cuda}")
-    print(f"   CUDA 可用: {torch.cuda.is_available()}")
+    print(f"   PyTorch Version: {torch.__version__}")
+    print(f"   PyTorch Path: {torch.__file__}")
+    print(f"   CUDA Version (compiled): {torch.version.cuda}")
+    print(f"   CUDA Available: {torch.cuda.is_available()}")
     
     if not torch.cuda.is_available():
-        print("\n4. 尝试获取详细错误信息:")
+        print("\n4. Attempting to get detailed error information:")
         try:
-            # 尝试初始化 CUDA 以获取错误
+            # Try initializing CUDA to get error details
             torch.cuda.init()
-            print("   CUDA 初始化成功")
+            print("   CUDA initialization successful")
         except Exception as e:
-            print(f"   CUDA 初始化失败: {e}")
+            print(f"   CUDA initialization failed: {e}")
         
-        # 检查 PyTorch CUDA 库
+        # Check PyTorch CUDA libraries
         torch_lib_path = os.path.join(os.path.dirname(torch.__file__), 'lib')
         if os.path.exists(torch_lib_path):
-            print(f"\n5. PyTorch lib 目录内容 ({torch_lib_path}):")
+            print(f"\n5. PyTorch lib directory contents ({torch_lib_path}):")
             try:
                 libs = [f for f in os.listdir(torch_lib_path) if 'cuda' in f.lower() or 'cudnn' in f.lower()]
                 for lib in sorted(libs)[:10]:
                     print(f"   - {lib}")
             except Exception as e:
-                print(f"   无法列出: {e}")
+                print(f"   Cannot list: {e}")
         
-        # 检查是否可以找到 CUDA 库
-        print("\n6. 尝试查找 CUDA 库:")
+        # Check if CUDA libraries can be found
+        print("\n6. Attempting to find CUDA libraries:")
         import subprocess
         for path in ld_path.split(':') if ld_path != 'NOT SET' else []:
             if os.path.exists(path):
                 cuda_libs = [f for f in os.listdir(path) if 'libcuda' in f.lower() or 'libcudart' in f.lower()]
                 if cuda_libs:
-                    print(f"   在 {path} 中找到: {', '.join(cuda_libs[:5])}")
+                    print(f"   Found in {path}: {', '.join(cuda_libs[:5])}")
                     
 except ImportError as e:
-    print(f"   ✗ 无法导入 torch: {e}")
+    print(f"   ✗ Cannot import torch: {e}")
 
