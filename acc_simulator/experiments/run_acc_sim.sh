@@ -1,6 +1,6 @@
-MODEL_NAME="meta-llama/Meta-Llama-3-70B"
-# MODEL_NAME="meta-llama/Llama-2-7b-hf"
-CUDA_DEVICE="cuda:1"
+# MODEL_NAME="meta-llama/Meta-Llama-3-70B"
+MODEL_NAME="meta-llama/Llama-2-7b-hf"
+CUDA_DEVICE="cuda:2"
 # --preset XWqBKVNL \
 echo $MODEL_NAME
 echo $CUDA_DEVICE

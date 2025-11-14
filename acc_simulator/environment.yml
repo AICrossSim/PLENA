@@ -1,5 +1,6 @@
 name: acc-sim
 channels:
+  - nvidia
   - defaults
   - conda-forge
 dependencies:
@@ -10,10 +11,9 @@ dependencies:
   - pandas
   - toml
   - pip:
-      - torch==2.7.1+cu126
-      - torchvision==0.22.1+cu126
-      - torchaudio==2.7.1+cu126
-      - --extra-index-url https://download.pytorch.org/whl/cu126
+      - torch --index-url https://download.pytorch.org/whl/cu128
+      - torchvision --index-url https://download.pytorch.org/whl/cu128
+      - torchaudio --index-url https://download.pytorch.org/whl/cu128
       - jsonargparse[all]
       - lm-eval==0.4.8
       - transformers==4.52.4
@@ -26,10 +26,4 @@ dependencies:
       - tqdm
       - sentencepiece
       - protobuf
-      # dse related, temporary placement for now
-      - botorch==0.9.5
-      - optuna-integration==4.4.0
-      - optuna==4.4.0
-      - plotly==6.2.0
-      # add mase-triton with current tag 0.0.5
-      - mase-triton==0.0.5
+      - colorlog
