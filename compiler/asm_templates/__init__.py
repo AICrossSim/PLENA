@@ -11,10 +11,11 @@ from .batched_matmul_asm import batched_matmul_asm
 
 from .select_vvm_asm import select_vvm_debug
 from .argmux_asm import argmux_debug
+from .topk_mask_asm import topk_mask_debug, topk_mask_simple
 from .vcmp_asm import (
     vcmp_asm_debug,
     vcmp_eq_asm,
-    scatter_with_vcmp,
+    scatter_asm_debug,
 )
 
 __all__ = [
@@ -31,7 +32,9 @@ __all__ = [
     "batched_matmul_asm",
     "select_vvm_debug",
     "argmux_debug",
+    "topk_mask_debug",
+    "topk_mask_simple",
     "vcmp_eq_asm",
-    "scatter_with_vcmp",
+    "scatter_asm_debug",
     "vcmp_asm_debug",
 ]

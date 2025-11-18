@@ -751,6 +751,45 @@ impl VectorMachine {
         self.vram.write(vd, c).await;
     }
 
+    async fn topk_mask(&mut self, vd: u32, confidence_addr: u32, mask_addr: u32, k: u32) {
+        // Read confidence vector and input mask
+        let (confidence, input_mask) = tokio::join!(
+            self.vram.read(confidence_addr),
+            self.vram.read(mask_addr)
+        );
+        
+        // Do all tensor operations in one expression to avoid holding references across await
+        // This ensures the function is Send-safe
+        let neg_inf = f32::NEG_INFINITY;
+        let k_i64 = k as i64;
+        
+        let result = {
+            let conf_tensor = confidence.as_tensor();
+            let mask_tensor = input_mask.as_tensor();
+            let seq_len = conf_tensor.size()[0];
+            let k_clamped = k_i64.min(seq_len);
+            
+            // Set non-masked positions to negative infinity
+            let masked_conf = conf_tensor.where_self(
+                &mask_tensor.ne(0.0), 
+                &tch::Tensor::full_like(conf_tensor, neg_inf as f64)
+            );
+            
+            // Get top-k indices (topk returns (values, indices))
+            let (_values, indices) = masked_conf.topk(k_clamped, 0, true, false);
+            
+            // Create output mask: 1.0 for top-k positions, 0.0 for others
+            let output_mask = tch::Tensor::zeros_like(conf_tensor).scatter_value(0, &indices, 1.0);
+            
+            // Ensure we only select from originally masked positions
+            output_mask.where_self(&mask_tensor.ne(0.0), &tch::Tensor::zeros_like(conf_tensor))
+        };
+        
+        let c = QuantTensor::quantize(result, confidence.data_type());
+        cycle!(*VECTOR_ADD_CYCLES);
+        self.vram.write(vd, c).await;
+    }
+
     async fn exp(&mut self, vd: u32, vs1: u32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
@@ -1251,6 +1290,16 @@ impl Accelerator {
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
                             self.reg_file.fp_reg[rs2 as usize].into(),
+                        )
+                        .await;
+                }
+                op::Opcode::V_TOPK_MASK { rd, rs1, rs2, k_scalar } => {
+                    self.v_machine
+                        .topk_mask(
+                            self.reg_file.gp_reg[rd as usize],
+                            self.reg_file.gp_reg[rs1 as usize],
+                            self.reg_file.gp_reg[rs2 as usize],
+                            self.reg_file.gp_reg[k_scalar as usize],
                         )
                         .await;
                 }

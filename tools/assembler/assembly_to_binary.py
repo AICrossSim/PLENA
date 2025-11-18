@@ -79,11 +79,26 @@ class AssemblyToBinary:
                 opcode
             )
         elif instruction.opcode in ["V_SELECT_VVM"]:
-            # V_SELECT_VVM uses 4 operands: rd, rs1, rs2, mask (rs3)
+            # V_SELECT_VVM uses 4 vector operands: rd, rs1, rs2, mask (all vectors)
             # mask is stored in rstride field from parser
             mask = instruction.rstride if instruction.rstride is not None else 0
             binary_instruction = (
                 (mask << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["V_TOPK_MASK"]:
+            # V_TOPK_MASK uses 3 vector operands + 1 scalar: rd, rs1, rs2, k_scalar
+            # rd (vector): output mask
+            # rs1 (vector): confidence values
+            # rs2 (vector): input mask
+            # k_scalar (scalar): number of top elements to select
+            # The k_scalar is stored in rstride field from parser
+            k_scalar = instruction.rstride if instruction.rstride is not None else 0
+            binary_instruction = (
+                (k_scalar << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
