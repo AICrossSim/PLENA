@@ -741,18 +741,17 @@ impl VectorMachine {
         self.vram.write(vd, c).await;
     }
 
-    // async fn broadcast(&mut self, vd: u32, f: f32) {
-    //     let c = QuantTensor::quantize(
-    //         Tensor::full(
-    //             [self.vram.tile_size as i64],
-    //             f as f64,
-    //             (tch::Kind::Float, tch::Device::Cpu),
-    //         ),
-    //         self.vram.ty,
-    //     );
-    //     cycle!(*VECTOR_BASIC_CYCLES);
-    //     self.vram.write(vd, c).await;
-    // }
+    async fn vector_transfer_fp(&mut self, vd: u32, f: &[f16]) {
+        assert_eq!(f.len(), self.vram.tile_size as usize, "Input vector length must match tile_size");
+        // Convert f16 slice to f32 vector
+        let f32_vec: Vec<f32> = f.iter().map(|x| f32::from(*x)).collect();
+        // Create tensor from f32 vector
+        let tensor = tch::Tensor::from_slice(&f32_vec);
+        // Quantize the tensor according to vram data type
+        let c = QuantTensor::quantize(tensor, self.vram.ty);
+        cycle!(*VLEN);
+        self.vram.write(vd, c).await;
+    }
 
     async fn reduce_sum(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
@@ -1287,8 +1286,18 @@ impl Accelerator {
                         self.reg_file.fp_reg[rd as usize];
                     cycle!(1);
                 }
-                op::Opcode::S_MAP_V_FP { rd, rs1, imm } => todo!(),
-
+                op::Opcode::S_MAP_V_FP { rd, rs1, imm } => {
+                    let start_idx = (self.reg_file.gp_reg[rs1 as usize] + imm) as usize;
+                    let end_idx = start_idx + *VLEN as usize;
+                    let f = &self.fpsram[start_idx..end_idx];
+                    self.v_machine
+                        .vector_transfer_fp(
+                            self.reg_file.gp_reg[rd as usize],
+                            f,
+                        )
+                        .await;
+                    cycle!(*VLEN);
+                }
                 op::Opcode::S_ADD_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[rd as usize] = self.reg_file.gp_reg[rs1 as usize]
                         .wrapping_add(self.reg_file.gp_reg[rs2 as usize]);
