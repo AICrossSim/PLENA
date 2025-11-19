@@ -8,10 +8,10 @@ value = 64
 value = 128
 
 [CONFIG.MLEN]
-value = 2048
+value = 1024
 
 [CONFIG.VLEN]
-value = 2048
+value = 1024
 
 [CONFIG.BROADCAST_AMOUNT]
 value = 4

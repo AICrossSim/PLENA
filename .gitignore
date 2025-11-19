@@ -18,6 +18,9 @@ build/
 
 doc/figure_gen/*
 
+tools/cost_model/latency/*.png
+tools/cost_model/utilisation/*.png
+
 moduleparamid
 default.svf
 

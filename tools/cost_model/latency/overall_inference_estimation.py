@@ -86,36 +86,98 @@ class model_config:
         
         return overall_inst_num
     
-    def flash_attention(self, mode = "prefill"):
+    def flash_attention(self, mode = "prefill", partitoned_optimised = True):
         overall_inst_num = 0
         mlen = self.hardware_config["MLEN"]
         blen = self.hardware_config["BLEN"]
         prefill_len = min(self.input_token, mlen)
         decode_len = min(self.kv_size, mlen)
-        per_head_iter = math.ceil(self.num_attention_heads / (self.hardware_config["MLEN"] / self.head_dim))
+        max_head_per_mlen = math.ceil(mlen / self.head_dim)
+
+        per_head_iter = math.ceil(self.num_attention_heads / max_head_per_mlen)
+
         if mode == "prefill":
         # Outer loop
-            for kv_head_index in range(self.num_key_value_heads):
-                for i in range(math.ceil(self.input_token / self.hardware_config["MLEN"])):
-                    overall_inst_num += mlen # Reset                    
-                    for j in range(math.ceil(self.input_token / self.hardware_config["MLEN"])):
-                        overall_inst_num += prefill_len * 2 # QKT
+            if partitoned_optimised:
+                for i in range(math.ceil(self.input_token / mlen)):
+                    overall_inst_num += mlen * max_head_per_mlen # Reset                    
+                    for j in range(math.ceil(self.input_token / mlen)):
+                        # overall_inst_num += math.ceil(prefill_len / blen) * blen * math.ceil(prefill_len / blen) * 5 # QKT
+                        overall_inst_num += (2 + prefill_len * 5) * max_head_per_mlen  # Softmax
+                        overall_inst_num += math.ceil(mlen / blen) * blen * math.ceil(self.head_dim / blen) * max_head_per_mlen
+                        overall_inst_num += (prefill_len * 5 + 4) * max_head_per_mlen# Compute O
+                        overall_inst_num += 8 * max_head_per_mlen
+                self.kv_size = self.input_token
+                return overall_inst_num * per_head_iter * self.device_batch_size
+            else:
+                for i in range(math.ceil(self.input_token / mlen)):
+                    # overall_inst_num += mlen # Reset                    
+                    for j in range(math.ceil(self.input_token / mlen)):
+                        # (mlen, head_dim) @ (head_dim, mlen)
+                        overall_inst_num += math.ceil(prefill_len / blen) * (math.ceil(self.head_dim / mlen)) * blen * math.ceil(prefill_len / blen)
                         overall_inst_num += 2 + prefill_len * 5  # Softmax
-                        overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(prefill_len / blen) * 4) #PV
-                        overall_inst_num += prefill_len * 5 + 4 #Compute O
+                        overall_inst_num += math.ceil(mlen / blen) * blen * math.ceil(self.head_dim / blen)
+                        overall_inst_num += prefill_len * 5 + 4 # Compute O
                         overall_inst_num += 8
-            self.kv_size = self.input_token 
-
+                return overall_inst_num * self.device_batch_size * self.num_attention_heads
         elif mode == "decode":
-            for kv_head_index in range(per_head_iter):
-                for i in range(math.ceil(self.kv_size / self.hardware_config["MLEN"])):               
-                    # overall_inst_num += decode_len * 2 # QKT
-                    overall_inst_num += 2 + decode_len * 3 # Softmax
-                    overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(decode_len / blen) * 4) #PV
-                    overall_inst_num += decode_len * 3 + 4 #Compute O
-                    overall_inst_num += 8
-        return overall_inst_num * self.device_batch_size
+            if partitoned_optimised:
+                overall_inst_num = decode_len
+                overall_inst_num += (2 + decode_len * 3) * max_head_per_mlen # Softmax
+                # PV (1, decode_len) @ (decode_len, head_dim)
+                overall_inst_num += math.ceil(decode_len / mlen) * blen * math.ceil(self.head_dim / blen) * max_head_per_mlen #PV
+                overall_inst_num += (decode_len * 3 + 4) * max_head_per_mlen #Compute O
+                overall_inst_num += 8 * max_head_per_mlen
+                return overall_inst_num * self.device_batch_size * math.ceil(self.kv_size / self.hardware_config["MLEN"]) * (per_head_iter)
+            else:
+                overall_inst_num = math.ceil(mlen / blen) * (math.ceil(self.head_dim / mlen) * blen)
+                overall_inst_num += (2 + decode_len * 3)
+                overall_inst_num += math.ceil(self.head_dim / blen) * (4 + math.ceil(decode_len / blen) * 4)
+                overall_inst_num += (decode_len * 3 + 4)
+                overall_inst_num += 8
+                return overall_inst_num * self.device_batch_size * math.ceil(self.kv_size / self.hardware_config["MLEN"]) * self.num_attention_heads
 
+
+    def self_attention(self, mode = "prefill"):
+        # Note: this it the latency estimation model for self-attention without using the flash attention algorithm
+        overall_inst_num = 0
+        mlen = self.hardware_config["MLEN"]
+        blen = self.hardware_config["BLEN"]
+        vlen = self.hardware_config["VLEN"]
+        if mode == "prefill":
+            for i in range(self.num_attention_heads):
+                # QKT (batch, s, h, d) @ (batch, s, h, d)
+                overall_inst_num += (math.ceil(self.input_token / blen)) * math.ceil(self.head_dim / mlen) * blen * math.ceil(self.input_token / blen) * 4
+            # Store QKT (h, s, s)
+            overall_inst_num += self.input_token * 4 * (math.ceil(self.input_token / mlen)) * self.num_attention_heads * 2
+                # Softmax (batch, s, h, d) 
+            overall_inst_num += self.input_token * (math.ceil(self.input_token / mlen)) * 30 * self.num_attention_heads
+            # PV (h, s, s) @ (h, s, d)
+            for i in range(self.num_attention_heads):
+                overall_inst_num += math.ceil(self.input_token / blen) * math.ceil(self.input_token / mlen) * blen * math.ceil(self.head_dim / blen)
+            # Store PV (h, s, d)
+            overall_inst_num += self.head_dim * 4 * (math.ceil(self.input_token / mlen)) * self.num_attention_heads* 2
+            # Compute O (batch, s, h, d)
+            for i in range(self.num_attention_heads):
+                overall_inst_num += (math.ceil(self.input_token / vlen)) * 5 + 4
+            overall_inst_num += 8
+            overall_inst_num = overall_inst_num * self.device_batch_size
+        elif mode == "decode":
+            for i in range(self.num_attention_heads):
+                # QKT (batch, 1, h, d) @ (batch, kv, h, d)
+                overall_inst_num += 4 * math.ceil(self.head_dim / mlen) * math.ceil(self.kv_size / blen) * blen
+            # Store QKT (h, s, s)
+            overall_inst_num += 4 * math.ceil(self.kv_size / mlen) * self.num_attention_heads * 36
+            # Softmax (batch, s, h, d) 
+            overall_inst_num += (math.ceil(self.kv_size / mlen)) * 30 * self.num_attention_heads
+            # PV (h, 1, s) @ (h, s, d)
+            for i in range(self.num_attention_heads):
+                overall_inst_num += math.ceil(self.kv_size / mlen) * blen * (self.head_dim // blen) * 2
+            # Compute O (batch, s, h, d)
+            for i in range(self.num_attention_heads):
+                overall_inst_num += (math.ceil(self.kv_size / mlen)) * 5 + 4
+            overall_inst_num = overall_inst_num * self.device_batch_size
+        return overall_inst_num
 
     def residual (self, mode = "prefill"):
         overall_inst_num = 0
@@ -136,14 +198,16 @@ class model_config:
         overall_inst_num = 0
         # -- MLP
         if mode == "prefill":
-            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.input_token / blen) * math.ceil(self.hidden_size / mlen) * 4
-            overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5
-            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen)  * math.ceil(self.input_token / blen) * 4
+            # Upprojection, and Gate (seq, hidden) @ (hidden, intermediate)
+            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.input_token / blen) * math.ceil(self.hidden_size / mlen) * blen
+            overall_inst_num += math.ceil(self.intermediate_size / vlen) * 3 * self.input_token
+            # Downprojection (seq, intermediate) @ (intermediate, hidden)
+            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen)  * math.ceil(self.input_token / blen) * blen
             overall_inst_num = (overall_inst_num) * self.device_batch_size
         elif mode == "decode":
-            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * (math.ceil(self.device_batch_size / blen) ) * 4
+            overall_inst_num += 2 * math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * (math.ceil(self.device_batch_size / blen) ) * blen * math.ceil(self.device_batch_size / blen)
             overall_inst_num += math.ceil(self.intermediate_size / vlen) * 5 * self.device_batch_size
-            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * (math.ceil(self.device_batch_size / blen) ) * 4
+            overall_inst_num += math.ceil(self.intermediate_size / blen) * math.ceil(self.hidden_size / mlen) * (math.ceil(self.device_batch_size / blen) ) * blen * math.ceil(self.device_batch_size / blen)
         return overall_inst_num
 
     def embeddings(self, mode = "prefill"):

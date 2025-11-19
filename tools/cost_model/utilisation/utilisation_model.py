@@ -3,27 +3,52 @@ import toml
 import os
 import json
 from pathlib import Path
-from ...utils import load_toml_config, load_json, load_svh_settings
+from utils import load_toml_config, load_json, load_svh_settings
 
 from attainable import attn_model_config
 
 class utilisation_model:
     def __init__(self, hardware_settings_file: str = "plena_settings.toml", precision_settings_file: str = "precision.toml", unit_info_file: str = "unit_info.json"):
         self.unit_info = load_json(unit_info_file)
+
         config_settings = load_svh_settings(hardware_settings_file)
         precision_settings = load_svh_settings(precision_settings_file)
         self.hardware_settings = {**config_settings, **precision_settings}
     def obtain_resource_utilisation(self, updated_config):
         resource_utilisation = 0
         hardware_settings = self.hardware_settings
-        for key, value in updated_config.items():
-            hardware_settings[key] = value
+        #TODOs
+        # for key, value in updated_config.items():
+        #     hardware_settings[key] = value
+        custom_config= {
+            "MLEN": 1024,
+            "BLEN": 64,
+            "VLEN": 1024,
+            "WT_MX_MANT_WIDTH": 1,
+            "WT_MX_EXP_WIDTH": 2,
+            "KV_ELEMENT_WIDTH": 8,
+            "BLOCK_DIM": 8,
+            "MX_SCALE_WIDTH" : 8,
+            # "ACT_MXFP_MANT_WIDTH": 3,
+            # "ACT_MXFP_EXP_WIDTH": 4,
+            "ACT_ELEMENT_WIDTH" : 8,
+            "FP_EXP_WIDTH": 3,
+            "FP_MANT_WIDTH": 4,
+            "HBM_ELE_WIDTH": 512,
+            "HBM_SCALE_WIDTH": 512,
+            "MATRIX_SRAM_DEPTH": 4096,
+            "VECTOR_SRAM_DEPTH": 4096,
+            "INT_DATA_WIDTH": 32,
+            "INT_SRAM_DEPTH": 256,
+            "FP_SRAM_DEPTH": 256,
+            
+        }
 
         for unit, info in self.unit_info.items():
-            if "Coefficients" in info and "Relationship" in info:
-                hardware_settings.update(info["Coefficients"])
+            if "Coefficients" in info and "Relationship" in info:     
+                custom_config.update(info["Coefficients"])
                 relationship = info["Relationship"]
-                resource_utilisation += eval(relationship, {}, hardware_settings)
+                resource_utilisation += eval(relationship, {}, custom_config)
         return resource_utilisation
 
 
