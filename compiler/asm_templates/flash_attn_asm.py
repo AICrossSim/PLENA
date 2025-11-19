@@ -199,7 +199,7 @@ def _computing_pv_code(
         # Update v_base_register and reset p_base_register and pv_base_register
         generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * mlen * mlen} \n"
         generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index * head_dim + (i+1) * blen} \n"
-        generated_code += f"S_ADDI_INT gp{v_base_register}, gp{v_base_register}, {blen} \n"
+        generated_code += f"S_ADDI_INT gp{v_base_register}, gp{v_base_register}, {mlen} \n"
 
     return generated_code
 
@@ -296,7 +296,6 @@ def _computing_row_wise_scaling_code(
         generated_code += f"S_RECI_FP f{l_old_fp_register}, f{l_old_fp_register}, 0 \n"
         # multiply o_old with the inverse of l_old
         generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{l_old_fp_register} \n"
-
         # update o_old base address
         generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {mlen} \n"
 

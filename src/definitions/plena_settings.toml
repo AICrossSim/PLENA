@@ -2,16 +2,16 @@
 value = 1
 
 [CONFIG.BLEN]
-value = 64
+value = 4
 
 [CONFIG.HLEN]
-value = 128
+value = 16
 
 [CONFIG.MLEN]
-value = 1024
+value = 64
 
 [CONFIG.VLEN]
-value = 1024
+value = 64
 
 [CONFIG.BROADCAST_AMOUNT]
 value = 4

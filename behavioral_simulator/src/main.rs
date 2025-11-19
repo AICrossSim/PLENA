@@ -255,6 +255,8 @@ impl VectorSram {
         write_amount: u32,
         tensor: Receiver<QuantTensor>,
     ) {
+        // println!("continous_write_delayed: addr = {:?}, write_amount = {:?}", addr, write_amount);
+        // println!("tile_size = {:?}", self.tile_size);
         let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
         // Await the tensor from the channel (blocks until data arrives)
         if let Ok(tensor) = tensor.await {
@@ -357,7 +359,7 @@ impl MatrixMachine {
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
         // println!("mat_offset = {:?}", mat_offset);
         // println!("mat_base = {:?}", mat_base);
-        assert!(mat_offset.is_multiple_of(self.mlen));
+        assert!(mat_offset.is_multiple_of(self.blen));
         let mat_row_offset = mat_offset as i64 / self.mlen as i64;
 
         let full_mat = self.mram.read(mat_base).await;
