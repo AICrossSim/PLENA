@@ -1559,10 +1559,10 @@ async fn start() {
     };
     let v_machine = VectorMachine { vram, tile_size: *VLEN, mask_unit: *HLEN }; // Share same dim with VSRAM
 
-    let hbm = Arc::new(memory::WithTiming::new(
+    let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
         memory::MemoryBacked::with_capacity(*HBM_SIZE),
-    ));
+    )));
 
     let mut accelerator = Accelerator {
         m_machine: machine,
@@ -1600,8 +1600,7 @@ async fn start() {
     // Memory Initialization
     // - HBM Preload
     let hbm_data = std::fs::read(opts.hbm).unwrap();
-
-    hbm.data().with_data(|f| {
+    hbm.model().data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
     });
 
@@ -1668,6 +1667,14 @@ async fn start() {
     let mut vram_file = std::fs::File::create(vram_dump_path).unwrap();
     vram_file.write_all(&vram_bytes).unwrap();
     eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+
+    let memory_stats = hbm.statistics();
+    let utilization = (memory_stats.total_bytes_read + memory_stats.total_bytes_written) as f64
+        / Executor::current().now().to_secs();
+    eprintln!(
+        "HBM Statistics - Bytes read: {:?} | Bytes written: {:?} | Utilization: {:.2e} bytes/sec",
+        memory_stats.total_bytes_read, memory_stats.total_bytes_written, utilization
+    );
 }
 
 #[tokio::main]

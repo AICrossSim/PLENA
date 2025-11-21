@@ -106,6 +106,10 @@ impl Instant {
     ///
     /// Effectively means "never".
     pub const ETERNITY: Self = Self(u64::MAX);
+
+    pub const fn to_secs(&self) -> f64 {
+        self.0 as f64 / (1_000_000_000_000_u64 as f64)
+    }
 }
 
 pub trait Deadline {
