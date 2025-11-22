@@ -10,14 +10,14 @@ const LINE_SIZE: u64 = 64;
 
 /// Configuration for a single interposer layer.
 #[derive(Debug, Clone)]
-pub struct LayerConfig {
+pub struct SingleSRAMConfig {
     /// Byte addressable capacity provided by this layer.
     pub capacity_bytes: u64,
     /// Per-SRAM bandwidth expressed in bytes per cycle.
     pub sram_bandwidth_bytes_per_cycle: u32,
 }
 
-impl LayerConfig {
+impl SingleSRAMConfig {
     pub const fn new(capacity_bytes: u64, sram_bandwidth_bytes_per_cycle: u32) -> Self {
         Self {
             capacity_bytes,
@@ -30,7 +30,7 @@ impl LayerConfig {
 #[derive(Debug, Clone)]
 pub struct InterposerConfig {
     /// Description for every stacked interposer.
-    pub layers: Vec<LayerConfig>,
+    pub layers: Vec<SingleSRAMConfig>,
     /// Number of SRAM tiles per interposer (default 64).
     pub srams_per_layer: usize,
     /// Duration of a single cycle in the timing model.
@@ -44,10 +44,10 @@ impl Default for InterposerConfig {
         let per_layer_capacity = 1u64 << 30; // 1 GiB per interposer.
         Self {
             layers: vec![
-                LayerConfig::new(per_layer_capacity, 256),
-                LayerConfig::new(per_layer_capacity, 256),
-                LayerConfig::new(per_layer_capacity, 256),
-                LayerConfig::new(per_layer_capacity, 256),
+                SingleSRAMConfig::new(per_layer_capacity, 256),
+                SingleSRAMConfig::new(per_layer_capacity, 256),
+                SingleSRAMConfig::new(per_layer_capacity, 256),
+                SingleSRAMConfig::new(per_layer_capacity, 256),
             ],
             srams_per_layer: 64,
             cycle_time: Duration::from_picos(1000), // 1 ns cycle.
@@ -216,7 +216,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let cfg = InterposerConfig {
-                layers: vec![LayerConfig::new(256 * 1024, 64)],
+                layers: vec![SingleSRAMConfig::new(256 * 1024, 64)],
                 srams_per_layer: 4,
                 cycle_time: Duration::from_nanos(1),
                 base_latency_cycles: 5,
@@ -227,6 +227,7 @@ mod tests {
                 let pattern = [0xAA; 64];
                 model.write(0, pattern).await;
                 let read_back = model.read(0).await;
+                println!("read_back = {:?}", read_back);
                 assert_eq!(read_back, pattern);
             });
             let timeout = Instant::INIT + Duration::from_micros(10);

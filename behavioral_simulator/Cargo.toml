@@ -26,6 +26,7 @@ members = [
     "lib/ramulator",
     "lib/buddy",
     "lib/quantize",
+    "lib/sram3d",
 ]
 
 [profile.release]
