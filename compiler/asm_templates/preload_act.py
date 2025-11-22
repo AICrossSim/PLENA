@@ -43,7 +43,7 @@ def preload_act_asm(
         generated_code += f"C_SET_STRIDE_REG gp{set_stride_register} \n"
         for i in range((batch * hidden_size) // (vlen * preload_len)):
             generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_actual_register}, a{activation_offset_reg}, 1, 0 \n"
-            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {vlen} \n"
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {vlen * preload_len} \n"
             generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {vlen * preload_len} \n"
 
     return generated_code
