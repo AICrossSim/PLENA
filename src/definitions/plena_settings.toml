@@ -84,8 +84,8 @@ block = 8
 [PRECISION.HBM_V_ACT_TYPE.ELEM]
 type = "Fp"
 sign = true
-exponent = 4
-mantissa = 3
+exponent = 8
+mantissa = 7
 [PRECISION.HBM_V_ACT_TYPE.SCALE]
 type = "Fp"
 sign = false
@@ -98,8 +98,8 @@ block = 8
 [PRECISION.HBM_V_KV_TYPE.ELEM]
 type = "Fp"
 sign = true
-exponent = 4
-mantissa = 3
+exponent = 3
+mantissa = 4
 [PRECISION.HBM_V_KV_TYPE.SCALE]
 type = "Fp"
 sign = false

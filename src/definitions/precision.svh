@@ -10,8 +10,8 @@ Description :
 
 package precision_pkg;
     // HBM Storage Precision 
-    parameter   ACT_MXFP_MANT_WIDTH = 3;
-    parameter   ACT_MXFP_EXP_WIDTH  = 4;
+    parameter   ACT_MXFP_MANT_WIDTH = 4; //3
+    parameter   ACT_MXFP_EXP_WIDTH  = 3; //4
     parameter   KV_MX_MANT_WIDTH    = 2;
     parameter   KV_MX_EXP_WIDTH     = 1;
     parameter   KV_MX_INT_ENABLE    = 0;    // Currently not used.
