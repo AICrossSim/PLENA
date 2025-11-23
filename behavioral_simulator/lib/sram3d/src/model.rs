@@ -189,6 +189,83 @@ impl MultiLayerInterposerSram {
         }
         executor.resolve_at(completion).await;
     }
+
+    /// Service a pipelined request - uses 1 cycle latency after the first access
+    async fn service_pipelined_request(&self, layer_idx: usize, tile_idx: usize, is_first: bool) {
+        let tile = &self.tiles[layer_idx][tile_idx];
+        let mut next_issue = tile.next_issue.lock().await;
+        let executor = Executor::current();
+        let now = executor.now();
+        
+        let issue_time = if *next_issue > now {
+            *next_issue
+        } else {
+            now
+        };
+        
+        // First access in pipeline uses full latency, subsequent accesses use 1 cycle
+        let latency = if is_first {
+            self.layer_latency[layer_idx] // Full latency for first access
+        } else {
+            self.config.cycle_time // 1 cycle for pipelined access
+        };
+        
+        let completion = issue_time + latency;
+        *next_issue = issue_time + self.issue_duration[layer_idx];
+        drop(next_issue);
+
+        if issue_time > now {
+            executor.resolve_at(issue_time).await;
+        }
+        executor.resolve_at(completion).await;
+    }
+
+    /// Pipelined read - reads multiple addresses
+    /// After the first read latency, subsequent reads take only 1 cycle
+    /// 
+    /// # Arguments
+    /// * `addrs` - Vector of addresses to read from (each address must be 64-byte aligned)
+    /// 
+    /// # Returns
+    /// Vector of 64-byte blocks read from the specified addresses
+    pub async fn pipelined_read(&self, addrs: Vec<u64>) -> Vec<[u8; 64]> {
+        if addrs.is_empty() {
+            return Vec::new();
+        }
+
+        let mut results = Vec::with_capacity(addrs.len());
+        
+        for (idx, addr) in addrs.iter().enumerate() {
+            let (layer_idx, tile_idx, block_idx) = self.locate(*addr);
+            let is_first = idx == 0;
+            self.service_pipelined_request(layer_idx, tile_idx, is_first).await;
+            let data = self.tiles[layer_idx][tile_idx].read_block(block_idx);
+            results.push(data);
+        }
+        
+        results
+    }
+
+    /// Pipelined write - writes multiple addresses
+    /// After the first write latency, subsequent writes take only 1 cycle
+    /// 
+    /// # Arguments
+    /// * `addrs` - Vector of addresses to write to (each address must be 64-byte aligned)
+    /// * `data` - Vector of 64-byte blocks to write (must have same length as addrs)
+    pub async fn pipelined_write(&self, addrs: Vec<u64>, data: Vec<[u8; 64]>) {
+        assert_eq!(addrs.len(), data.len(), "Addresses and data vectors must have the same length");
+        
+        if addrs.is_empty() {
+            return;
+        }
+
+        for (idx, (addr, bytes)) in addrs.iter().zip(data.iter()).enumerate() {
+            let (layer_idx, tile_idx, block_idx) = self.locate(*addr);
+            let is_first = idx == 0;
+            self.service_pipelined_request(layer_idx, tile_idx, is_first).await;
+            self.tiles[layer_idx][tile_idx].write_block(block_idx, *bytes);
+        }
+    }
 }
 
 #[async_trait]
@@ -210,6 +287,7 @@ impl MemoryModel for MultiLayerInterposerSram {
 mod tests {
     use super::*;
     use runtime::{Duration, Executor, Instant};
+    use std::sync::Arc;
 
     #[test]
     fn basic_round_trip() {
@@ -229,10 +307,106 @@ mod tests {
                 let read_back = model.read(0).await;
                 println!("read_back = {:?}", read_back);
                 assert_eq!(read_back, pattern);
+                let read_back = model.read(64).await;
+                println!("read_back = {:?}", read_back);
+                
             });
             let timeout = Instant::INIT + Duration::from_micros(10);
             executor.enter(timeout).await;
+            println!("Simulation completed. Last instance {:?}", executor.now());
         });
     }
+
+    #[test]
+    fn test_pipelined_read() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let cycle_time = Duration::from_nanos(1);
+            let base_latency = 5;
+            let cfg = InterposerConfig {
+                layers: vec![SingleSRAMConfig::new(256 * 1024, 64)],
+                srams_per_layer: 1,
+                cycle_time,
+                base_latency_cycles: base_latency,
+            };
+            let executor = Executor::new();
+            executor.spawn(async move {
+                let model = Arc::new(MultiLayerInterposerSram::new(cfg));
+                
+                // Write test data
+                for i in 0..5 {
+                    let pattern = [i as u8; 64];
+                    model.write((i * 64) as u64, pattern).await;
+                }
+                
+                // Test pipelined read with sequential addresses
+                let start = Executor::current().now();
+                let addrs = vec![0, 64, 128, 192, 256];
+                let results = model.pipelined_read(addrs).await;
+                let end = Executor::current().now();
+                let total_time = end - start;
+                
+                // Verify results
+                assert_eq!(results.len(), 5);
+                for (i, result) in results.iter().enumerate() {
+                    assert_eq!(*result, [i as u8; 64]);
+                }
+                println!("Pipelined read (5 addresses) took: {:?}", total_time);
+                // First read: base_latency cycles, next 4: 1 cycle each = base_latency + 4 cycles
+
+            });
+            let timeout = Instant::INIT + Duration::from_micros(100);
+            executor.enter(timeout).await;
+            println!("Simulation completed. Last instance {:?}", executor.now());
+        });
+    }
+
+    #[test]
+    fn test_pipelined_write() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let cycle_time = Duration::from_nanos(1);
+            let base_latency = 5;
+            let cfg = InterposerConfig {
+                layers: vec![SingleSRAMConfig::new(256 * 1024, 64)],
+                srams_per_layer: 1,
+                cycle_time,
+                base_latency_cycles: base_latency,
+            };
+            let executor = Executor::new();
+            executor.spawn(async move {
+                let model = Arc::new(MultiLayerInterposerSram::new(cfg));
+                
+                // Test pipelined write with sequential addresses
+                let start = Executor::current().now();
+                let addrs = vec![0, 64, 128, 192, 256];
+                let data = vec![
+                    [0xAA; 64],
+                    [0xBB; 64],
+                    [0xCC; 64],
+                    [0xDD; 64],
+                    [0xEE; 64],
+                ];
+                model.pipelined_write(addrs, data).await;
+                let end = Executor::current().now();
+                let total_time = end - start;
+                
+                println!("Pipelined write (5 addresses) took: {:?}", total_time);
+                // First write: base_latency cycles, next 4: 1 cycle each = base_latency + 4 cycles
+                // Verify data was written correctly
+                assert_eq!(model.read(0).await, [0xAA; 64]);
+                assert_eq!(model.read(64).await, [0xBB; 64]);
+                assert_eq!(model.read(128).await, [0xCC; 64]);
+                assert_eq!(model.read(192).await, [0xDD; 64]);
+                assert_eq!(model.read(256).await, [0xEE; 64]);
+            });
+            let timeout = Instant::INIT + Duration::from_micros(100);
+            executor.enter(timeout).await;
+            println!("Simulation completed. Last instance {:?}", executor.now());
+        });
+    }
+
+
+
 }
 
