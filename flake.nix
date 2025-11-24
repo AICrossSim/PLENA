@@ -27,9 +27,9 @@
       formatter = pkgs.alejandra;
 
       # ---------- Packages ----------
-      packages = 
+      packages =
         let
-          customPkgs = if builtins.pathExists ./behavioral_simulator/pkgs 
+          customPkgs = if builtins.pathExists ./behavioral_simulator/pkgs
                       then import ./behavioral_simulator/pkgs { inherit pkgs; }
                       else {};
         in customPkgs // rec {
@@ -68,9 +68,9 @@
       };
 
       # ---------- Development Shells ----------
-      devShells = 
+      devShells =
         let
-          customPkgs = if builtins.pathExists ./behavioral_simulator/pkgs 
+          customPkgs = if builtins.pathExists ./behavioral_simulator/pkgs
                       then import ./behavioral_simulator/pkgs { inherit pkgs; }
                       else {};
         in {
@@ -160,12 +160,14 @@
           shellHook = let
             ramulatorPath = if customPkgs ? ramulator2 then "${customPkgs.ramulator2}/lib" else "";
           in ''
+            export PYTHONPATH="$PWD:$PWD/tools:$PWD/acc_simulator:''${PYTHONPATH:-}"
+
             ${if customPkgs ? ramulator2 then ''
               export LD_LIBRARY_PATH="${ramulatorPath}:$LD_LIBRARY_PATH"
               export LIBRARY_PATH="${ramulatorPath}:$LIBRARY_PATH"
               export PKG_CONFIG_PATH="${ramulatorPath}/pkgconfig:$PKG_CONFIG_PATH"
             '' else ""}
-            
+
             echo ">>> Toolchain versions:"
             echo "Verilator:    $(verilator --version 2>/dev/null || echo not found)"
             echo "Verible:      $(verible-verilog-format --version 2>/dev/null || echo not found)"

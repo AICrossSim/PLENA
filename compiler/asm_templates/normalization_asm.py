@@ -2,7 +2,6 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-
 def rms_norm_asm(
     _eps_offset: int,
     reci_hid_offset: int,
@@ -22,7 +21,7 @@ def rms_norm_asm(
     generated_code = "; RMS Norm generation \n"
     generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address} \n"
     generated_code += f"S_ADDI_INT gp{scratchpad_addr}, gp0, {scratchpad_base_address} \n"
-    
+
     # Load eps into f1
     generated_code += f"S_LD_FP f1, gp0, {_eps_offset} \n"
     # Reset f2 as accumulator for reduction.
@@ -37,7 +36,7 @@ def rms_norm_asm(
 
             # Move to next vector
             generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
-        
+
         # Taking the avg
         generated_code += f"S_MUL_FP f2, f2, f3 \n"
 
@@ -56,7 +55,7 @@ def rms_norm_asm(
 
             # Move to next vector
             generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
-        
+
         generated_code += "S_ADD_FP f2, f0, f0 \n"
         generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address + vlen * batch} \n"
     return generated_code
