@@ -655,6 +655,44 @@ impl VectorMachine {
         }
     }
 
+    async fn sub_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32, rorder: op::VectorOrder) {
+        let a = self.vram.read(vs1).await;
+        if rmask == 0 {
+            if matches!(rorder, op::VectorOrder::Normal) {
+                let c = QuantTensor::quantize(a.as_tensor() - (f as f64), a.data_type());
+                cycle!(*VECTOR_ADD_CYCLES);
+                self.vram.write(vd, c).await;
+            } else {
+                let c = QuantTensor::quantize((f as f64) - a.as_tensor(), a.data_type());
+                cycle!(*VECTOR_ADD_CYCLES);
+                self.vram.write(vd, c).await;
+            }
+        } else {
+            // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
+            let mut result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    // Mask is set for this head
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = if matches!(rorder, op::VectorOrder::Normal) {
+                        &sliced - (f as f64)
+                    } else {
+                        (f as f64) - &sliced
+                    };
+                    // Overwrite this section with calculated values
+                    result.narrow(0, start, end - start).copy_(&updated);
+                }
+                // else leave unchanged
+            }
+            let c = QuantTensor::quantize(result, a.data_type());
+            cycle!(*VECTOR_ADD_CYCLES);
+            self.vram.write(vd, c).await;
+        }
+    }
+
     async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         if rmask == 0 {
@@ -1209,15 +1247,16 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask } => {
+                op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask, rorder} => {
                     let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
-                        .add_scalar(
+                        .sub_scalar(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
-                            (-self.reg_file.fp_reg[rs2 as usize]).into(),
+                            self.reg_file.fp_reg[rs2 as usize].into(),
                             rmask,
                             mask,
+                            rorder,
                         )
                         .await;
                 }
