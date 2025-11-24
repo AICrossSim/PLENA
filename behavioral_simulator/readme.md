@@ -26,11 +26,17 @@ Where `[task]` is one of: `linear`, `rms`, or `attn`
 Please refer to the [Root README.md](../README.md) for detailed build instructions. Starting the Nix environment is required before building.
 
 
+## Configurable Parameters
 
+### Memory System
 
+The simulator supports configurable memory architectures:
 
-
-
+| Component | Options |
+|-----------|---------|
+| **Matrix SRAM** | SRAM / 3D Stacked |
+| **Vector SRAM** | SRAM / 3D Stacked |
+| **Off-chip Storage** | HBM / DDR |
 
 
 
