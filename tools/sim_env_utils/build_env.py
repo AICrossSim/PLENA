@@ -9,7 +9,7 @@ from pathlib import Path
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 
-def build_fake_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
+def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
     
     config_settings = load_svh_settings(str(SRC_PATH / "definitions" / "configuration.svh"))
     precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
@@ -77,5 +77,5 @@ def build_fake_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, 
     env_setup(grp_blocks, grp_bias, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"])
 
 if __name__ == "__main__":
-    build_fake_sim_env()
+    build_sim_env()
     pass

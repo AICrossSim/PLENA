@@ -353,15 +353,15 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
-        // println!("======================== M_MM ==========================");
-        // println!("m_addr = {:?}", m_addr);
-        // println!("v_addr = {:?}", v_addr);
+        println!("======================== M_MM ==========================");
+        println!("m_addr = {:?}", m_addr);
+        println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
-        // println!("mat_offset = {:?}", mat_offset);
-        // println!("mat_base = {:?}", mat_base);
+        println!("mat_offset = {:?}", mat_offset);
+        println!("mat_base = {:?}", mat_base);
         assert!(mat_offset.is_multiple_of(self.blen));
-        let mat_row_offset = mat_offset as i64 / self.mlen as i64;
-
+        assert!(mat_offset <= self.mlen);
+        let mat_row_offset = mat_offset as i64;
         let full_mat = self.mram.read(mat_base).await;
         // Slice columns instead of rows: [mlen, blen]
         let mat = full_mat
@@ -381,6 +381,8 @@ impl MatrixMachine {
         }
         // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
+        // println!("vec = {}", vec);
+        println!("mat = {}", mat);
         // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
     }
@@ -933,10 +935,6 @@ impl Accelerator {
         } else {
             load_dim
         };
-        // println!("Call transfer_from_hbm");
-        // println!("stride = {:?}", stride);
-        // println!("index = {:?}", index);
-        // println!("scale_index = {:?}", scale_index);
 
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
@@ -1624,7 +1622,7 @@ async fn start() {
 
     use std::fs;
     let op_file = fs::read_to_string(opts.opcode).unwrap();
-    eprintln!("Loaded opcode file: {:?}", op_file);
+    // eprintln!("Loaded opcode file: {:?}", op_file);
 
     let op: Vec<u32> = op_file
         .split_whitespace() // split by spaces/newlines
