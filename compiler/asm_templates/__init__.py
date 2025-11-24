@@ -17,7 +17,7 @@ from .vcmp_asm import (
     vcmp_eq_asm,
     scatter_asm_debug,
 )
-from .get_transfer_index_asm import get_transfer_index_debug
+from .get_transfer_index_asm import get_transfer_index_debug, get_transfer_index_long_debug
 
 __all__ = [
     "projection_asm",
@@ -39,4 +39,5 @@ __all__ = [
     "scatter_asm_debug",
     "vcmp_asm_debug",
     "get_transfer_index_debug",
+    "get_transfer_index_long_debug",
 ]

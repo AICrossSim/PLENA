@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  select_vvm_debug, preload_act_asm, reset_reg_asm, preload_addr_reg_asm,get_transfer_index_debug
+from compiler.asm_templates import  select_vvm_debug, preload_act_asm, reset_reg_asm, preload_addr_reg_asm,get_transfer_index_debug,get_transfer_index_long_debug
 from create_sim_env import create_sim_env, create_sim_env_dllm
 from sim_env_utils import build_fake_sim_env
 import torch.nn.functional as F
@@ -197,9 +197,10 @@ if __name__ == "__main__":
     #logits.shape =  torch.Size([1, 148, 126464])
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    vocal_size = 64
+    vocal_size = 128
     hidden_size = 64
     vlen = 64
+    repeat_times = vocal_size//vlen
     batch_size = 4
     preload_amount = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
@@ -221,7 +222,7 @@ if __name__ == "__main__":
     original_layer = TEST()
     weights = original_layer.state_dict()
     original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask, num_transfer_tokens)
-    
+    #original_output = 1.0/torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
     # Convert mask to float for quantization (simulator requires float input)
     mask = mask.type_as(logits)
 
@@ -229,6 +230,7 @@ if __name__ == "__main__":
     print('mask.shape= ', mask.shape)
     print('num_transfer_tokens.shape= ', num_transfer_tokens.shape)
     print('original_output.shape= ', original_output.shape)
+    print('repeat_times = ', repeat_times)
 
     
     input_tensor = {
@@ -258,7 +260,7 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4,5,6]
+        alive_registers=[1,2,3,4,5,6,7,8]
     )
     
     
@@ -288,11 +290,11 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4,5,6]
+        alive_registers=[1,2,3,4,5,6,7,8]
     )
     
-    gen_assembly_code += get_transfer_index_debug(
-        alive_registers=[1,2,3,4,5,6],
+    gen_assembly_code += get_transfer_index_long_debug(
+        alive_registers=[1,2,3,4,5,6,7,8],
         logits_base_address= logits_offset_address,
         mask_base_address= mask_offset_address,
         output_base_address=0,
@@ -300,6 +302,7 @@ if __name__ == "__main__":
         x0_p_base_address= mask_offset_address + 2*(batch_size * hidden_size),
         k_values=k_values,
         vlen=vlen,
+        repeat_times=repeat_times,
         batch_size=batch_size,
     )
     
