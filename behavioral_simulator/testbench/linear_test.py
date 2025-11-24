@@ -7,6 +7,19 @@ from torch import nn
 from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
+from asm_perf_tracker import AsmPerfTracker
+
+
+# TODOs: Need to integrate the MX quantizer here.
+# quantized_layer = MXFPLinearPTQ.from_linear(
+#     layer=original_layer,
+#     x_meta=my_x_meta,
+#     w_meta=my_w_meta,
+#     b_meta=my_b_meta,
+#     layer_type="XWB",
+#     online_rotate=False,
+#     clip_search_y=False
+# )
 
 
 if __name__ == "__main__":
@@ -16,6 +29,9 @@ if __name__ == "__main__":
     batch_size = 8
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/in_features]
+
+    # Gen Weight and Test Data
+    # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
 
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, in_features)
@@ -27,8 +43,40 @@ if __name__ == "__main__":
     print("original_output shape:", original_output.shape)
     print("original_output is:\n", original_output)
 
-    # Weight is stored as (out_features, in_features) in PyTorch, we transpose for our layout
-    # Our layout: (in_features, out_features) for matmul: act @ weight
+    # Print weight k, (128, 128) -> print 4 quadrants of (64, 64) each
+    # Quadrant indices:
+    # 0: [0:64, 0:64]
+    # 1: [0:64, 64:128]
+    # 2: [64:128, 0:64]
+    # 3: [64:128, 64:128]
+    w_k = weights['weight'].t() if isinstance(weights, dict) else weights
+    print("Weight k shape:", w_k.shape)
+    # for idx, (r_slice, c_slice) in enumerate([
+    #     (slice(0, 64), slice(0, 64)),
+    #     (slice(0, 64), slice(64, 128)),
+    #     (slice(64, 128), slice(0, 64)),
+    #     (slice(64, 128), slice(64, 128)),
+    # ]):
+    #     print(f"---------- Quadrant {idx}: Rows {r_slice}, Cols {c_slice} ----------")
+    #     print(w_k[r_slice, c_slice])
+
+
+    # Print the matmul result of input_tensor[:, :64] and weight[0:64, 0:4]
+    matmul_result_11 = act_tensor[:, :64] @ w_k[:64, :4]
+    # print("act_tensor[:, :64]: \n", act_tensor[:, :64])
+    # print("w_k[:64, :4]: \n", w_k[:64, :4])
+    # print("Matmul result of input_tensor[:, :64] @ weight[0:64, 0:4]:")
+    # print(matmul_result_11)
+
+    matmul_result_22 = act_tensor[:, 64:] @ w_k[64:, :4]
+    print("Matmul result of input_tensor[:, 64:] @ weight[64:, :4]:")
+    print("act_tensor[:, 64:]: \n", act_tensor[:, 64:])
+    print("w_k[64:, :4]: \n", w_k[64:, :4])
+    print(matmul_result_22)
+
+    print ("sum of two matmul results:",
+           matmul_result_11 + matmul_result_22)
+
     input_tensor = {
         "act_tensor": act_tensor,
         "weights": weights['weight'].t(),  # (in_features, out_features)
@@ -39,8 +87,10 @@ if __name__ == "__main__":
         "original_output": original_output
     }
 
-    gen_assembly_code = "; Linear Test Generation (Rectangular Matrix)\n"
-    gen_assembly_code += f"; Shape: ({batch_size}, {in_features}) @ ({in_features}, {out_features}) -> ({batch_size}, {out_features})\n"
+    # Initialize performance tracker
+    perf = AsmPerfTracker("Linear Test")
+    perf.assembly_code = "; Linear Test Generation (Rectangular Matrix)\n"
+    perf.assembly_code += f"; Shape: ({batch_size}, {in_features}) @ ({in_features}, {out_features}) -> ({batch_size}, {out_features})\n"
 
     # Calculate HBM offsets
     # Layout in HBM: [activations | weights]
@@ -49,19 +99,22 @@ if __name__ == "__main__":
     weight_hbm_end = int((in_features * batch_size + in_features * out_features) * real_data_ratio)
 
     # Set the addr offset for weight
-    gen_assembly_code += preload_addr_reg_asm(
+    perf.add_section("preload_addr_reg_asm", preload_addr_reg_asm(
         addr_reg_to_set=[1, 2],
         available_registers=[1, 2],
         addr_reg_val=[weight_hbm_offset, weight_hbm_end]
-    )
+    ))
+
+    # print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
+    # print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
 
     # Reset the registers
-    gen_assembly_code += reset_reg_asm(
+    perf.add_section("reset_reg_asm (1st)", reset_reg_asm(
         alive_registers=[1,2,3]
-    )
+    ))
 
     # Gen Activation Preload
-    gen_assembly_code += preload_act_asm(
+    perf.add_section("preload_act_asm", preload_act_asm(
         vlen=64,
         preload_len=4,
         batch=batch_size,
@@ -70,17 +123,17 @@ if __name__ == "__main__":
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=in_features
-    )
+    ))
 
     # Reset the registers
-    gen_assembly_code += reset_reg_asm(
+    perf.add_section("reset_reg_asm (2nd)", reset_reg_asm(
         alive_registers=[1,2,3,4]
-    )
+    ))
 
     # Result is stored after activation in VRAM
     result_vram_offset = in_features * batch_size
 
-    gen_assembly_code += projection_asm(
+    perf.add_section("projection_asm", projection_asm(
         mlen=64,
         blen=4,
         batch=batch_size,
@@ -91,9 +144,12 @@ if __name__ == "__main__":
         activation_base_address=0,
         result_base_address=result_vram_offset,
         rope_enabled=False
-    )
+    ))
 
-    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
+    # Write performance stats
+    perf.write_stats()
+
+    create_sim_env(input_tensor, perf.get_code(), golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order=["act_tensor", "weights"])
 
     # Save comparison parameters for view_mem.py
