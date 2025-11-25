@@ -56,8 +56,8 @@ def get_transfer_index(
 
 
 
-def generate(model, prompt, attention_mask=None, steps=128, gen_length=128, block_length=128, temperature=0.,
-             cfg_scale=0., remasking='low_confidence', mask_id=126336, logits_eos_inf=False, confidence_eos_eot_inf=False):
+def generate(model, prompt, steps=128, gen_length=128, block_length=128, temperature=0.,
+             remasking='low_confidence', mask_id=126336, threshold=None, factor=None):
     '''
     Args:
         model: Mask predictor.
@@ -69,16 +69,9 @@ def generate(model, prompt, attention_mask=None, steps=128, gen_length=128, bloc
         cfg_scale: Unsupervised classifier-free guidance scale.
         remasking: Remasking strategy. 'low_confidence' or 'random'.
         mask_id: The toke id of [MASK] is 126336.
-        logits_eos_inf: Whether to set the logits of EOS token to -inf. See Appendix B.4 of LLaDA for details
-        confidence_eos_eot_inf: Whether to set the confidence of EOS and EoT token to -inf. See Appendix B.4 of LLaDA for details
     '''
     x = torch.full((prompt.shape[0], prompt.shape[1] + gen_length), mask_id, dtype=torch.long).to(model.device)
     x[:, :prompt.shape[1]] = prompt.clone()
-
-    if attention_mask is not None:
-        attention_mask = torch.cat([attention_mask, torch.ones((prompt.shape[0], gen_length), dtype=attention_mask.dtype, device=model.device)], dim=-1)
-
-    prompt_index = (x != mask_id)
 
     assert gen_length % block_length == 0
     num_blocks = gen_length // block_length
@@ -86,31 +79,22 @@ def generate(model, prompt, attention_mask=None, steps=128, gen_length=128, bloc
     assert steps % num_blocks == 0
     steps = steps // num_blocks
 
+    nfe = 0
     for num_block in range(num_blocks):
-        block_mask_index = (x[:, prompt.shape[1] + num_block * block_length: prompt.shape[1] + (num_block + 1) * block_length:] == mask_id)
+        block_mask_index = (x[:, prompt.shape[1] + num_block * block_length: prompt.shape[1] + (num_block + 1) * block_length] == mask_id)
         num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps)
-        for i in range(steps):
+        i = 0
+        while True:
+            nfe += 1
             mask_index = (x == mask_id)
-            logits = model(x, attention_mask=attention_mask).logits
-
-            if logits_eos_inf:
-                logits[:, :, 126081] = -torch.inf
-
-            x0 = torch.argmax(logits, dim=-1) # b, l
-            p = F.softmax(logits, dim=-1)
-            x0_p = torch.squeeze(torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)), -1) # b, l
-            x0_p[:, prompt.shape[1] + (num_block + 1) * block_length:] = -np.inf
-
-            x0 = torch.where(mask_index, x0, x)
-            confidence = torch.where(mask_index, x0_p, -np.inf)
-
-            transfer_index = torch.zeros_like(x0, dtype=torch.bool, device=x0.device)
-            for j in range(confidence.shape[0]):
-                _, select_index = torch.topk(confidence[j], k=num_transfer_tokens[j, i])
-                transfer_index[j, select_index] = True
+            logits = model(x).logits
+            mask_index[:, prompt.shape[1] + (num_block + 1) * block_length:] = 0
+            x0, transfer_index = get_transfer_index(logits, temperature, remasking, mask_index, x, num_transfer_tokens[:, i], threshold)
             x[transfer_index] = x0[transfer_index]
-
-    return x
+            i += 1
+            if (x[:, prompt.shape[1] + num_block * block_length: prompt.shape[1] + (num_block + 1) * block_length] == mask_id).sum() == 0:
+                break
+    return x, nfe
 
   
 
@@ -197,7 +181,7 @@ if __name__ == "__main__":
     #logits.shape =  torch.Size([1, 148, 126464])
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    vocal_size = 128
+    vocal_size = 64*2
     hidden_size = 64
     vlen = 64
     repeat_times = vocal_size//vlen
