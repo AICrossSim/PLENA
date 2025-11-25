@@ -353,12 +353,12 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
-        println!("======================== M_MM ==========================");
-        println!("m_addr = {:?}", m_addr);
-        println!("v_addr = {:?}", v_addr);
+        // println!("======================== M_MM ==========================");
+        // println!("m_addr = {:?}", m_addr);
+        // println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
-        println!("mat_offset = {:?}", mat_offset);
-        println!("mat_base = {:?}", mat_base);
+        // println!("mat_offset = {:?}", mat_offset);
+        // println!("mat_base = {:?}", mat_base);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(mat_offset <= self.mlen);
         let mat_row_offset = mat_offset as i64;
@@ -382,20 +382,20 @@ impl MatrixMachine {
         // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
         // println!("vec = {}", vec);
-        println!("mat = {}", mat);
+        // println!("mat = {}", mat);
         // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
     }
 
     async fn bmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
-        println!("m_addr = {:?}", m_addr);
-        println!("v_addr = {:?}", v_addr);
+        // println!("m_addr = {:?}", m_addr);
+        // println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
         // Load matrix from matrix SRAM.
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
         let (mat_offset, head_offset) = mat_offset.multiple_and_offset(self.mlen);
 
-        println!("mat_offset = {:?}", mat_offset);
+        // println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(head_offset.is_multiple_of(self.hlen));
         let full_mat = self.mram.read(mat_base).await;

@@ -73,33 +73,30 @@ if __name__ == "__main__":
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
     
     torch.manual_seed(42)
-    input_tensor = torch.randn(batch_size, hidden_size)
+    act_tensor = torch.randn(batch_size, hidden_size)
     # Print input_tensor split in half along columns, as two (4, 64) tensors
-    print("input_tensor lhs (4, 64):\n", input_tensor[:, :64])
-    print("input_tensor rhs (4, 64):\n", input_tensor[:, 64:])
+    print("act_tensor lhs (4, 64):\n", act_tensor[:, :64])
+    print("act_tensor rhs (4, 64):\n", act_tensor[:, 64:])
 
     original_layer = RMSNorm(dim=hidden_size)
     weights = original_layer.state_dict()
 
-    original_output = original_layer(input_tensor)
+    input_tensor = {
+        "act_tensor": act_tensor,
+        "weights": weights['weight'].t(),
+    }
+
+    original_output = original_layer(act_tensor)
 
     golden_result = {
         "input_tensor": input_tensor,
-        "weights": weights,
         "original_output": original_output
     }
 
     gen_assembly_code = "; RMSNorm Test Generation \n"
-    
-    # Set the addr offset for weight and bias
-    gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_to_set=[1, 2],
-        available_registers=[1, 2],
-        addr_reg_val=[int(hidden_size * batch_size * real_data_ratio), int((hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)]
-    )
 
-    print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
-    print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
+    # print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
+    # print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
     
 
     # Reset the registers
@@ -115,12 +112,13 @@ if __name__ == "__main__":
         hidden_size=128,
         alive_registers=[1,2,3],
         act_vram_offset=0,
-        activation_offset_reg=0
+        activation_offset_reg=0,
+        stride_size=hidden_size
     )
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4]
+        alive_registers=[1,2,3]
     )
 
     gen_assembly_code += rms_norm_asm(
@@ -134,5 +132,9 @@ if __name__ == "__main__":
         hidden_dim=128
     )
 
-    create_sim_env(input_tensor, weights['weight'].t(), gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["input_tensor", "model_weights"])
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
+    build_sim_env(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["act_tensor", "weights"])
+
+    print("================================================")
+    print("Finished generating assembly code")
+    print("================================================")

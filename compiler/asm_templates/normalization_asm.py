@@ -32,7 +32,7 @@ def rms_norm_asm(
     for batch in range(batch_size):
         for i in range(hidden_dim // vlen):
             # Compute square of the activation vector and summation
-            generated_code += f"V_MUL_VV gp{scratchpad_addr}, gp{act_addr}, gp{act_addr} \n"
+            generated_code += f"V_MUL_VV gp{scratchpad_addr}, gp{act_addr}, gp{act_addr}, 0 \n"
             generated_code += f"V_RED_SUM f2, gp{scratchpad_addr} \n"
 
             # Move to next vector
@@ -41,23 +41,22 @@ def rms_norm_asm(
         # Taking the avg
         generated_code += f"S_MUL_FP f2, f2, f3 \n"
 
-        # # Plus epsilon
+        # Plus epsilon
         generated_code += f"S_ADD_FP f2, f2, f1 \n"
 
-        # # Compute square root
+        # Compute square root
         generated_code += "S_SQRT_FP f2, f2 \n"
 
-        # # Compute reciprocal
+        # Compute reciprocal
         generated_code += "S_RECI_FP f2, f2 \n"
 
         for i in range(hidden_dim // vlen):
             # Normalize the activation vector
-            generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f2 \n"
+            generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f2, 0 \n"
 
             # Move to next vector
             generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
         
         generated_code += "S_ADD_FP f2, f0, f0 \n"
         generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address + vlen * batch} \n"
-
     return generated_code
