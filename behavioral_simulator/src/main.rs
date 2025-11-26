@@ -360,8 +360,8 @@ impl MatrixMachine {
         // println!("mat_offset = {:?}", mat_offset);
         // println!("mat_base = {:?}", mat_base);
         assert!(mat_offset.is_multiple_of(self.blen));
-        let mat_row_offset = mat_offset as i64 / self.mlen as i64;
-
+        assert!(mat_offset <= self.mlen);
+        let mat_row_offset = mat_offset as i64;
         let full_mat = self.mram.read(mat_base).await;
         // Slice columns instead of rows: [mlen, blen]
         let mat = full_mat
@@ -381,19 +381,21 @@ impl MatrixMachine {
         }
         // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
+        // println!("vec = {}", vec);
+        // println!("mat = {}", mat);
         // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
         self.m_accum += vec.matmul(&mat);
     }
 
     async fn bmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
-        println!("m_addr = {:?}", m_addr);
-        println!("v_addr = {:?}", v_addr);
+        // println!("m_addr = {:?}", m_addr);
+        // println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
         // Load matrix from matrix SRAM.
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
         let (mat_offset, head_offset) = mat_offset.multiple_and_offset(self.mlen);
 
-        println!("mat_offset = {:?}", mat_offset);
+        // println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(head_offset.is_multiple_of(self.hlen));
         let full_mat = self.mram.read(mat_base).await;
@@ -655,6 +657,44 @@ impl VectorMachine {
         }
     }
 
+    async fn sub_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32, rorder: op::VectorOrder) {
+        let a = self.vram.read(vs1).await;
+        if rmask == 0 {
+            if matches!(rorder, op::VectorOrder::Normal) {
+                let c = QuantTensor::quantize(a.as_tensor() - (f as f64), a.data_type());
+                cycle!(*VECTOR_ADD_CYCLES);
+                self.vram.write(vd, c).await;
+            } else {
+                let c = QuantTensor::quantize((f as f64) - a.as_tensor(), a.data_type());
+                cycle!(*VECTOR_ADD_CYCLES);
+                self.vram.write(vd, c).await;
+            }
+        } else {
+            // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
+            let mut result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    // Mask is set for this head
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = if matches!(rorder, op::VectorOrder::Normal) {
+                        &sliced - (f as f64)
+                    } else {
+                        (f as f64) - &sliced
+                    };
+                    // Overwrite this section with calculated values
+                    result.narrow(0, start, end - start).copy_(&updated);
+                }
+                // else leave unchanged
+            }
+            let c = QuantTensor::quantize(result, a.data_type());
+            cycle!(*VECTOR_ADD_CYCLES);
+            self.vram.write(vd, c).await;
+        }
+    }
+
     async fn mul_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         if rmask == 0 {
@@ -895,10 +935,6 @@ impl Accelerator {
         } else {
             load_dim
         };
-        // println!("Call transfer_from_hbm");
-        // println!("stride = {:?}", stride);
-        // println!("index = {:?}", index);
-        // println!("scale_index = {:?}", scale_index);
 
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
@@ -1209,15 +1245,16 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask } => {
+                op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask, rorder} => {
                     let mask = if rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
                     self.v_machine
-                        .add_scalar(
+                        .sub_scalar(
                             self.reg_file.gp_reg[rd as usize],
                             self.reg_file.gp_reg[rs1 as usize],
-                            (-self.reg_file.fp_reg[rs2 as usize]).into(),
+                            self.reg_file.fp_reg[rs2 as usize].into(),
                             rmask,
                             mask,
+                            rorder,
                         )
                         .await;
                 }
@@ -1559,10 +1596,10 @@ async fn start() {
     };
     let v_machine = VectorMachine { vram, tile_size: *VLEN, mask_unit: *HLEN }; // Share same dim with VSRAM
 
-    let hbm = Arc::new(memory::WithTiming::new(
+    let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
         memory::MemoryBacked::with_capacity(*HBM_SIZE),
-    ));
+    )));
 
     let mut accelerator = Accelerator {
         m_machine: machine,
@@ -1585,7 +1622,7 @@ async fn start() {
 
     use std::fs;
     let op_file = fs::read_to_string(opts.opcode).unwrap();
-    eprintln!("Loaded opcode file: {:?}", op_file);
+    // eprintln!("Loaded opcode file: {:?}", op_file);
 
     let op: Vec<u32> = op_file
         .split_whitespace() // split by spaces/newlines
@@ -1600,8 +1637,7 @@ async fn start() {
     // Memory Initialization
     // - HBM Preload
     let hbm_data = std::fs::read(opts.hbm).unwrap();
-
-    hbm.data().with_data(|f| {
+    hbm.model().data().with_data(|f| {
         f[..hbm_data.len()].copy_from_slice(&hbm_data);
     });
 
@@ -1637,11 +1673,13 @@ async fn start() {
     }
 
     // - Execute Instructions
-    accelerator
-        .do_ops(&dbg!(
-            op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
-        ))
-        .await;
+    // accelerator
+    //     .do_ops(&dbg!(
+    //         op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
+    //     ))
+    //     .await;
+    let decoded_ops = op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>();
+    accelerator.do_ops(&decoded_ops).await;
 
     println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
     println!("scale = {}", accelerator.reg_file.scale);
@@ -1668,6 +1706,14 @@ async fn start() {
     let mut vram_file = std::fs::File::create(vram_dump_path).unwrap();
     vram_file.write_all(&vram_bytes).unwrap();
     eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+
+    let memory_stats = hbm.statistics();
+    let utilization = (memory_stats.total_bytes_read + memory_stats.total_bytes_written) as f64
+        / Executor::current().now().to_secs();
+    eprintln!(
+        "HBM Statistics - Bytes read: {:?} | Bytes written: {:?} | Utilization: {:.2e} bytes/sec",
+        memory_stats.total_bytes_read, memory_stats.total_bytes_written, utilization
+    );
 }
 
 #[tokio::main]

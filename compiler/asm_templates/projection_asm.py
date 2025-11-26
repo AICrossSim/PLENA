@@ -1,27 +1,27 @@
 import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-
+import math
 
 IMM2_BOUND = 2**18
+
 def projection_asm(
     mlen: int,
     blen: int,
     batch: int,
     hidden_size: int,
     alive_registers: List[int],
-    head_dim: int,
     w_base_hbm_offset_reg: int,
-    rope_hbm_offset_reg: int,
-    rope_on_chip_address: int,
     activation_base_address: int,
     result_base_address: int,
-    rope_enabled: bool = True
+    rope_enabled: bool = True,
+    rope_hbm_offset_reg: int = 0,
+    rope_on_chip_address: int = 0
 ) -> str:
     """
     Generates assembly code for a general matrix multiplication operation.
     (Batch, Hidden Size) @ (Hidden Size, Hidden Size) -> (Batch, Hidden Size)
-
+    assume Batch = BLEN for this version.
     Args:
         mlen (int): The number of rows in the first matrix.
         blen (int): The number of columns in the second matrix.
@@ -32,16 +32,14 @@ def projection_asm(
     Returns:
         str: Generated assembly code for projection, including dot product and RoPE(cond)
     """
-    generated_code = ""
-    assert batch <= blen, "Batch size must be less than blen"
-    # get two registers from alive_registers, 1 as w address, 1 as a address
-    result_register     = alive_registers[0]
-    w_actual_register   = alive_registers[1]
-    w_hbm_offset_register = alive_registers[2]
-    a_actual_register   = alive_registers[3]
+    generated_code = "; Projection Generation \n"
+
+    result_register         = alive_registers[0]
+    w_actual_register       = alive_registers[1]
+    w_hbm_offset_register   = alive_registers[2]
+    a_actual_register       = alive_registers[3]
 
     # Set scale offset
-    #TODO: when hidden is large, cannot use addi command.
     assert hidden_size * hidden_size < IMM2_BOUND, f"hidden_size * hidden_size must be less than {IMM2_BOUND}"
     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * hidden_size} \n"
     generated_code += f"C_SET_SCALE_REG gp{a_actual_register} \n"
@@ -49,7 +47,6 @@ def projection_asm(
     generated_code += f"C_SET_STRIDE_REG gp{a_actual_register} \n"
 
     # reset the registers
-
     row_loop_over_hid = hidden_size // blen
     col_loop_over_hid = hidden_size // mlen
     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
@@ -60,56 +57,21 @@ def projection_asm(
             # Load a complete col of hidden size into on-chip memory  (hidden_size, mlen)
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
             generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp0, {i * blen} \n"
+            generated_code += f"S_ADDI_INT gp{result_register}, gp0, {result_base_address + (math.floor(i / (mlen // blen))) * mlen * blen} \n"
             for k in range (hidden_size // mlen):
-                generated_code += f"; <---- Generating New Row Tile at index {i} col {k} ----> \n"
                 generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_hbm_offset_register}, a{w_base_hbm_offset_reg}, 1, 0 \n"
                 generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp{w_hbm_offset_register}, {mlen * hidden_size} \n"
                 generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
         else:
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {(i % (mlen // blen)) * blen} \n"
-
+            generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen} \n"
         for j in range(col_loop_over_hid):
             # Loop over the hidden size dimension
-            generated_code += f"; <---- Generating New Column Tile at row {i} col {j} \n"
             generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
             generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
         generated_code += f"M_MM_WO {result_register}, gp0, 0 \n"
         generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
-        generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen} \n"
-
-    
-    # RoPE
-    if rope_enabled:
-        generated_code += "; Generating RoPE code here \n"
-        generated_code += f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n" 
         
-        upper_base_register = alive_registers[0]
-        lower_base_register = alive_registers[1]
-        roped_upper_base_register = alive_registers[2]
-        roped_lower_base_register = alive_registers[3]
-        cos_base_register = alive_registers[4]
-        sin_base_register = alive_registers[5]
-        intermediate_1_register = alive_registers[6]
-        intermediate_2_register = alive_registers[7]
-
-        generated_code += f"S_ADDI_INT      gp{cos_base_register}, gp0, {rope_on_chip_address} \n"
-        generated_code += f"H_PREFETCH_V    gp{cos_base_register}, gp{rope_on_chip_address}, a{rope_hbm_offset_reg}, 0, 0 \n"
-        generated_code += f"S_ADDI_INT      gp{sin_base_register}, gp{cos_base_register}, {head_dim} \n"
-        generated_code += f"H_PREFETCH_V    gp{sin_base_register}, gp{rope_on_chip_address}, a{rope_hbm_offset_reg}, 0, 0 \n"
-
-        for i in range(batch * head_dim):
-            generated_code += f"; <---- Generating RoPE code for batch {i // head_dim} head {i % head_dim} ----> \n"
-            generated_code += f"V_MUL_VV gp{intermediate_1_register}, gp{upper_base_register}, gp{cos_base_register} \n"
-            generated_code += f"V_MUL_VV gp{intermediate_2_register}, gp{lower_base_register}, gp{sin_base_register} \n"
-            generated_code += f"V_SUB_VV gp{roped_upper_base_register}, gp{intermediate_1_register}, gp{intermediate_2_register} \n"
-            generated_code += f"V_MUL_VV gp{intermediate_1_register}, gp{upper_base_register}, gp{sin_base_register} \n"
-            generated_code += f"V_MUL_VV gp{intermediate_2_register}, gp{lower_base_register}, gp{cos_base_register} \n"
-            generated_code += f"V_ADD_VV gp{roped_lower_base_register}, gp{intermediate_1_register}, gp{intermediate_2_register} \n"
-            generated_code += f"S_ADDI_INT gp{upper_base_register}, gp{upper_base_register}, {mlen} \n"
-            generated_code += f"S_ADDI_INT gp{lower_base_register}, gp{lower_base_register}, {mlen} \n"
-            generated_code += f"S_ADDI_INT gp{roped_upper_base_register}, gp{roped_upper_base_register}, {mlen} \n"
-            generated_code += f"S_ADDI_INT gp{roped_lower_base_register}, gp{roped_lower_base_register}, {mlen} \n"
-
     return generated_code

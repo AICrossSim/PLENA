@@ -62,7 +62,7 @@ def load_isa_settings(file_path: str) -> dict:
 
 
 class Instruction:
-    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rstride: Optional[str], funct1: Optional[int], imm: Optional[int] = None):
+    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rstride: Optional[str], funct1: Optional[int], imm: Optional[int] = None, rflag: Optional[int] = None):
 
         self.opcode = opcode
         self.rd = rd
@@ -74,7 +74,7 @@ class Instruction:
         self.rmask = rstride
 
     def __repr__(self):
-        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, imm={self.imm})"
+        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, imm={self.imm}, rflag={self.rflag})"
 
 
 def parse_asm_file(file_path: str) -> List[Instruction]:

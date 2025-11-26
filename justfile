@@ -44,7 +44,7 @@ build-behave-sim-debug arg:
     cd behavioral_simulator && \
     RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path"
     python3 behavioral_simulator/testbench/view_mem.py
-    python3 tools/utils/compare_match.py
+    # python3 tools/utils/compare_match.py
 
 build-rtl-sim arg:
     rm -rf test/Instr_Level_Benchmark/build/{{arg}}

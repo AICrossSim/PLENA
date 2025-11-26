@@ -69,7 +69,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V"]:
+        elif instruction.opcode in [ "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V", "V_SUB_VF"]:
             binary_instruction = (
                 (funct1 << (opw + 4 * ow)) +
                 (rstride << (opw + 3 * ow)) +
@@ -78,7 +78,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_SUB_VV", "V_SUB_VF", "V_MUL_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
+        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_MUL_VV", "V_SUB_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
             binary_instruction = (
                 (rmask << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
