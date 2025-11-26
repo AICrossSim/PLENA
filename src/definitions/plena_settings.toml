@@ -29,7 +29,7 @@ value = 1024
 value = 64
 
 [CONFIG.HBM_V_Prefetch_Amount]
-value = 4
+value = 1
 
 [CONFIG.HBM_V_Writeback_Amount]
 value = 16
@@ -98,8 +98,8 @@ block = 8
 [PRECISION.HBM_V_KV_TYPE.ELEM]
 type = "Fp"
 sign = true
-exponent = 4
-mantissa = 3
+exponent = 3
+mantissa = 4
 [PRECISION.HBM_V_KV_TYPE.SCALE]
 type = "Fp"
 sign = false

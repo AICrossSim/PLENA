@@ -156,6 +156,18 @@ class TEST(torch.nn.Module):
 
         return transfer_index  
 
+    def _stable_max_method(self, logits):
+        # Method 2: use max logit for numerical stability (no explicit softmax)
+        #logits # (B, L, V)
+        m = logits.max(dim=-1).values                 # (B, L)
+        sub_result = logits - m.unsqueeze(-1)         # (B, L, V)
+        exp_shifted = torch.exp(sub_result)           # (B, L, V)
+        denom = exp_shifted.sum(dim=-1)               # (B, L)
+        reciprocal_denom = 1.0 / denom                # (B, L)
+
+        print('reciprocal_denom = ', reciprocal_denom)
+        #return logits + reciprocal_denom.unsqueeze(-1)
+        return reciprocal_denom
 
     def forward(self, logits, mask_index, num_transfer_tokens):
         """
@@ -168,6 +180,7 @@ class TEST(torch.nn.Module):
             transfer_index: (B, L) bool — selected positions mask
         """
         output = self._get_transfer_index(logits, mask_index, num_transfer_tokens).type_as(logits)
+        #output = self._stable_max_method(logits).type_as(logits)
         return output
 
 
@@ -187,7 +200,7 @@ if __name__ == "__main__":
     vlen = 64
     repeat_times = vocal_size//vocal_size_single
     batch_size = 4
-    preload_amount = 4
+    preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
     fp_preload = [0.0, 1e-6]
@@ -206,8 +219,8 @@ if __name__ == "__main__":
     num_transfer_tokens = torch.tensor(k_values, dtype=torch.long)
     original_layer = TEST()
     weights = original_layer.state_dict()
-    #original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask, num_transfer_tokens)
-    original_output = 1.0/torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
+    original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask, num_transfer_tokens)
+    #original_output = 1.0/torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
     # Convert mask to float for quantization (simulator requires float input)
     mask = mask.type_as(logits)
 
@@ -235,11 +248,11 @@ if __name__ == "__main__":
     
     # Set the addr offset for mask
     logits_offset_address = (batch_size * hidden_size)
-    mask_offset_address = (batch_size * hidden_size) + (batch_size*hidden_size*vocal_size_single)
+    mask_offset_address = (batch_size * hidden_size) + (vocal_size_single)
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1,2],
         available_registers=[1,2],
-        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size * hidden_size * vocal_size * real_data_ratio, hbm_data_width)),int(2*align_addr_to_hbm_bandwidth(batch_size * hidden_size * vocal_size * real_data_ratio, hbm_data_width))]
+        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size*hidden_size*vocal_size * real_data_ratio, hbm_data_width)),int(2*align_addr_to_hbm_bandwidth(batch_size * hidden_size * vocal_size * real_data_ratio, hbm_data_width))]
     )
 
 
@@ -262,6 +275,7 @@ if __name__ == "__main__":
     )
     '''
 
+    
     # 只预加载 mask (B,L)
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
@@ -281,14 +295,14 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4,5,6,7,8]
     )
 
-
+    
     gen_assembly_code += get_transfer_index_long_debug(
         alive_registers=[4,5,6,7,8,9,10,11,12],
-        logits_base_address=logits_offset_address,  # 注意：这是VRAM地址，但我们不使用它（动态从HBM加载）
+        logits_base_address=logits_offset_address,
         mask_base_address=mask_offset_address,
         output_base_address=0,
-        temp_base_address=mask_offset_address + (batch_size * hidden_size),
-        x0_p_base_address=mask_offset_address + 1*(batch_size * hidden_size),
+        temp_base_address=mask_offset_address + batch_size * hidden_size,
+        x0_p_base_address=mask_offset_address + batch_size * hidden_size + vocal_size_single,
         k_values=k_values,
         vlen=vlen,
         repeat_times=repeat_times,
