@@ -35,23 +35,50 @@ class LlamaFeedForward(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # SwiGLU: (x @ w1) * silu(x @ w3)
-        print("input_tensor:\n", x)
-        print("up weight:\n", self.w1.weight.t())
-        up_proj = self.w1(x)
+        # print("input_tensor:\n", x)
+        # print("up weight:\n", self.w1.weight.t())
+        # up_proj = self.w1(x)
         print("up projection (all elements):")
-        # INSERT_YOUR_CODE
         w1_out = self.w1(x)
-        print("self.w1(x) (all elements):")
-        print(w1_out)
-        # INSERT_YOUR_CODE
-        # Print all elements in w1_out without truncation
-        with torch.no_grad():
-            torch.set_printoptions(profile="full")
-            print("w1_out (all elements):\n", w1_out)
-            torch.set_printoptions(profile="default")
+        w1_out = w1_out.reshape(w1_out.shape[0] * w1_out.shape[1], w1_out.shape[-1])
+        print("self.w1(x) (upper all elements):")
+        print(w1_out[:, :8])
+        print("self.w1(x) (mid upper all elements):")
+        print(w1_out[:, 64:72])
+        print("self.w1(x) (mid lower all elements):")
+        print(w1_out[:, 128:135])
+        print("self.w1(x) (lower all elements):")
+        print(w1_out[:, 192:199])
+
+        # w2_out = self.w2(x)
+        # w2_out = w2_out.reshape(w2_out.shape[0] * w2_out.shape[1], w2_out.shape[-1])
+        # print("self.w2(x) (upper all elements):")
+        # print(w2_out[:, :8])
+        # print("self.w2(x) (mid upper all elements):")
+        # print(w2_out[:, 64:72])
+        # print("self.w2(x) (mid lower all elements):")
+        # print(w2_out[:, 128:135])
+        # print("self.w2(x) (lower all elements):")
         # print("gate projection:\n", self.w2(x))
+
         # print("silu activation:\n", self.act(self.w1(x)))
         # print("product of silu activation and gate projection:\n", self.act(self.w1(x)) * self.w2(x))
+        silu_mixed_out = self.act(self.w1(x)) * self.w2(x)
+        # silu_mixed_out = silu_mixed_out.reshape(silu_mixed_out.shape[0] * silu_mixed_out.shape[1], silu_mixed_out.shape[-1])
+        # print(f"silu mixed out of shape {silu_mixed_out.shape}: \n")
+        # print("silu mixed out (upper all elements):")
+        # print(silu_mixed_out[:, :8])
+        # print("silu mixed out (mid upper all elements):")
+        # print(silu_mixed_out[:, 64:72])
+        # print("silu mixed out (mid lower all elements):")
+        # print(silu_mixed_out[:, 128:135])
+        # print("silu mixed out (lower all elements):")
+        # print(silu_mixed_out[:, 192:199])
+        outcome = self.w3(silu_mixed_out)
+        print("final output (upper all elements):")
+        print(outcome[:, :8])
+        print("final output (mid upper all elements):")
+        print(outcome[:, 64:72])
         # print("final output:\n", self.w3(self.act(self.w1(x)) * self.w2(x)))
         return self.w3(self.act(self.w1(x)) * self.w2(x))
 
@@ -73,7 +100,12 @@ if __name__ == "__main__":
     original_layer = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
     weight_up_layer = torch.randn(inter_dim, hidden_size)
     weight_gate_layer = torch.randn(inter_dim, hidden_size)
-    weight_down_layer = torch.randn(hidden_size, inter_dim)
+    weight_down_layer = torch.ones(hidden_size, inter_dim)
+    print(f"weight_down_layer of shape {weight_down_layer.t().shape}: \n")
+    print("upper all elements:")
+    print(weight_down_layer.t()[:, :8])
+    print("lower all elements:")
+    print(weight_down_layer.t()[:, 64:72])
 
     # Set weights for w1, w2, w3 to the generated tensors
     with torch.no_grad():
@@ -82,7 +114,6 @@ if __name__ == "__main__":
         original_layer.w3.weight.copy_(weight_down_layer)
 
     original_output = original_layer(act_tensor)
-    print("original_output:", original_output)
 
     input_tensor = {
         "act_tensor": act_tensor.reshape(batch_size * seq_len, hidden_size),
