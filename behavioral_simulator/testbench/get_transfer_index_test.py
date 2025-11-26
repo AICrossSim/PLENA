@@ -16,6 +16,11 @@ from transformers import AutoTokenizer
 
 
 
+# how to run this testbench?
+# -> just build-behave-sim-debug get_transfer_index 2>&1 | tee simulation_dllm.log
+
+########## Code copied from FastdLLM for reference ############
+
 def get_transfer_index(
     logits: torch.Tensor,
     remasking: str,
@@ -96,7 +101,9 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
                 break
     return x, nfe
 
-  
+###############################################################
+
+
 
 class TEST(torch.nn.Module):
     def __init__(self):
@@ -185,13 +192,8 @@ class TEST(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    # batch_size=4, gen_len=16
-    #result is  tensor([[6, 5, 5],
-    #                   [6, 5, 5],
-    #                   [6, 5, 5],
-    #                   [6, 5, 5]])
 
-    #logits.shape =  torch.Size([1, 148, 126464])
+    # target logits.shape =  torch.Size([1, 148, 126464])
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     vocal_size = 64*4
@@ -276,7 +278,7 @@ if __name__ == "__main__":
     '''
 
     
-    # 只预加载 mask (B,L)
+    # only preload mask (B,L)
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
         preload_len=preload_amount,

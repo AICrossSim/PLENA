@@ -27,7 +27,7 @@ def get_transfer_index_long_debug(
     x0_p_addr = alive_registers[4]
     k_reg = alive_registers[5]
     
-    generated_code = "; Argnmux for dLLM generation \n"
+    generated_code = "; get_transfer_index for dLLM generation \n"
     generated_code += f"S_ADDI_INT gp{logits_addr}, gp0, {logits_base_address} \n"
     generated_code += f"S_ADDI_INT gp{mask_addr}, gp0, {mask_base_address} \n"
     generated_code += f"S_ADDI_INT gp{output_addr}, gp0, {output_base_address} \n"
@@ -35,8 +35,6 @@ def get_transfer_index_long_debug(
     generated_code += f"S_ADDI_INT gp{x0_p_addr}, gp0, {x0_p_base_address} \n"
     
     # Loop over batch_size rows
-    #for batch_idx in range(batch_size):  
-
     for batch_idx in range(batch_size):  
         for i in range(vlen):
             # calculate the MAX in the entire V dim
@@ -79,7 +77,7 @@ def get_transfer_index_long_debug(
                     activation_offset_reg=0
                 )
                 for k in range(vocal_size_single // vlen):
-                    # S' = S - m_curr
+                    # S' = S - max_logits
                     generated_code += f"V_SUB_VF gp{temp_addr}, gp{logits_addr}, f1, 0\n"
                     # P = exp(S')
                     generated_code += f"V_EXP_V gp{temp_addr}, gp{temp_addr}, 0 \n"
