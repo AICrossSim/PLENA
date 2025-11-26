@@ -1673,11 +1673,13 @@ async fn start() {
     }
 
     // - Execute Instructions
-    accelerator
-        .do_ops(&dbg!(
-            op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
-        ))
-        .await;
+    // accelerator
+    //     .do_ops(&dbg!(
+    //         op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
+    //     ))
+    //     .await;
+    let decoded_ops = op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>();
+    accelerator.do_ops(&decoded_ops).await;
 
     println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
     println!("scale = {}", accelerator.reg_file.scale);
