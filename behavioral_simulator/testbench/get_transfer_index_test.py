@@ -181,10 +181,11 @@ if __name__ == "__main__":
     #logits.shape =  torch.Size([1, 148, 126464])
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    vocal_size = 64*2
+    vocal_size = 64*4
+    vocal_size_single = 128
     hidden_size = 64
     vlen = 64
-    repeat_times = vocal_size//vlen
+    repeat_times = vocal_size//vocal_size_single
     batch_size = 4
     preload_amount = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
@@ -205,8 +206,8 @@ if __name__ == "__main__":
     num_transfer_tokens = torch.tensor(k_values, dtype=torch.long)
     original_layer = TEST()
     weights = original_layer.state_dict()
-    original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask, num_transfer_tokens)
-    #original_output = 1.0/torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
+    #original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask, num_transfer_tokens)
+    original_output = 1.0/torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
     # Convert mask to float for quantization (simulator requires float input)
     mask = mask.type_as(logits)
 
@@ -234,7 +235,7 @@ if __name__ == "__main__":
     
     # Set the addr offset for mask
     logits_offset_address = (batch_size * hidden_size)
-    mask_offset_address = (batch_size * hidden_size) + (batch_size*hidden_size*vocal_size)
+    mask_offset_address = (batch_size * hidden_size) + (batch_size*hidden_size*vocal_size_single)
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1,2],
         available_registers=[1,2],
@@ -247,7 +248,7 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4,5,6,7,8]
     )
     
-    
+    '''
     # Gen logtis Preload (B,L,V)
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
@@ -255,18 +256,21 @@ if __name__ == "__main__":
         batch=batch_size,
         hidden_size=hidden_size*vocal_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_hbm_offset=hidden_size*vocal_size,
         act_vram_offset=logits_offset_address,
         activation_offset_reg=0
     )
-    
-    
-    # # Gen mask Preload (B,L)
+    '''
+
+    # 只预加载 mask (B,L)
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
         hidden_size=hidden_size,
+        scale=batch_size*hidden_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_hbm_offset=0,
         act_vram_offset=mask_offset_address,
         activation_offset_reg=1
     )
@@ -276,18 +280,21 @@ if __name__ == "__main__":
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
     )
-    
+
+
     gen_assembly_code += get_transfer_index_long_debug(
-        alive_registers=[1,2,3,4,5,6,7,8],
-        logits_base_address= logits_offset_address,
-        mask_base_address= mask_offset_address,
+        alive_registers=[4,5,6,7,8,9,10,11,12],
+        logits_base_address=logits_offset_address,  # 注意：这是VRAM地址，但我们不使用它（动态从HBM加载）
+        mask_base_address=mask_offset_address,
         output_base_address=0,
-        temp_base_address= mask_offset_address + (batch_size * hidden_size),
-        x0_p_base_address= mask_offset_address + 2*(batch_size * hidden_size),
+        temp_base_address=mask_offset_address + (batch_size * hidden_size),
+        x0_p_base_address=mask_offset_address + 1*(batch_size * hidden_size),
         k_values=k_values,
         vlen=vlen,
         repeat_times=repeat_times,
         batch_size=batch_size,
+        vocal_size_single=vocal_size_single,
+        hidden_size=hidden_size,
     )
     
     
