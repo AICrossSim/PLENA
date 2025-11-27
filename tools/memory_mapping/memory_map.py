@@ -4,17 +4,19 @@ import torch
 import os
 
 def print_outputfile_contents(output_file):
-    print("\n--- File content hex dump: ---")
-    if not os.path.exists(output_file):
-        print(f"File {output_file} does not exist!")
-        return
-    with open(output_file, "rb") as f:
-        data = f.read()
-        # Print as 16 bytes per line, hex values
-        for i in range(0, len(data), 16):
-            chunk = data[i:i+16]
-            hex_bytes = ' '.join(f"{b:02X}" for b in chunk)
-            print(f"{i:08X}: {hex_bytes}")
+    # Commented out to reduce log size - hex dump not needed
+    # print("\n--- File content hex dump: ---")
+    # if not os.path.exists(output_file):
+    #     print(f"File {output_file} does not exist!")
+    #     return
+    # with open(output_file, "rb") as f:
+    #     data = f.read()
+    #     # Print as 16 bytes per line, hex values
+    #     for i in range(0, len(data), 16):
+    #         chunk = data[i:i+16]
+    #         hex_bytes = ' '.join(f"{b:02X}" for b in chunk)
+    #         print(f"{i:08X}: {hex_bytes}")
+    pass  # Function now does nothing to reduce log output
 
 def map_block_to_value(block, data_width):
     if data_width % 4 != 0:

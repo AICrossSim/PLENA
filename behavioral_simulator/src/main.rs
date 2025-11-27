@@ -936,10 +936,10 @@ impl Accelerator {
         } else {
             load_dim
         };
-        println!("Call transfer_from_hbm");
-        println!("stride = {:?}", stride);
-        println!("index = {:?}", index);
-        println!("scale_index = {:?}", scale_index);
+        // println!("Call transfer_from_hbm");  // Commented out to reduce log size
+        // println!("stride = {:?}", stride);
+        // println!("index = {:?}", index);
+        // println!("scale_index = {:?}", scale_index);
 
         Executor::current().spawn(async move {
             let element_ty = hbm_type.element_type();
@@ -1006,7 +1006,7 @@ impl Accelerator {
                     let load_iter = write_idx * write_amount + block_idx;
                     let element_addr = index + (load_iter * stride) as u64;
                     let scale_addr = scale_index + (load_iter as f32 * stride_scale) as u64;
-                    println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);
+                    // println!("element_addr = {:?}, scale_addr = {:?}", element_addr, scale_addr);  // Commented out to reduce log size
                     let byte_offset = (write_idx * write_amount * len_in_bytes_per_load) as usize
                         + block_idx as usize * len_in_bytes_per_load as usize;
                     let scale_byte_offset = (write_idx * write_amount * scale_len_in_bytes_per_load)
@@ -1131,7 +1131,7 @@ impl Accelerator {
 
     async fn do_ops(&mut self, ops: &[op::Opcode]) {
         for op in ops {
-            println!("execute op = {:?}", op);
+            // println!("execute op = {:?}", op);  // Commented out to reduce log size
             match *op {
                 op::Opcode::Invalid => todo!(),
 
@@ -1718,10 +1718,10 @@ async fn start() {
     }
 
     // - Execute Instructions
+    let decoded_ops: Vec<_> = op.into_iter().map(op::Opcode::decode).collect();
+    // dbg!(&decoded_ops);  // Commented out to reduce log size - instructions are already saved in generated_asm_code.asm
     accelerator
-        .do_ops(&dbg!(
-            op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>()
-        ))
+        .do_ops(&decoded_ops)
         .await;
 
     println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
