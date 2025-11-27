@@ -1,0 +1,169 @@
+[COMPUT.CORE_NUM]
+default = 1
+range = [1, 2, 4, 8, 16]
+
+[COMPUTE.BLEN]
+default = 4
+range = [4, 8, 16, 32, 64, 128]
+
+[COMPUTE.MLEN]
+default = 64
+range = [128, 256, 512, 1024, 2048, 4096]
+
+[COMPUTE.VLEN]
+default = 64
+range = [128, 256, 512, 1024, 2048, 4096]
+
+[MEMORY.MATRIX_SRAM.TYPE]
+type = "SRAM"
+range = ["SRAM", "3D_STACKED", "COMBINED"]
+
+[MEMORY.MATRIX_SRAM.SRAM]
+capacity_default = 4096
+capacity_range = [16, 32, 64, 128, 256, 512, 1024]
+bandwidth_default = 32
+bandwidth_range = [1, 2, 4, 8, 16]
+cost = 1000
+power = 100
+
+[MEMORY.MATRIX_SRAM.3D_STACKED]
+capacity_default = 4096
+capacity_range = [1024, 2048, 4096]
+bandwidth_default = 32
+bandwidth_range = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
+cost = 4000
+power = 400
+
+[MEMORY.VECTOR_SRAM.TYPE]
+default = "SRAM"
+range = ["SRAM"]
+
+[MEMORY.VECTOR_SRAM.SRAM]
+capacity_default = 4096
+capacity_range = [4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304]
+bandwidth_default = 32
+bandwidth_range = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
+cost = 1000
+power = 100
+
+[OFF_CHIP_STORAGE.TYPE]
+type = "HBM"
+range = ["HBM", "DDR", "COMBINED"]
+
+[OFF_CHIP_STORAGE.HBM]
+capacity_default = 80000
+capacity_range = [80000, 160000, 320000, 640000, 1280000, 2560000, 5120000, 10240000, 20480000, 40960000]
+bandwidth_default = 2
+bandwidth_range = [2, 4, 8, 16]
+cost = 4000
+power = 400
+
+[OFF_CHIP_STORAGE.DDR]
+capacity_default = 80000
+capacity_range = [80000, 160000, 320000, 640000, 1280000, 2560000, 5120000, 10240000, 20480000, 40960000]
+bandwidth_default = 2
+bandwidth_range = [1, 2, 4]
+cost = 4000
+power = 400
+
+[PRECISION.MATRIX_SRAM_TYPE]
+format = "Plain"
+[PRECISION.MATRIX_SRAM_TYPE.DATA_TYPE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[PRECISION.VECTOR_SRAM_TYPE]
+format = "Plain"
+[PRECISION.VECTOR_SRAM_TYPE.DATA_TYPE]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[PRECISION.OFFCHIP_M_WEIGHT_TYPE]
+format = "Mx"
+block = 8
+[PRECISION.OFFCHIP_M_WEIGHT_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.OFFCHIP_M_WEIGHT_TYPE.SCALE]
+type = "Fp"
+sign = false
+exponent = 8
+mantissa = 0
+
+[PRECISION.OFFCHIP_M_KV_TYPE]
+format = "Mx"
+block = 8
+[PRECISION.OFFCHIP_M_KV_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.OFFCHIP_M_KV_TYPE.SCALE]
+type = "Fp"
+sign = false
+exponent = 8
+mantissa = 0
+
+[PRECISION.OFFCHIP_V_ACT_TYPE]
+format = "Mx"
+block = 8
+[PRECISION.OFFCHIP_V_ACT_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.OFFCHIP_V_ACT_TYPE.SCALE]
+type = "Fp"
+sign = false
+exponent = 8
+mantissa = 0
+
+[PRECISION.OFFCHIP_V_KV_TYPE]
+format = "Mx"
+block = 8
+[PRECISION.OFFCHIP_V_KV_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.OFFCHIP_V_KV_TYPE.SCALE]
+type = "Fp"
+sign = false
+exponent = 8
+mantissa = 0
+
+[PRECISION.SCALAR_FP]
+type = "Fp"
+sign = true
+exponent = 8
+mantissa = 7
+
+[FFN.EXECUTION_ORDER]
+type = "Output Stationary"
+range = ["Output Stationary", "Activation Stationary", "Weight Stationary"]
+
+[FFN.ON_CHIP_STORAGE_PRIORITY]
+type = "Weight Priority"
+range = ["Weight Priority", "Activation Priority"]
+
+[FLASH_ATTENTION.EXECUTION_ORDER]
+type = "Head Iteration"
+range = ["Head Iteration", "Weight Iteration"]
+
+[FLASH_ATTENTION.SOFT_TILING_SIZE.Br]
+type = 8
+range = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+
+[FLASH_ATTENTION.SOFT_TILING_SIZE.Bc]
+type = 8
+range = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+
+[FLASH_ATTENTION.ON_CHIP_STORAGE_PRIORITY]
+type = "KV Priority"
+range = ["KV Priority", "Weight Priority"]
