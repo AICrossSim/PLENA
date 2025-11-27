@@ -104,6 +104,41 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
 ###############################################################
 
 
+"""
+VRAM Memory Layout:
+==================================================================================
+Address Range                                   | Content       | Size
+==================================================================================
+[0 : B*L)                                       | output        | B * L
+                                                |               | (transfer_index result)
+----------------------------------------------------------------------------------
+[B*L : B*L + vocal_size_single)                 | temp          | vocal_size_single
+                                                |               | (for exp(logits-max))
+                                                |               |
+[B*L + vlen : B*L + vocal_size_single + veln)   | logits        | vocal_size_single
+                                                |               | *** OVERLAPS with temp ***
+                                                |               | (offset +vlen from temp)
+----------------------------------------------------------------------------------
+[B*L + vocal_size_single + veln :               | mask          | B * L
+    B*L + vocal_size_single + veln + B*L)       |               |
+----------------------------------------------------------------------------------
+[B*L + vocal_size_single + veln + B*L : ...)    | x0_p          | vocal_size_single
+                                                |               | (softmax probabilities)
+==================================================================================
+
+Memory Reuse Strategy:
+    - temp and logits OVERLAP by (vocal_size_single - vlen) elements
+    - When processing logits in vlen-sized chunks:
+        * Process logits[i*vlen : (i+1)*vlen]
+        * Compute exp() and store in temp[i*vlen : (i+1)*vlen]
+        * By the time we need temp[0:vlen], logits[0:vlen] is already consumed
+    - This saves (vocal_size_single - vlen) elements of VRAM
+
+Example (vocal_size_single=640, vlen=64):
+    temp:   [256, 896)
+    logits: [320, 960)  ← starts vlen elements after temp
+    overlap:[320, 896)  ← 576 elements shared between temp and logits
+"""
 
 class TEST(torch.nn.Module):
     def __init__(self):
@@ -196,8 +231,8 @@ if __name__ == "__main__":
     # target logits.shape =  torch.Size([1, 64, 126464]) 126464=64*1976
 
     # Testing the operation logits in shape of (batch_size, hidden_size, vocal_size)
-    vocal_size = 64*1976
-    vocal_size_single = 64*494
+    vocal_size = 64*20
+    vocal_size_single = 64*10  #64*494
     hidden_size = 64
     vlen = 64
     repeat_times = vocal_size//vocal_size_single
@@ -231,7 +266,6 @@ if __name__ == "__main__":
     print('num_transfer_tokens.shape= ', num_transfer_tokens.shape)
     print('original_output.shape= ', original_output.shape)
     print('repeat_times = ', repeat_times)
-
     
     input_tensor = {
         "logits": logits,
@@ -248,35 +282,20 @@ if __name__ == "__main__":
     
     gen_assembly_code = "; DLLM Test Generation \n"
     
-    # Set the addr offset for mask
-    logits_offset_address = (batch_size * hidden_size)
-    mask_offset_address = (batch_size * hidden_size) + (vocal_size_single)
+    # Set the VRAM address offsets
+    temp_offset_address = (batch_size * hidden_size)
+    logits_offset_address = temp_offset_address + vlen
+    mask_offset_address = logits_offset_address + (vocal_size_single)
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1,2],
         available_registers=[1,2],
         addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size*hidden_size*vocal_size * real_data_ratio, hbm_data_width)),int(2*align_addr_to_hbm_bandwidth(batch_size * hidden_size * vocal_size * real_data_ratio, hbm_data_width))]
     )
 
-
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
     )
-    
-    '''
-    # Gen logtis Preload (B,L,V)
-    gen_assembly_code += preload_act_asm(
-        vlen=vlen,
-        preload_len=preload_amount,
-        batch=batch_size,
-        hidden_size=hidden_size*vocal_size,
-        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
-        act_hbm_offset=hidden_size*vocal_size,
-        act_vram_offset=logits_offset_address,
-        activation_offset_reg=0
-    )
-    '''
-
     
     # only preload mask (B,L)
     gen_assembly_code += preload_act_asm(
@@ -290,21 +309,19 @@ if __name__ == "__main__":
         act_vram_offset=mask_offset_address,
         activation_offset_reg=1
     )
-    
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
     )
-
     
     gen_assembly_code += get_transfer_index_long_debug(
         alive_registers=[4,5,6,7,8,9,10,11,12],
         logits_base_address=logits_offset_address,
         mask_base_address=mask_offset_address,
         output_base_address=0,
-        temp_base_address=mask_offset_address + batch_size * hidden_size,
-        x0_p_base_address=mask_offset_address + batch_size * hidden_size + vocal_size_single,
+        temp_base_address=temp_offset_address,
+        x0_p_base_address=mask_offset_address + batch_size * hidden_size,
         k_values=k_values,
         vlen=vlen,
         repeat_times=repeat_times,
@@ -312,7 +329,6 @@ if __name__ == "__main__":
         vocal_size_single=vocal_size_single,
         hidden_size=hidden_size,
     )
-    
     
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
     build_fake_sim_env(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits", "mask"])

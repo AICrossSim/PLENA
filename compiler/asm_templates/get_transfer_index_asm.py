@@ -3,6 +3,7 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 from .preload_act import preload_act_asm
 
+
 def get_transfer_index_long_debug(
     alive_registers: List[int],
     logits_base_address: int, # input (B,L,V)
