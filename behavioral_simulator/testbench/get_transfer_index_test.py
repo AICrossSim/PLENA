@@ -193,11 +193,11 @@ class TEST(torch.nn.Module):
 
 if __name__ == "__main__":
 
-    # target logits.shape =  torch.Size([1, 148, 126464])
+    # target logits.shape =  torch.Size([1, 64, 126464]) 126464=64*1976
 
-    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    vocal_size = 64*20
-    vocal_size_single = 64*10
+    # Testing the operation logits in shape of (batch_size, hidden_size, vocal_size)
+    vocal_size = 64*1976
+    vocal_size_single = 64*494
     hidden_size = 64
     vlen = 64
     repeat_times = vocal_size//vocal_size_single

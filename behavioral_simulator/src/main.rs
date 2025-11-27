@@ -1618,6 +1618,7 @@ struct Opts {
 }
 
 async fn start() {
+    let start_time = std::time::Instant::now();
     let opts = Opts::parse();
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
     let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
@@ -1749,6 +1750,11 @@ async fn start() {
     let mut vram_file = std::fs::File::create(vram_dump_path).unwrap();
     vram_file.write_all(&vram_bytes).unwrap();
     eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+    
+    let elapsed = start_time.elapsed();
+    eprintln!("\n========================================");
+    eprintln!("Total execution time: {:.2?}", elapsed);
+    eprintln!("========================================");
 }
 
 #[tokio::main]
