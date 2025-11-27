@@ -80,12 +80,27 @@ def preload_act_asm(
 
     # Set scale offset
     #generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * batch} \n"
-    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {scale} \n"
+    if scale <= 262143:
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {scale} \n"
+    else:
+        # Use S_LUI_INT + S_ADDI_INT for large immediate values
+        generated_code += f"S_LUI_INT gp{a_actual_register}, {scale >> 12} \n"
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {scale & 0xFFF} \n"
     generated_code += f"C_SET_SCALE_REG gp{a_actual_register} \n"
 
     # reset the registers
-    set_a_base_address = f"S_ADDI_INT gp{a_actual_register}, gp0, {act_hbm_offset} \n"
-    set_act_vram_base_address = f"S_ADDI_INT gp{result_register}, gp0, {act_vram_offset} \n"
+    if act_hbm_offset <= 262143:
+        set_a_base_address = f"S_ADDI_INT gp{a_actual_register}, gp0, {act_hbm_offset} \n"
+    else:
+        set_a_base_address = f"S_LUI_INT gp{a_actual_register}, {act_hbm_offset >> 12} \n"
+        set_a_base_address += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {act_hbm_offset & 0xFFF} \n"
+    
+    if act_vram_offset <= 262143:
+        set_act_vram_base_address = f"S_ADDI_INT gp{result_register}, gp0, {act_vram_offset} \n"
+    else:
+        set_act_vram_base_address = f"S_LUI_INT gp{result_register}, {act_vram_offset >> 12} \n"
+        set_act_vram_base_address += f"S_ADDI_INT gp{result_register}, gp{result_register}, {act_vram_offset & 0xFFF} \n"
+    
     generated_code += set_a_base_address
     generated_code += set_act_vram_base_address
     

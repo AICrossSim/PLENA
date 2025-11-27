@@ -1666,7 +1666,7 @@ async fn start() {
 
     use std::fs;
     let op_file = fs::read_to_string(opts.opcode).unwrap();
-    eprintln!("Loaded opcode file: {:?}", op_file);
+    // eprintln!("Loaded opcode file: {:?}", op_file);
 
     let op: Vec<u32> = op_file
         .split_whitespace() // split by spaces/newlines

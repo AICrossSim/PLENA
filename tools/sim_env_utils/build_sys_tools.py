@@ -63,8 +63,8 @@ def env_setup(grp_blocks, grp_bias, build_path: str, data_config, quant_config, 
         assembler.generate_binary(build_path / f'{test_file_name}.asm', build_path / f'{test_file_name}.mem')
     
     for blocks, bias in zip(grp_blocks, grp_bias):
-        print("blocks", blocks)
-        print("bias", bias)
+        # print("blocks", blocks)
+        # print("bias", bias)
         map_data_to_fake_hbm_for_rtl_sim(   
                                 blocks          =blocks,
                                 element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,

@@ -196,8 +196,8 @@ if __name__ == "__main__":
     # target logits.shape =  torch.Size([1, 148, 126464])
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    vocal_size = 64*4
-    vocal_size_single = 128
+    vocal_size = 64*20
+    vocal_size_single = 64*10
     hidden_size = 64
     vlen = 64
     repeat_times = vocal_size//vocal_size_single
