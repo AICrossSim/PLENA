@@ -16,6 +16,12 @@ pub enum VectorOrder {
     Reverse,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum HBM_LOAD_TYPE {
+    MX,
+    Normal,
+}
+
 
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
@@ -232,6 +238,7 @@ pub enum Opcode {
         rs2: u8,
         rstride: u8,
         precision: VectorPrecision,
+        datatype: HBM_LOAD_TYPE,
     },
     H_STORE_V {
         rd: u8,
@@ -304,6 +311,7 @@ impl Opcode {
         let rs2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(OPERAND_WIDTH)) as u8;
         let rs3 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 3)) & mask(OPERAND_WIDTH)) as u8;
         let funct1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 4)) & mask(OPERAND_WIDTH)) as u8;
+        let funct2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 5)) & mask(OPERAND_WIDTH)) as u8;
         let imm = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(IMM_WIDTH)) as u32;
         let imm2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(IMM_2_WIDTH)) as u32;
 
@@ -370,6 +378,7 @@ impl Opcode {
                 rs2,
                 rstride: rs3,
                 precision: Self::vector_precision_from(funct1),
+                datatype: Self::hbm_load_type_from(funct2),
             },
             // 0x2A => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x2A => Self::H_STORE_V {
