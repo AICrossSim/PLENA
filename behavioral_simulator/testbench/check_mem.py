@@ -6,24 +6,24 @@ import os
 def parse_golden_output(golden_file_path):
     """
     Parse the "Original Output" section from golden_result.txt.
-    
+
     Args:
         golden_file_path: Path to the golden_result.txt file
-        
+
     Returns:
         numpy array: Flattened 1D array of all values from Original Output
     """
     with open(golden_file_path, 'r') as f:
         content = f.read()
-    
+
     # Find the "Original Output:" section
     match = re.search(r'Original Output:\s*\[(.*?)\]', content, re.DOTALL)
     if not match:
         raise ValueError("Could not find 'Original Output' section in golden file")
-    
+
     # Extract the values section
     values_text = match.group(1)
-    
+
     # Parse all floating point numbers (handles negative, positive, scientific notation)
     values = []
     for line in values_text.strip().split('\n'):
@@ -37,13 +37,13 @@ def parse_golden_output(golden_file_path):
                 values.append(val)
             except ValueError:
                 continue
-    
+
     return np.array(values, dtype=np.float32)
 
 
-def read_bin_file_as_array(bin_file, 
-                           exp_width, 
-                           man_width, 
+def read_bin_file_as_array(bin_file,
+                           exp_width,
+                           man_width,
                            row_dim,
                            num_bytes_per_val=2,
                            start_row_idx=0,
@@ -51,7 +51,7 @@ def read_bin_file_as_array(bin_file,
     """
     Read binary file and convert to numpy array (similar to view_bin_file_by_row but returns array).
     Uses the same row-based indexing logic as view_bin_file_by_row.
-    
+
     Args:
         bin_file: Path to binary file
         exp_width: Number of bits for exponent
@@ -60,7 +60,7 @@ def read_bin_file_as_array(bin_file,
         num_bytes_per_val: Number of bytes per value (default 2 for BF16)
         start_row_idx: Starting row index
         num_rows: Number of rows to read (None = read all remaining rows)
-        
+
     Returns:
         numpy array: Flattened 1D array of values, respecting row boundaries
     """
@@ -98,13 +98,13 @@ def read_bin_file_as_array(bin_file,
 
     with open(bin_file, "rb") as f:
         data = f.read()
-    
+
     num_vals = len(data) // num_bytes_per_val
     total_rows = (num_vals + row_dim - 1) // row_dim
-    
+
     # Calculate which rows to read
     end_row_idx = total_rows if num_rows is None else start_row_idx + num_rows
-    
+
     values = []
     # Iterate through rows, matching the logic of view_bin_file_by_row
     for row_idx in range(start_row_idx, end_row_idx):
@@ -120,8 +120,46 @@ def read_bin_file_as_array(bin_file,
             bits_val = int.from_bytes(chunk, byteorder='little')
             float_val = raw_to_fp(bits_val)
             values.append(float_val)
-    
+
     return np.array(values, dtype=np.float32)
+
+
+def reorder_stride_mode(data, num_batches=4, elements_per_batch=128):
+    """
+    Reorder stride-mode data to batch-wise layout.
+
+    Stride mode layout (how data is stored in VRAM):
+        [Batch0[0:64], Batch1[0:64], Batch2[0:64], Batch3[0:64],
+         Batch0[64:128], Batch1[64:128], Batch2[64:128], Batch3[64:128]]
+
+    Batch-wise layout (how golden data is organized):
+        [Batch0[0:128], Batch1[0:128], Batch2[0:128], Batch3[0:128]]
+
+    Args:
+        data: 1D numpy array in stride mode
+        num_batches: Number of batches (default 4)
+        elements_per_batch: Elements per batch (default 128)
+
+    Returns:
+        Reordered 1D numpy array in batch-wise layout
+    """
+    chunk_size = elements_per_batch // 2  # 64 elements per chunk
+    total_chunks = len(data) // chunk_size
+
+    if total_chunks != num_batches * 2:
+        print(f"Warning: Expected {num_batches * 2} chunks, got {total_chunks}")
+
+    # Reshape into chunks: [chunk0, chunk1, ..., chunk7]
+    chunks = data.reshape(total_chunks, chunk_size)
+
+    # Reorder: [chunk0, chunk4, chunk1, chunk5, chunk2, chunk6, chunk3, chunk7]
+    # This groups each batch's two halves together
+    reordered_chunks = []
+    for batch_idx in range(num_batches):
+        reordered_chunks.append(chunks[batch_idx])                  # First 64 elements
+        reordered_chunks.append(chunks[batch_idx + num_batches])    # Last 64 elements
+
+    return np.concatenate(reordered_chunks)
 
 
 def compare_with_golden(bin_file,
@@ -132,10 +170,11 @@ def compare_with_golden(bin_file,
                         row_dim=64,
                         start_row_idx=0,
                         num_rows=None,
-                        tolerance=1):
+                        tolerance=1,
+                        use_stride_mode=False):
     """
     Compare binary file output with golden reference from golden_result.txt.
-    
+
     Args:
         bin_file: Path to binary file to compare
         golden_file: Path to golden_result.txt file
@@ -146,7 +185,8 @@ def compare_with_golden(bin_file,
         start_row_idx: Starting row index to compare
         num_rows: Number of rows to compare (None = compare all)
         tolerance: Tolerance for comparison (used for reporting)
-        
+        use_stride_mode: Whether to reorder data from stride mode to batch-wise layout
+
     Returns:
         dict: Dictionary containing comparison metrics:
             - 'mse': Mean Squared Error
@@ -160,12 +200,17 @@ def compare_with_golden(bin_file,
     """
     # Parse golden output
     golden_values = parse_golden_output(golden_file)
-    
+
     # Read binary file (now properly handles row-based indexing)
     simulated_values = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
     )
-    
+
+    # Reorder stride-mode data to match batch-wise golden layout
+    if use_stride_mode and len(simulated_values) == 512:
+        print("Reordering stride-mode data to batch-wise layout...")
+        simulated_values = reorder_stride_mode(simulated_values, num_batches=4, elements_per_batch=128)
+
     # Ensure dimensions match by truncating to the smaller size
     min_len = min(len(golden_values), len(simulated_values))
     golden_values = golden_values[:min_len]
@@ -173,18 +218,18 @@ def compare_with_golden(bin_file,
 
     print("golden_values is:\n", golden_values)
     print("simulated_values is:\n", simulated_values)
-    
+
     if len(golden_values) == 0:
         raise ValueError("No values to compare")
-    
+
     # Compute errors
     errors = np.abs(golden_values - simulated_values)
-    
+
     # Compute metrics
     mse = np.mean((golden_values - simulated_values) ** 2)
     mae = np.mean(errors)
     max_error = np.max(errors)
-    
+
     # Relative error (avoid division by zero)
     with np.errstate(divide='ignore', invalid='ignore'):
         relative_errors = np.where(
@@ -193,11 +238,11 @@ def compare_with_golden(bin_file,
             errors
         )
     mean_relative_error = np.mean(relative_errors)
-    
+
     # Match rate (within tolerance)
     within_tolerance = errors <= tolerance
     match_rate = np.sum(within_tolerance) / len(errors) * 100.0
-    
+
     return {
         'mse': mse,
         'mae': mae,
@@ -215,7 +260,7 @@ def compare_with_golden(bin_file,
 def print_comparison_results(results, verbose=False):
     """
     Print comparison results in a readable format.
-    
+
     Args:
         results: Dictionary returned by compare_with_golden
         verbose: If True, print detailed error statistics
@@ -233,7 +278,7 @@ def print_comparison_results(results, verbose=False):
     print(f"  Maximum Absolute Error:      {results['max_error']:.6f}")
     print(f"  Mean Relative Error:          {results['relative_error']:.6f}")
     print()
-    
+
     if verbose:
         errors = results['errors']
         print("Error Statistics:")
@@ -242,7 +287,7 @@ def print_comparison_results(results, verbose=False):
         print(f"  Median error:               {np.median(errors):.6f}")
         print(f"  Std deviation:             {np.std(errors):.6f}")
         print()
-        
+
         # Find indices with largest errors
         top_5_indices = np.argsort(errors)[-5:][::-1]
         print("Top 5 Largest Errors:")
@@ -257,7 +302,7 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     golden_file = os.path.join(script_dir, "behavioral_simulator", "testbench", "build", "golden_result.txt")
     vram_file = os.path.join(script_dir, "behavioral_simulator", "vram_dump.bin")
-    
+
     if os.path.exists(golden_file) and os.path.exists(vram_file):
         results = compare_with_golden(
             vram_file,
@@ -267,11 +312,11 @@ if __name__ == "__main__":
             num_bytes_per_val=2,
             row_dim=64,
             start_row_idx=0,
-            num_rows=4  # Compare first 4 rows (matching golden output)
+            num_rows=4,
+            use_stride_mode=True
         )
         print_comparison_results(results, verbose=True)
     else:
         print(f"Files not found:")
         print(f"  Golden: {golden_file}")
         print(f"  VRAM:   {vram_file}")
-
