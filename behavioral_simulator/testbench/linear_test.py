@@ -39,6 +39,7 @@ if __name__ == "__main__":
     weights = original_layer.state_dict()
     
     original_output = original_layer(act_tensor)
+    print("original_output is:\n", original_output)
 
     # Print weight k, (128, 128) -> print 4 quadrants of (64, 64) each
     # Quadrant indices:
@@ -46,8 +47,8 @@ if __name__ == "__main__":
     # 1: [0:64, 64:128]
     # 2: [64:128, 0:64]
     # 3: [64:128, 64:128]
-    w_k = weights['weight'].t() if isinstance(weights, dict) else weights
-    print("Weight k shape:", w_k.shape)
+    # w_k = weights['weight'].t() if isinstance(weights, dict) else weights
+    # print("Weight k shape:", w_k.shape)
     # for idx, (r_slice, c_slice) in enumerate([
     #     (slice(0, 64), slice(0, 64)),
     #     (slice(0, 64), slice(64, 128)),
@@ -59,20 +60,20 @@ if __name__ == "__main__":
 
 
     # Print the matmul result of input_tensor[:, :64] and weight[0:64, 0:4]
-    matmul_result_11 = act_tensor[:, :64] @ w_k[:64, :4]
+    # matmul_result_11 = act_tensor[:, :64] @ w_k[:64, :4]
     # print("act_tensor[:, :64]: \n", act_tensor[:, :64])
     # print("w_k[:64, :4]: \n", w_k[:64, :4])
     # print("Matmul result of input_tensor[:, :64] @ weight[0:64, 0:4]:")
     # print(matmul_result_11)
 
-    matmul_result_22 = act_tensor[:, 64:] @ w_k[64:, :4]
-    print("Matmul result of input_tensor[:, 64:] @ weight[64:, :4]:")
-    print("act_tensor[:, 64:]: \n", act_tensor[:, 64:])
-    print("w_k[64:, :4]: \n", w_k[64:, :4])
-    print(matmul_result_22)
+    # matmul_result_22 = act_tensor[:, 64:] @ w_k[64:, :4]
+    # print("Matmul result of input_tensor[:, 64:] @ weight[64:, :4]:")
+    # print("act_tensor[:, 64:]: \n", act_tensor[:, 64:])
+    # print("w_k[64:, :4]: \n", w_k[64:, :4])
+    # print(matmul_result_22)
 
-    print ("sum of two matmul results:", 
-           matmul_result_11 + matmul_result_22)
+    # print ("sum of two matmul results:", 
+    #        matmul_result_11 + matmul_result_22)
 
     input_tensor = {
         "act_tensor": act_tensor,
