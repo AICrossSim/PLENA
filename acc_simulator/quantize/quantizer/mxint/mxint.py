@@ -124,12 +124,19 @@ def mxint_quantizer_sim(
         
         scale = x_max.log2().ceil()
         scale_bias = 2**(mxint_meta.scale_bits - 1) - 1
+        # normalize x with power of two scale to -1,1 
         x = x / 2**scale
+        # scale to integer grid
         x_mant = x * 2**(mxint_meta.element_bits - 1)
+
+        # clamp scale
         scale = scale + scale_bias
         scale = scale.clamp(min=0, max=2**mxint_meta.scale_bits-1)
+
+        # round and clamp mantissa
         x_mant = x_mant.round().clamp(min=-2**(mxint_meta.element_bits-1), max=2**(mxint_meta.element_bits-1)-1)
 
+        # dequantized
         quant_tensor = x_mant / 2**(mxint_meta.element_bits - 1) * 2**(scale - scale_bias)
 
         del x, x_max, scale, x_mant

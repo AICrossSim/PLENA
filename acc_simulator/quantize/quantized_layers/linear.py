@@ -69,7 +69,7 @@ class MXFPLinearPTQ(nn.Module):
             if self.online_rotate_quant is not None:
                 input = self.online_rotate_quant(input)
             else:
-                input = quantize_tensor(input, block_dim=-1, meta=self.x_meta)
+                input = quantize_tensor(input, block_dim=-1, meta=self.x_meta, quantile_search=False)
 
         # print(f"[DEBUG] input dtype: {input.dtype}, weight dtype: {self.weight.dtype}, bias dtype: {self.bias.dtype if self.bias is not None else 'None'}")
         if "NLq" in self.layer_type:

@@ -99,11 +99,13 @@ class MinifloatMeta:
         exp_bits = int(match.group(1))
         frac_bits = int(match.group(2))
         is_finite = True
+        round_mode = "rn"
 
         return cls(
             exp_bits=exp_bits,
             frac_bits=frac_bits,
             is_finite=is_finite,
+            round_mode=round_mode,
         )
 
 

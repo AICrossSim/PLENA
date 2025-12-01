@@ -35,7 +35,6 @@ def quantize_tensor(
                                    cali_batch_size=cali_batch_size)
     elif isinstance(meta, MinifloatMeta):
         return minifloat_quantizer_sim(input, 
-                                       block_dim=block_dim, 
                                        minifloat_meta=meta)
     else:
         print(f"[DEBUG] Invalid meta: {meta}, returning input as is")
