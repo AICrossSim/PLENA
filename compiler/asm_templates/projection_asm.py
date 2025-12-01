@@ -14,7 +14,7 @@ def projection_asm(
     w_base_hbm_offset_reg: int,
     activation_base_address: int,
     result_base_address: int,
-    rope_enabled: bool = True,
+    rope_enabled: bool = False,
     rope_hbm_offset_reg: int = 0,
     rope_on_chip_address: int = 0
 ) -> str:
