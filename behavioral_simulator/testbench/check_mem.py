@@ -217,6 +217,7 @@ def compare_with_golden(bin_file,
     """
     # Parse golden output
     golden_values = parse_golden_output(golden_file)
+
     # Read binary file (now properly handles row-based indexing)
     simulated_values = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
