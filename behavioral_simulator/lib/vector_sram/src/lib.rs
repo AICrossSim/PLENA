@@ -248,6 +248,8 @@ impl VectorSram {
         
         // Await the integer vector from the channel
         let int_vec = int_vec.await.unwrap();
+        // println!("addr = {:?}", addr);
+        // println!("in write int_vec = {:?}", int_vec);
         let total_elements = int_vec.len();
         let chunk_size = self.vlen as usize;
         let num_chunks = write_amount.min(((total_elements + chunk_size - 1) / chunk_size) as u32);
@@ -307,6 +309,7 @@ impl VectorSram {
     /// This returns the raw binary representation of all stored data.
     pub async fn as_bytes(&self) -> Vec<u8> {
         let mut result = Vec::new();
+        let mut row_idx = 0;
 
         for row_mutex in &self.rows {
             let mut guard = row_mutex.lock().await;
@@ -323,7 +326,7 @@ impl VectorSram {
                 RowData::Ready(bytes) => bytes.clone(),
                 RowData::Pending(_) => unreachable!(),
             };
-
+            row_idx += 1;
             result.extend_from_slice(&row_bytes);
         }
 

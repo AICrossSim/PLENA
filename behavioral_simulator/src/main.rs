@@ -1070,15 +1070,16 @@ impl Accelerator {
                         1 => bytes[byte_offset] as i8 as i32,
                         2 => {
                             let bytes_slice = &bytes[byte_offset..byte_offset + 2];
-                            i16::from_le_bytes([bytes_slice[0], bytes_slice[1]]) as i32
+                            i16::from_le_bytes([bytes_slice[1], bytes_slice[0]]) as i32
                         }
                         4 => {
                             let bytes_slice = &bytes[byte_offset..byte_offset + 4];
+                            // println!("bytes_slice = {:?}", bytes_slice.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>());
                             i32::from_le_bytes([
-                                bytes_slice[0],
-                                bytes_slice[1],
-                                bytes_slice[2],
                                 bytes_slice[3],
+                                bytes_slice[2],
+                                bytes_slice[1],
+                                bytes_slice[0],
                             ])
                         }
                         _ => panic!("Unsupported integer size: {} bytes (must be 1, 2, or 4)", element_size_bytes),
@@ -1086,7 +1087,6 @@ impl Accelerator {
                     int_vec.push(int_value);
                 }
             }
-
             let _ = sender.send(int_vec);
         });
 

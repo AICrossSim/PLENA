@@ -34,7 +34,7 @@ if __name__ == "__main__":
     original_output = logits
 
     # Generate vlen random int32 data
-    int_preload = torch.randint(low=0, high=2**31, size=(vlen,), dtype=torch.int32)
+    int_preload = torch.randint(low=0, high=10, size=(vlen,), dtype=torch.int32)
 
 
     print('logits.shape= ', logits.shape)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # Preload Integer Activation to the later section.
     gen_assembly_code += f"S_ADDI_INT gp1, gp0, {hidden_size * batch_size} \n"
     gen_assembly_code += f"S_ADDI_INT gp2, gp0, {int(hidden_size * batch_size * real_data_ratio)} \n"
-    gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 0, 1 \n"
+    gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 2, 1 \n"
     
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits", "int"])

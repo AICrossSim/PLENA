@@ -289,8 +289,10 @@ impl Opcode {
     fn vector_precision_from(funct1: u8) -> VectorPrecision {
         if funct1 == 0 {
             VectorPrecision::Activation
-        } else {
+        } else if funct1 == 1 {
             VectorPrecision::KeyValue
+        } else {
+            VectorPrecision::INT
         }
     }
 
