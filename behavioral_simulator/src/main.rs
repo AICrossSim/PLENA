@@ -17,6 +17,7 @@ use memory::MemoryModel;
 use quantize::{DataType, MxDataType, QuantTensor};
 use runtime::{Duration, Executor, Instant};
 use tch::{IndexOp, Tensor};
+use vector_sram::VectorSram;
 
 use tokio::sync::Mutex;
 use tokio::sync::oneshot::{self, Receiver};
@@ -199,145 +200,7 @@ impl MatrixSram {
     }
 }
 
-/// Behaviour modelling of vector SRAM.
-///
-/// The timing aspect is to be considered by the matrix and vector machines themselves.
-struct VectorSram {
-    tile_size: u32,
-    tiles: Vec<Mutex<Result<QuantTensor, Receiver<QuantTensor>>>>,
-    ty: MxDataType,
-}
-
-impl VectorSram {
-    /// Creata a matrix SRAM with given tile size and depth.
-    fn new(tile_size: u32, depth: usize, ty: MxDataType) -> Self {
-        let tiles = (0..depth)
-            .map(|_| Mutex::new(Ok(QuantTensor::zeros(tile_size as usize, ty))))
-            .collect();
-        Self {
-            tile_size,
-            tiles,
-            ty,
-        }
-    }
-
-    fn size_in_bytes(&self) -> usize {
-        self.tile_size as usize * self.tiles.len()
-    }
-
-    async fn read(&self, addr: u32) -> QuantTensor {
-        let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
-
-        let mut guard = self.tiles[addr_in_tiles as usize].lock().await;
-        if let Err(ref mut fut) = *guard {
-            *guard = Ok(fut.await.unwrap());
-        }
-
-        guard.as_ref().map_err(|_| ()).unwrap().clone()
-    }
-
-    async fn write(&self, addr: u32, tensor: QuantTensor) {
-        let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
-
-        assert_eq!(tensor.data_type(), self.ty);
-        *self.tiles[addr_in_tiles as usize].lock().await = Ok(tensor);
-    }
-
-    async fn write_delayed(&self, addr: u32, tensor: Receiver<QuantTensor>) {
-        let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
-
-        *self.tiles[addr_in_tiles as usize].lock().await = Err(tensor);
-    }
-
-    async fn continous_write_delayed(
-        &self,
-        addr: u32,
-        write_amount: u32,
-        tensor: Receiver<QuantTensor>,
-    ) {
-        // println!("continous_write_delayed: addr = {:?}, write_amount = {:?}", addr, write_amount);
-        // println!("tile_size = {:?}", self.tile_size);
-        let addr_in_tiles = addr.assert_multiple_of(self.tile_size);
-        // Await the tensor from the channel (blocks until data arrives)
-        if let Ok(tensor) = tensor.await {
-            let dims = tensor.as_tensor().size();
-            let chunk_size = self.tile_size as i64;
-            let total = dims[0];
-
-            // Split the tensor into chunks of self.tile_size and store each in self.tiles.
-            for i in 0..write_amount.min((total as u32 + self.tile_size - 1) / self.tile_size) {
-                let start = (i as i64) * chunk_size;
-                let end = ((i as i64 + 1) * chunk_size).min(total);
-                let chunk = tensor
-                    .as_tensor()
-                    .narrow(0, start, end - start)
-                    .shallow_clone();
-                let chunk_qt = QuantTensor::quantize(chunk, self.ty);
-                *self.tiles[(addr_in_tiles + i) as usize].lock().await = Ok(chunk_qt);
-            }
-        }
-    }
-
-    /// TODO: used to preload Vector SRAM to facilitate testing.
-    async fn load_from_bytes(&self, bytes: &[u8]) {
-        let element_ty = self.ty.element_type();
-        let element_bits = element_ty.size_in_bits();
-        let bytes_per_element = (element_bits / 8) as usize;
-
-        // Total number of elements that can be loaded
-        let total_elements = bytes.len() / bytes_per_element;
-        let tile_size = self.tile_size as usize;
-        let num_tiles = (total_elements + tile_size - 1) / tile_size; // Round up
-
-        for tile_idx in 0..num_tiles.min(self.tiles.len()) {
-            let start_element = tile_idx * tile_size;
-            let end_element = (start_element + tile_size).min(total_elements);
-            let elements_in_tile = end_element - start_element;
-
-            let start_byte = start_element * bytes_per_element;
-            let end_byte = end_element * bytes_per_element;
-
-            // Convert bytes to f32 values
-            let mut vec = vec![0f32; elements_in_tile];
-            element_ty.convert_bytes_to_f32_vec(&bytes[start_byte..end_byte], &mut vec);
-
-            // Pad with zeros if needed
-            if elements_in_tile < tile_size {
-                vec.resize(tile_size, 0.0f32);
-            }
-
-            // Create QuantTensor and store it
-            let tensor = tch::Tensor::from_slice(&vec);
-            let quant_tensor = QuantTensor::quantize(tensor, self.ty);
-            *self.tiles[tile_idx].lock().await = Ok(quant_tensor);
-        }
-    }
-
-    async fn as_bytes(&self) -> Vec<u8> {
-        let element_ty = self.ty.element_type();
-        let mut result = Vec::new();
-
-        for tile_mutex in &self.tiles {
-            let mut guard = tile_mutex.lock().await;
-            if let Err(ref mut fut) = *guard {
-                *guard = Ok(fut.await.unwrap());
-            }
-            let tensor = guard.as_ref().map_err(|_| ()).unwrap();
-            let tensor_data = tensor.as_tensor();
-            let len = tensor_data.size1().unwrap() as usize;
-            let f32_slice =
-                unsafe { core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) };
-            // Calculate bytes needed for THIS tile's actual size
-            let total_bits = len * element_ty.size_in_bits() as usize;
-            let bytes_needed = (total_bits + 7) / 8;
-            let mut tile_bytes = vec![0u8; bytes_needed];
-            element_ty.bytes_from_f32(f32_slice, &mut tile_bytes);
-            result.extend_from_slice(&tile_bytes);
-        }
-
-        result
-    }
-}
+// VectorSram is now imported from the vector_sram library
 
 struct MatrixMachine {
     mram: Arc<MatrixSram>,
@@ -571,7 +434,7 @@ impl MatrixMachine {
         for j in 0..self.broadcast_amount {
             for i in 0..self.mlen {
                 let tensor = self.h_accum.i((j as i64, i as i64, ..));
-                self.vram.write(vec_base + (j * self.mlen + i) * self.mlen, QuantTensor::quantize(tensor, self.vram.ty)).await;
+                self.vram.write(vec_base + (j * self.mlen + i) * self.mlen, QuantTensor::quantize(tensor, self.vram.ty())).await;
             }
         }
         self.h_accum = Tensor::zeros(
@@ -615,7 +478,7 @@ impl MatrixMachine {
     }
 
     async fn mv_wo(&mut self, v_addr: u32) {
-        let quant = QuantTensor::quantize(self.v_accum.shallow_clone(), self.vram.ty);
+        let quant = QuantTensor::quantize(self.v_accum.shallow_clone(), self.vram.ty());
         self.vram.write(v_addr, quant).await;
         cycle!(1);
         self.v_accum = Tensor::zeros([self.mlen as i64], (tch::Kind::Float, tch::Device::Cpu));
@@ -850,13 +713,13 @@ impl VectorMachine {
     }
 
     async fn vector_transfer_fp(&mut self, vd: u32, f: &[f16]) {
-        assert_eq!(f.len(), self.vram.tile_size as usize, "Input vector length must match tile_size");
+        assert_eq!(f.len(), self.vram.tile_size() as usize, "Input vector length must match tile_size");
         // Convert f16 slice to f32 vector
         let f32_vec: Vec<f32> = f.iter().map(|x| f32::from(*x)).collect();
         // Create tensor from f32 vector
         let tensor = tch::Tensor::from_slice(&f32_vec);
         // Quantize the tensor according to vram data type
-        let c = QuantTensor::quantize(tensor, self.vram.ty);
+        let c = QuantTensor::quantize(tensor, self.vram.ty());
         cycle!(*VLEN);
         self.vram.write(vd, c).await;
     }
@@ -1587,7 +1450,7 @@ impl Accelerator {
                             addr + offset as u64,
                             addr + self.reg_file.scale as u64 + scale as u64,
                             dtype,
-                            self.v_machine.vram.ty,
+                            self.v_machine.vram.ty(),
                             rstride,
                             *VLEN,
                             *PREFETCH_V_AMOUNT,
@@ -1662,7 +1525,7 @@ struct Opts {
 async fn start() {
     let opts = Opts::parse();
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
-    let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
+    let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE, None)); // Vector SRAM
     let machine = MatrixMachine {
         mram,
         vram: vram.clone(),
@@ -1777,7 +1640,7 @@ async fn start() {
         "Matrix SRAM Contents: \n {}",
         accelerator.m_machine.mram.read(0x0000).await.as_tensor()
     );
-    println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
+    // println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
 
     // Dump MRAM
     let mram_dump_path = "mram_dump.bin";

@@ -301,6 +301,16 @@ impl Opcode {
             VectorOrder::Reverse
         }
     }
+
+    #[inline]
+    fn hbm_load_type_from(funct2: u8) -> HBM_LOAD_TYPE {
+        if funct2 == 0 {
+            HBM_LOAD_TYPE::MX
+        } else {
+            HBM_LOAD_TYPE::Normal
+        }
+    }
+
     pub fn decode(instr: u32) -> Self {
         // eprintln!(
         //     "decode(): instr = 0x{instr:08X} ({instr:032b})"
