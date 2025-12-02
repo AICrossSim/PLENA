@@ -61,7 +61,7 @@ run-generated-asm-quiet:
     fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
     cd behavioral_simulator && \
     RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path" --quiet
-    python3 behavioral_simulator/testbench/check_mem.py
+    python3 behavioral_simulator/testbench/view_mem.py
 
 
 build-rtl-sim arg:
