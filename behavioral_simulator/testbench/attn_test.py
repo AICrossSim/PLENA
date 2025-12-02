@@ -14,7 +14,7 @@ from compiler.asm_templates import flash_attn_asm, preload_act_asm, reset_reg_as
 from create_sim_env import create_sim_env
 from transformers.modeling_flash_attention_utils import _flash_attention_forward as _flash_attention_forward_ref
 from aria_lm_ops.models.llama import flash_attn2_gemv
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 
 
 # Reshape q, k, v so that each batch's data stays together and rows are of length mem_row_size
@@ -145,4 +145,4 @@ if __name__ == "__main__":
     )
 
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = ["q", "k", "v"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = ["q", "k", "v"])

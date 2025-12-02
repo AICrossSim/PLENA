@@ -34,29 +34,7 @@ def load_json(file_path):
     return ml_config
 
 
-def load_toml_config(file_path, mode=None):
-    section_to_load = ["CONFIG", "PRECISION", "INSTR"]
-    config = {}
-
+def load_toml_config(file_path, section_to_load=None):
     with open(file_path, "r") as f:
         full_toml = toml.load(f)
-    for section in section_to_load:
-        toml_config = full_toml.get(section, {})
-        if not isinstance(toml_config, dict):
-            continue
-
-        for param, values in toml_config.items():
-            if mode is None:
-                config[param] = values
-                continue
-
-            if isinstance(values, dict):
-                if mode in values:
-                    config[param] = values[mode]
-                elif "value" in values:
-                    config[param] = values["value"]
-                else:
-                    config[param] = values
-            else:
-                config[param] = values
-    return config
+    return full_toml.get(section_to_load, {})

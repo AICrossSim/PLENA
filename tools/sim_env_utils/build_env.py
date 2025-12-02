@@ -3,16 +3,17 @@ import logging
 from cfl_cocotb import SRC_PATH
 from cfl_tools.logger import get_logger
 from memory_mapping.rand_gen import Random_MXFP_Tensor_Generator
-from utils.load_config import load_svh_settings
+from utils.load_config import load_toml_config
 from pathlib import Path
 
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 
-def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
+def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
     
-    config_settings = load_svh_settings(str(SRC_PATH / "definitions" / "configuration.svh"))
-    precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
+    plena_toml_path = str(SRC_PATH / "definitions" / "plena_settings.toml")
+    config_settings = load_toml_config(plena_toml_path, "CONFIG")
+    precision_settings = load_toml_config(plena_toml_path, "PRECISION")
     if mode == "behave_sim":
         asm_file = Path(PROJECT_PATH / "behavioral_simulator" / "testbench" / "build" / "generated_asm_code.asm")
     else:
@@ -22,14 +23,15 @@ def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, speci
 
     data_config = {
         "tensor_size": [1, data_size],
-        "block_size" : [1, precision_settings["BLOCK_DIM"]],
+        "block_size" : [1, precision_settings["HBM_M_WEIGHT_TYPE"]["block"]],
     }
 
     quant_config = {
-            "exp_width": precision_settings["ACT_MXFP_EXP_WIDTH"],
-            "man_width": precision_settings["ACT_MXFP_MANT_WIDTH"],
-            "exp_bias_width": precision_settings["MX_SCALE_WIDTH"],
+            "exp_width": precision_settings["HBM_V_ACT_TYPE"]["ELEM"]["exponent"],
+            "man_width": precision_settings["HBM_V_ACT_TYPE"]["ELEM"]["mantissa"],
+            "exp_bias_width": precision_settings["HBM_V_ACT_TYPE"]["SCALE"]["exponent"],
             "block_size": data_config["block_size"],
+            "int_width": precision_settings["HBM_V_INT_TYPE"]["DATA_TYPE"]["width"],
             "skip_first_dim": False,
         }
 
@@ -57,25 +59,31 @@ def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, speci
         else:
             pt_files = list(target_dir.glob("*.pt")) + list(target_dir.glob("*.pth"))
         
-        grp_blocks = []
-        grp_bias = []
+        memory_data_dict = {}
         for pt_file in pt_files:
-            print("loading file", pt_file)
-            file_raw_data = Random_MXFP_Tensor_Generator(
-                shape           =   tuple(data_config["tensor_size"]),
-                quant_config    =   quant_config,
-                config_settings =   config_settings,
-                directory       =   Path(asm_file).parent,
-                filename        =   pt_file
-            )
-            file_tensor = file_raw_data.tensor_load()
-            blocks, bias = file_raw_data.quantize_tensor(file_tensor)
-            for block, b in zip(blocks, bias):
-                grp_blocks.append(block)
-                grp_bias.append(b)
+            if pt_file.stem != "int":
+                print("loading file", pt_file)
+                file_raw_data = Random_MXFP_Tensor_Generator(
+                    shape           =   tuple(data_config["tensor_size"]),
+                    quant_config    =   quant_config,
+                    config_settings =   config_settings,
+                    directory       =   Path(asm_file).parent,
+                    filename        =   pt_file
+                )
+                file_tensor = file_raw_data.tensor_load().squeeze(0)
+                blocks, bias = file_raw_data.quantize_tensor(file_tensor)
+                memory_data_dict["mx"] = {
+                    "blocks": blocks,
+                    "bias": bias
+                }
+            else:
+                print("loading file", pt_file)
+                memory_data_dict["normal"] = {
+                    "data": torch.load(pt_file)
+                }
     # generate_golden_result(data, logger, precision_settings, data_config)
-    env_setup(grp_blocks, grp_bias, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"])
+    env_setup(memory_data_dict, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"]["value"])
 
 if __name__ == "__main__":
-    build_sim_env()
+    create_mem_for_sim()
     pass

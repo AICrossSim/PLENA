@@ -38,6 +38,7 @@ class AssemblyToBinary:
         rs2 = instruction.rs2
         rstride = instruction.rstride
         funct1 = instruction.funct1
+        funct2 = instruction.funct2
         imm = instruction.imm
         rmask = instruction.rmask
         binary_instruction = 0
@@ -80,6 +81,7 @@ class AssemblyToBinary:
             )
         elif instruction.opcode in ["H_PREFETCH_V", "H_STORE_V"]:
             binary_instruction = (
+                (funct2 << (opw + 5 * ow)) +
                 (funct1 << (opw + 4 * ow)) +
                 (rstride << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +

@@ -3,7 +3,97 @@ import torch
 import os
 import struct
 
-def view_bin_file_by_row(bin_file, 
+def view_bin_file_by_row_int(bin_file,
+                             row_dim,
+                             int_width=32,
+                             num_bytes_per_val=None,
+                             start_row_idx=0,
+                             load_row_size=None,
+                             signed=True):
+    """
+    Reads a binary file and parses each value as an integer.
+    
+    - bin_file:         Path to the binary file
+    - row_dim:          Number of values per row to group/print
+    - int_width:        Bit width of the integer (default 32 for i32)
+                        Common values: 8 (i8), 16 (i16), 32 (i32)
+    - num_bytes_per_val:Number of bytes per value (auto-calculated from int_width if None)
+    - start_row_idx:   Starting row index
+    - load_row_size:    If set, limit number of rows to print
+    - signed:           If True, interpret as signed integer (default True)
+    
+    Note: The Rust code uses little-endian byte order.
+          If int_width is less than num_bytes_per_val * 8, the value will be masked.
+    """
+    # Auto-calculate bytes per value if not specified
+    if num_bytes_per_val is None:
+        num_bytes_per_val = (int_width + 7) // 8  # Round up to nearest byte
+    
+    # Validate that num_bytes_per_val is sufficient
+    if int_width > num_bytes_per_val * 8:
+        raise ValueError(f"int_width ({int_width}) exceeds num_bytes_per_val * 8 ({num_bytes_per_val * 8})")
+    
+    # Create mask for the specified bit width
+    if int_width >= 64:
+        mask = (1 << 64) - 1
+    else:
+        mask = (1 << int_width) - 1
+    
+    with open(bin_file, "rb") as f:
+        data = f.read()
+    
+    num_vals = len(data) // num_bytes_per_val
+    total_rows = (num_vals + row_dim - 1) // row_dim
+
+    for row_idx in range(total_rows):
+        if row_idx < start_row_idx:
+            continue
+        if load_row_size is not None and row_idx >= load_row_size + start_row_idx:
+            print("... (truncated)")
+            break
+        vals = []
+        for col_idx in range(row_dim):
+            val_idx = row_idx * row_dim + col_idx
+            if val_idx >= num_vals:
+                break
+            chunk = data[val_idx * num_bytes_per_val : (val_idx + 1) * num_bytes_per_val]
+            if not chunk or len(chunk) < num_bytes_per_val:
+                vals.append(None)
+                continue
+            # Use little-endian byte order to match Rust's byte packing
+            if signed:
+                int_val = int.from_bytes(chunk, byteorder='little', signed=True)
+            else:
+                int_val = int.from_bytes(chunk, byteorder='little', signed=False)
+            
+            # Apply bit width mask
+            int_val = int_val & mask
+            
+            # Sign extend if signed and the sign bit is set
+            if signed and int_width < num_bytes_per_val * 8:
+                sign_bit = (int_val >> (int_width - 1)) & 1
+                if sign_bit == 1:
+                    # Sign extend: set all upper bits to 1
+                    sign_extend_mask = ((1 << (num_bytes_per_val * 8 - int_width)) - 1) << int_width
+                    int_val = int_val | sign_extend_mask
+                    # Convert to signed integer
+                    if num_bytes_per_val == 1:
+                        int_val = int_val if int_val < 128 else int_val - 256
+                    elif num_bytes_per_val == 2:
+                        int_val = int_val if int_val < 32768 else int_val - 65536
+                    elif num_bytes_per_val == 4:
+                        int_val = int_val if int_val < 2147483648 else int_val - 4294967296
+            
+            vals.append(int_val)
+        print(f"Row {row_idx:3d}: ", end="")
+        for v in vals:
+            if v is not None:
+                print(f"{v:8d}", end=" ")
+            else:
+                print("        ", end=" ")
+        print()
+
+def view_bin_file_by_row_fp(bin_file, 
                          exp_width, 
                          man_width, 
                          row_dim, 
@@ -103,29 +193,29 @@ if __name__ == "__main__":
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
     
     print("Viewing VRAM dump from 0 Base Address")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
+    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
     
-    print("Viewing VRAM dump from 16 Base Address")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)
+    print("Viewing VRAM dump from 8 Base Address")
+    view_bin_file_by_row_int(vram_file, row_dim=64, int_width=32, start_row_idx=8, load_row_size=1)
     
 
-    print("Viewing VRAM dump from 48 Base Address")
-    view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=48, load_row_size=32)
+    # print("Viewing VRAM dump from 48 Base Address")
+    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=48, load_row_size=32)
     
     # print("Viewing VRAM dump from Q Base Address")
-    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
+    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
     # print("\nViewing VRAM dump from S Base Address")
-    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=16)
+    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=16)
     
     # print("\nViewing VRAM dump from PV Base Address")
-    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=320, load_row_size=16)
+    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=320, load_row_size=16)
     
     # print("\nViewing VRAM dump from O_Old Base Address")
-    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=576, load_row_size=16)
+    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=576, load_row_size=16)
     
-    print("Viewing MRAM dump 0 to 7 rows (BF16 format)")
-    view_bin_file_by_row(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
+    # print("Viewing MRAM dump 0 to 7 rows (BF16 format)")
+    # view_bin_file_by_row_fp(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
 
-    print("Viewing MRAM dump 64 to 71 rows (BF16 format)")
-    view_bin_file_by_row(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=8)
+    # print("Viewing MRAM dump 64 to 71 rows (BF16 format)")
+    # view_bin_file_by_row_fp(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=8)

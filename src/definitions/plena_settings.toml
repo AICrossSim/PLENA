@@ -19,6 +19,9 @@ value = 4
 [CONFIG.HBM_SIZE]
 value = 1073741824
 
+[CONFIG.HBM_WIDTH]
+value = 512
+
 [CONFIG.MATRIX_SRAM_SIZE]
 value = 1024
 
