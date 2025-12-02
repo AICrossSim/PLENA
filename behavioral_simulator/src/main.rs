@@ -1525,7 +1525,7 @@ struct Opts {
 async fn start() {
     let opts = Opts::parse();
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
-    let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE, None)); // Vector SRAM
+    let vram = Arc::new(VectorSram::from_mx_type(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
     let machine = MatrixMachine {
         mram,
         vram: vram.clone(),
