@@ -106,6 +106,12 @@ sign = false
 exponent = 8
 mantissa = 0
 
+[PRECISION.HBM_V_INT_TYPE]
+format = "Plain"
+[PRECISION.HBM_V_INT_TYPE.DATA_TYPE]
+type = "Int"
+width = 32
+
 [PRECISION.SCALAR_FP]
 type = "Fp"
 sign = true

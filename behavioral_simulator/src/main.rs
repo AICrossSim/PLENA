@@ -57,6 +57,7 @@ static MATRIX_WEIGHT_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_weight
 static MATRIX_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| matrix_kv_type());
 static VECTOR_ACTIVATION_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_activation_type());
 static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type());
+static VECTOR_INT_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_int_type());
 static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount());
 static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
 static WRITEBACK_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_writeback_amount());
@@ -987,17 +988,17 @@ impl Accelerator {
         receiver
     }
 
-    fn transfer_normal_from_hbm(
+    fn transfer_int_from_hbm(
         &mut self,
         index: u64,
-        hbm_type: DataType,
+        hbm_type: MxDataType,
         sram_type: MxDataType,
         rstride: u8,
         load_dim: u32,
         load_amount: u32,
-    ) -> Receiver<QuantTensor> {
-        // Simplified version: only loads elements from HBM based on index and stride
-        // No scale operations, no MX data type complexity
+    ) -> Receiver<Vec<i32>> {
+        // Transfer integer data from HBM: loads elements based on index and stride
+        // Converts bytes directly to Vec<i32> for writing to vector SRAM
 
         let (sender, receiver) = oneshot::channel();
 
@@ -1056,16 +1057,42 @@ impl Accelerator {
                 }
             }
 
-            // Convert bytes to f32 and quantize
-            let mut vec = vec![0f32; total_elements];
-            hbm_type.convert_bytes_to_f32_vec(&bytes, &mut vec);
+            // Convert bytes to Vec<i32>
+            // For integer types, interpret bytes as little-endian integer values
+            let element_size_bytes = element_bits as usize / 8;
+            let mut int_vec = Vec::with_capacity(total_elements);
+            
+            for i in 0..total_elements {
+                let byte_offset = i * element_size_bytes;
+                if byte_offset + element_size_bytes <= bytes.len() {
+                    // Read bytes as little-endian and convert to i32
+                    let int_value = match element_size_bytes {
+                        1 => bytes[byte_offset] as i8 as i32,
+                        2 => {
+                            let bytes_slice = &bytes[byte_offset..byte_offset + 2];
+                            i16::from_le_bytes([bytes_slice[0], bytes_slice[1]]) as i32
+                        }
+                        4 => {
+                            let bytes_slice = &bytes[byte_offset..byte_offset + 4];
+                            i32::from_le_bytes([
+                                bytes_slice[0],
+                                bytes_slice[1],
+                                bytes_slice[2],
+                                bytes_slice[3],
+                            ])
+                        }
+                        _ => panic!("Unsupported integer size: {} bytes (must be 1, 2, or 4)", element_size_bytes),
+                    };
+                    int_vec.push(int_value);
+                }
+            }
 
-            let tensor = tch::Tensor::from_slice(&vec);
-            let _ = sender.send(QuantTensor::quantize(tensor, sram_type));
+            let _ = sender.send(int_vec);
         });
 
         receiver
     }
+
 
     async fn do_ops(&mut self, ops: &[op::Opcode]) {
         for op in ops {
@@ -1428,15 +1455,16 @@ impl Accelerator {
                     rs2,
                     rstride,
                     precision,
-                    datatype,
+                    loadtype,
                 } => {
                     // TODO: rstride support to be added
                     let offset = self.reg_file.gp_reg[rs1 as usize];
                     let addr = self.reg_file.hbm_addr_reg[rs2 as usize];
-                    if matches! (datatype, op::HBM_LOAD_TYPE::MX) {
+                    if matches! (loadtype, op::HBM_LOAD_TYPE::MX) {
                         let dtype = match precision {
                             op::VectorPrecision::Activation => *VECTOR_ACTIVATION_TYPE,
                             op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE,
+                            op::VectorPrecision::INT => *VECTOR_INT_TYPE,
                         };
     
                         let scale = match dtype {
@@ -1463,7 +1491,25 @@ impl Accelerator {
                             .continous_write_delayed(dest, *PREFETCH_V_AMOUNT, xfer)
                             .await;
                     } else {
-                        
+                            let dtype = match precision {
+                                // TODO: Left for future support FP load.
+                                op::VectorPrecision::Activation => *VECTOR_ACTIVATION_TYPE,
+                                op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE,
+                                op::VectorPrecision::INT => *VECTOR_INT_TYPE,
+                            };
+                            let xfer = self.transfer_int_from_hbm(
+                                addr + offset as u64,
+                                dtype,
+                                self.v_machine.vram.ty(),
+                                rstride,
+                                *VLEN,
+                                *PREFETCH_V_AMOUNT,
+                            );
+                            let dest = self.reg_file.gp_reg[rd as usize];
+                            self.v_machine
+                                .vram
+                                .continous_write_delayed_int(dest, *PREFETCH_V_AMOUNT, xfer)
+                                .await;
                     }
 
                     

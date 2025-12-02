@@ -8,6 +8,7 @@ pub enum MatrixPrecision {
 pub enum VectorPrecision {
     Activation,
     KeyValue,
+    INT,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -238,7 +239,7 @@ pub enum Opcode {
         rs2: u8,
         rstride: u8,
         precision: VectorPrecision,
-        datatype: HBM_LOAD_TYPE,
+        loadtype: HBM_LOAD_TYPE,
     },
     H_STORE_V {
         rd: u8,
@@ -388,7 +389,7 @@ impl Opcode {
                 rs2,
                 rstride: rs3,
                 precision: Self::vector_precision_from(funct1),
-                datatype: Self::hbm_load_type_from(funct2),
+                loadtype: Self::hbm_load_type_from(funct2),
             },
             // 0x2A => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x2A => Self::H_STORE_V {
