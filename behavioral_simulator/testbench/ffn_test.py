@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
     golden_result = {
         "input_tensor": input_tensor,
-        "original_output": original_output
+        "original_output": original_output.flatten()
     }
 
     gen_assembly_code = "; FFN Test Generation \n"
