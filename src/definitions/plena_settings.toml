@@ -53,6 +53,16 @@ mantissa = 7
 [PRECISION.HBM_M_WEIGHT_TYPE]
 format = "Mx"
 block = 8
+[PRECISION.HBM_M_WEIGHT_TYPE.ELEM]
+type = "Fp"
+sign = true
+exponent = 4
+mantissa = 3
+[PRECISION.HBM_M_WEIGHT_TYPE.SCALE]
+type = "Fp"
+sign = false
+exponent = 8
+mantissa = 0
 
 [PRECISION.HBM_M_KV_TYPE]
 format = "Mx"

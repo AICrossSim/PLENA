@@ -969,9 +969,9 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
-            // println!("element_bits = {:?}", element_bits);
-            // println!("load_dim = {:?}", load_dim);
-            // println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
+            println!("element_bits = {:?}", element_bits);
+            println!("load_dim = {:?}", load_dim);
+            println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
             assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
