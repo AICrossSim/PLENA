@@ -119,8 +119,10 @@ if __name__ == "__main__":
             man_width=7,
             num_bytes_per_val=2,
             row_dim=64,
-            start_row_idx=8,
-            num_rows=4  # Compare first 4 rows (matching golden output)
+            start_row_idx=0,
+            num_batches = 4 * 2,
+            num_rows=16,  # Compare first 4 rows (matching golden output)
+            elements_per_batch=128
         )
         print_comparison_results(results, verbose=True)
     except ImportError:
