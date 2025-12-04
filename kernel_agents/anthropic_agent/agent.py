@@ -1,17 +1,20 @@
 """
 Anthropic agent for multi-turn iterative assembly generation.
 """
+from __future__ import annotations
 
 import os
 import json
+import sys
 from typing import Dict, List, Any, Optional
 
-import anthropic
+import anthropic as anthropic_sdk
 
 from .tools import (
     get_assembly_code_examples,
     machine_code_generation,
     run_simulator,
+    setup_test_environment,
     get_instruction_size,
     get_template,
     get_doc,
@@ -56,7 +59,7 @@ TOOLS = [
     },
     {
         "name": "run_simulator",
-        "description": "Run full simulation pipeline: assembles code, runs simulator, checks accuracy. Returns latency, accuracy metrics, and any errors. Use this as the main test tool.",
+        "description": "Run full simulation pipeline: assembles code, runs simulator, checks accuracy. Returns latency, accuracy metrics, and any errors. Use this as the main test tool. NOTE: Requires HBM data files - call setup_test_environment first if they don't exist.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -66,6 +69,29 @@ TOOLS = [
                 }
             },
             "required": ["assembly_code"]
+        }
+    },
+    {
+        "name": "setup_test_environment",
+        "description": "Setup test environment with random input data. Creates HBM data files required by run_simulator. Call this BEFORE run_simulator if you get 'Missing required file' errors.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "layer_type": {
+                    "type": "string",
+                    "enum": ["linear", "projection"],
+                    "description": "Type of layer to test (default: linear)"
+                },
+                "hidden_size": {
+                    "type": "integer",
+                    "description": "Hidden dimension size (default: 128)"
+                },
+                "batch_size": {
+                    "type": "integer",
+                    "description": "Batch size (default: 4)"
+                }
+            },
+            "required": []
         }
     },
     {
@@ -146,6 +172,7 @@ TOOL_FUNCTIONS = {
     "get_assembly_code_examples": get_assembly_code_examples,
     "machine_code_generation": machine_code_generation,
     "run_simulator": run_simulator,
+    "setup_test_environment": setup_test_environment,
     "get_instruction_size": get_instruction_size,
     "get_template": get_template,
     "get_doc": get_doc,
@@ -158,14 +185,20 @@ SYSTEM_PROMPT = """You are an assembly code generator for the PLENA LLM accelera
 Your goal is to generate optimized assembly code for neural network layers.
 
 ## Workflow
-1. Call get_workload() to get model dimensions (hidden_size, intermediate_size, etc.)
-2. Call get_template() to see the Python assembly template
-3. Call get_assembly_code_examples() for reference code
-4. Generate assembly code using the dimensions and patterns
+1. Call setup_test_environment() FIRST to create HBM test data files
+2. Call get_workload() to get model dimensions (hidden_size, intermediate_size, etc.)
+3. Call get_doc() to understand the ISA and registers
+4. Try to generate assembly code FROM SCRATCH using dimensions and your understanding
 5. Call machine_code_generation() to check for syntax errors
 6. If errors, fix and retry
 7. Call run_simulator() to execute and check accuracy
 8. Iterate until accuracy is acceptable
+
+## Optional Tools (use only if stuck)
+- get_template(): See Python template code - use ONLY if you're stuck after multiple failed attempts
+- get_assembly_code_examples(): Reference .asm files - use ONLY for syntax examples if needed
+
+The goal is to generate novel, optimized code. Don't just copy templates.
 
 ## Key Registers
 - gp0-gp15: Integer registers (gp0 = 0)
@@ -208,7 +241,7 @@ class AnthropicAgent:
             max_tokens: Max tokens per response
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT)
         """
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic_sdk.Anthropic(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
         self.system_prompt = system_prompt or SYSTEM_PROMPT
