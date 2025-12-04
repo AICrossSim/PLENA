@@ -353,12 +353,12 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
-        // println!("======================== M_MM ==========================");
-        // println!("m_addr = {:?}", m_addr);
-        // println!("v_addr = {:?}", v_addr);
+        println!("======================== M_MM ==========================");
+        println!("m_addr = {:?}", m_addr);
+        println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
-        // println!("mat_offset = {:?}", mat_offset);
-        // println!("mat_base = {:?}", mat_base);
+        println!("mat_offset = {:?}", mat_offset);
+        println!("mat_base = {:?}", mat_base);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(mat_offset <= self.mlen);
         let mat_row_offset = mat_offset as i64;
@@ -969,9 +969,6 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
-            println!("element_bits = {:?}", element_bits);
-            println!("load_dim = {:?}", load_dim);
-            println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
             assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
