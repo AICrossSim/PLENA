@@ -117,7 +117,7 @@ class Random_MXFP_Tensor_Generator:
     def tensor_load(self):
         if self.directory and self.filename:
             file_path = os.path.join(self.directory, self.filename)
-            print("loading file", file_path)
+            # print("loading file", file_path)  # Muted for cleaner output
             if os.path.exists(file_path):
                 tensor = torch.load(file_path)
                 logger.debug(f"Tensor loaded from {file_path}")
@@ -158,7 +158,7 @@ class Random_MXFP_Tensor_Generator:
             # If the input is 1D, add a dimension to make it 2D (row vector)
             if t.ndim == 1:
                 t = t.unsqueeze(0)
-                print("reshaped to", t.shape)
+                # print("reshaped to", t.shape)  # Muted for cleaner output
 
             bm_x, per_block_exponent, per_block_mantissa, per_block_scaling = _mx_fp_quantize_hardware(
                 t,

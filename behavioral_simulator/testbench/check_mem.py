@@ -146,8 +146,8 @@ def reorder_stride_mode(data, num_batches=4, elements_per_batch=128):
     chunk_size = elements_per_batch // 2  # 64 elements per chunk
     total_chunks = len(data) // chunk_size
 
-    if total_chunks != num_batches * 2:
-        print(f"Warning: Expected {num_batches * 2} chunks, got {total_chunks}")
+    # if total_chunks != num_batches * 2:
+    #     print(f"Warning: Expected {num_batches * 2} chunks, got {total_chunks}")  # Muted for cleaner output
 
     # Reshape into chunks: [chunk0, chunk1, ..., chunk7]
     chunks = data.reshape(total_chunks, chunk_size)
@@ -202,17 +202,17 @@ def compare_with_golden(bin_file,
     """
     # Parse golden output
     golden_values = parse_golden_output(golden_file)
-    print("draft golden_values is:\n", golden_values)
+    # print("draft golden_values is:\n", golden_values)  # Muted for cleaner output
     # Read binary file (now properly handles row-based indexing)
     simulated_values = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
     )
 
-    print("draft simulated_values is:\n", simulated_values)
+    # print("draft simulated_values is:\n", simulated_values)  # Muted for cleaner output
 
     # Reorder stride-mode data to match batch-wise golden layout
     if use_stride_mode:
-        print("Reordering stride-mode data to batch-wise layout...")
+        # print("Reordering stride-mode data to batch-wise layout...")  # Muted for cleaner output
         simulated_values = reorder_stride_mode(simulated_values, num_batches, elements_per_batch)
 
     # Ensure dimensions match by truncating to the smaller size
@@ -220,14 +220,13 @@ def compare_with_golden(bin_file,
     golden_values = golden_values[:min_len]
     simulated_values = simulated_values[:min_len]
 
-    # To print all values without truncation (even for high-dimensional arrays):
-    import numpy as np
-    np.set_printoptions(threshold=np.inf, linewidth=200, edgeitems=20, suppress=True)
-    print("golden_values is:\n", golden_values)
-    print("golden_values shape is:\n", golden_values.shape)
-    print("simulated_values is:\n", simulated_values)
-    print("simulated_values shape is:\n", simulated_values.shape)
-    # breakpoint()
+    # Debug prints muted for cleaner output
+    # import numpy as np
+    # np.set_printoptions(threshold=np.inf, linewidth=200, edgeitems=20, suppress=True)
+    # print("golden_values is:\n", golden_values)
+    # print("golden_values shape is:\n", golden_values.shape)
+    # print("simulated_values is:\n", simulated_values)
+    # print("simulated_values shape is:\n", simulated_values.shape)
 
     if len(golden_values) == 0:
         raise ValueError("No values to compare")
