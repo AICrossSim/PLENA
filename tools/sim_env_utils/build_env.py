@@ -60,7 +60,7 @@ def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, speci
         grp_blocks = []
         grp_bias = []
         for pt_file in pt_files:
-            print("loading file", pt_file)
+            # print("loading file", pt_file)  # Muted for cleaner output
             file_raw_data = Random_MXFP_Tensor_Generator(
                 shape           =   tuple(data_config["tensor_size"]),
                 quant_config    =   quant_config,
