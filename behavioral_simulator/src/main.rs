@@ -1590,7 +1590,7 @@ impl Accelerator {
                 }
                 op::Opcode::C_LOOP_START { rd, imm } => {
                     // Store iteration count in register
-                    let iteration_count = *imm as u32;
+                    let iteration_count = *imm - 1 as u32;
                     self.reg_file.gp_reg[*rd as usize] = iteration_count;
                     
                     // Push new loop onto stack
@@ -1639,7 +1639,7 @@ impl Accelerator {
                     } else {
                         panic!("C_LOOP_END: No matching C_LOOP_START found for register {}", *rd);
                     }
-                    cycle!(1);
+                    // cycle!(1);
                 }
                 op::Opcode::C_BREAK => {
                     // Break out of the innermost loop
