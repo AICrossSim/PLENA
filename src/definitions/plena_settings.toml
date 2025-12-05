@@ -1,6 +1,9 @@
 [CONFIG.DC_EN]
 value = 1
 
+[CONFIG.MAX_LOOP_INSTRUCTIONS]
+value = 10000
+
 [CONFIG.BLEN]
 value = 4
 

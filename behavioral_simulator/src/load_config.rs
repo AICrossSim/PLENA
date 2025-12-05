@@ -1,7 +1,7 @@
 // load_config.rs
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use std::{fs, sync::LazyLock};
+use std::{fs, sync::LazyLock, env, path::PathBuf};
 
 // Import the types from your main module
 use quantize::{DataType, FpType, MxDataType};
@@ -94,6 +94,8 @@ pub struct ConfigSection {
     pub hbm_v_writeback_amount: ConfigValue,
     #[serde(rename = "DC_EN")]
     pub dc_en: ConfigValue,
+    #[serde(rename = "MAX_LOOP_INSTRUCTIONS")]
+    pub max_loop_instructions: ConfigValueUsize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -164,6 +166,7 @@ impl Default for AcceleratorConfig {
                 hbm_v_prefetch_amount: ConfigValue { value: 16 },
                 hbm_v_writeback_amount: ConfigValue { value: 16 },
                 dc_en: ConfigValue { value: 1 },
+                max_loop_instructions: ConfigValueUsize { value: 10000 },
             },
             precision: PrecisionSection {
                 matrix_sram_type: MxDataTypeConfig {
@@ -364,13 +367,13 @@ pub static CONFIG: LazyLock<AcceleratorConfig> = LazyLock::new(|| {
 
 // Configuration loading functions
 pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
-    let config_paths = ["../src/definitions/plena_settings.toml"];
-
-    for path in &config_paths {
-        if let Ok(config) = load_config_from_file(path) {
-            println!("Loaded config from: {}", path);
-            return Ok(config);
-        }
+    let config_path = env::current_dir().unwrap().parent().unwrap().join("src/definitions/plena_settings.toml");
+    
+    let config_path = config_path.to_str().unwrap();
+    println!("debug config_path: {:}", config_path);
+    if let Ok(config) = load_config_from_file(config_path) {
+        println!("Loaded config from: {:}", config_path);
+        return Ok(config);
     }
 
     Err("No configuration file found".into())
@@ -530,6 +533,10 @@ pub fn scalar_fp_reci_cycles() -> u32 {
 
 pub fn scalar_int_basic_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.scalar_int_basic_cycles)
+}
+
+pub fn max_loop_instructions() -> usize {
+    CONFIG.config.max_loop_instructions.value
 }
 // Utility function to generate example config file
 pub fn generate_example_config() -> Result<(), Box<dyn std::error::Error>> {

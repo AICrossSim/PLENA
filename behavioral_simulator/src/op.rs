@@ -255,6 +255,13 @@ pub enum Opcode {
     C_SET_V_MASK_REG {
         rd: u8,
     },
+    C_LOOP_START {
+        rd: u8,
+        imm: u32,
+    },
+    C_LOOP_END {
+        rd: u8,
+    },
     C_BREAK,
 }
 
@@ -384,7 +391,9 @@ impl Opcode {
             0x2C => Self::C_SET_SCALE_REG { rd },
             0x2D => Self::C_SET_STRIDE_REG { rd },
             0x2E => Self::C_SET_V_MASK_REG { rd },
-            0x2F => Self::C_BREAK,
+            0x2F => Self::C_LOOP_START { rd, imm},
+            0x30 => Self::C_LOOP_END { rd },
+            0x31 => Self::C_BREAK,
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid
