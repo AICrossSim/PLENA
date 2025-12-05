@@ -70,15 +70,6 @@ if __name__ == "__main__":
     weights = torch.zeros(h_qkv)
 
     # TODO: Add a reference flashattention output to ensure the flash_attn2_gemv is correct.
-    # flash_attn = get_kernel("kernels-community/flash-attn")
-    # ref_original_output = out_flash = flash_attn.fwd(
-    #     q=q, 
-    #     k=k, 
-    #     v=v, 
-    #     is_causal=False,
-    # )[0]
-    # print("ref_original_output", ref_original_output)
-    # quit()
     
     print("q now shape:", q.shape)
     original_output = flash_attn2_gemv(
@@ -144,5 +135,5 @@ if __name__ == "__main__":
         v_base_hbm_offset_reg=2
     )
 
-    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = ["q", "k", "v"])

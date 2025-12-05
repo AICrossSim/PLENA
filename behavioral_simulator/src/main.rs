@@ -353,12 +353,12 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
-        // println!("======================== M_MM ==========================");
-        // println!("m_addr = {:?}", m_addr);
-        // println!("v_addr = {:?}", v_addr);
+        println!("======================== M_MM ==========================");
+        println!("m_addr = {:?}", m_addr);
+        println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
-        // println!("mat_offset = {:?}", mat_offset);
-        // println!("mat_base = {:?}", mat_base);
+        println!("mat_offset = {:?}", mat_offset);
+        println!("mat_base = {:?}", mat_base);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(mat_offset <= self.mlen);
         let mat_row_offset = mat_offset as i64;
@@ -441,7 +441,9 @@ impl MatrixMachine {
         let result_tensor = tch::Tensor::stack(&result_tensors, 0); // [broadcast_amount, mlen, mlen]
 
         self.h_accum += result_tensor;
-        println!("h_accum = {}", self.h_accum);
+        if !is_quiet() {
+            println!("h_accum = {}", self.h_accum);
+        }
     }
 
     async fn btmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
@@ -466,7 +468,9 @@ impl MatrixMachine {
 
         let mut tensors = Vec::with_capacity(self.mlen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
-        println!("stride_len = {:?}", stride_len);
+        if !is_quiet() {
+            println!("stride_len = {:?}", stride_len);
+        }
         // B, S, H, D
         for i in 0..self.mlen {
             tensors.push(
@@ -484,9 +488,11 @@ impl MatrixMachine {
             self.hlen as i64,
         ]);
 
-        println!("btmm vec = {}", vec);
-        println!("btmm mat = {}", mat);
-        println!("broadcast_amount = {:?}", self.broadcast_amount);
+        if !is_quiet() {
+            println!("btmm vec = {}", vec);
+            println!("btmm mat = {}", mat);
+            println!("broadcast_amount = {:?}", self.broadcast_amount);
+        }
 
         // Now vec @ mat: [broadcast_amount, mlen, hlen] @ [hlen, mlen] = [broadcast_amount, mlen, mlen]
         let mut result_tensors = Vec::with_capacity(self.broadcast_amount as usize);
@@ -495,10 +501,14 @@ impl MatrixMachine {
             // For each i, select the corresponding slice along broadcast_amount
             let vec_i = vec.i((.., i as i64, .., )).squeeze_dim(1); // [mlen, hlen]
             // mat: [hlen, mlen]
-            println!("vec_i = {}", vec_i);
+            if !is_quiet() {
+                println!("vec_i = {}", vec_i);
+            }
             let result = vec_i.matmul(&mat.transpose(-1, -2)); // [mlen, mlen]
             let result = &result * (bmm_scale as f64);
-            println!("result = {}", result);
+            if !is_quiet() {
+                println!("result = {}", result);
+            }
             result_tensors.push(result);
         }
         let result_tensor = tch::Tensor::stack(&result_tensors, 0); // [broadcast_amount, mlen, mlen]
@@ -718,7 +728,9 @@ impl VectorMachine {
                 }
             }
             let c = QuantTensor::quantize(result, a.data_type());
-            println!("c = {}", c.as_tensor());
+            if !is_quiet() {
+                println!("c = {}", c.as_tensor());
+            }
             cycle!(*VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         }
@@ -746,7 +758,9 @@ impl VectorMachine {
                 result.narrow(0, start, end - start).copy_(&updated);
                 }
             }
-            println!("result = {}", result);
+            if !is_quiet() {
+                println!("result = {}", result);
+            }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
@@ -955,9 +969,6 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
-            // println!("element_bits = {:?}", element_bits);
-            // println!("load_dim = {:?}", load_dim);
-            // println!("len_in_bits_per_load = {:?}", len_in_bits_per_load);
             assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
@@ -1126,7 +1137,9 @@ impl Accelerator {
 
     async fn do_ops(&mut self, ops: &[op::Opcode]) {
         for op in ops {
-            println!("execute op = {:?}", op);
+            if !is_quiet() {
+                println!("execute op = {:?}", op);
+            }
             match *op {
                 op::Opcode::Invalid => todo!(),
 
@@ -1571,10 +1584,22 @@ struct Opts {
     #[arg(long)]
     /// Path to file storing Vector SRAM contents (optional).
     vram: Option<PathBuf>,
+
+    #[arg(long, short)]
+    /// Quiet mode: only output final latency and statistics.
+    quiet: bool,
+}
+
+static QUIET_MODE: LazyLock<std::sync::atomic::AtomicBool> =
+    LazyLock::new(|| std::sync::atomic::AtomicBool::new(false));
+
+fn is_quiet() -> bool {
+    QUIET_MODE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 async fn start() {
     let opts = Opts::parse();
+    QUIET_MODE.store(opts.quiet, std::sync::atomic::Ordering::Relaxed);
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
     let vram = Arc::new(VectorSram::new(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
     let machine = MatrixMachine {
@@ -1681,31 +1706,37 @@ async fn start() {
     let decoded_ops = op.into_iter().map(op::Opcode::decode).collect::<Vec<_>>();
     accelerator.do_ops(&decoded_ops).await;
 
-    println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
-    println!("scale = {}", accelerator.reg_file.scale);
-    println!(
-        "Vector SRAM Contents: \n {}",
-        accelerator.v_machine.vram.read(0x0000).await.as_tensor()
-    );
-    println!(
-        "Matrix SRAM Contents: \n {}",
-        accelerator.m_machine.mram.read(0x0000).await.as_tensor()
-    );
-    println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
+    if !is_quiet() {
+        println!("gp1 = {:x}", accelerator.reg_file.gp_reg[1]);
+        println!("scale = {}", accelerator.reg_file.scale);
+        println!(
+            "Vector SRAM Contents: \n {}",
+            accelerator.v_machine.vram.read(0x0000).await.as_tensor()
+        );
+        println!(
+            "Matrix SRAM Contents: \n {}",
+            accelerator.m_machine.mram.read(0x0000).await.as_tensor()
+        );
+        println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
+    }
 
     // Dump MRAM
     let mram_dump_path = "mram_dump.bin";
     let mram_bytes = accelerator.m_machine.mram.as_bytes().await;
     let mut mram_file = std::fs::File::create(mram_dump_path).unwrap();
     mram_file.write_all(&mram_bytes).unwrap();
-    eprintln!("Dumped MRAM content to: {:?}", mram_dump_path);
+    if !is_quiet() {
+        eprintln!("Dumped MRAM content to: {:?}", mram_dump_path);
+    }
 
     // Dump VRAM
     let vram_dump_path = "vram_dump.bin";
     let vram_bytes = accelerator.v_machine.vram.as_bytes().await;
     let mut vram_file = std::fs::File::create(vram_dump_path).unwrap();
     vram_file.write_all(&vram_bytes).unwrap();
-    eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+    if !is_quiet() {
+        eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+    }
 
     let memory_stats = hbm.statistics();
     let utilization = (memory_stats.total_bytes_read + memory_stats.total_bytes_written) as f64
