@@ -108,7 +108,7 @@ if __name__ == "__main__":
         preload_len=4,
         batch=4,
         hidden_size=128,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=hidden_size
