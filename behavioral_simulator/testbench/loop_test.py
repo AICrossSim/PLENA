@@ -80,18 +80,14 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4]
     )
 
-    # # Reset the registers
-    # gen_assembly_code += reset_reg_asm(
-    #     alive_registers=[1,2,3,4]
-    # )
 
-    # gen_assembly_code += "S_LD_FP f1, gp0, 1 \n"
-    # gen_assembly_code += "C_LOOP_START gp1, 3 \n"
-    # gen_assembly_code += "V_ADD_VF gp2, gp2, f1, 0\n"
-    # gen_assembly_code += "C_LOOP_END gp1 \n"
+    gen_assembly_code += "S_LD_FP f1, gp0, 1 \n"
+    gen_assembly_code += "C_LOOP_START gp1, 3 \n"
+    gen_assembly_code += "V_ADD_VF gp2, gp2, f1, 0\n"
+    gen_assembly_code += "C_LOOP_END gp1 \n"
 
-    # create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    # build_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["act_tensor", "weights"])
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
+    build_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["act_tensor", "weights"])
 
     print("================================================")
     print("Finished generating assembly code")

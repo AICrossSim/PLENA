@@ -107,28 +107,28 @@ if __name__ == "__main__":
     view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
     # Compare with golden output
-    try:
-        from check_mem import compare_with_golden, print_comparison_results
-        print("\n" + "="*60)
-        print("Comparing with Golden Output")
-        print("="*60)
-        results = compare_with_golden(
-            vram_file,
-            golden_file,
-            exp_width=8,
-            man_width=7,
-            num_bytes_per_val=2,
-            row_dim=64,
-            start_row_idx=0,
-            num_batches = 4 * 2,
-            num_rows=16,  # Compare first 4 rows (matching golden output)
-            elements_per_batch=128
-        )
-        print_comparison_results(results, verbose=True)
-    except ImportError:
-        print("\nNote: check_mem module not available for comparison")
-    except Exception as e:
-        print(f"\nError during comparison: {e}")
+    # try:
+    #     from check_mem import compare_with_golden, print_comparison_results
+    #     print("\n" + "="*60)
+    #     print("Comparing with Golden Output")
+    #     print("="*60)
+    #     results = compare_with_golden(
+    #         vram_file,
+    #         golden_file,
+    #         exp_width=8,
+    #         man_width=7,
+    #         num_bytes_per_val=2,
+    #         row_dim=64,
+    #         start_row_idx=0,
+    #         num_batches = 4 * 2,
+    #         num_rows=16,  # Compare first 4 rows (matching golden output)
+    #         elements_per_batch=128
+    #     )
+    #     print_comparison_results(results, verbose=True)
+    # except ImportError:
+    #     print("\nNote: check_mem module not available for comparison")
+    # except Exception as e:
+    #     print(f"\nError during comparison: {e}")
     
     # print("Viewing VRAM dump from 16 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)

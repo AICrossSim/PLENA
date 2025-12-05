@@ -1619,8 +1619,8 @@ impl Accelerator {
                             loop_info.current_iteration = reg_value - 1;
                             loop_info.instruction_count = 0; // Reset instruction count for next iteration
                             
-                            // Jump back to C_LOOP_START
-                            jump_pc = Some(loop_info.start_pc);
+                            // Jump back to C_LOOP_START + 1
+                            jump_pc = Some(loop_info.start_pc + 1);
                             
                             if !is_quiet() {
                                 println!("C_LOOP_END: Looping back to PC {} (remaining iterations: {})", 

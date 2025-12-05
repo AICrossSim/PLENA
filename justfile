@@ -37,7 +37,7 @@ build-behave-sim-debug arg:
     # 1) Build env for the given target
     rm -rf behavioral_simulator/testbench/build
     python3 behavioral_simulator/testbench/{{arg}}_test.py
-    # 2) Compute absolute paths (so they still work after cd)
+    # # 2) Compute absolute paths (so they still work after cd)
     asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
     data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
     fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
