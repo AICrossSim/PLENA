@@ -169,9 +169,11 @@ def compare_with_golden(bin_file,
                         num_bytes_per_val=2,
                         row_dim=64,
                         start_row_idx=0,
+                        num_batches=4,
                         num_rows=None,
                         tolerance=1,
-                        use_stride_mode=False):
+                        use_stride_mode=True,
+                        elements_per_batch=128):
     """
     Compare binary file output with golden reference from golden_result.txt.
 
@@ -200,24 +202,29 @@ def compare_with_golden(bin_file,
     """
     # Parse golden output
     golden_values = parse_golden_output(golden_file)
-
     # Read binary file (now properly handles row-based indexing)
     simulated_values = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
     )
 
     # Reorder stride-mode data to match batch-wise golden layout
-    if use_stride_mode and len(simulated_values) == 512:
+    if use_stride_mode:
         print("Reordering stride-mode data to batch-wise layout...")
-        simulated_values = reorder_stride_mode(simulated_values, num_batches=4, elements_per_batch=128)
+        simulated_values = reorder_stride_mode(simulated_values, num_batches, elements_per_batch)
 
     # Ensure dimensions match by truncating to the smaller size
     min_len = min(len(golden_values), len(simulated_values))
     golden_values = golden_values[:min_len]
     simulated_values = simulated_values[:min_len]
 
+    # To print all values without truncation (even for high-dimensional arrays):
+    import numpy as np
+    np.set_printoptions(threshold=np.inf, linewidth=200, edgeitems=20, suppress=True)
     print("golden_values is:\n", golden_values)
+    print("golden_values shape is:\n", golden_values.shape)
     print("simulated_values is:\n", simulated_values)
+    print("simulated_values shape is:\n", simulated_values.shape)
+    # breakpoint()
 
     if len(golden_values) == 0:
         raise ValueError("No values to compare")

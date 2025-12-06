@@ -8,12 +8,19 @@ pub enum MatrixPrecision {
 pub enum VectorPrecision {
     Activation,
     KeyValue,
+    INT,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum VectorOrder {
     Normal,
     Reverse,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum HBM_LOAD_TYPE {
+    MX,
+    Normal,
 }
 
 
@@ -232,6 +239,7 @@ pub enum Opcode {
         rs2: u8,
         rstride: u8,
         precision: VectorPrecision,
+        loadtype: HBM_LOAD_TYPE,
     },
     H_STORE_V {
         rd: u8,
@@ -253,6 +261,13 @@ pub enum Opcode {
         rd: u8,
     },
     C_SET_V_MASK_REG {
+        rd: u8,
+    },
+    C_LOOP_START {
+        rd: u8,
+        imm: u32,
+    },
+    C_LOOP_END {
         rd: u8,
     },
     C_BREAK,
@@ -281,8 +296,10 @@ impl Opcode {
     fn vector_precision_from(funct1: u8) -> VectorPrecision {
         if funct1 == 0 {
             VectorPrecision::Activation
-        } else {
+        } else if funct1 == 1 {
             VectorPrecision::KeyValue
+        } else {
+            VectorPrecision::INT
         }
     }
 
@@ -294,6 +311,16 @@ impl Opcode {
             VectorOrder::Reverse
         }
     }
+
+    #[inline]
+    fn hbm_load_type_from(funct2: u8) -> HBM_LOAD_TYPE {
+        if funct2 == 0 {
+            HBM_LOAD_TYPE::MX
+        } else {
+            HBM_LOAD_TYPE::Normal
+        }
+    }
+
     pub fn decode(instr: u32) -> Self {
         // eprintln!(
         //     "decode(): instr = 0x{instr:08X} ({instr:032b})"
@@ -304,6 +331,7 @@ impl Opcode {
         let rs2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(OPERAND_WIDTH)) as u8;
         let rs3 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 3)) & mask(OPERAND_WIDTH)) as u8;
         let funct1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 4)) & mask(OPERAND_WIDTH)) as u8;
+        let funct2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 5)) & mask(OPERAND_WIDTH)) as u8;
         let imm = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(IMM_WIDTH)) as u32;
         let imm2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(IMM_2_WIDTH)) as u32;
 
@@ -370,6 +398,7 @@ impl Opcode {
                 rs2,
                 rstride: rs3,
                 precision: Self::vector_precision_from(funct1),
+                loadtype: Self::hbm_load_type_from(funct2),
             },
             // 0x2A => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x2A => Self::H_STORE_V {
@@ -384,7 +413,9 @@ impl Opcode {
             0x2C => Self::C_SET_SCALE_REG { rd },
             0x2D => Self::C_SET_STRIDE_REG { rd },
             0x2E => Self::C_SET_V_MASK_REG { rd },
-            0x2F => Self::C_BREAK,
+            0x2F => Self::C_LOOP_START { rd, imm},
+            0x30 => Self::C_LOOP_END { rd },
+            0x31 => Self::C_BREAK,
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

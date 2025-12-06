@@ -484,6 +484,22 @@ This instruction is used to set the vector mask register for masked vector opera
 
 Triggers a breakpoint exception, typically used for debugging purposes.
 
+### C_LOOP_START
+
+**Format:** `opcode, rd, imm`
+
+**Description:** 
+
+This instruction is used to start a loop. The loop count is set by the `imm` field.
+
+### C_LOOP_END
+
+**Format:** `opcode, rd, 0`
+
+**Description:** 
+
+Jump to the start of the loop where the C_LOOP_START is called if the rd value is greater than 0 and reduce the rd value by 1.
+
 ---
 
 ## Instruction Encoding Summary

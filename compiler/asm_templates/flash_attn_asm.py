@@ -116,7 +116,7 @@ def _online_softmax_code(
         generated_code += f"S_ST_FP f{m_curr_register}, gp{m_last_address_register}, {i} \n"
         
         # S' = S - m_curr
-        generated_code += f"V_SUB_VF gp{s_address_register}, gp{s_address_register}, f{m_curr_register}, 0 \n"
+        generated_code += f"V_SUB_VF gp{s_address_register}, gp{s_address_register}, f{m_curr_register}, 0, 0 \n"
 
         # P = exp(S')
         generated_code += f"V_EXP_V gp{s_address_register}, gp{s_address_register}, 0, 0 \n"
@@ -512,20 +512,20 @@ def flash_attn_asm(
                         same_v_head=(inner_q_head_index != 0),
                     )
 
-                    generated_code += reset_reg_asm(alive_registers_int[0:4])
-                    generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
+                #     generated_code += reset_reg_asm(alive_registers_int[0:4])
+                #     generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
 
-                    generated_code += _computing_o_code(
-                        mlen=mlen,
-                        alive_registers_int=alive_registers_int[0:3],
-                        alive_registers_fp=alive_registers_fp[0:1],
-                        m_res_base_address=stored_m_fp_res_address,
-                        pv_base_address=pv_base_address + inner_q_head_index * mlen * mlen,
-                        o_old_base_address=o_old_base_address + kv_head_index * mlen,
-                        head_dim=d,
-                        q_head_num=hq,
-                    )
-                    stored_m_fp_res_address += 3 * mlen
+                #     generated_code += _computing_o_code(
+                #         mlen=mlen,
+                #         alive_registers_int=alive_registers_int[0:3],
+                #         alive_registers_fp=alive_registers_fp[0:1],
+                #         m_res_base_address=stored_m_fp_res_address,
+                #         pv_base_address=pv_base_address + inner_q_head_index * mlen * mlen,
+                #         o_old_base_address=o_old_base_address + kv_head_index * mlen,
+                #         head_dim=d,
+                #         q_head_num=hq,
+                #     )
+                #     stored_m_fp_res_address += 3 * mlen
                     break
                 break
             break

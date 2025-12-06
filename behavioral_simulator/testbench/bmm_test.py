@@ -8,7 +8,7 @@ from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import batched_matmul_asm, preload_addr_reg_asm, reset_reg_asm
 from create_sim_env import create_sim_env
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 
 if __name__ == "__main__":
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
 
     create_sim_env(input_tensor, weight_2_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["input_tensor", "model_weights"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["input_tensor", "model_weights"])
 
     print("================================================")
     print("Finished generating assembly code")
