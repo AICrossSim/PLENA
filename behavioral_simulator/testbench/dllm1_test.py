@@ -8,7 +8,7 @@ from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import  preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
 
 from tools.memory_mapping.hbm_addr_map import align_addr_to_hbm_bandwidth
@@ -20,10 +20,10 @@ if __name__ == "__main__":
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     vocal_size = 2
-    hidden_size = 64
+    hidden_size = 128
     vlen = 64
-    batch_size = 1
-    preload_amount = 1
+    batch_size = 4
+    preload_amount = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
     fp_preload = [0.0, 1e-6]
@@ -33,12 +33,17 @@ if __name__ == "__main__":
     weights = logits
     original_output = logits
 
+    # Generate vlen random int32 data
+    int_preload = torch.randint(low=0, high=10, size=(vlen,), dtype=torch.int32)
+
+
     print('logits.shape= ', logits.shape)
     print('original_output.shape= ', original_output.shape)
 
     
     input_tensor = {
         "logits": logits,
+        "int": int_preload,
     }
 
     golden_result = {
@@ -71,13 +76,15 @@ if __name__ == "__main__":
         preload_len=preload_amount,
         batch=batch_size,
         hidden_size=hidden_size,
-        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        alive_registers=[1,2,3,4,5],  # [a_actual_register, set_stride_register, result_register, outer_loop_register, inner_loop_register]
         act_vram_offset=0,
         activation_offset_reg=0
     )
-    
 
-    
+    # # Preload Integer Activation to the later section.
+    # gen_assembly_code += f"S_ADDI_INT gp1, gp0, {hidden_size * batch_size} \n"
+    # gen_assembly_code += f"S_ADDI_INT gp2, gp0, {int(hidden_size * batch_size * real_data_ratio)} \n"
+    # gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 2, 1 \n"
     
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits", "int"])

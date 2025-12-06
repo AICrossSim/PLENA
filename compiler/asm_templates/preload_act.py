@@ -38,7 +38,7 @@ def preload_act_asm(
     
     if batch == 1:
         for i in range(math.ceil(hidden_size / (vlen * preload_len))):
-            generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_actual_register}, a{activation_offset_reg}, 0, 0 \n"
+            generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_actual_register}, a{activation_offset_reg}, 0, 0, 0 \n"
             generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {vlen * preload_len} \n"
             generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {load_amount_per_hidden} \n"
     else:
@@ -50,7 +50,7 @@ def preload_act_asm(
         if batch > preload_len:
             generated_code += f"C_LOOP_START gp{inner_loop_register}, {math.ceil(batch / preload_len)} \n"
         generated_code += f"S_ADDI_INT gp{a_offset_register}, gp{a_actual_register}, 0 \n"
-        generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_offset_register}, a{activation_offset_reg}, 1, 0 \n"
+        generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_offset_register}, a{activation_offset_reg}, 1, 0, 0 \n"
         generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {vlen * preload_len} \n"
         if batch > preload_len:  
             generated_code += f"S_ADDI_INT gp{a_offset_register}, gp{a_offset_register}, {hidden_size * preload_len} \n"

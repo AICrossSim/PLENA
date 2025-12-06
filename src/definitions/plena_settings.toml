@@ -22,6 +22,9 @@ value = 4
 [CONFIG.HBM_SIZE]
 value = 1073741824
 
+[CONFIG.HBM_WIDTH]
+value = 512
+
 [CONFIG.MATRIX_SRAM_SIZE]
 value = 1024
 
@@ -108,6 +111,12 @@ type = "Fp"
 sign = false
 exponent = 8
 mantissa = 0
+
+[PRECISION.HBM_V_INT_TYPE]
+format = "Plain"
+[PRECISION.HBM_V_INT_TYPE.DATA_TYPE]
+type = "Int"
+width = 32
 
 [PRECISION.SCALAR_FP]
 type = "Fp"
