@@ -197,9 +197,9 @@ if __name__ == "__main__":
     print("Viewing VRAM dump from 0 Base Address")
     view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
     
-    print("Viewing VRAM dump from 8 Base Address")
-    # Note: TODO: now 32 bits address require offset, that's why start_row_idx is 4 instead of 8.
-    view_bin_file_by_row_int(vram_file, row_dim=64, int_width=32, start_row_idx=4, load_row_size=4)
+    # print("Viewing VRAM dump from 8 Base Address")
+    # # Note: TODO: now 32 bits address require offset, that's why start_row_idx is 4 instead of 8.
+    # view_bin_file_by_row_int(vram_file, row_dim=64, int_width=32, start_row_idx=4, load_row_size=4)
     
 
     # print("Viewing VRAM dump from 48 Base Address")

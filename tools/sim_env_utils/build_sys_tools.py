@@ -51,7 +51,19 @@ def generate_golden_result(data, logger, precision_settings, data_config):
     
     return qdata
 
-def env_setup(memory_data_dict, build_path: str, data_config, quant_config, hbm_row_width=256, test_file_name=None):
+def env_setup(memory_data_manager, build_path: str, data_config, quant_config, hbm_row_width=256, test_file_name=None):
+    """
+    Setup environment for simulation using MemoryDataManager.
+    Each pt file entry is processed based on its type (mx or int).
+    
+    Args:
+        memory_data_manager: MemoryDataManager instance or dict (for backward compatibility)
+        build_path: Path to build directory
+        data_config: Data configuration dictionary
+        quant_config: Quantization configuration dictionary
+        hbm_row_width: HBM row width
+        test_file_name: Optional test file name
+    """
     isa_file_path = PROJECT_PATH / 'src' / 'definitions' / 'operation.svh'
     config_file_path = PROJECT_PATH / 'src' / 'definitions' / 'configuration.svh'
 
@@ -62,34 +74,39 @@ def env_setup(memory_data_dict, build_path: str, data_config, quant_config, hbm_
         assembler = AssemblyToBinary(str(isa_file_path), str(config_file_path))
         assembler.generate_binary(build_path / f'{test_file_name}.asm', build_path / f'{test_file_name}.mem')
     
-    for type, value in memory_data_dict.items():
-        if type == "mx":
-            grp_blocks = value["blocks"]
-            grp_bias = value["bias"]
-            for blocks, bias in zip(grp_blocks, grp_bias):
-                # map_data_to_fake_hbm_for_rtl_sim(   
-                #                     blocks          =blocks,
-                #                     element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
-                #                     block_width     =data_config["block_size"][1],
-                #                     bias            =bias,
-                #                     bias_width      =quant_config["exp_bias_width"],
-                #                     combined_blk_dim=hbm_row_width // data_config["block_size"][1],
-                #                     directory       =build_path,
-                #                     append          =True,
-                #                     hbm_row_width   =hbm_row_width)
-                
-                map_mx_data_to_hbm_for_behave_sim(   
-                                        blocks          =blocks,
-                                        element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
-                                        block_width     =data_config["block_size"][1],
-                                        bias            =bias,
-                                        bias_width      =quant_config["exp_bias_width"],
-                                        directory       =build_path,
-                                        append          =True,
-                                        hbm_row_width   =hbm_row_width)
-        elif type == "normal":
-            data = value["data"]
-            print("data", data)
+    entries = memory_data_manager.get_all_entries()
+    
+    # Process each entry based on its type
+    for entry in entries:
+        if entry["type"] == "mx":
+            blocks = entry["blocks"]
+            bias = entry["bias"]
+            print("blocks", blocks)
+            print("bias", bias)
+            print(f"Processing mx file: {entry.get('filename', 'unknown')}")
+            # map_data_to_fake_hbm_for_rtl_sim(   
+            #                     blocks          =blocks,
+            #                     element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
+            #                     block_width     =data_config["block_size"][1],
+            #                     bias            =bias,
+            #                     bias_width      =quant_config["exp_bias_width"],
+            #                     combined_blk_dim=hbm_row_width // data_config["block_size"][1],
+            #                     directory       =build_path,
+            #                     append          =True,
+            #                     hbm_row_width   =hbm_row_width)
+            
+            map_mx_data_to_hbm_for_behave_sim(   
+                                    blocks          =blocks,
+                                    element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
+                                    block_width     =data_config["block_size"][1],
+                                    bias            =bias,
+                                    bias_width      =quant_config["exp_bias_width"],
+                                    directory       =build_path,
+                                    append          =True,
+                                    hbm_row_width   =hbm_row_width)
+        elif entry["type"] == "int":
+            data = entry["data"]
+            print(f"Processing int file: {entry.get('filename', 'unknown')}")
             map_normal_data_to_hbm_for_behave_sim(
                                     data            =data,
                                     data_width      =quant_config["int_width"],

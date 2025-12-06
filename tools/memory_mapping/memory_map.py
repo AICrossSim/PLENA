@@ -177,7 +177,7 @@ def map_mx_data_to_hbm_for_behave_sim(blocks, element_width, block_width, bias, 
             padding_needed = hbm_row_bias_num - len(row_buffer)
             row_buffer.extend(b'\x00' * padding_needed)
             f.write(row_buffer)
-    # print_outputfile_contents(output_file)
+    print_outputfile_contents(output_file)
     
 
 def map_normal_data_to_hbm_for_behave_sim(data, data_width, directory, append=True, hbm_row_width=64):
