@@ -309,7 +309,7 @@ impl VectorSram {
     /// This returns the raw binary representation of all stored data.
     pub async fn as_bytes(&self) -> Vec<u8> {
         let mut result = Vec::new();
-        let mut row_idx = 0;
+        let mut _row_idx = 0;
 
         for row_mutex in &self.rows {
             let mut guard = row_mutex.lock().await;
@@ -326,7 +326,7 @@ impl VectorSram {
                 RowData::Ready(bytes) => bytes.clone(),
                 RowData::Pending(_) => unreachable!(),
             };
-            row_idx += 1;
+            _row_idx += 1;
             result.extend_from_slice(&row_bytes);
         }
 

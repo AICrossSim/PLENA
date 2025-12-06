@@ -44,7 +44,6 @@ build-behave-sim-debug arg:
     cd behavioral_simulator && \
     RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path"
     python3 behavioral_simulator/testbench/view_mem.py
-    # python3 tools/utils/compare_match.py
 
 run-generated-asm:
     asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \

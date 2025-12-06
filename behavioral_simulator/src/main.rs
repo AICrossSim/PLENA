@@ -14,7 +14,7 @@ use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use half::f16;
 use memory::MemoryModel;
-use quantize::{DataType, MxDataType, QuantTensor};
+use quantize::{MxDataType, QuantTensor};
 use runtime::{Duration, Executor, Instant};
 use tch::{IndexOp, Tensor};
 use vector_sram::VectorSram;
@@ -510,7 +510,7 @@ impl VectorMachine {
             self.vram.write(vd, c).await;
         } else {
             // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -544,7 +544,7 @@ impl VectorMachine {
             }
         } else {
             // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -579,7 +579,7 @@ impl VectorMachine {
             // println!("add: mask = {:?}", mask);
             // println!("a = {}", a.as_tensor());
             // println!("f = {}", f);
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -610,7 +610,7 @@ impl VectorMachine {
             // println!("add: mask = {:?}", mask);
             // println!("a = {}", a.as_tensor());
             // println!("b = {}", b.as_tensor());
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -637,7 +637,7 @@ impl VectorMachine {
             cycle!(*VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -661,7 +661,7 @@ impl VectorMachine {
             cycle!(*VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -685,7 +685,7 @@ impl VectorMachine {
             cycle!(*VECTOR_EXP_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -709,7 +709,7 @@ impl VectorMachine {
             cycle!(*VECTOR_RECI_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -741,15 +741,47 @@ impl VectorMachine {
     async fn reduce_sum(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_SUM_CYCLES);
-        let val: f32 = a.as_tensor().sum(tch::Kind::Float).try_into().unwrap();
-        f + val
+        if rmask == 0 {
+            let val: f32 = a.as_tensor().sum(tch::Kind::Float).try_into().unwrap();
+            f + val
+        } else {
+            let result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = &sliced.sum(tch::Kind::Float);
+                    result.narrow(0, start, end - start).copy_(&updated);
+                }
+            }
+            let val: f32 = result.sum(tch::Kind::Float).try_into().unwrap();
+            f + val
+        }
     }
 
     async fn reduce_max(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_MAX_CYCLES);
-        let val: f32 = a.as_tensor().max().try_into().unwrap();
-        f32::max(val, f)
+        if rmask == 0 {
+            let val: f32 = a.as_tensor().max().try_into().unwrap();
+            f32::max(val, f)
+        } else {
+            let result = a.as_tensor().shallow_clone();
+            let total_heads = self.tile_size / self.mask_unit;
+            for head in 0..total_heads {
+                if (mask & (1 << head)) != 0 {
+                    let start = (head * self.mask_unit) as i64;
+                    let end = ((head + 1) * self.mask_unit) as i64;
+                    let sliced = result.narrow(0, start, end - start);
+                    let updated = &sliced.max();
+                    result.narrow(0, start, end - start).copy_(&updated);
+                }
+            }
+            let val: f32 = result.max().try_into().unwrap();
+            f32::max(val, f)
+        }
     }
 }
 
@@ -1138,7 +1170,6 @@ impl Accelerator {
                 println!("execute op[{pc}] = {:?}", op);
             }
             
-            let mut should_continue = true;
             let mut jump_pc: Option<usize> = None;
             
             match op {
@@ -1759,10 +1790,6 @@ async fn start() {
         .map(|tok| u32::from_str_radix(tok.trim_start_matches("0x"), 16).unwrap())
         .collect();
 
-    for (i, word) in op.iter().enumerate() {
-        let decoded = op::Opcode::decode(*word);
-        // println!("{i:04}: 0x{word:08X} -> {:?}", decoded);
-    }
 
     // Memory Initialization
     // - HBM Preload
