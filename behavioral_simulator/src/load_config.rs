@@ -11,6 +11,11 @@ pub struct ConfigValue {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigValueString {
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigValueUsize {
     pub value: usize,
 }
@@ -92,9 +97,9 @@ pub struct ConfigSection {
     #[serde(rename = "VECTOR_SRAM_SIZE")]
     pub vector_sram_size: ConfigValueUsize,
     #[serde(rename = "MATRIX_SRAM_TYPE")]
-    pub matrix_sram_type: ConfigValue,
+    pub matrix_sram_type: ConfigValueString,
     #[serde(rename = "VECTOR_SRAM_TYPE")]
-    pub vector_sram_type: ConfigValue,
+    pub vector_sram_type: ConfigValueString,
     #[serde(rename = "HBM_M_Prefetch_Amount")]
     pub hbm_m_prefetch_amount: ConfigValue,
     #[serde(rename = "HBM_V_Prefetch_Amount")]
@@ -109,10 +114,10 @@ pub struct ConfigSection {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PrecisionSection {
-    #[serde(rename = "MATRIX_SRAM_DATATYPE")]
-    pub matrix_sram_type: MxDataTypeConfig,
-    #[serde(rename = "VECTOR_SRAM_DATATYPE")]
-    pub vector_sram_type: MxDataTypeConfig,
+    #[serde(rename = "MATRIX_SRAM")]
+    pub matrix_sram_datatype: MxDataTypeConfig,
+    #[serde(rename = "VECTOR_SRAM")]
+    pub vector_sram_datatype: MxDataTypeConfig,
     #[serde(rename = "HBM_M_WEIGHT_TYPE")]
     pub hbm_m_weight_type: MxDataTypeConfig,
     #[serde(rename = "HBM_M_KV_TYPE")]
@@ -173,6 +178,8 @@ impl Default for AcceleratorConfig {
                 hbm_size: ConfigValueUsize { value: 1073741824 },
                 matrix_sram_size: ConfigValueUsize { value: 1024 },
                 vector_sram_size: ConfigValueUsize { value: 1024 },
+                matrix_sram_type: ConfigValueString { value: "SRAM".to_string() },
+                vector_sram_type: ConfigValueString { value: "SRAM".to_string() },
                 hbm_m_prefetch_amount: ConfigValue { value: 16 },
                 hbm_v_prefetch_amount: ConfigValue { value: 16 },
                 hbm_v_writeback_amount: ConfigValue { value: 16 },
@@ -180,7 +187,7 @@ impl Default for AcceleratorConfig {
                 max_loop_instructions: ConfigValueUsize { value: 10000 },
             },
             precision: PrecisionSection {
-                matrix_sram_type: MxDataTypeConfig {
+                matrix_sram_datatype: MxDataTypeConfig {
                     format: "Plain".to_string(),
                     data: MxDataTypeData::Plain {
                         data_type: DataTypeConfig::Fp(FpTypeConfig {
@@ -190,7 +197,7 @@ impl Default for AcceleratorConfig {
                         }),
                     },
                 },
-                vector_sram_type: MxDataTypeConfig {
+                vector_sram_datatype: MxDataTypeConfig {
                     format: "Plain".to_string(),
                     data: MxDataTypeData::Plain {
                         data_type: DataTypeConfig::Fp(FpTypeConfig {
@@ -398,7 +405,6 @@ pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
     let config_path = env::current_dir().unwrap().parent().unwrap().join("src/definitions/plena_settings.toml");
     
     let config_path = config_path.to_str().unwrap();
-    println!("debug config_path: {:}", config_path);
     if let Ok(config) = load_config_from_file(config_path) {
         println!("Loaded config from: {:}", config_path);
         return Ok(config);
@@ -442,11 +448,11 @@ pub fn vector_sram_size() -> usize {
 }
 
 pub fn matrix_sram_type() -> String {
-    CONFIG.config.matrix_sram_type.value
+    CONFIG.config.matrix_sram_type.value.to_string()
 }
 
 pub fn vector_sram_type() -> String {
-    CONFIG.config.vector_sram_type.value
+    CONFIG.config.vector_sram_type.value.to_string()
 }
 
 pub fn matrix_sram_datatype() -> MxDataType {

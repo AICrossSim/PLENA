@@ -1406,7 +1406,7 @@ impl Accelerator {
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
                         dtype,
-                        self.m_machine.mram.ty,
+                        *self.m_machine.mram.ty(),
                         *rstride,
                         *MLEN,
                         *PREFETCH_M_AMOUNT,

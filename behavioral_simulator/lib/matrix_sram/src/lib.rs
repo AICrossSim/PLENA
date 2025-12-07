@@ -54,6 +54,7 @@ enum TileData {
     Pending(Receiver<QuantTensor>),
 }
 
+
 /// Matrix SRAM that stores data in tile-based format.
 ///
 /// The SRAM stores matrix tiles where each tile is of size `tile_size * tile_size`.
@@ -70,6 +71,13 @@ pub struct MatrixSram {
     /// Configuration
     config: MatrixSramConfig,
 }
+
+// Safety: MatrixSram contains TileData which contains QuantTensor which contains Tensor (not Send).
+// However, all access to TileData goes through tokio::sync::Mutex, which provides synchronization.
+// Even though HBM operations may run on different threads, the Mutex serializes all access,
+// making it safe to treat MatrixSram as Send + Sync. The Tensor inside QuantTensor is never
+// accessed concurrently without the Mutex guard.
+unsafe impl Send for MatrixSram {}
 
 impl MatrixSram {
     /// Create a new Matrix SRAM with given tile size, depth, and data type.
@@ -352,22 +360,35 @@ impl MatrixSram {
         let chunk_size = (self.tile_size * self.tile_size) as i64;
         let total = dims[0];
 
-        // Split the tensor into chunks of tile_size * tile_size and store each in tiles
-        for i in 0..write_amount.min(
+        // Pre-extract all chunks before any await points to avoid holding Tensor references across await
+        let num_chunks = write_amount.min(
             (total as u32 + self.tile_size * self.tile_size - 1)
                 / (self.tile_size * self.tile_size),
-        ) {
-            let tile_idx = start_tile_idx + i as usize;
-            if tile_idx >= self.depth {
-                break;
-            }
-
+        );
+        let mut chunks = Vec::with_capacity(num_chunks as usize);
+        
+        for i in 0..num_chunks {
             let start = (i as i64) * chunk_size;
             let end = ((i as i64 + 1) * chunk_size).min(total);
             let chunk = tensor_data
                 .narrow(0, start, end - start)
                 .shallow_clone();
             let chunk_qt = QuantTensor::quantize(chunk, self.ty.clone());
+            chunks.push(chunk_qt);
+        }
+        
+        // Drop the tensor reference before any await points
+        drop(tensor_data);
+        drop(tensor);
+
+        // Now process each chunk with await points
+        for i in 0..num_chunks {
+            let tile_idx = start_tile_idx + i as usize;
+            if tile_idx >= self.depth {
+                break;
+            }
+
+            let chunk_qt = &chunks[i as usize];
 
             // Simulate latency for each write
             match &self.storage {
@@ -403,10 +424,10 @@ impl MatrixSram {
             // Write to storage
             match &self.storage {
                 StorageBackend::Normal { tiles } => {
-                    *tiles[tile_idx].lock().await = TileData::Ready(chunk_qt);
+                    *tiles[tile_idx].lock().await = TileData::Ready(chunks[i as usize].clone());
                 }
                 StorageBackend::Sram3d { tiles, .. } => {
-                    *tiles[tile_idx].lock().await = TileData::Ready(chunk_qt);
+                    *tiles[tile_idx].lock().await = TileData::Ready(chunks[i as usize].clone());
                 }
             }
         }
