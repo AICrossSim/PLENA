@@ -196,7 +196,7 @@ if __name__ == "__main__":
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
     
     print("Viewing VRAM dump from 0 Base Address")
-    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
+    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
     # Compare with golden output, assuming all the output are stored at the 0 in VSRAM.
     try:
@@ -211,7 +211,7 @@ if __name__ == "__main__":
             man_width=7,
             num_bytes_per_val=2,
             row_dim=64,
-            start_row_idx=0,
+            start_row_idx=8,
             num_batches = 4,
             num_rows=8,  # Compare first 4 rows (matching golden output)
             elements_per_batch=128

@@ -8,19 +8,12 @@ pub enum MatrixPrecision {
 pub enum VectorPrecision {
     Activation,
     KeyValue,
-    INT,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum VectorOrder {
     Normal,
     Reverse,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum HBM_LOAD_TYPE {
-    MX,
-    Normal,
 }
 
 
@@ -239,7 +232,6 @@ pub enum Opcode {
         rs2: u8,
         rstride: u8,
         precision: VectorPrecision,
-        loadtype: HBM_LOAD_TYPE,
     },
     H_STORE_V {
         rd: u8,
@@ -296,10 +288,8 @@ impl Opcode {
     fn vector_precision_from(funct1: u8) -> VectorPrecision {
         if funct1 == 0 {
             VectorPrecision::Activation
-        } else if funct1 == 1 {
-            VectorPrecision::KeyValue
         } else {
-            VectorPrecision::INT
+            VectorPrecision::KeyValue
         }
     }
 
@@ -309,15 +299,6 @@ impl Opcode {
             VectorOrder::Normal
         } else {
             VectorOrder::Reverse
-        }
-    }
-
-    #[inline]
-    fn hbm_load_type_from(funct2: u8) -> HBM_LOAD_TYPE {
-        if funct2 == 0 {
-            HBM_LOAD_TYPE::MX
-        } else {
-            HBM_LOAD_TYPE::Normal
         }
     }
 
@@ -331,7 +312,6 @@ impl Opcode {
         let rs2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(OPERAND_WIDTH)) as u8;
         let rs3 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 3)) & mask(OPERAND_WIDTH)) as u8;
         let funct1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 4)) & mask(OPERAND_WIDTH)) as u8;
-        let funct2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 5)) & mask(OPERAND_WIDTH)) as u8;
         let imm = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(IMM_WIDTH)) as u32;
         let imm2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(IMM_2_WIDTH)) as u32;
 
@@ -398,7 +378,6 @@ impl Opcode {
                 rs2,
                 rstride: rs3,
                 precision: Self::vector_precision_from(funct1),
-                loadtype: Self::hbm_load_type_from(funct2),
             },
             // 0x2A => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x2A => Self::H_STORE_V {
