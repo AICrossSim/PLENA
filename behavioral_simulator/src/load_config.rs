@@ -91,6 +91,10 @@ pub struct ConfigSection {
     pub matrix_sram_size: ConfigValueUsize,
     #[serde(rename = "VECTOR_SRAM_SIZE")]
     pub vector_sram_size: ConfigValueUsize,
+    #[serde(rename = "MATRIX_SRAM_TYPE")]
+    pub matrix_sram_type: ConfigValue,
+    #[serde(rename = "VECTOR_SRAM_TYPE")]
+    pub vector_sram_type: ConfigValue,
     #[serde(rename = "HBM_M_Prefetch_Amount")]
     pub hbm_m_prefetch_amount: ConfigValue,
     #[serde(rename = "HBM_V_Prefetch_Amount")]
@@ -105,9 +109,9 @@ pub struct ConfigSection {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PrecisionSection {
-    #[serde(rename = "MATRIX_SRAM_TYPE")]
+    #[serde(rename = "MATRIX_SRAM_DATATYPE")]
     pub matrix_sram_type: MxDataTypeConfig,
-    #[serde(rename = "VECTOR_SRAM_TYPE")]
+    #[serde(rename = "VECTOR_SRAM_DATATYPE")]
     pub vector_sram_type: MxDataTypeConfig,
     #[serde(rename = "HBM_M_WEIGHT_TYPE")]
     pub hbm_m_weight_type: MxDataTypeConfig,
@@ -437,12 +441,20 @@ pub fn vector_sram_size() -> usize {
     CONFIG.config.vector_sram_size.value
 }
 
-pub fn matrix_sram_type() -> MxDataType {
-    CONFIG.precision.matrix_sram_type.clone().into()
+pub fn matrix_sram_type() -> String {
+    CONFIG.config.matrix_sram_type.value
 }
 
-pub fn vector_sram_type() -> MxDataType {
-    CONFIG.precision.vector_sram_type.clone().into()
+pub fn vector_sram_type() -> String {
+    CONFIG.config.vector_sram_type.value
+}
+
+pub fn matrix_sram_datatype() -> MxDataType {
+    CONFIG.precision.matrix_sram_datatype.clone().into()
+}
+
+pub fn vector_sram_datatype() -> MxDataType {
+    CONFIG.precision.vector_sram_datatype.clone().into()
 }
 
 pub fn matrix_weight_type() -> MxDataType {
