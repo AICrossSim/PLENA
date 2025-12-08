@@ -1,3 +1,5 @@
+#![allow(unused_variables, unused_mut, dead_code)]
+
 mod load_config;
 mod op; // Add this line to include the config module
 
@@ -646,7 +648,7 @@ impl VectorMachine {
             self.vram.write(vd, c).await;
         } else {
             // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
-            let mut result = a.as_tensor().shallow_clone();
+            let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
                 if (mask & (1 << head)) != 0 {
@@ -1862,5 +1864,5 @@ async fn main() {
     let executor = Executor::new();
     executor.spawn(start());
     executor.enter(Instant::ETERNITY).await;
-    eprintln!("Simulation completed. Last instance {:?}", executor.now());
+    eprintln!("Simulation completed. Latency {:?}", executor.now());
 }

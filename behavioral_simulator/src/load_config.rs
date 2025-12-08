@@ -1,7 +1,6 @@
 // load_config.rs
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use std::{fs, sync::LazyLock, env, path::PathBuf};
+use std::{fs, sync::LazyLock, env};
 
 // Import the types from your main module
 use quantize::{DataType, FpType, MxDataType};
@@ -370,9 +369,7 @@ pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
     let config_path = env::current_dir().unwrap().parent().unwrap().join("src/definitions/plena_settings.toml");
     
     let config_path = config_path.to_str().unwrap();
-    println!("debug config_path: {:}", config_path);
     if let Ok(config) = load_config_from_file(config_path) {
-        println!("Loaded config from: {:}", config_path);
         return Ok(config);
     }
 

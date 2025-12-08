@@ -80,7 +80,7 @@ impl FpType {
             }
         };
 
-        let mut converted_mantissa = if self.mantissa <= new_ty.mantissa {
+        let converted_mantissa = if self.mantissa <= new_ty.mantissa {
             mantissa_bits << (new_ty.mantissa - self.mantissa)
         } else {
             // In this case, the conversion is lossy, we need to perform rounding.

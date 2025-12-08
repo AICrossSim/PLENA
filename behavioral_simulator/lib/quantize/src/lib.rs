@@ -1,3 +1,5 @@
+#![allow(unused_variables, unused_mut)]
+
 mod dtype;
 mod tensor;
 
