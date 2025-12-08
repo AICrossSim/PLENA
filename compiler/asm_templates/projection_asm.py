@@ -272,7 +272,7 @@ def _projection_asm_with_loops(
     lines.append(f"S_ADDI_INT gp{w_tile_offset_reg}, gp0, 0")
 
     # === MIDDLE LOOP: tiles within MLEN block ===
-    # Unroll by factor of 8 to reduce loop overhead
+    # Unroll by factor x to reduce loop overhead
     unroll_factor = 1
     loop_iterations = tiles_per_mlen // unroll_factor
 

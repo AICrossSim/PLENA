@@ -147,19 +147,19 @@ if __name__ == "__main__":
         alive_registers=[1,2,3]
     )
 
-    # Preload Activation
+    # Preload Activation (needs 5 registers)
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
         preload_len=4,
         batch=batch_size * seq_len,
         hidden_size=hidden_size,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=hidden_size
     )
 
-    # FFN Generation
+    # FFN Generation (use loop instructions to reduce code size)
     gen_assembly_code += ffn_asm(
         mlen=mlen,
         vlen=vlen,
@@ -168,12 +168,13 @@ if __name__ == "__main__":
         seq_len=seq_len,
         hidden_size=hidden_size,
         intermediate_size=inter_dim,
-        alive_registers=[1,2,3,4,5,6,7],
+        alive_registers=[1,2,3,4,5,6,7,8,9,'a'],  # Loop version needs 10 registers (use hex char for 10)
         up_weight_hbm_offset_reg=1,
         gate_weight_hbm_offset_reg=2,
         down_weight_hbm_offset_reg=3,
         const_one_fp_address=1,
-        activation_base_address=0
+        activation_base_address=0,
+        use_loop_instructions=True
     )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
