@@ -272,30 +272,34 @@ def _projection_asm_with_loops(
     lines.append(f"S_ADDI_INT gp{w_tile_offset_reg}, gp0, 0")
 
     # === MIDDLE LOOP: tiles within MLEN block ===
-    lines.append(f"; Middle loop: {tiles_per_mlen} tiles per MLEN block")
-    lines.append(f"C_LOOP_START gp{loop_inner_reg}, {tiles_per_mlen}")
+    # Unroll by factor of 8 to reduce loop overhead
+    unroll_factor = 1
+    loop_iterations = tiles_per_mlen // unroll_factor
 
-    # --- Setup weight SRAM address for this tile ---
-    # w_sram_reg = w_tile_offset_reg (base offset for this tile's column in weight matrix)
-    lines.append(f"S_ADD_INT gp{w_sram_reg}, gp{w_tile_offset_reg}, gp0")
+    lines.append(f"; Middle loop: {loop_iterations} iterations (unroll={unroll_factor})")
+    lines.append(f"C_LOOP_START gp{loop_inner_reg}, {loop_iterations}")
 
-    # --- Compute: inner accumulation loop (unrolled for latency hiding) ---
-    for j in range(num_weight_tiles):
-        lines.append(f"M_MM 0, gp{w_sram_reg}, gp{act_reg}")
-        if j < num_weight_tiles - 1:
-            lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp{w_sram_reg}, {weight_tile_size}")
-            lines.append(f"S_ADDI_INT gp{act_reg}, gp{act_reg}, {act_tile_stride}")
+    # Process unroll_factor tiles per loop iteration
+    for u in range(unroll_factor):
+        # --- Compute: inner accumulation loop (unrolled for latency hiding) ---
+        for j in range(num_weight_tiles):
+            if j == 0:
+                lines.append(f"M_MM 0, gp{w_tile_offset_reg}, gp{act_reg}")
+                if num_weight_tiles > 1:
+                    lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp{w_tile_offset_reg}, {weight_tile_size}")
+            else:
+                lines.append(f"M_MM 0, gp{w_sram_reg}, gp{act_reg}")
+                if j < num_weight_tiles - 1:
+                    lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp{w_sram_reg}, {weight_tile_size}")
+            if j < num_weight_tiles - 1:
+                lines.append(f"S_ADDI_INT gp{act_reg}, gp{act_reg}, {act_tile_stride}")
 
-    # --- Output: write result ---
-    lines.append(f"M_MM_WO {result_reg}, gp0, 0")
-
-    # --- Prepare next tile iteration ---
-    # Reset activation pointer for next tile
-    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {activation_base_address}")
-    # Advance result pointer by blen
-    lines.append(f"S_ADDI_INT gp{result_reg}, gp{result_reg}, {result_tile_stride}")
-    # Advance tile offset by blen for next tile's weight column
-    lines.append(f"S_ADDI_INT gp{w_tile_offset_reg}, gp{w_tile_offset_reg}, {blen}")
+        # --- Output and prepare for next tile ---
+        lines.append(f"M_MM_WO {result_reg}, gp0, 0")
+        lines.append(f"S_ADDI_INT gp{result_reg}, gp{result_reg}, {result_tile_stride}")
+        lines.append(f"S_ADDI_INT gp{w_tile_offset_reg}, gp{w_tile_offset_reg}, {blen}")
+        if num_weight_tiles > 1:
+            lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {activation_base_address}")
 
     lines.append(f"C_LOOP_END gp{loop_inner_reg}")
     # END middle loop
