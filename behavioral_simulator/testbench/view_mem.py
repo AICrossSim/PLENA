@@ -4,12 +4,11 @@ import os
 import struct
 
 def view_bin_file_by_row_int(bin_file,
-                             row_dim,
                              int_width=32,
                              num_bytes_per_val=None,
+                             row_size = 64 * 2,
                              start_row_idx=0,
                              load_row_size=None,
-                             offset=0,
                              signed=True):
     """
     Reads a binary file and parses each value as an integer.
@@ -42,6 +41,8 @@ def view_bin_file_by_row_int(bin_file,
     
     with open(bin_file, "rb") as f:
         data = f.read()
+
+    row_dim = row_size // num_bytes_per_val
     num_vals = len(data) // num_bytes_per_val
     total_rows = (num_vals + row_dim - 1) // row_dim
 
@@ -53,10 +54,10 @@ def view_bin_file_by_row_int(bin_file,
             break
         vals = []
         for col_idx in range(row_dim):
-            val_idx = row_idx * row_dim + col_idx + offset
+            val_idx = row_idx * row_size + col_idx * num_bytes_per_val
             if val_idx >= num_vals:
                 break
-            chunk = data[val_idx * num_bytes_per_val : (val_idx + 1) * num_bytes_per_val]
+            chunk = data[val_idx : val_idx + num_bytes_per_val]
             # print("chunk = {:?}", chunk)
             if not chunk or len(chunk) < num_bytes_per_val:
                 vals.append(None)
@@ -195,11 +196,11 @@ if __name__ == "__main__":
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
     
     print("Viewing VRAM dump from 0 Base Address")
-    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=8)
+    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=4)
     
     # print("Viewing VRAM dump from 8 Base Address")
-    # # Note: TODO: now 32 bits address require offset, that's why start_row_idx is 4 instead of 8.
-    # view_bin_file_by_row_int(vram_file, row_dim=64, int_width=32, start_row_idx=4, load_row_size=4)
+    # Note: TODO: now 32 bits address require offset, that's why start_row_idx is 4 instead of 8.
+    view_bin_file_by_row_int(vram_file, row_size=64 * 2, int_width=32, start_row_idx=4, num_bytes_per_val=4, load_row_size=4)
     
 
     # print("Viewing VRAM dump from 48 Base Address")

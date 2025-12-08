@@ -36,6 +36,7 @@ if __name__ == "__main__":
 
     # Generate vlen random int32 data
     int_preload = torch.randint(low=0, high=10, size=(vlen,), dtype=torch.int32)
+    print("int_preload", int_preload)
 
 
     print('logits.shape= ', logits.shape)
