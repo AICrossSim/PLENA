@@ -12,6 +12,7 @@ from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
 
 from tools.memory_mapping.hbm_addr_map import align_addr_to_hbm_bandwidth
+from tools.memory_mapping.addr_align import align_addr_up
 from transformers import AutoTokenizer
 
 
@@ -20,7 +21,7 @@ if __name__ == "__main__":
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     vocal_size = 2
-    hidden_size = 128
+    hidden_size = 64
     vlen = 64
     batch_size = 4
     preload_amount = 4
@@ -83,7 +84,7 @@ if __name__ == "__main__":
 
     # Preload Integer Activation to the later section.
     gen_assembly_code += f"S_ADDI_INT gp1, gp0, {hidden_size * batch_size} \n"
-    gen_assembly_code += f"S_ADDI_INT gp2, gp0, {int(hidden_size * batch_size * real_data_ratio)} \n"
+    gen_assembly_code += f"S_ADDI_INT gp2, gp0, {align_addr_up(hidden_size * batch_size * real_data_ratio, hbm_data_width)} \n"
     gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 2, 1 \n"
     
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)

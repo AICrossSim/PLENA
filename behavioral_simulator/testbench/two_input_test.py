@@ -76,10 +76,6 @@ if __name__ == "__main__":
         activation_offset_reg=1
     )
 
-    # Reset the registers
-    gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4]
-    )
 
-    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1","input_tensor2"])
