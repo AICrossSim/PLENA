@@ -64,8 +64,15 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG", "C_SET_V_MASK_REG"]:
+        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG", "C_SET_V_MASK_REG", "C_LOOP_END"]:
             binary_instruction = (
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["C_LOOP_START"]:
+            # C_LOOP_START rd, imm - uses 22-bit immediate like S_LUI_INT
+            binary_instruction = (
+                (imm << (opw + ow)) +
                 (rd << opw) +
                 opcode
             )
