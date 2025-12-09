@@ -4,3 +4,6 @@
 [submodule "tools/aria-llama-ops"]
 	path = tools/aria-llama-ops
 	url = https://github.com/ChengZhang-98/aria-llama-ops.git
+[submodule "boom-riscv/boom"]
+	path = boom-riscv/boom
+	url = https://github.com/ucb-bar/chipyard.git
