@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     vocal_size = 2
-    hidden_size = 64
+    hidden_size = 128
     vlen = 64
     batch_size = 4
     preload_amount = 4
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     original_output = logits
 
     # Generate vlen random int32 data
-    int_preload = torch.randint(low=0, high=10, size=(vlen,), dtype=torch.int32)
+    int_preload = torch.randint(low=0, high=10, size=(batch_size, hidden_size), dtype=torch.int32)
     print("int_preload", int_preload)
 
 
@@ -80,13 +80,14 @@ if __name__ == "__main__":
         hidden_size=hidden_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
         act_vram_offset=0,
-        activation_offset_reg=0
+        activation_offset_reg=0,
+        stride_size=hidden_size
     )
 
-    # Preload Integer Activation to the later section.
-    gen_assembly_code += f"S_ADDI_INT gp1, gp0, {hidden_size * batch_size} \n"
-    gen_assembly_code += f"S_ADDI_INT gp2, gp0, {align_addr_up(hidden_size * batch_size * real_data_ratio, hbm_data_width)} \n"
-    gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 2, 1 \n"
+    # # Preload Integer Activation to the later section.
+    # gen_assembly_code += f"S_ADDI_INT gp1, gp0, {hidden_size * batch_size} \n"
+    # gen_assembly_code += f"S_ADDI_INT gp2, gp0, {align_addr_up(hidden_size * batch_size * real_data_ratio, hbm_data_width)} \n"
+    # gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 2, 1 \n"
     
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits", "int"])

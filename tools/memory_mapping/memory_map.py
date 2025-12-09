@@ -188,6 +188,7 @@ def map_normal_data_to_hbm_for_behave_sim(data, data_width, directory, append=Tr
         os.makedirs(directory)
     output_file = os.path.join(directory, "hbm_for_behave_sim.bin")
     mode = 'ab' if append else 'wb'
+    data = data.flatten()
     with open(output_file, mode) as f:
         row_buffer = bytearray()
         for i, element in enumerate(data):
