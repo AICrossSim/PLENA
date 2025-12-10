@@ -47,9 +47,9 @@ def preload_act_asm(
         a_offset_register = set_stride_register
         assert batch * hidden_size <= IMM2_BOUND, "batch * hidden_size must be less than {IMM2_BOUND}"
         generated_code += f"C_LOOP_START gp{outer_loop_register}, {load_amount_per_hidden} \n"
+        generated_code += f"S_ADDI_INT gp{a_offset_register}, gp{a_actual_register}, 0 \n"
         if batch > preload_len:
             generated_code += f"C_LOOP_START gp{inner_loop_register}, {math.ceil(batch / preload_len)} \n"
-        generated_code += f"S_ADDI_INT gp{a_offset_register}, gp{a_actual_register}, 0 \n"
         generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_offset_register}, a{activation_offset_reg}, 1, 0 \n"
         generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {vlen * preload_len} \n"
         if batch > preload_len:  

@@ -24,7 +24,7 @@ if __name__ == "__main__":
     hidden_size = 128
     vlen = 64
     batch_size = 4
-    preload_amount = 4
+    preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
     fp_preload = [0.0, 1e-6]
@@ -80,7 +80,8 @@ if __name__ == "__main__":
         hidden_size=hidden_size,
         alive_registers=[1,2,3,4,5],  # [a_actual_register, set_stride_register, result_register, outer_loop_register, inner_loop_register]
         act_vram_offset=0,
-        activation_offset_reg=0
+        activation_offset_reg=0,
+        stride_size=hidden_size
     )
 
     # # Preload Integer Activation to the later section.
