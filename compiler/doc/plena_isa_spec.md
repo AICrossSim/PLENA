@@ -515,57 +515,16 @@ Jump to the start of the loop where the C_LOOP_START is called if the rd value i
 
 ---
 
-## Instruction Encoding Summary
+# Memory Layout Convention
 
-### Opcode Map
+By default, the memory layout follows this format:
 
-| Opcode | Instruction | Type |
-|--------|-------------|------|
-| 0x00 | Invalid | - |
-| 0x01 | M_MM | M-Type |
-| 0x02 | M_TMM | M-Type |
-| 0x03 | M_BMM | M-Type |
-| 0x04 | M_BTMM | M-Type |
-| 0x05 | M_BMM_WO | M-Type |
-| 0x06 | M_MM_WO | M-Type |
-| 0x07 | M_MV | M-Type |
-| 0x08 | M_TMV | M-Type |
-| 0x09 | M_BMV | M-Type |
-| 0x0A | M_BTMV | M-Type |
-| 0x0B | M_MV_WO | M-Type |
-| 0x0C | M_BMV_WO | M-Type |
-| 0x0D | V_ADD_VV | V-Type |
-| 0x0E | V_ADD_VF | V-Type |
-| 0x0F | V_SUB_VV | V-Type |
-| 0x10 | V_SUB_VF | V-Type |
-| 0x11 | V_MUL_VV | V-Type |
-| 0x12 | V_MUL_VF | V-Type |
-| 0x13 | V_EXP_V | V-Type |
-| 0x14 | V_RECI_V | V-Type |
-| 0x15 | V_RED_SUM | V-Type |
-| 0x16 | V_RED_MAX | V-Type |
-| 0x17 | S_ADD_FP | S-Type |
-| 0x18 | S_SUB_FP | S-Type |
-| 0x19 | S_MAX_FP | S-Type |
-| 0x1A | S_MUL_FP | S-Type |
-| 0x1B | S_EXP_FP | S-Type |
-| 0x1C | S_RECI_FP | S-Type |
-| 0x1D | S_SQRT_FP | S-Type |
-| 0x1E | S_LD_FP | S-Type |
-| 0x1F | S_ST_FP | S-Type |
-| 0x20 | S_MAP_V_FP | S-Type |
-| 0x21 | S_ADD_INT | S-Type |
-| 0x22 | S_ADDI_INT | S-Type |
-| 0x23 | S_SUB_INT | S-Type |
-| 0x24 | S_MUL_INT | S-Type |
-| 0x25 | S_LUI_INT | S-Type |
-| 0x26 | S_LD_INT | S-Type |
-| 0x27 | S_ST_INT | S-Type |
-| 0x28 | H_PREFETCH_M | H-Type |
-| 0x29 | H_PREFETCH_V | H-Type |
-| 0x2A | H_STORE_V | H-Type |
-| 0x2B | C_SET_ADDR_REG | C-Type |
-| 0x2C | C_SET_SCALE_REG | C-Type |
-| 0x2D | C_SET_STRIDE_REG | C-Type |
-| 0x2E | C_SET_V_MASK_REG | C-Type |
-| 0x2F | C_BREAK | C-Type |
+Given an input tensor with shape `[b, s, h]` where:
+- `b` = batch size
+- `s` = sequence length  
+- `h` = hidden size
+
+The data stored in Vector SRAM is reshaped to `[h // VLEN, b, s, VLEN]`.
+
+**Rationale:** The hidden dimension is split along the `VLEN` boundary to enable efficient multi-batch GEMM operations. This layout allows parallel processing across batches while maintaining vector-length alignment requirements.
+
