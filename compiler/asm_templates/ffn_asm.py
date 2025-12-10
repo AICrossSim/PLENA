@@ -20,14 +20,22 @@ def ffn_asm(
     const_one_fp_address: int,
 
     activation_base_address: int,
-    use_loop_instructions: bool = False
+    use_loop_instructions: bool = False,
+    use_fused_up_gate: bool = False
 ) -> str:
     """
     Generates assembly code for a FFN operation.
 
     Set use_loop_instructions=True to use C_LOOP_START/END for compact code.
+    Set use_fused_up_gate=True to fuse upsize and gate projections (requires 12 registers).
     """
-    if use_loop_instructions:
+    if use_fused_up_gate:
+        return _ffn_asm_fused_up_gate(
+            mlen, vlen, blen, batch, seq_len, hidden_size, intermediate_size,
+            alive_registers, gate_weight_hbm_offset_reg, up_weight_hbm_offset_reg,
+            down_weight_hbm_offset_reg, const_one_fp_address, activation_base_address
+        )
+    elif use_loop_instructions:
         return _ffn_asm_with_loops(
             mlen, vlen, blen, batch, seq_len, hidden_size, intermediate_size,
             alive_registers, gate_weight_hbm_offset_reg, up_weight_hbm_offset_reg,
@@ -541,5 +549,354 @@ def _ffn_asm_with_loops(
     generated_code += f"S_ADDI_INT gp{act_result_register}, gp{act_result_register}, {mlen * batch * seq_len}\n"
 
     generated_code += f"C_LOOP_END gp{loop_outer_reg}\n"
+
+    return generated_code
+
+
+def _ffn_asm_fused_up_gate(
+    mlen: int,
+    vlen: int,
+    blen: int,
+    batch: int,
+    seq_len: int,
+    hidden_size: int,
+    intermediate_size: int,
+
+    alive_registers: List[int],
+    gate_weight_hbm_offset_reg: int,
+    up_weight_hbm_offset_reg: int,
+    down_weight_hbm_offset_reg: int,
+    const_one_fp_address: int,
+
+    activation_base_address: int
+) -> str:
+    """
+    Optimized FFN: Fuses upsize and gate projections to reduce HBM prefetch overhead.
+
+    Key optimization: Both up and gate weights are prefetched into MRAM for each MLEN block,
+    then both projections are computed before moving to the next block. This reduces
+    the number of times we need to refetch weights.
+
+    Requires 12 registers for optimal performance.
+    """
+
+    # Register allocation for fused version
+    assert len(alive_registers) >= 12, "Fused version requires 12 registers"
+
+    w_actual_register = alive_registers[0]         # Weight MRAM offset (shared)
+    w_temp_register = alive_registers[1]           # Weight temp pointer
+    a_actual_register = alive_registers[2]         # Activation VRAM pointer
+    up_result_register = alive_registers[3]        # Upsize result base
+    intermediate_register = alive_registers[4]     # Output write pointer
+    gate_result_register = alive_registers[5]      # Gate result base
+    w_hbm_offset_register = alive_registers[6]     # HBM block offset for prefetch
+    loop_outer_reg = alive_registers[7]            # Outer loop counter
+    loop_inner_reg = alive_registers[8]            # Middle loop counter
+    loop_inner2_reg = alive_registers[9]           # Inner loop counter
+    # Extra registers for fused version
+    a_save_register = alive_registers[10]          # Activation save
+    w_gate_base_register = alive_registers[11]     # Gate weight base in MRAM
+
+    generated_code = "; FFN Generation (Fused Up+Gate Optimized)\n"
+
+    # === SETUP PHASE ===
+    assert hidden_size * intermediate_size < IMM2_BOUND
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size * intermediate_size}\n"
+    generated_code += f"C_SET_SCALE_REG gp{w_actual_register}\n"
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {intermediate_size}\n"
+    generated_code += f"C_SET_STRIDE_REG gp{w_actual_register}\n"
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+
+    # Set base addresses for results
+    assert hidden_size * batch * seq_len < IMM2_BOUND
+    generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
+    generated_code += f"S_ADDI_INT gp{gate_result_register}, gp{up_result_register}, {intermediate_size * batch * seq_len}\n"
+
+    # === FUSED UP + GATE LINEAR with overlapped prefetch ===
+    generated_code += "; Fused Up+Gate Linear (overlapped prefetch optimization)\n"
+
+    num_mlen_blocks = intermediate_size // mlen
+    tiles_per_mlen = mlen // blen
+    num_weight_tiles = hidden_size // mlen
+    num_act_cols = (batch * seq_len) // blen
+    act_col_advance = mlen * blen
+    gate_mram_offset = num_weight_tiles * mlen * mlen  # Gate weights start after up weights in MRAM
+
+    # Calculate how to spread GATE prefetches across UP computation
+    # UP projection has tiles_per_mlen * num_act_cols iterations of inner work
+    total_up_inner_iters = tiles_per_mlen * num_act_cols
+    gate_prefetch_interval = max(1, total_up_inner_iters // num_weight_tiles)
+
+    # HBM offset tracking
+    generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp0, 0\n"
+    generated_code += f"; Outer loop: {num_mlen_blocks} MLEN blocks\n"
+    generated_code += f"C_LOOP_START gp{loop_outer_reg}, {num_mlen_blocks}\n"
+
+    # Prefetch UP weights only (GATE will be prefetched during UP compute)
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{w_hbm_offset_register}, 0\n"
+
+    # Prefetch up weights (to MRAM at offset 0)
+    for weight_col in range(num_weight_tiles):
+        generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{a_actual_register}, a{up_weight_hbm_offset_reg}, 1, 0\n"
+        generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen}\n"
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * intermediate_size}\n"
+
+    # Setup for UP compute and GATE prefetch overlap
+    generated_code += f"S_ADDI_INT gp{w_gate_base_register}, gp0, {gate_mram_offset}\n"
+
+    # Reset for UP compute phase
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{up_result_register}, 0\n"
+
+    # === UP PROJECTION with interleaved GATE prefetch ===
+    generated_code += f"; Up projection for MLEN block (with GATE prefetch every {gate_prefetch_interval} iters)\n"
+
+    # Unroll to interleave GATE prefetches during UP computation
+    # NOTE: We compute GATE HBM offset directly from w_hbm_offset_register + offset
+    # instead of tracking it in a_save_register (which is reused for weight offset in inner loop)
+    gate_prefetch_count = 0
+    gate_mram_ptr = gate_mram_offset
+
+    for tile_idx in range(tiles_per_mlen):
+        # Reset activation base for this tile
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address}\n"
+
+        for act_col in range(num_act_cols):
+            iter_num = tile_idx * num_act_cols + act_col
+
+            # Check if we should insert a GATE prefetch
+            if iter_num % gate_prefetch_interval == 0 and gate_prefetch_count < num_weight_tiles:
+                generated_code += f"; Prefetch GATE weight tile {gate_prefetch_count} during UP compute\n"
+                # Save current a_actual_register (activation pointer) to w_temp_register
+                generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{a_actual_register}, 0\n"
+                # Compute GATE HBM offset directly: base_offset + prefetch_count * stride
+                gate_hbm_offset = gate_prefetch_count * mlen * intermediate_size
+                # Set MRAM destination
+                generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {gate_mram_ptr}\n"
+                # Set HBM source: w_hbm_offset_register + gate_hbm_offset
+                generated_code += f"S_ADDI_INT gp{a_save_register}, gp{w_hbm_offset_register}, {gate_hbm_offset}\n"
+                generated_code += f"H_PREFETCH_M gp{a_actual_register}, gp{a_save_register}, a{gate_weight_hbm_offset_reg}, 1, 0\n"
+                gate_mram_ptr += mlen * mlen
+                gate_prefetch_count += 1
+                # Restore activation pointer
+                generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{w_temp_register}, 0\n"
+
+            # Save activation column base before weight tile loop modifies a_actual_register
+            generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{a_actual_register}, 0\n"
+
+            # UP weight accumulation
+            generated_code += f"S_ADDI_INT gp{a_save_register}, gp{w_actual_register}, 0\n"  # save weight offset
+
+            for inner_idx in range(num_weight_tiles):
+                generated_code += f"M_MM 0, gp{a_save_register}, gp{a_actual_register}\n"
+                generated_code += f"S_ADDI_INT gp{a_save_register}, gp{a_save_register}, {mlen * mlen}\n"
+                if inner_idx < num_weight_tiles - 1:
+                    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * batch * seq_len}\n"
+
+            generated_code += f"M_MM_WO gp{intermediate_register}, gp0, 0\n"
+            generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{intermediate_register}, {blen * mlen}\n"
+
+            # Restore activation and advance to next column
+            if act_col < num_act_cols - 1:
+                generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{w_temp_register}, {act_col_advance}\n"
+
+        # After all act_cols for this tile, advance weight offset
+        generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {blen}\n"
+        generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{up_result_register}, 0\n"
+        generated_code += f"S_ADD_INT gp{intermediate_register}, gp{intermediate_register}, gp{w_actual_register}\n"
+
+    # === GATE PROJECTION for this block (weights already prefetched) ===
+    generated_code += f"; Gate projection for MLEN block (weights pre-fetched during UP)\n"
+    generated_code += f"S_ADDI_INT gp{a_save_register}, gp0, 0\n"  # tile offset tracker for output
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_gate_base_register}, 0\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{gate_result_register}, 0\n"
+
+    generated_code += f"C_LOOP_START gp{loop_inner_reg}, {tiles_per_mlen}\n"
+
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address}\n"
+    generated_code += f"C_LOOP_START gp{loop_inner2_reg}, {num_act_cols}\n"
+
+    generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_actual_register}, 0\n"
+    # Save activation pointer - use w_gate_base_register
+    generated_code += f"S_ADDI_INT gp{w_gate_base_register}, gp{a_actual_register}, 0\n"
+
+    for inner_idx in range(num_weight_tiles):
+        generated_code += f"M_MM 0, gp{w_temp_register}, gp{a_actual_register}\n"
+        generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_temp_register}, {mlen * mlen}\n"
+        if inner_idx < num_weight_tiles - 1:
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * batch * seq_len}\n"
+
+    generated_code += f"M_MM_WO gp{intermediate_register}, gp0, 0\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{intermediate_register}, {blen * mlen}\n"
+    # Restore activation from saved base + advance to next column
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{w_gate_base_register}, {act_col_advance}\n"
+
+    generated_code += f"C_LOOP_END gp{loop_inner2_reg}\n"
+
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {blen}\n"
+    generated_code += f"S_ADDI_INT gp{a_save_register}, gp{a_save_register}, {blen}\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{gate_result_register}, 0\n"
+    generated_code += f"S_ADD_INT gp{intermediate_register}, gp{intermediate_register}, gp{a_save_register}\n"
+
+    generated_code += f"C_LOOP_END gp{loop_inner_reg}\n"
+
+    # Advance for next MLEN block
+    generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp{w_hbm_offset_register}, {mlen}\n"
+    generated_code += f"S_ADDI_INT gp{up_result_register}, gp{up_result_register}, {mlen * batch * seq_len}\n"
+    generated_code += f"S_ADDI_INT gp{gate_result_register}, gp{gate_result_register}, {mlen * batch * seq_len}\n"
+
+    generated_code += f"C_LOOP_END gp{loop_outer_reg}\n"
+
+    # === SILU ACTIVATION with overlapped DOWN weight prefetch ===
+    # Key optimization: Prefetch first block of DOWN weights DURING SILU computation
+    num_down_mlen_blocks = hidden_size // mlen
+    num_down_weight_tiles = intermediate_size // mlen
+    num_silu_iters = batch * seq_len * (intermediate_size // vlen)
+
+    generated_code += "; SILU Generation (with overlapped DOWN prefetch)\n"
+    generated_code += f"S_LD_FP f1, gp0, {const_one_fp_address}\n"
+
+    # Set up DOWN weight prefetch parameters
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size * intermediate_size}\n"
+    generated_code += f"C_SET_SCALE_REG gp{w_actual_register}\n"
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size}\n"
+    generated_code += f"C_SET_STRIDE_REG gp{w_actual_register}\n"
+
+    # Initialize SILU pointers
+    generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
+    generated_code += f"S_ADDI_INT gp{gate_result_register}, gp{up_result_register}, {intermediate_size * batch * seq_len}\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp0, {activation_base_address}\n"
+
+    # Initialize DOWN prefetch pointers (w_actual_register=MRAM offset, a_actual_register=HBM offset)
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, 0\n"
+
+    # Compute how many SILU iters per prefetch op to spread prefetches across SILU loop
+    # We have num_down_weight_tiles prefetches to do for the first block
+    # Spread them evenly across the SILU loop
+    prefetch_interval = max(1, num_silu_iters // num_down_weight_tiles)
+
+    generated_code += f"; SILU loop: {num_silu_iters} iterations (prefetch every {prefetch_interval} iters)\n"
+    generated_code += f"; Prefetching {num_down_weight_tiles} DOWN weight tiles during SILU\n"
+
+    # Unroll SILU loop to interleave prefetch operations
+    for silu_iter in range(num_silu_iters):
+        # SILU computation
+        generated_code += f"V_SUB_VF gp{intermediate_register}, gp{up_result_register}, f0, 0, 1\n"
+        generated_code += f"V_EXP_V  gp{intermediate_register}, gp{intermediate_register}, 0\n"
+        generated_code += f"V_ADD_VF gp{intermediate_register}, gp{intermediate_register}, f1, 0\n"
+        generated_code += f"V_RECI_V  gp{intermediate_register}, gp{intermediate_register}, 0\n"
+        generated_code += f"V_MUL_VV gp{intermediate_register}, gp{intermediate_register}, gp{up_result_register}, 0\n"
+        generated_code += f"V_MUL_VV gp{up_result_register}, gp{intermediate_register}, gp{gate_result_register}, 0\n"
+        generated_code += f"S_ADDI_INT gp{gate_result_register}, gp{gate_result_register}, {vlen}\n"
+        generated_code += f"S_ADDI_INT gp{up_result_register}, gp{up_result_register}, {vlen}\n"
+
+        # Insert prefetch at appropriate intervals
+        prefetch_idx = silu_iter // prefetch_interval
+        if silu_iter % prefetch_interval == 0 and prefetch_idx < num_down_weight_tiles:
+            generated_code += f"; Prefetch DOWN weight tile {prefetch_idx}\n"
+            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{a_actual_register}, a{down_weight_hbm_offset_reg}, 1, 0\n"
+            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen}\n"
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * hidden_size}\n"
+
+    # === DOWNSIZE LINEAR (first block already prefetched) ===
+    generated_code += "; FFN Downsize Linear Generation (first block pre-fetched during SILU)\n"
+
+    act_result_register = gate_result_register
+    generated_code += f"S_ADDI_INT gp{act_result_register}, gp0, {activation_base_address}\n"
+    generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
+
+    down_act_col_advance = mlen * blen
+
+    # First block: weights already prefetched, just do computation
+    generated_code += f"; First DOWN block (weights pre-fetched during SILU)\n"
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+    generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp0, {mlen}\n"  # Next block HBM offset
+
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{act_result_register}, 0\n"
+    tiles_per_mlen_down = mlen // blen
+
+    # First block computation
+    generated_code += f"C_LOOP_START gp{loop_inner_reg}, {tiles_per_mlen_down}\n"
+
+    generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{up_result_register}, 0\n"
+    num_down_act_cols = (batch * seq_len) // blen
+
+    generated_code += f"C_LOOP_START gp{loop_inner2_reg}, {num_down_act_cols}\n"
+
+    generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_actual_register}, 0\n"
+    generated_code += f"S_ADDI_INT gp{up_result_register}, gp{a_actual_register}, 0\n"
+
+    for inner_idx in range(num_down_weight_tiles):
+        generated_code += f"M_MM 0, gp{w_temp_register}, gp{a_actual_register}\n"
+        generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_temp_register}, {mlen * mlen}\n"
+        if inner_idx < num_down_weight_tiles - 1:
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * batch * seq_len}\n"
+
+    generated_code += f"M_MM_WO gp{intermediate_register}, gp0, 0\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{intermediate_register}, {blen * mlen}\n"
+    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{up_result_register}, {down_act_col_advance}\n"
+
+    generated_code += f"C_LOOP_END gp{loop_inner2_reg}\n"
+
+    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {blen}\n"
+    generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{act_result_register}, 0\n"
+    generated_code += f"S_ADD_INT gp{intermediate_register}, gp{intermediate_register}, gp{w_actual_register}\n"
+
+    generated_code += f"C_LOOP_END gp{loop_inner_reg}\n"
+
+    # Advance to second block base
+    generated_code += f"S_ADDI_INT gp{act_result_register}, gp{act_result_register}, {mlen * batch * seq_len}\n"
+
+    # Remaining blocks (if any) - standard prefetch then compute
+    if num_down_mlen_blocks > 1:
+        generated_code += f"; Remaining {num_down_mlen_blocks - 1} DOWN blocks\n"
+        generated_code += f"C_LOOP_START gp{loop_outer_reg}, {num_down_mlen_blocks - 1}\n"
+
+        generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{w_hbm_offset_register}, 0\n"
+        for weight_col in range(num_down_weight_tiles):
+            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{a_actual_register}, a{down_weight_hbm_offset_reg}, 1, 0\n"
+            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen}\n"
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * hidden_size}\n"
+
+        generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
+        generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{act_result_register}, 0\n"
+
+        generated_code += f"; Middle loop: {tiles_per_mlen_down} tiles per MLEN block\n"
+        generated_code += f"C_LOOP_START gp{loop_inner_reg}, {tiles_per_mlen_down}\n"
+
+        generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{up_result_register}, 0\n"
+
+        generated_code += f"C_LOOP_START gp{loop_inner2_reg}, {num_down_act_cols}\n"
+
+        generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_actual_register}, 0\n"
+        generated_code += f"S_ADDI_INT gp{up_result_register}, gp{a_actual_register}, 0\n"
+
+        for inner_idx in range(num_down_weight_tiles):
+            generated_code += f"M_MM 0, gp{w_temp_register}, gp{a_actual_register}\n"
+            generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_temp_register}, {mlen * mlen}\n"
+            if inner_idx < num_down_weight_tiles - 1:
+                generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * batch * seq_len}\n"
+
+        generated_code += f"M_MM_WO gp{intermediate_register}, gp0, 0\n"
+        generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{intermediate_register}, {blen * mlen}\n"
+        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{up_result_register}, {down_act_col_advance}\n"
+
+        generated_code += f"C_LOOP_END gp{loop_inner2_reg}\n"
+
+        generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {blen}\n"
+        generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{act_result_register}, 0\n"
+        generated_code += f"S_ADD_INT gp{intermediate_register}, gp{intermediate_register}, gp{w_actual_register}\n"
+
+        generated_code += f"C_LOOP_END gp{loop_inner_reg}\n"
+
+        generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp{w_hbm_offset_register}, {mlen}\n"
+        generated_code += f"S_ADDI_INT gp{act_result_register}, gp{act_result_register}, {mlen * batch * seq_len}\n"
+
+        generated_code += f"C_LOOP_END gp{loop_outer_reg}\n"
 
     return generated_code

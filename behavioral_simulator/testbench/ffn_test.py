@@ -159,23 +159,47 @@ if __name__ == "__main__":
         stride_size=hidden_size
     )
 
-    # FFN Generation (use loop instructions to reduce code size)
-    gen_assembly_code += ffn_asm(
-        mlen=mlen,
-        vlen=vlen,
-        blen=blen,
-        batch=batch_size,
-        seq_len=seq_len,
-        hidden_size=hidden_size,
-        intermediate_size=inter_dim,
-        alive_registers=[1,2,3,4,5,6,7,8,9,'a'],  # Loop version needs 10 registers (use hex char for 10)
-        up_weight_hbm_offset_reg=1,
-        gate_weight_hbm_offset_reg=2,
-        down_weight_hbm_offset_reg=3,
-        const_one_fp_address=1,
-        activation_base_address=0,
-        use_loop_instructions=True
-    )
+    # FFN Generation - Choose optimization mode:
+    # use_loop_instructions=True: Loop version (185 lines, ~57k ns)
+    # use_fused_up_gate=True: Fused Up+Gate (activation reuse optimization)
+    USE_FUSED_OPTIMIZATION = True  # Set to True to test fused optimization
+
+    if USE_FUSED_OPTIMIZATION:
+        # Fused version needs 12 registers (use hex chars for 10, 11)
+        gen_assembly_code += ffn_asm(
+            mlen=mlen,
+            vlen=vlen,
+            blen=blen,
+            batch=batch_size,
+            seq_len=seq_len,
+            hidden_size=hidden_size,
+            intermediate_size=inter_dim,
+            alive_registers=[1,2,3,4,5,6,7,8,9,'a','b','c'],
+            up_weight_hbm_offset_reg=1,
+            gate_weight_hbm_offset_reg=2,
+            down_weight_hbm_offset_reg=3,
+            const_one_fp_address=1,
+            activation_base_address=0,
+            use_fused_up_gate=True
+        )
+    else:
+        # Loop version needs 10 registers (use hex char for 10)
+        gen_assembly_code += ffn_asm(
+            mlen=mlen,
+            vlen=vlen,
+            blen=blen,
+            batch=batch_size,
+            seq_len=seq_len,
+            hidden_size=hidden_size,
+            intermediate_size=inter_dim,
+            alive_registers=[1,2,3,4,5,6,7,8,9,'a'],
+            up_weight_hbm_offset_reg=1,
+            gate_weight_hbm_offset_reg=2,
+            down_weight_hbm_offset_reg=3,
+            const_one_fp_address=1,
+            activation_base_address=0,
+            use_loop_instructions=True
+        )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     build_sim_env(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["act_tensor", "weight_up_layer", "weight_gate_layer", "weight_down_layer"])
