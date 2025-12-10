@@ -8,26 +8,52 @@ The PLENA architecture supports four types of registers:
 - **fp_reg** (`f0` to `f7`): Floating-point registers
 - **hbm_addr_reg** (`a0` to `a7`): HBM address registers
 
+## Assembly Syntax
+
+Instructions are written with the opcode followed by a space, then comma-separated operands:
+
+```
+OPCODE operand1, operand2, operand3, ...
+```
+
+**Register naming conventions:**
+- General-purpose registers: `gp0`, `gp1`, ..., `gp15`
+- Floating-point registers: `f0`, `f1`, ..., `f7`
+- HBM address registers: `a0`, `a1`, ..., `a7`
+
+**Example:**
+```asm
+S_ADDI_INT gp1, gp0, 128    ; gp1 = gp0 + 128
+M_MM 0, gp2, gp4            ; Matrix multiply using Vector[gp2] and Matrix[gp4]
+```
+
 ## Instruction Format
 
-Instructions follow one of the following formats:
+Instructions follow one of the following encoding formats:
 
-- `opcode, rd, rs1, rs2, rstride, precision`
-- `opcode, rd, rs1, rs2, rmask` (V two sources instructions)
-- `opcode, rd, rs1, rmask` (V one source instructions)
-- `opcode, 0, rs1, rs2` (M_MM, M_TMM, M_MV, M_TMV)
-- `opcode, rd, rs1, rs2`
-- `opcode, rd, imm` (M_BMM_WO, M_MV_WO)
-- `opcode, rd, rs1, imm`
+| Format | Operands | Used By |
+|--------|----------|---------|
+| `OPCODE rd, rs1, rs2, rstride, precision` | 5 operands | H_PREFETCH_M, H_PREFETCH_V, H_STORE_V |
+| `OPCODE rd, rs1, rs2, rmask` | 4 operands | V_ADD_VV, V_MUL_VV, etc. |
+| `OPCODE rd, rs1, rmask` | 3 operands | V_EXP_V, V_RECI_V |
+| `OPCODE 0, rs1, rs2` | 3 operands | M_MM, M_TMM, M_MV, M_TMV |
+| `OPCODE rd, rs1, rs2` | 3 operands | S_ADD_INT, C_SET_ADDR_REG |
+| `OPCODE rd, rs1, imm` | 3 operands | S_ADDI_INT, M_MM_WO |
+| `OPCODE rd, imm` | 2 operands | S_LUI_INT, M_BMM_WO, M_MV_WO |
+| `OPCODE rd` | 1 operand | C_SET_SCALE_REG, C_SET_STRIDE_REG |
 
 ## Parameters
+
 Refer to `plena_settings.toml` for the detailed parameters.
-- **MLEN**: Tile size used in matrix machine
-- **BLEN**: Tile size used in systolic array
-- **HLEN**: Tile size used in partitioned systolic array
-- **VLEN**: Tile size used in vector machine
-- **HBM_M_Prefetch_Amount**: Number of MLEN rows fetched from HBM
-- **HBM_V_Prefetch_Amount**: Number of VLEN rows fetched from HBM
+
+| Parameter | Description | Typical Value |
+|-----------|-------------|---------------|
+| **MLEN** | Tile size used in matrix machine | 64 |
+| **BLEN** | Tile size used in systolic array | 4 |
+| **HLEN** | Tile size used in partitioned systolic array | 16 |
+| **VLEN** | Tile size used in vector machine | 64 |
+| **HBM_M_Prefetch_Amount** | Number of MLEN rows fetched from HBM | 64 |
+| **HBM_V_Prefetch_Amount** | Number of VLEN rows fetched from HBM | 4 |
 
 
 ## Matrix (M-Type) Instructions
@@ -46,78 +72,88 @@ Refer to `plena_settings.toml` for the detailed parameters.
 
 ### M_MM
 
-**Format:** `opcode, 0, rs1, rs2`
+**Format:** `M_MM 0, rs1, rs2`
 
-**Operation:** `Systolic Array = Vector_SRAM[gp_reg<rs1>] @ Matrix_SRAM[gp_reg<rs2>]`
+**Operation:** `Systolic Array += Vector_SRAM[gp_reg<rs1>] @ Matrix_SRAM[gp_reg<rs2>]`
 
-**Description:** 
+**Description:**
 
-Fetch an (BLEN,MLEN) vector from the Vector SRAM using the address provided by `rs1` and an (MLEN, BLEN) matrix from the Matrix SRAM using the address provided by `rs2`. Then, perform an array of dot products. The result matrix (MLEN, BLEN) is internally accumulated in every PE of the systolic array.
+Fetch an (BLEN, MLEN) vector from the Vector SRAM using the address provided by `rs1` and an (MLEN, BLEN) matrix from the Matrix SRAM using the address provided by `rs2`. Then, perform an array of dot products. The result matrix (BLEN, BLEN) is internally accumulated in every PE of the systolic array.
+
+**Example:**
+```asm
+S_ADDI_INT gp2, gp0, 0      ; Vector SRAM address = 0
+S_ADDI_INT gp4, gp0, 0      ; Matrix SRAM address = 0
+M_MM 0, gp2, gp4            ; Accumulate Vector[0] @ Matrix[0] into systolic array
+```
 
 ### M_TMM
 
-**Format:** `opcode, 0, rs1, rs2`
+**Format:** `M_TMM 0, rs1, rs2`
 
-**Operation:** `Systolic Array = Vector[gp_reg<rs1>] @ Matrix[gp_reg<rs2>]^T`
+**Operation:** `Systolic Array += Vector[gp_reg<rs1>] @ Matrix[gp_reg<rs2>]^T`
 
-**Description:** 
+**Description:**
 
 Similar to `M_MM`, but transposes the matrix.
 
 ### M_BMM
 
-**Format:** `opcode, 0, rs1, rs2`
+**Format:** `M_BMM 0, rs1, rs2`
 
 **Operation:** `Systolic Array = Per Head (Vector_SRAM[gp_reg<rs2>] @ Matrix_SRAM[gp_reg<rs1> + gp_reg<rd>])`
 
 `[MLEN // HLEN, MLEN, HLEN] @ [HLEN, MLEN] = [MLEN // HLEN, MLEN, MLEN]`
 
-**Description:** 
+**Description:**
 
 Only take the sliced (HLEN, MLEN) matrix from the Matrix SRAM using the address provided by `gp_reg<rs1> + gp_reg<rd>`, and the vector of shape (MLEN // HLEN, MLEN, HLEN) from the Vector SRAM using the address provided by `gp_reg<rs1>`. Then, perform an array of dot products. The result matrix [MLEN // HLEN, MLEN, MLEN] is internally accumulated in every PE of the systolic array.
 
 ### M_BTMM
 
-**Format:** `opcode, 0, rs1, rs2`
+**Format:** `M_BTMM 0, rs1, rs2`
 
 **Operation:** `Systolic Array = Per Head (Vector_SRAM[gp_reg<rs2>] @ Matrix_SRAM[gp_reg<rs1> + gp_reg<rd>])^T`
 
-**Description:** 
+**Description:**
 
 Similar to `M_BMM`, but the matrix from Matrix SRAM is transposed before the operation.
 
 ### M_BMM_WO
 
-**Format:** `opcode, rd, imm`
+**Format:** `M_BMM_WO rd, imm`
 
-**Description:** 
+**Description:**
 
 Store the accumulated result [MLEN // HLEN, MLEN, MLEN] to the Vector SRAM at the address specified by `gp_reg<rd> + imm` with stride `MLEN // HLEN` and precision `Weights` or `KeyValue` depending on the precision of the MXFP data.
 
 ### M_MM_WO
 
-**Format:** `opcode, rd, rstride, imm`
+**Format:** `M_MM_WO rd, rs1, imm`
 
-**Description:** 
+**Operation:** 
+
+**Description:**
 
 Output the accumulated result (BLEN, BLEN) stored in the first row of the systolic array to the Vector SRAM at the address specified by `gp_reg<rd>` with stride `rstride`.
 
 ### M_MV
 
-**Format:** `opcode, rd, rs1, x`
+**Format:** `M_MV rd, rs1, x`
 
 **Operation:** `First Row of Sys Array = Vector[gp_reg<rs1>] @ Matrix[gp_reg<rs2>]`
-**Description:** 
+
+**Description:**
 
 Fetch an (MLEN, MLEN) matrix from the Matrix SRAM using the address provided by `gp_reg<rs2>`, and an (MLEN, 1) vector from the Vector SRAM using the address provided by `gp_reg<rs1>`. Then, perform a dot product and store the resulting (MLEN, 1) vector in the **First Row of Sys Array**.
 
-### M_TMV 
+### M_TMV
 
-**Format:** `opcode, rd, rs1, x`
+**Format:** `M_TMV rd, rs1, x`
 
 **Operation:** `First Row of Sys Array = Vector[gp_reg<rs1>] @ Matrix[gp_reg<rs2>]^T`
 
-**Description:** 
+**Description:**
 
 This instruction is similar to `M_MV`, but transposes the Matrix when fetching from the Matrix SRAM at the address set by `rs2`.
 
@@ -125,11 +161,11 @@ This instruction is similar to `M_MV`, but transposes the Matrix when fetching f
 
 ### M_BTMV (TODO: Implement)
 
-### M_MV_WO 
+### M_MV_WO
 
-**Format:** `opcode, rd, imm`
+**Format:** `M_MV_WO rd, imm`
 
-**Description:** 
+**Description:**
 
 Store the accumulated result (MLEN, 1) stored in the first row of the systolic array to the Vector SRAM at the address specified by `gp_reg<rd> + imm`
 
@@ -151,107 +187,105 @@ Store the accumulated result (MLEN, 1) stored in the first row of the systolic a
 - **Vector SRAM:** Read Addresses `gp_reg<rs1> % VLEN` and `gp_reg<rs2> % VLEN` must be multiples of `VLEN`.
 - **Vector SRAM:** Write Addresses `gp_reg<rd> % VLEN` must be multiples of `VLEN`.
 
-### V_ADD_VV 
+### V_ADD_VV
 
-**Format:** `opcode, rd, rs1, rs2, rmask`
+**Format:** `V_ADD_VV rd, rs1, rs2, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs2>] & gp_reg<rmask>) + (Vector[gp_reg<rs1>]) & gp_rmask`
 
-**Description:** 
+**Description:**
 
 Fetch two (MLEN, 1) vectors from the Vector SRAM using the addresses provided by `rs2` and `rs1`, and then perform element-wise addition. Store the resulting vector back to the Vector SRAM at the address provided by `rd`.
 
-### V_ADD_VF 
+### V_ADD_VF
 
-**Format:** `opcode, rd, rs1, rs2, rmask`
+**Format:** `V_ADD_VF rd, rs1, rs2, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs1>] & gp_reg<rmask>) + Broadcast(fp_reg<rs2>) & gp_reg<rmask>`
 
-**Description:** 
+**Description:**
 
 Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, then fetch a single floating-point value from the FP register file using the index provided by `rs2`. Broadcast this value by duplicating it to form an (MLEN, 1) vector, and then perform element-wise addition. Store the resulting vector back to Vector SRAM at the address provided by `rd`.
 
-### V_SUB_VV 
+### V_SUB_VV
 
-**Format:** `opcode, rd, rs1, rs2, rmask`
+**Format:** `V_SUB_VV rd, rs1, rs2, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs2>] & gp_reg<rmask>) - (Vector[gp_reg<rs1>] & gp_reg<rmask>)`
 
-**Description:** 
+**Description:**
 
 Similar to `V_ADD_VV`, but performs element-wise subtraction.
 
-### V_SUB_VF 
+### V_SUB_VF
 
-**Format:** `opcode, rd, rs1, fp2, rmask, rorder`
+**Format:** `V_SUB_VF rd, rs1, fp2, rmask, rorder`
 
-**Operation:** 
-- If `rorder = Normal`: `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs1>] & gp_reg<rmask>) - Broadcast(fp_reg<fp2>) & gp_reg<rmask>`
-- If `rorder = Reverse`: `Vector[gp_reg<rd>] & gp_rmask = Broadcast(fp_reg<fp2>) & gp_reg<rmask> - (Vector[gp_reg<rs1>] & gp_reg<rmask>)`
+**Operation:**
+- If `rorder = 0` (Normal): `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs1>] & gp_reg<rmask>) - Broadcast(fp_reg<fp2>) & gp_reg<rmask>`
+- If `rorder > 0` (Reverse): `Vector[gp_reg<rd>] & gp_rmask = Broadcast(fp_reg<fp2>) & gp_reg<rmask> - (Vector[gp_reg<rs1>] & gp_reg<rmask>)`
 
-**Description:** 
+**Description:**
 
-Similar to `V_ADD_VF`, but performs element-wise subtraction. The `rorder` parameter (decoded from `funct1`) controls the order of subtraction:
-- `0` (Normal): vector - scalar
-- `>0` (Reverse): scalar - vector
+Similar to `V_ADD_VF`, but performs element-wise subtraction. The `rorder` parameter (decoded from `funct1`) controls the order of subtraction.
 
-### V_MUL_VV 
+### V_MUL_VV
 
-**Format:** `opcode, rd, rs1, rs2, rmask`
+**Format:** `V_MUL_VV rd, rs1, rs2, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs1>] & gp_reg<rmask>) * (Vector[gp_reg<rs2>] & gp_reg<rmask>)`
 
-**Description:** 
+**Description:**
 
 Similar to `V_ADD_VV`, but performs element-wise multiplication.
 
-### V_MUL_VF 
+### V_MUL_VF
 
-**Format:** `opcode, rd, rs1, fp2, rmask`
+**Format:** `V_MUL_VF rd, rs1, fp2, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs1>] & gp_reg<rmask>) * Broadcast(fp_reg<fp2>) & gp_reg<rmask>`
 
-**Description:** 
+**Description:**
 
 Similar to `V_ADD_VF`, but performs element-wise multiplication.
 
-### V_EXP_V 
+### V_EXP_V
 
-**Format:** `opcode, rd, rs1, x, rmask`
+**Format:** `V_EXP_V rd, rs1, x, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] = exp(Vector[gp_reg<rs1>])`
 
-**Description:** 
+**Description:**
 
 Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, perform element-wise exponentiation, and store the resulting vector back into the Vector SRAM at the address specified by `rd`.
 
-### V_RECI_V 
+### V_RECI_V
 
-**Format:** `opcode, rd, rs1, x`
+**Format:** `V_RECI_V rd, rs1, x`
 
 **Operation:** `Vector[gp_reg<rd>] = reciprocal(Vector[gp_reg<rs1>])`
 
-**Description:** 
+**Description:**
 
 Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, perform element-wise reciprocal, and store the resulting vector back into the Vector SRAM at the address specified by `rd`.
 
-### V_RED_SUM 
+### V_RED_SUM
 
-**Format:** `opcode, rd, rs1, 0`
+**Format:** `V_RED_SUM rd, rs1, 0`
 
 **Operation:** `fp_reg<rd> = sum(Vector[gp_reg<rs1>], fp_reg<rd>)`
 
-**Description:** 
+**Description:**
 
 Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, and a single floating-point value from the FP register file using the index specified by `rd`. Perform element-wise addition on the combined vector, and store the resulting sum back into the FP register file at the index specified by `rd`. This instruction is designed to facilitate continuous summation along a high-dimension vector.
 
-### V_RED_MAX 
+### V_RED_MAX
 
-**Format:** `opcode, rd, rs1, 0`
+**Format:** `V_RED_MAX rd, rs1, 0`
 
 **Operation:** `fp_reg<rd> = max(Vector[gp_reg<rs1>], fp_reg<rd>)`
 
-**Description:** 
+**Description:**
 
 Similar to `V_RED_SUM` but performs the max value selection operation.
 
@@ -267,51 +301,57 @@ Similar to `V_RED_SUM` but performs the max value selection operation.
 |----------|-------------|
 | **INT_MEM[i]** | i-th entry of the SRAM within the scalar machine specifically designed for integer operations |
 
-#### S_ADD_INT 
+#### S_ADD_INT
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `S_ADD_INT rd, rs1, rs2`
 
 **Operation:** `gp_reg<rd> = gp_reg<rs1> + gp_reg<rs2>`
 
-#### S_ADDI_INT 
+#### S_ADDI_INT
 
-**Format:** `opcode, rd, rs1, imm2`
+**Format:** `S_ADDI_INT rd, rs1, imm`
 
-**Operation:** `gp_reg<rd> = gp_reg<rs1> + imm2`
+**Operation:** `gp_reg<rd> = gp_reg<rs1> + imm`
 
-#### S_SUB_INT 
+**Example:**
+```asm
+S_ADDI_INT gp1, gp0, 128    ; gp1 = 0 + 128 = 128
+S_ADDI_INT gp2, gp1, 64     ; gp2 = 128 + 64 = 192
+```
 
-**Format:** `opcode, rd, rs1, rs2`
+#### S_SUB_INT
+
+**Format:** `S_SUB_INT rd, rs1, rs2`
 
 **Operation:** `gp_reg<rd> = gp_reg<rs1> - gp_reg<rs2>`
 
-#### S_MUL_INT 
+#### S_MUL_INT
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `S_MUL_INT rd, rs1, rs2`
 
 **Operation:** `gp_reg<rd> = gp_reg<rs1> * gp_reg<rs2>`
 
-#### S_LUI_INT 
+#### S_LUI_INT
 
-**Format:** `opcode, rd, imm`
+**Format:** `S_LUI_INT rd, imm`
 
 **Operation:** `gp_reg<rd> = imm << 12`
 
-**Description:** 
+**Description:**
 
 Load upper immediate value into the integer register.
 
-#### S_LD_INT 
+#### S_LD_INT
 
-**Format:** `opcode, rd, rs1, imm2`
+**Format:** `S_LD_INT rd, rs1, imm`
 
-**Operation:** `gp_reg<rd> = INT_MEM[gp_reg<rs1> + imm2]`
+**Operation:** `gp_reg<rd> = INT_MEM[gp_reg<rs1> + imm]`
 
-#### S_ST_INT 
+#### S_ST_INT
 
-**Format:** `opcode, rd, rs1, imm2`
+**Format:** `S_ST_INT rd, rs1, imm`
 
-**Operation:** `INT_MEM[gp_reg<rs1> + imm2] = gp_reg<rd>`
+**Operation:** `INT_MEM[gp_reg<rs1> + imm] = gp_reg<rd>`
 
 ### Floating-Point Operations
 
@@ -321,67 +361,67 @@ Load upper immediate value into the integer register.
 |----------|-------------|
 | **FP_MEM[i]** | i-th entry of the SRAM within the scalar machine specifically designed for floating-point operations |
 
-#### S_ADD_FP 
+#### S_ADD_FP
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `S_ADD_FP rd, rs1, rs2`
 
 **Operation:** `fp_reg<rd> = fp_reg<rs1> + fp_reg<rs2>`
 
-#### S_SUB_FP 
+#### S_SUB_FP
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `S_SUB_FP rd, rs1, rs2`
 
 **Operation:** `fp_reg<rd> = fp_reg<rs1> - fp_reg<rs2>`
 
-#### S_MAX_FP 
+#### S_MAX_FP
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `S_MAX_FP rd, rs1, rs2`
 
 **Operation:** `fp_reg<rd> = max(fp_reg<rs1>, fp_reg<rs2>)`
 
-#### S_MUL_FP 
+#### S_MUL_FP
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `S_MUL_FP rd, rs1, rs2`
 
 **Operation:** `fp_reg<rd> = fp_reg<rs1> * fp_reg<rs2>`
 
-#### S_EXP_FP 
+#### S_EXP_FP
 
-**Format:** `opcode, rd, rs1, x`
+**Format:** `S_EXP_FP rd, rs1, x`
 
 **Operation:** `fp_reg<rd> = exp(fp_reg<rs1>)`
 
 #### S_RECI_FP
 
-**Format:** `opcode, rd, rs1, x`
+**Format:** `S_RECI_FP rd, rs1, x`
 
 **Operation:** `fp_reg<rd> = reciprocal(fp_reg<rs1>)`
 
-#### S_SQRT_FP 
+#### S_SQRT_FP
 
-**Format:** `opcode, rd, rs1, x`
+**Format:** `S_SQRT_FP rd, rs1, x`
 
 **Operation:** `fp_reg<rd> = sqrt(fp_reg<rs1>)`
 
-#### S_LD_FP 
+#### S_LD_FP
 
-**Format:** `opcode, rd, rs1, imm2`
+**Format:** `S_LD_FP rd, rs1, imm`
 
-**Operation:** `fp_reg<rd> = FP_MEM[gp_reg<rs1> + imm2]`
+**Operation:** `fp_reg<rd> = FP_MEM[gp_reg<rs1> + imm]`
 
-#### S_ST_FP 
+#### S_ST_FP
 
-**Format:** `opcode, rd, rs1, imm2`
+**Format:** `S_ST_FP rd, rs1, imm`
 
-**Operation:** `FP_MEM[gp_reg<rs1> + imm2] = fp_reg<rd>`
+**Operation:** `FP_MEM[gp_reg<rs1> + imm] = fp_reg<rd>`
 
-#### S_MAP_V_FP 
+#### S_MAP_V_FP
 
-**Format:** `opcode, rd, rs1, imm2`
+**Format:** `S_MAP_V_FP rd, rs1, imm`
 
-**Operation:** `Vector[gp_reg<rd> :+ VLEN] = FP_MEM[gp_reg<rs1> + imm2 :+ VLEN]`
+**Operation:** `Vector[gp_reg<rd> :+ VLEN] = FP_MEM[gp_reg<rs1> + imm :+ VLEN]`
 
-**Description:** 
+**Description:**
 
 Copy a vector of length VLEN from FP_MEM to Vector SRAM.
 
@@ -397,121 +437,181 @@ Copy a vector of length VLEN from FP_MEM to Vector SRAM.
 | **Vector[i]** | The i-th entry of the Vector SRAM |
 | **HBM[i]** | The i-th entry of the HBM |
 
-### H_PREFETCH_M 
+### H_PREFETCH_M
 
 **Addressing Constraints:**
 - **Matrix SRAM:** Write Addresses `gp_reg<rd>` must be multiples of `MLEN * MLEN`.
 - **Vector SRAM:** Write Addresses `gp_reg<rd>` must be multiples of `VLEN`.
 
-**Format:** `opcode, rd, rs1, rs2, rstride, precision`
+**Format:** `H_PREFETCH_M rd, rs1, rs2, rstride, precision`
 
-**Operation:** `Matrix[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg_<rs2>]`
+**Operation:** `Matrix[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg<rs2>]`
 
-**Description:** 
+**Description:**
 
-Prefetch a matrix of size **HBM_M_Prefetch_Amount × MLEN** from the HBM to the Matrix SRAM, with a stride width specified by **hbm_stride_reg[rstride]**.
+Prefetch a matrix of size **HBM_M_Prefetch_Amount × MLEN** from the HBM to the Matrix SRAM, with a stride width specified by **STRIDE_REG** (set via `C_SET_STRIDE_REG`).
 
-The `precision` field (decoded from `funct1`) determines the data precision:
-- `0` (Weights): High precision weights
-- `>0` (KeyValue): Lower precision key-value data
+**Operands:**
+- `rd`: Register containing destination address in Matrix SRAM
+- `rs1`: Register containing offset within HBM
+- `rs2`: HBM address register index (`a0`-`a7`) containing base address
+- `rstride`: Stride register selector (use `1` to enable stride from STRIDE_REG)
+- `precision`: Data precision (`0` = Weights, `1` = KeyValue)
 
-### H_PREFETCH_V 
+**Example:**
+```asm
+S_ADDI_INT gp1, gp0, 576           ; gp1 = 576 (HBM base address for weights)
+C_SET_ADDR_REG a1, gp0, gp1        ; a1 = HBM base address
 
-**Format:** `opcode, rd, rs1, rs2, rstride, precision`
+S_ADDI_INT gp4, gp0, 128           ; gp4 = 128 (stride)
+C_SET_STRIDE_REG gp4               ; Set stride register
 
-**Operation:** `Vector[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg_<rs2>]`
+S_ADDI_INT gp2, gp0, 0             ; gp2 = 0 (Matrix SRAM destination)
+S_ADDI_INT gp3, gp0, 0             ; gp3 = 0 (HBM offset)
+H_PREFETCH_M gp2, gp3, a1, 1, 0    ; Prefetch weights from HBM[a1+0] to Matrix[0]
+```
 
-**Description:** 
+### H_PREFETCH_V
 
-Prefetch a matrix of size **HBM_V_Prefetch_Amount × VLEN** from the HBM to the Vector SRAM, with a stride width specified by **hbm_stride_reg[rstride]**.
+**Format:** `H_PREFETCH_V rd, rs1, rs2, rstride, precision`
 
-The `precision` field (decoded from `funct1`) determines the data precision:
-- `0` (Activation): High precision activation data
-- `>0` (KeyValue): Lower precision key-value data
+**Operation:** `Vector[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg<rs2>]`
 
-### H_STORE_V 
+**Description:**
 
-**Format:** `opcode, rd, rs1, rs2, rstride, precision`
+Prefetch a matrix of size **HBM_V_Prefetch_Amount × VLEN** from the HBM to the Vector SRAM, with a stride width specified by **STRIDE_REG**.
 
-**Operation:** `HBM[gp_reg<rs1> + hbm_addr_reg_<rs2>] = Vector[gp_reg<rd>]`
+**Operands:**
+- `rd`: Register containing destination address in Vector SRAM
+- `rs1`: Register containing offset within HBM
+- `rs2`: HBM address register index (`a0`-`a7`) containing base address
+- `rstride`: Stride register selector (`0` = no stride, `1` = use STRIDE_REG)
+- `precision`: Data precision (`0` = Activation, `1` = KeyValue)
 
-**Description:** 
+**Example:**
+```asm
+S_ADDI_INT gp3, gp0, 0             ; gp3 = 0 (Vector SRAM destination)
+S_ADDI_INT gp2, gp0, 0             ; gp2 = 0 (HBM offset)
+H_PREFETCH_V gp3, gp2, a0, 1, 0    ; Prefetch activations from HBM[a0+0] to Vector[0]
+```
 
-Store a matrix of size **HBM_V_Writeback_Amount × VLEN** from Vector SRAM to HBM, with a stride width specified by **hbm_stride_reg[rstride]**.
+### H_STORE_V
 
-The `precision` field (decoded from `funct1`) determines the data precision:
-- `0` (Activation): High precision activation data
-- `>0` (KeyValue): Lower precision key-value data
+**Format:** `H_STORE_V rd, rs1, rs2, rstride, precision`
+
+**Operation:** `HBM[gp_reg<rs1> + hbm_addr_reg<rs2>] = Vector[gp_reg<rd>]`
+
+**Description:**
+
+Store a matrix of size **HBM_V_Writeback_Amount × VLEN** from Vector SRAM to HBM, with a stride width specified by **STRIDE_REG**.
+
+**Operands:**
+- `rd`: Register containing source address in Vector SRAM
+- `rs1`: Register containing offset within HBM
+- `rs2`: HBM address register index (`a0`-`a7`) containing base address
+- `rstride`: Stride register selector (`0` = no stride, `1` = use STRIDE_REG)
+- `precision`: Data precision (`0` = Activation, `1` = KeyValue)
 
 ---
 
 ## Control and Status Register (C-Type) Instructions
 
-### C_SET_ADDR_REG 
+### C_SET_ADDR_REG
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `C_SET_ADDR_REG rd, rs1, rs2`
 
-**Operation:** `hbm_addr_reg_<rd> = {gp_reg<rs2>, gp_reg<rs1>}`
+**Operation:** `hbm_addr_reg<rd> = {gp_reg<rs2>, gp_reg<rs1>}`
 
-**Description:** 
+**Description:**
 
-This instruction is used to set the value of `hbm_addr_reg[rd]`, assuming it has double the bit width of `fix_reg`, by concatenating two `fix_reg` entries and storing the result in `hbm_addr_reg[rd]`. The concatenation order is `{rs2, rs1}`.
+Set the value of `hbm_addr_reg[rd]` by concatenating two general-purpose registers. The HBM address register has double the bit width of a GP register. The concatenation order is `{rs2 (high bits), rs1 (low bits)}`.
 
-### C_SET_SCALE_REG 
+**Example:**
+```asm
+S_ADDI_INT gp1, gp0, 576           ; gp1 = 576 (low bits of address)
+C_SET_ADDR_REG a1, gp0, gp1        ; a1 = {gp1, gp0} = 576
+```
 
-**Format:** `opcode, rd`
+### C_SET_SCALE_REG
 
-**Operation:** `SCALE_OFFSET = rd`
+**Format:** `C_SET_SCALE_REG rd`
 
-**Description:** 
+**Operation:** `SCALE_OFFSET = gp_reg<rd>`
 
-This instruction is used to set the scale offset. The blocks and scales of the MXFP data are stored separately in HBM for memory alignment purposes. Their distance is set by the scale offset. This value differs depending on the precision of the MXFP and the data size. For example, for Q(B, S, H, D), the scales are stored after the blocks, and the offset is `B × S × H × D × (EXP_WIDTH + MANT_WIDTH + 1) / 8`.
+**Description:**
 
-### C_SET_STRIDE_REG 
+Set the scale offset register. This is **required before H_PREFETCH_M and H_PREFETCH_V** operations when using MXFP format data. The scale offset specifies the distance between data blocks and their scale factors in HBM.
 
-**Format:** `opcode, rd`
+**Typical value:** For weight matrices, set to `hidden_size * hidden_size` (total number of elements).
 
-**Operation:** `STRIDE_SIZE = rd`
+**Example:**
+```asm
+S_ADDI_INT gp4, gp0, 16384         ; gp4 = 128*128 = 16384 (weight matrix size)
+C_SET_SCALE_REG gp4                ; Set scale offset
+```
 
-**Description:** 
+### C_SET_STRIDE_REG
 
-This instruction is used to set the stride size for the prefetch instructions.
+**Format:** `C_SET_STRIDE_REG rd`
 
-### C_SET_V_MASK_REG 
+**Operation:** `STRIDE_SIZE = gp_reg<rd>`
 
-**Format:** `opcode, rd`
+**Description:**
 
-**Operation:** `V_MASK = rd`
+Set the stride size for prefetch instructions. The value is read from the register `rd`, **not** an immediate value.
 
-**Description:** 
+**Example:**
+```asm
+S_ADDI_INT gp4, gp0, 128           ; gp4 = 128 (stride value)
+C_SET_STRIDE_REG gp4               ; STRIDE_SIZE = 128
+```
 
-This instruction is used to set the vector mask register for masked vector operations.
+### C_SET_V_MASK_REG
+
+**Format:** `C_SET_V_MASK_REG rd`
+
+**Operation:** `V_MASK = gp_reg<rd>`
+
+**Description:**
+
+Set the vector mask register for masked vector operations.
 
 ### C_BREAK
 
-**Format:** `opcode, 0, 0, 0`
+**Format:** `C_BREAK 0, 0, 0`
 
 **Operation:** Breakpoint exception
 
-**Description:** 
+**Description:**
 
-Triggers a breakpoint exception, typically used for debugging purposes.
+Triggers a breakpoint exception for debugging purposes. **Note:** Programs do not require `C_BREAK` to terminate - execution completes when all instructions finish.
 
 ### C_LOOP_START
 
-**Format:** `opcode, rd, imm`
+**Format:** `C_LOOP_START rd, imm`
 
-**Description:** 
+**Operation:** Initialize loop with `imm` iterations, using `rd` as the loop counter register.
 
-This instruction is used to start a loop. The loop count is set by the `imm` field.
+**Description:**
+
+Start a hardware loop. The loop count is set by `imm`. The register `rd` is used internally to track the loop counter.
+
+**Example:**
+```asm
+C_LOOP_START gp4, 8                ; Start loop with 8 iterations
+; ... loop body ...
+C_LOOP_END gp4                     ; End of loop
+```
 
 ### C_LOOP_END
 
-**Format:** `opcode, rd, 0`
+**Format:** `C_LOOP_END rd, 0`
 
-**Description:** 
+**Operation:** If `gp_reg<rd> > 0`, decrement counter and jump to matching `C_LOOP_START`.
 
-Jump to the start of the loop where the C_LOOP_START is called if the rd value is greater than 0 and reduce the rd value by 1.
+**Description:**
+
+End of a hardware loop. If the loop counter (in register `rd`) is greater than 0, it decrements the counter and jumps back to the corresponding `C_LOOP_START`.
 
 ---
 
@@ -521,10 +621,64 @@ By default, the memory layout follows this format:
 
 Given an input tensor with shape `[b, s, h]` where:
 - `b` = batch size
-- `s` = sequence length  
+- `s` = sequence length
 - `h` = hidden size
 
 The data stored in Vector SRAM is reshaped to `[h // VLEN, b, s, VLEN]`.
 
 **Rationale:** The hidden dimension is split along the `VLEN` boundary to enable efficient multi-batch GEMM operations. This layout allows parallel processing across batches while maintaining vector-length alignment requirements.
 
+## Memory Layout Examples
+
+### Example 1: Activation Tensor
+
+For an activation tensor with shape `[batch=4, hidden=128]` and `VLEN=64`:
+
+- Reshaped to: `[128//64, 4, 64]` = `[2, 4, 64]`
+- Vector SRAM layout:
+  - Address 0: First 64 elements of hidden dim for all batches
+  - Address 256: Second 64 elements of hidden dim for all batches
+
+### Example 2: Weight Matrix
+
+For a weight matrix with shape `[128, 128]` and `MLEN=64`:
+
+- Tiled into `[2, 2]` blocks of `[64, 64]` each
+- Matrix SRAM addresses:
+  - Tile (0,0): Address 0
+  - Tile (0,1): Address 4096 (= 64×64)
+  - HBM layout uses stride to access different row blocks
+
+---
+
+# Minimal Example:
+
+This example shows a minimal matrix multiplication: `output[4,4] = activation[4,64] @ weight[64,4]`
+
+```asm
+; === 1. Setup HBM Address Registers ===
+S_ADDI_INT gp1, gp0, 576           ; Weight offset in HBM
+C_SET_ADDR_REG a1, gp0, gp1        ; a1 = weight base address
+
+; === 2. Set Scale and Stride Registers ===
+S_ADDI_INT gp4, gp0, 256           ; Scale = 64*4 = 256 (weight size)
+C_SET_SCALE_REG gp4
+
+S_ADDI_INT gp4, gp0, 4             ; Stride = output width
+C_SET_STRIDE_REG gp4
+
+; === 3. Prefetch Weights to Matrix SRAM ===
+S_ADDI_INT gp2, gp0, 0             ; Matrix SRAM destination = 0
+S_ADDI_INT gp3, gp0, 0             ; HBM offset = 0
+H_PREFETCH_M gp2, gp3, a1, 1, 0    ; Prefetch weights (precision=0)
+
+; === 4. Matrix Multiply ===
+; Assumes activation already in Vector SRAM at address 0
+S_ADDI_INT gp2, gp0, 0             ; Activation address in Vector SRAM
+S_ADDI_INT gp4, gp0, 0             ; Weight address in Matrix SRAM
+M_MM 0, gp2, gp4                   ; Accumulate result in systolic array
+
+; === 5. Write Result to Vector SRAM ===
+S_ADDI_INT gp1, gp0, 64            ; Result address = 64
+M_MM_WO 1, gp0, 0                  ; Write systolic result to Vector[gp1]
+```
