@@ -120,8 +120,8 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     M_TMV                  = 6'h08,
     M_BMV                  = 6'h09,
     M_BTMV                 = 6'h0A,
-    M_BMV_WO               = 6'h0B,
-    M_MV_WO                = 6'h0C,
+    M_MV_WO                = 6'h0B,
+    M_BMV_WO               = 6'h0C,
 
     // Vector Operations
     V_ADD_VV               = 6'h0D,

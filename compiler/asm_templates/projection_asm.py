@@ -165,7 +165,7 @@ def _projection_asm_unrolled(
         # Compute and set result address, then write out
         result_offset = mlen_block * mlen * blen + tile_in_block * blen
         lines.append(f"S_ADDI_INT gp{result_reg}, gp0, {result_base_address + result_offset}")
-        lines.append(f"M_MM_WO {result_reg}, gp0, 0")
+        lines.append(f"M_MM_WO gp{result_reg}, gp0, 0")
 
         # === PREPARE NEXT ITERATION ===
         # Reset activation pointer (skip on last iteration - saves 1 instruction)

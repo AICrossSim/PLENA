@@ -78,7 +78,7 @@ Refer to `plena_settings.toml` for the detailed parameters.
 
 **Description:**
 
-Fetch an (BLEN, MLEN) vector from the Vector SRAM using the address provided by `rs1` and an (MLEN, BLEN) matrix from the Matrix SRAM using the address provided by `rs2`. Then, perform an array of dot products. The result matrix (BLEN, BLEN) is internally accumulated in every PE of the systolic array.
+Fetch an (BLEN, MLEN) vector from the Vector SRAM using the address provided by `rs1` and an (MLEN, BLEN) matrix from the Matrix SRAM using the address provided by `rs2`. Then, perform an array of dot products. The result matrix (BLEN, BLEN) is internally accumulated in every PE of the systolic array. 0 is a placeholder here, it does not have the write access to the Vector SRAM.
 
 **Example:**
 ```asm
@@ -135,7 +135,7 @@ Store the accumulated result [MLEN // HLEN, MLEN, MLEN] to the Vector SRAM at th
 
 **Description:**
 
-Output the accumulated result (BLEN, BLEN) stored in the first row of the systolic array to the Vector SRAM at the address specified by `gp_reg<rd>` with stride `rstride`.
+Write the accumulated (BLEN × BLEN) tile from the systolic array into Vector SRAM starting at gp_reg<rd>. The tile is laid out row by row (BLEN rows). The row stride is gp_reg<rd> * MLEN (if gp_reg<rd> == 0, use 1 * MLEN). Within each stride, write BLEN elements starting at column offset gp_reg<rd> % MLEN, and the start at row gp_reg<rd> // MLEN in Matrix SRAM.
 
 ### M_MV
 

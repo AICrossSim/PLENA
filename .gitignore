@@ -15,6 +15,7 @@ build/
 
 *.str
 *.jou
+boom-riscv/
 
 doc/figure_gen/*
 
