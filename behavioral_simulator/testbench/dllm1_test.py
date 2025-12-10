@@ -1,4 +1,5 @@
 import sys
+import random
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -27,6 +28,7 @@ if __name__ == "__main__":
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
     fp_preload = [0.0, 1e-6]
+    int_preload = [random.randint(0, 10) for _ in range(vlen)]
     
     torch.manual_seed(42)
     logits = torch.randn(batch_size, hidden_size)
@@ -86,5 +88,5 @@ if __name__ == "__main__":
     # gen_assembly_code += f"S_ADDI_INT gp2, gp0, {int(hidden_size * batch_size * real_data_ratio)} \n"
     # gen_assembly_code += "H_PREFETCH_V gp1, gp2, a0, 0, 2, 1 \n"
     
-    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload, int_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits", "int"])

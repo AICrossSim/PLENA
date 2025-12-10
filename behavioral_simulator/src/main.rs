@@ -1715,7 +1715,7 @@ struct Opts {
 
     #[arg(long)]
     /// Path to INT SRAM contents for preloading.
-    intsram: Option<PathBuf>,
+    intsram: PathBuf,
 
     #[arg(long)]
     /// Path to file storing Vector SRAM contents (optional).
@@ -1812,17 +1812,16 @@ async fn start() {
     accelerator.fpsram[..fp_vals.len()].copy_from_slice(&fp_vals[..fp_vals.len()]);
 
     // - INT SRAM Preload
-    if let Some(intsram_path) = opts.intsram {
-        let intsram_data = std::fs::read(intsram_path).unwrap();
-        let int_vals: &[u32] = unsafe {
-            std::slice::from_raw_parts(
-                intsram_data.as_ptr() as *const u32,
-                intsram_data.len() / std::mem::size_of::<u32>(),
-            )
-        };
-        accelerator.intsram.clear();
-        accelerator.intsram.extend_from_slice(int_vals);
-    }
+    println!("intsram_path = {:?}", opts.intsram);
+    let intsram_data = std::fs::read(opts.intsram).unwrap();
+    println!("intsram_data = {:?}", intsram_data);
+    let int_vals: &[u32] = unsafe {
+        std::slice::from_raw_parts(
+            intsram_data.as_ptr() as *const u32,
+            intsram_data.len() / std::mem::size_of::<u32>(),
+        )
+    };
+    accelerator.intsram[..int_vals.len()].copy_from_slice(&int_vals[..int_vals.len()]);
     // - VRAM Preload (if provided)
     if let Some(vram_path) = opts.vram {
         let vram_data = std::fs::read(vram_path).unwrap();
@@ -1848,7 +1847,9 @@ async fn start() {
         "Matrix SRAM Contents: \n {}",
         accelerator.m_machine.mram.read(0x0000).await.as_tensor()
     );
-    // println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
+
+    println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
+    println!("INT SRAM Contents: \n {:?}", accelerator.intsram);
 
     // Dump MRAM
     let mram_dump_path = "mram_dump.bin";
