@@ -3,216 +3,178 @@ Anthropic agent for multi-turn iterative assembly generation.
 """
 from __future__ import annotations
 
-import os
 import json
-import sys
 from typing import Dict, List, Any, Optional
 
 import anthropic as anthropic_sdk
+from .system_prompt import SYSTEM_PROMPT
 
 from .tools import (
-    get_assembly_code_examples,
     machine_code_generation,
     run_simulator,
-    setup_test_environment,
     get_instruction_size,
-    get_template,
-    get_doc,
     get_workload,
+    debug_view_memory,
+    read_file,
 )
 
 
 # Tool definitions in Anthropic format
 TOOLS = [
     {
-        "name": "get_assembly_code_examples",
-        "description": "Get assembly code examples for reference",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "mode": {
-                    "type": "string",
-                    "enum": ["one-shot", "few-shot"],
-                    "description": "one-shot for single example, few-shot for multiple"
-                },
-                "layer_type": {
-                    "type": "string",
-                    "description": "Optional filter (e.g., 'projection', 'rms', 'attention')"
-                }
-            },
-            "required": []
-        }
-    },
-    {
-        "name": "machine_code_generation",
-        "description": "Check assembly syntax by generating machine code. Returns syntax errors (if any) and instruction count. Does NOT return binary data.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "assembly_code": {
-                    "type": "string",
-                    "description": "PLENA assembly code"
-                }
-            },
-            "required": ["assembly_code"]
-        }
-    },
-    {
         "name": "run_simulator",
-        "description": "Run full simulation pipeline: assembles code, runs simulator, checks accuracy. Returns latency, accuracy metrics, and any errors. Use this as the main test tool. NOTE: Requires HBM data files - call setup_test_environment first if they don't exist.",
+        "description": """Run full simulation: assemble code, setup test data, execute, check accuracy.
+
+This is the PRIMARY tool for testing assembly code. It does everything automatically:
+1. Assembles your assembly code (checks syntax)
+2. Creates random test inputs based on layer_type/dimensions
+3. Computes golden output using PyTorch
+4. Runs the behavioral simulator
+5. Compares output to golden reference
+
+Returns:
+- success: bool - True if simulation completed
+- latency_ns: float - Execution time in nanoseconds
+- mse: float - Mean Squared Error vs golden. Must be close to target ~8e-04 (small margin allowed)
+- errors: list - Any errors encountered
+
+Success criteria: MSE close to ~8e-04. Keep iterating until this is achieved.""",
         "input_schema": {
             "type": "object",
             "properties": {
-                "assembly_code": {
-                    "type": "string",
-                    "description": "PLENA assembly code"
-                }
-            },
-            "required": ["assembly_code"]
-        }
-    },
-    {
-        "name": "setup_test_environment",
-        "description": "Setup test environment with random input data. Creates HBM data files required by run_simulator. Call this BEFORE run_simulator if you get 'Missing required file' errors.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
+                "assembly_code": {"type": "string", "description": "PLENA assembly code to test"},
                 "layer_type": {
                     "type": "string",
-                    "enum": ["linear", "projection"],
-                    "description": "Type of layer to test (default: linear)"
+                    "enum": ["linear", "ffn", "rms_norm"],
+                    "description": "Layer type for test data generation (default: linear)",
                 },
-                "hidden_size": {
+                "hidden_size": {"type": "integer", "description": "Hidden dimension (default: 128)"},
+                "intermediate_size": {
                     "type": "integer",
-                    "description": "Hidden dimension size (default: 128)"
+                    "description": "FFN intermediate size (default: 4*hidden_size, only used for ffn)",
                 },
-                "batch_size": {
-                    "type": "integer",
-                    "description": "Batch size (default: 4)"
-                }
+                "batch_size": {"type": "integer", "description": "Batch size (default: 4)"},
+                "seq_len": {"type": "integer", "description": "Sequence length (default: 1)"},
             },
-            "required": []
-        }
-    },
-    {
-        "name": "get_instruction_size",
-        "description": "Count instructions in assembly code",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "assembly_code": {
-                    "type": "string",
-                    "description": "PLENA assembly code"
-                }
-            },
-            "required": ["assembly_code"]
-        }
-    },
-    {
-        "name": "get_template",
-        "description": "Get Python assembly template for a layer type",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "layer_name": {
-                    "type": "string",
-                    "enum": ["ffn", "attention", "projection", "rms_norm", "embedding", "elementwise_add"],
-                    "description": "Layer type"
-                }
-            },
-            "required": ["layer_name"]
-        }
-    },
-    {
-        "name": "get_doc",
-        "description": "Get ISA or hardware documentation",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "topic": {
-                    "type": "string",
-                    "enum": ["isa", "registers", "memory", "config"],
-                    "description": "Documentation topic"
-                }
-            },
-            "required": []
-        }
+            "required": ["assembly_code"],
+        },
     },
     {
         "name": "get_workload",
-        "description": "Get model dimensions for a specific workload (e.g., FFN for llama-3.2-1b). Returns hidden_size, intermediate_size, weight shapes, and hardware config.",
+        "description": """Get model dimensions for a specific layer type.
+
+        
+Use this to get correct dimensions (hidden_size, intermediate_size, etc.) for real models.
+Returns hardware config (MLEN=64, VLEN=64, BLEN=4) and layer-specific shapes.""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "model_name": {
                     "type": "string",
-                    "description": "Model name (e.g., 'llama-3.2-1b', 'llama-3.1-8b')"
+                    "description": "Model name (e.g., 'llama-3.2-1b', 'llama-3.1-8b')",
                 },
                 "layer_type": {
                     "type": "string",
                     "enum": ["ffn", "attention", "projection", "rms_norm"],
-                    "description": "Layer type"
+                    "description": "Layer type",
                 },
-                "batch_size": {
-                    "type": "integer",
-                    "description": "Batch size (default 1)"
-                },
-                "seq_len": {
-                    "type": "integer",
-                    "description": "Sequence length (default 1)"
-                }
+                "batch_size": {"type": "integer", "description": "Batch size (default: 1)"},
+                "seq_len": {"type": "integer", "description": "Sequence length (default: 1)"},
             },
-            "required": ["model_name", "layer_type"]
-        }
+            "required": ["model_name", "layer_type"],
+        },
+    },
+    {
+        "name": "machine_code_generation",
+        "description": """Check assembly syntax by assembling to machine code.
+
+Use this for quick syntax validation without running full simulation. you have to first generate the machine code to be runed in the simulator, you cannot run the assmbely code in the simulator
+Returns syntax_errors list and instruction_count.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {"assembly_code": {"type": "string", "description": "PLENA assembly code"}},
+            "required": ["assembly_code"],
+        },
+    },
+    {
+        "name": "get_instruction_size",
+        "description": """Count and categorize instructions in assembly code.
+
+Returns breakdown by category (Matrix, Vector, Scalar, HBM, Control).""",
+        "input_schema": {
+            "type": "object",
+            "properties": {"assembly_code": {"type": "string", "description": "PLENA assembly code"}},
+            "required": ["assembly_code"],
+        },
+    },
+    {
+        "name": "debug_view_memory",
+        "description": """View simulator memory output and compare with golden reference for debugging.
+
+Use this tool when MSE is high to understand what went wrong:
+- See actual values produced by your assembly code
+- Compare side-by-side with expected golden values
+- Identify patterns: all zeros = not computed, wrong values = incorrect addressing
+
+Returns per-row analysis showing simulated vs golden values, min/max/mean stats, and row-level MSE.""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "num_rows": {
+                    "type": "integer",
+                    "description": "Number of rows to display (default 8, each row = 64 values)",
+                },
+                "start_row": {
+                    "type": "integer",
+                    "description": "Starting row index (default 0)",
+                },
+                "show_golden": {
+                    "type": "boolean",
+                    "description": "Whether to show golden reference values (default True)",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "read_file",
+        "description": """Read a file from the codebase for deeper understanding.
+
+Use sparingly - only when documentation is insufficient. Prefer existing tools first.
+
+Useful paths:
+- behavioral_simulator/src/op.rs - Instruction execution logic
+- behavioral_simulator/testbench/check_mem.py - Golden comparison, MSE calculation
+- tools/assembler/assembly_to_binary.py - Assembler implementation
+- src/definitions/configuration.svh - Hardware params (VLEN, MLEN, BLEN)
+- compiler/doc/plena_isa_spec.md - Full ISA specification""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Relative path from project root (e.g., 'behavioral_simulator/src/op.rs')",
+                },
+                "max_lines": {
+                    "type": "integer",
+                    "description": "Maximum lines to return (default 500)",
+                },
+            },
+            "required": ["file_path"],
+        },
     },
 ]
 
 # Tool function registry
 TOOL_FUNCTIONS = {
-    "get_assembly_code_examples": get_assembly_code_examples,
     "machine_code_generation": machine_code_generation,
     "run_simulator": run_simulator,
-    "setup_test_environment": setup_test_environment,
     "get_instruction_size": get_instruction_size,
-    "get_template": get_template,
-    "get_doc": get_doc,
     "get_workload": get_workload,
+    "debug_view_memory": debug_view_memory,
+    "read_file": read_file,
 }
 
-
-SYSTEM_PROMPT = """You are an assembly code generator for the PLENA LLM accelerator.
-
-Your goal is to generate optimized assembly code for neural network layers.
-
-## Workflow
-1. Call setup_test_environment() FIRST to create HBM test data files
-2. Call get_workload() to get model dimensions (hidden_size, intermediate_size, etc.)
-3. Call get_doc() to understand the ISA and registers
-4. Try to generate assembly code FROM SCRATCH using dimensions and your understanding
-5. Call machine_code_generation() to check for syntax errors
-6. If errors, fix and retry
-7. Call run_simulator() to execute and check accuracy
-8. Iterate until accuracy is acceptable
-
-## Optional Tools (use only if stuck)
-- get_template(): See Python template code - use ONLY if you're stuck after multiple failed attempts
-- get_assembly_code_examples(): Reference .asm files - use ONLY for syntax examples if needed
-
-The goal is to generate novel, optimized code. Don't just copy templates.
-
-## Key Registers
-- gp0-gp15: Integer registers (gp0 = 0)
-- f0-f7: Floating-point registers
-- a0-a7: HBM address registers
-
-## Common Instructions
-- S_ADDI_INT gp1, gp0, 100  ; gp1 = 100
-- M_MM 0, gp1, gp2          ; Matrix multiply
-- V_ADD_VV gp3, gp1, gp2, 0 ; Vector add
-- H_PREFETCH_M gp1, gp2, a0, 1, 0 ; Load from HBM
-
-Always iterate until the code assembles correctly and passes accuracy checks.
-"""
 
 
 class AnthropicAgent:
@@ -223,14 +185,17 @@ class AnthropicAgent:
     - Tool calling with automatic execution
     - Multi-turn conversation with message history
     - Iterative refinement based on errors
+    - Extended thinking for complex reasoning
     """
 
     def __init__(
         self,
         model: str = "claude-sonnet-4-20250514",
         api_key: Optional[str] = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16000,
         system_prompt: Optional[str] = None,
+        enable_thinking: bool = True,
+        thinking_budget: int = 10000,
     ):
         """
         Initialize the agent.
@@ -238,8 +203,10 @@ class AnthropicAgent:
         Args:
             model: Claude model to use
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
-            max_tokens: Max tokens per response
+            max_tokens: Max tokens per response (increased for thinking)
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT)
+            enable_thinking: Enable extended thinking for better reasoning
+            thinking_budget: Token budget for thinking (default 10000)
         """
         self.client = anthropic_sdk.Anthropic(api_key=api_key)
         self.model = model
@@ -248,6 +215,8 @@ class AnthropicAgent:
         self.messages: List[Dict] = []
         self.tools = list(TOOLS)  # Copy to allow modifications
         self.tool_functions = dict(TOOL_FUNCTIONS)
+        self.enable_thinking = enable_thinking
+        self.thinking_budget = thinking_budget
 
     def reset(self):
         """Clear conversation history."""
@@ -298,14 +267,23 @@ class AnthropicAgent:
         if user_message:
             self.messages.append({"role": "user", "content": user_message})
 
-        # Call Claude
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            system=self.system_prompt,
-            tools=self.tools,
-            messages=self.messages,
-        )
+        # Call Claude with optional extended thinking
+        api_params = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "system": self.system_prompt,
+            "tools": self.tools,
+            "messages": self.messages,
+        }
+
+        if self.enable_thinking:
+            api_params["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": self.thinking_budget,
+            }
+
+        response = self.client.messages.create(**api_params)
+        breakpoint()
 
         # Check if done
         if response.stop_reason == "end_turn":
@@ -327,11 +305,13 @@ class AnthropicAgent:
                 if block.type == "tool_use":
                     tool_calls.append({"name": block.name, "input": block.input})
                     result = self.execute_tool(block.name, block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps(result) if not isinstance(result, str) else result
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(result) if not isinstance(result, str) else result,
+                        }
+                    )
 
             self.messages.append({"role": "user", "content": tool_results})
             return {"done": False, "response": "", "tool_calls": tool_calls}
@@ -353,25 +333,144 @@ class AnthropicAgent:
         self.reset()
 
         if verbose:
-            print(f"[Agent] Starting task: {task[:80]}...")
+            print("=" * 70)
+            print(f"[TASK] {task}")
+            print("=" * 70)
 
         result = self.step(task)
+        iteration = 0
 
         for i in range(max_iterations):
+            iteration = i + 1
             if result["done"]:
                 if verbose:
-                    print(f"[Agent] Completed in {i + 1} iterations")
+                    print("-" * 70)
+                    print(f"[COMPLETED] Finished in {iteration} iterations")
+                    print("-" * 70)
                 return result["response"]
 
             if verbose and result["tool_calls"]:
+                print(f"\n{'='*70}")
+                print(f"[ITERATION {iteration}]")
+                print("=" * 70)
+
+                # Debug: show content block types
+                for msg in reversed(self.messages):
+                    if msg.get("role") == "assistant":
+                        content = msg.get("content", [])
+                        if isinstance(content, list):
+                            block_types = [getattr(b, "type", "unknown") for b in content]
+                            print(f"[DEBUG] Response block types: {block_types}")
+                        break
+
+                # Print agent's reasoning/thinking if present
+                thinking = self._extract_thinking_from_last_response()
+                if thinking:
+                    print(f"\n[AGENT THINKING]")
+                    print(f"{thinking[:1000]}{'...' if len(thinking) > 1000 else ''}")
+
+                # Print each tool call with input and output
                 for tc in result["tool_calls"]:
-                    print(f"  [Tool] {tc['name']}({str(tc['input'])[:50]}...)")
+                    print(f"\n[TOOL CALL] {tc['name']}")
+                    print(f"  Input: {self._format_tool_input(tc['input'])}")
+
+                # Execute and get results
+                tool_results = self._get_last_tool_results()
+                if tool_results:
+                    for tr in tool_results:
+                        print(f"\n[TOOL RESULT] {tr.get('name', 'unknown')}")
+                        self._print_tool_result(tr.get("result", tr.get("content", "")))
 
             result = self.step()
 
         if verbose:
-            print(f"[Agent] Max iterations ({max_iterations}) reached")
+            print(f"\n[WARNING] Max iterations ({max_iterations}) reached")
         return "Max iterations reached"
+
+    def _extract_thinking_from_last_response(self) -> str:
+        """Extract thinking/text from the last assistant message."""
+        if not self.messages:
+            return ""
+        for msg in reversed(self.messages):
+            if msg.get("role") == "assistant":
+                content = msg.get("content", [])
+                if isinstance(content, list):
+                    # First try to get thinking block (extended thinking)
+                    for block in content:
+                        block_type = getattr(block, "type", None)
+                        if block_type == "thinking":
+                            # Thinking content is in .thinking attribute
+                            thinking_text = getattr(block, "thinking", None)
+                            if thinking_text:
+                                return thinking_text
+                    # Fallback to text block
+                    for block in content:
+                        if hasattr(block, "text") and block.text:
+                            return block.text
+                elif isinstance(content, str):
+                    return content
+        return ""
+
+    def _get_last_tool_results(self) -> list:
+        """Get tool results from the last user message (tool results)."""
+        if not self.messages:
+            return []
+        last_msg = self.messages[-1]
+        if last_msg.get("role") == "user":
+            content = last_msg.get("content", [])
+            if isinstance(content, list):
+                results = []
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "tool_result":
+                        results.append(item)
+                return results
+        return []
+
+    def _format_tool_input(self, input_dict: Dict) -> str:
+        """Format tool input for display, truncating large values."""
+        if not input_dict:
+            return "{}"
+        formatted = {}
+        for k, v in input_dict.items():
+            if isinstance(v, str) and len(v) > 100:
+                # Truncate long strings (like assembly code)
+                formatted[k] = f"{v[:100]}... ({len(v)} chars)"
+            else:
+                formatted[k] = v
+        return json.dumps(formatted, indent=2)
+
+    def _print_tool_result(self, result: Any):
+        """Print tool result with special formatting for simulator results."""
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except (json.JSONDecodeError, TypeError):
+                print(f"  {result[:300]}{'...' if len(str(result)) > 300 else ''}")
+                return
+
+        if isinstance(result, dict):
+            # Special formatting for run_simulator results
+            if "latency_ns" in result or "mse" in result:
+                print(f"  {'─'*40}")
+                print(f"  success:     {result.get('success', 'N/A')}")
+                print(f"  latency_ns:  {result.get('latency_ns', 'N/A')}")
+                print(f"  mse:         {result.get('mse', 'N/A')}")
+                print(f"  match_rate:  {result.get('match_rate', 'N/A')}")
+                print(f"  instr_count: {result.get('instruction_count', 'N/A')}")
+                if result.get("errors"):
+                    print(f"  errors:      {result.get('errors')}")
+                if result.get("test_config"):
+                    print(f"  test_config: {result.get('test_config')}")
+                print(f"  {'─'*40}")
+            # Generic dict formatting
+            else:
+                result_str = json.dumps(result, indent=2, default=str)
+                if len(result_str) > 500:
+                    print(f"  {result_str[:500]}...")
+                else:
+                    print(f"  {result_str}")
+        else:
+            print(f"  {str(result)[:300]}")
 
     def chat(self, message: str) -> str:
         """
@@ -397,8 +496,8 @@ def main():
 
     # Single task run
     result = agent.run(
-        "Generate FFN assembly code for a small test. "
-        "First get the template for FFN, then generate assembly code."
+        "Generate optimized assembly code for a simple linear layer with hidden_size=128, batch=4. "
+        "First get the workload info, then write assembly and test it."
     )
     print("\n" + "=" * 60)
     print("RESULT:")

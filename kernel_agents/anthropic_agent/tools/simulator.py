@@ -16,148 +16,297 @@ sys.path.insert(0, str(PROJECT_ROOT / "behavioral_simulator" / "testbench"))
 sys.path.insert(0, str(PROJECT_ROOT / "compiler"))
 
 
-def run_simulator(assembly_code: str) -> Dict[str, Any]:
+def run_simulator(
+    assembly_code: str,
+    layer_type: Literal["linear", "ffn", "attention", "rms_norm"] = "linear",
+    hidden_size: int = 128,
+    intermediate_size: Optional[int] = None,
+    batch_size: int = 4,
+    seq_len: int = 1,
+) -> Dict[str, Any]:
     """
-    Run behavioral simulator on assembly code.
+    Run full simulation pipeline: setup test data, assemble, execute, check accuracy.
 
-    Internally calls machine_code_generation, so Claude doesn't need to
-    call it separately. This is the main tool for the generate-test loop.
+    This is the main tool for testing assembly code. It handles everything:
+    1. Creates random input tensors based on layer_type and dimensions
+    2. Computes golden reference output using PyTorch
+    3. Assembles assembly code to machine code
+    4. Runs the behavioral simulator
+    5. Compares output against golden reference
 
     Args:
         assembly_code: PLENA assembly code string
+        layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm')
+        hidden_size: Hidden dimension (default 128)
+        intermediate_size: FFN intermediate size (default 4*hidden_size, only for ffn)
+        batch_size: Batch size (default 4)
+        seq_len: Sequence length (default 1)
 
     Returns:
         Dict with:
-            - success: bool
-            - latency_ns: Latency in nanoseconds (if simulation successful)
-            - mse: Mean squared error vs golden output (if golden file exists)
-            - instruction_count: Number of instructions
-            - errors: List of errors (if any)
+            - success: bool - True if simulation completed without errors
+            - latency_ns: float - Simulation latency in nanoseconds
+            - mse: float - Mean squared error vs golden output
+            - match_rate: float - Percentage of values within tolerance
+            - instruction_count: int - Number of instructions
+            - errors: list - Any errors encountered
+            - test_config: dict - The test configuration used
     """
-    from .machine_code import machine_code_generation
+    import torch
+    from torch import nn
 
-    # Step 1: Generate machine code
-    mc_result = machine_code_generation(assembly_code)
-    if not mc_result["success"]:
+    # # Step 1: Assemble code first to check syntax
+    # from .machine_code import machine_code_generation
+
+    # mc_result = machine_code_generation(assembly_code)
+    # if not mc_result["success"]:
+    #     return {
+    #         "success": False,
+    #         "latency_ns": None,
+    #         "mse": None,
+    #         "match_rate": None,
+    #         "instruction_count": 0,
+    #         "errors": mc_result["syntax_errors"],
+    #         "test_config": None,
+    #     }
+
+    # # # Step 2: Setup test environment based on layer type
+    try:
+        test_config = _setup_test_data(
+            layer_type=layer_type,
+            hidden_size=hidden_size,
+            intermediate_size=intermediate_size,
+            batch_size=batch_size,
+            seq_len=seq_len,
+            assembly_code=assembly_code,
+        )
+    except Exception as e:
         return {
             "success": False,
             "latency_ns": None,
             "mse": None,
-            "instruction_count": 0,
-            "errors": mc_result["syntax_errors"],
+            "match_rate": None,
+            # "instruction_count": mc_result["instruction_count"],
+            "errors": [f"Failed to setup test data: {e}"],
+            "test_config": None,
         }
 
-    # Step 2: Check required files exist
+    # Step 3: Run the Rust simulator
     machine_code_path = BUILD_PATH / "generated_machine_code.mem"
     hbm_path = BUILD_PATH / "hbm_for_behave_sim.bin"
     fp_sram_path = BUILD_PATH / "fp_sram.bin"
 
-    missing_files = []
+    # Verify files exist
+    missing = []
     if not machine_code_path.exists():
-        missing_files.append("Machine code missing")
+        missing.append("machine code")
     if not hbm_path.exists():
-        missing_files.append("HBM data missing (call setup_test_environment first)")
+        missing.append("HBM data")
     if not fp_sram_path.exists():
-        missing_files.append("FP SRAM missing")
-
-    if missing_files:
+        missing.append("FP SRAM")
+    if missing:
         return {
             "success": False,
             "latency_ns": None,
             "mse": None,
-            "instruction_count": mc_result["instruction_count"],
-            "errors": missing_files,
+            "match_rate": None,
+            # "instruction_count": mc_result["instruction_count"],
+            "errors": [f"Missing files after setup: {missing}"],
+            # "test_config": test_config,
         }
 
-    # Step 3: Run Rust simulator
     cmd = [
-        "cargo", "run", "--release", "--",
-        "--opcode", str(machine_code_path),
-        "--hbm", str(hbm_path),
-        "--fpsram", str(fp_sram_path),
-        "--quiet"
+        "cargo",
+        "run",
+        "--release",
+        "--",
+        "--opcode",
+        str(machine_code_path),
+        "--hbm",
+        str(hbm_path),
+        "--fpsram",
+        str(fp_sram_path),
+        "--quiet",
     ]
 
     try:
         result = subprocess.run(
-            cmd,
-            cwd=PROJECT_ROOT / "behavioral_simulator",
-            capture_output=True,
-            text=True,
-            timeout=120  # 2 minute timeout
+            cmd, cwd=PROJECT_ROOT / "behavioral_simulator", capture_output=True, text=True, timeout=120
         )
     except subprocess.TimeoutExpired:
         return {
             "success": False,
             "latency_ns": None,
             "mse": None,
-            "instruction_count": mc_result["instruction_count"],
-            "errors": ["Simulator timeout (>120s)"],
+            "match_rate": None,
+            # "instruction_count": mc_result["instruction_count"],
+            "errors": ["Simulator timeout (>120s) - possible infinite loop"],
+            # "test_config": test_config,
         }
     except Exception as e:
         return {
             "success": False,
             "latency_ns": None,
             "mse": None,
-            "instruction_count": mc_result["instruction_count"],
+            "match_rate": None,
+            # "instruction_count": mc_result["instruction_count"],
             "errors": [f"Failed to run simulator: {e}"],
+            # "test_config": test_config,
         }
 
-    # Step 4: Parse simulator output
-    stdout = result.stdout
-    stderr = result.stderr
-    combined_output = stdout + "\n" + stderr  # Latency is printed to stderr
+    # Step 4: Parse output
+    combined_output = result.stdout + "\n" + result.stderr
 
     if result.returncode != 0:
+        error_msg = result.stderr[:5000] if result.stderr else f"Exit code {result.returncode}"
         return {
             "success": False,
             "latency_ns": None,
             "mse": None,
-            "instruction_count": mc_result["instruction_count"],
-            "errors": [stderr[:500] if stderr else f"Simulator exited with code {result.returncode}"],
+            "match_rate": None,
+            # "instruction_count": mc_result["instruction_count"],
+            "errors": [f"Simulator error: {error_msg}"],
+            # "test_config": test_config,
         }
 
-    # Parse latency from combined output (stderr has the final latency)
-    latency_ns = parse_latency_ns(combined_output)
+    latency_ns = _parse_latency_ns(combined_output)
 
-    # Step 5: Check accuracy if golden file exists
+    # Step 5: Check accuracy
     mse = None
+    match_rate = None
     golden_file = BUILD_PATH / "golden_result.txt"
+
     if golden_file.exists() and VRAM_DUMP_PATH.exists():
         try:
-            accuracy = check_accuracy(str(VRAM_DUMP_PATH), str(golden_file))
+            accuracy = _check_accuracy(str(VRAM_DUMP_PATH), str(golden_file))
             mse = accuracy.get("mse")
+            match_rate = accuracy.get("match_rate")
         except Exception as e:
-            mse = f"error: {e}"
+            # Non-fatal - return results but note accuracy check failed
+            return {
+                "success": True,
+                "latency_ns": latency_ns,
+                "mse": f"accuracy check error: {e}",
+                "match_rate": None,
+                # "instruction_count": mc_result["instruction_count"],
+                "errors": [],
+                # "test_config": test_config,
+            }
 
     return {
         "success": True,
         "latency_ns": latency_ns,
         "mse": mse,
-        "instruction_count": mc_result["instruction_count"],
+        "match_rate": match_rate,
+        # "instruction_count": mc_result["instruction_count"],
         "errors": [],
+        # "test_config": test_config,
     }
 
 
-def parse_latency_cycles(stdout: str) -> Optional[int]:
-    """Parse cycle count from simulator output."""
-    # Look for patterns like "Total cycles: 1234" or "Cycles: 1234"
-    patterns = [
-        r"Total cycles[:\s]+(\d+)",
-        r"Cycles[:\s]+(\d+)",
-        r"cycle count[:\s]+(\d+)",
-        r"(\d+)\s*cycles",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, stdout, re.IGNORECASE)
-        if match:
-            return int(match.group(1))
-    return None
+def _setup_test_data(
+    layer_type: str,
+    hidden_size: int,
+    intermediate_size: Optional[int],
+    batch_size: int,
+    seq_len: int,
+    assembly_code: str,
+) -> Dict[str, Any]:
+    """Setup test environment with random data for the given layer type."""
+    import shutil
+    import torch
+    from torch import nn
+
+    from create_sim_env import create_sim_env
+    from sim_env_utils.build_env import build_sim_env
+
+    # Clear and recreate build directory
+    if BUILD_PATH.exists():
+        shutil.rmtree(BUILD_PATH)
+    BUILD_PATH.mkdir(parents=True, exist_ok=True)
+
+    torch.manual_seed(42)  # Reproducible
+
+    # Compute data ratio for quantization
+    real_data_ratio = (8 * 8 + 8) / (8 * 8)
+
+    test_config = {
+        "layer_type": layer_type,
+        "hidden_size": hidden_size,
+        "batch_size": batch_size,
+        "seq_len": seq_len,
+    }
+
+    if layer_type == "linear":
+        # Simple linear layer: (batch, hidden) @ (hidden, hidden) -> (batch, hidden)
+        fp_preload = [0.0, 1e-6, 1 / hidden_size]
+
+        act_tensor = torch.randn(batch_size * seq_len, hidden_size)
+        layer = nn.Linear(hidden_size, hidden_size, bias=False)
+        golden_output = layer(act_tensor)
+
+        input_tensors = {
+            "act_tensor": act_tensor,
+            "weights": layer.weight.t(),
+        }
+        data_order = ["act_tensor", "weights"]
+        test_config["output_shape"] = list(golden_output.shape)
+
+    elif layer_type == "ffn":
+        # FFN: up_proj, gate_proj, down_proj with SiLU activation
+        inter_size = intermediate_size or (4 * hidden_size)
+        test_config["intermediate_size"] = inter_size
+        fp_preload = [0.0, 1e-6, 1.0]
+
+        act_tensor = torch.randn(batch_size * seq_len, hidden_size)
+        up_proj = nn.Linear(hidden_size, inter_size, bias=False)
+        gate_proj = nn.Linear(hidden_size, inter_size, bias=False)
+        down_proj = nn.Linear(inter_size, hidden_size, bias=False)
+
+        # FFN forward: down(silu(gate(x)) * up(x))
+        up_out = up_proj(act_tensor)
+        gate_out = gate_proj(act_tensor)
+        silu_gate = nn.functional.silu(gate_out)
+        golden_output = down_proj(silu_gate * up_out)
+
+        input_tensors = {
+            "act_tensor": act_tensor,
+            "up_weights": up_proj.weight.t(),
+            "gate_weights": gate_proj.weight.t(),
+            "down_weights": down_proj.weight.t(),
+        }
+        data_order = ["act_tensor", "up_weights", "gate_weights", "down_weights"]
+        test_config["output_shape"] = list(golden_output.shape)
+
+    elif layer_type == "rms_norm":
+        # RMS Normalization
+        fp_preload = [0.0, 1e-6, 1.0]
+        eps = 1e-5
+
+        act_tensor = torch.randn(batch_size * seq_len, hidden_size)
+        # RMS norm: x / sqrt(mean(x^2) + eps)
+        rms = torch.sqrt(torch.mean(act_tensor**2, dim=-1, keepdim=True) + eps)
+        golden_output = act_tensor / rms
+
+        input_tensors = {"act_tensor": act_tensor}
+        data_order = ["act_tensor"]
+        test_config["output_shape"] = list(golden_output.shape)
+
+    else:
+        raise ValueError(f"Unsupported layer_type: {layer_type}. Use 'linear', 'ffn', or 'rms_norm'")
+
+    # Create golden result structure
+    golden_result = {"input_tensor": input_tensors, "original_output": golden_output}
+
+    # Setup simulation environment
+    create_sim_env(input_tensors, assembly_code, golden_result, fp_preload)
+    build_sim_env(data_size=256, mode="behave_sim", asm=layer_type, data=None, specified_data_order=data_order)
+
+    return test_config
 
 
-def parse_latency_ns(output: str) -> Optional[float]:
-    """Parse latency in nanoseconds from simulator output (stdout + stderr)."""
-    # Look for "Simulation completed. Last instance 982.000ns"
+def _parse_latency_ns(output: str) -> Optional[float]:
+    """Parse latency in nanoseconds from simulator output."""
     patterns = [
         r"Last instance\s+([\d.]+)\s*ns",
         r"Simulation completed.*?([\d.]+)\s*ns",
@@ -171,221 +320,24 @@ def parse_latency_ns(output: str) -> Optional[float]:
     return None
 
 
-def check_accuracy(bin_file: str, golden_file: str) -> Dict[str, Any]:
-    """
-    Compare simulator output with golden reference.
-
-    Args:
-        bin_file: Path to VRAM dump binary file
-        golden_file: Path to golden_result.txt file
-
-    Returns:
-        Dict with mse, mae, max_error, match_rate
-    """
-    # Import check_mem functions
-    sys.path.insert(0, str(PROJECT_ROOT / "behavioral_simulator" / "testbench"))
+def _check_accuracy(bin_file: str, golden_file: str) -> Dict[str, Any]:
+    """Compare simulator output with golden reference."""
     from check_mem import compare_with_golden
 
-    try:
-        results = compare_with_golden(
-            bin_file,
-            golden_file,
-            exp_width=8,
-            man_width=7,
-            num_bytes_per_val=2,
-            row_dim=64,
-            start_row_idx=0,
-            num_rows=None,
-            use_stride_mode=True
-        )
-        return {
-            "mse": float(results["mse"]),
-            "mae": float(results["mae"]),
-            "max_error": float(results["max_error"]),
-            "match_rate": float(results["match_rate"]),
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def run_simulator_with_data(
-    assembly_code: str,
-    input_tensors: Dict[str, Any],
-    golden_output: Any,
-    fp_preload: list = None,
-) -> Dict[str, Any]:
-    """
-    Run simulator with custom input data (advanced usage).
-
-    This function sets up the full simulation environment including
-    input data and golden reference, then runs the simulator.
-
-    Args:
-        assembly_code: PLENA assembly code string
-        input_tensors: Dict of input tensors (pytorch tensors)
-        golden_output: Expected output tensor for accuracy check
-        fp_preload: FP SRAM preload values (default [0.0, 1.0])
-
-    Returns:
-        Same as run_simulator but with accuracy computed against golden_output
-    """
-    import torch
-    import numpy as np
-
-    sys.path.insert(0, str(PROJECT_ROOT / "behavioral_simulator" / "testbench"))
-    from create_sim_env import create_sim_env
-
-    sys.path.insert(0, str(PROJECT_ROOT / "tools"))
-    from sim_env_utils import build_sim_env
-
-    if fp_preload is None:
-        fp_preload = [0.0, 1.0]
-
-    # Create golden result dict
-    golden_result = {
-        "input_tensor": input_tensors,
-        "original_output": golden_output if isinstance(golden_output, torch.Tensor) else torch.tensor(golden_output)
-    }
-
-    # Setup simulation environment
-    create_sim_env(input_tensors, assembly_code, golden_result, fp_preload)
-
-    # Build environment (quantize data, generate HBM files)
-    specified_data_order = list(input_tensors.keys())
-    build_sim_env(
-        data_size=256,
-        mode="behave_sim",
-        asm=None,
-        data=None,
-        specified_data_order=specified_data_order
+    results = compare_with_golden(
+        bin_file,
+        golden_file,
+        exp_width=8,
+        man_width=7,
+        num_bytes_per_val=2,
+        row_dim=64,
+        start_row_idx=0,
+        num_rows=None,
+        use_stride_mode=True,
     )
-
-    # Now run simulator
-    return run_simulator(assembly_code)
-
-
-def setup_test_environment(
-    layer_type: Literal["linear", "projection"] = "linear",
-    hidden_size: int = 128,
-    batch_size: int = 4,
-) -> Dict[str, Any]:
-    """
-    Setup test environment with random input data for a given layer type.
-
-    This generates the HBM data files required by run_simulator.
-    Call this before run_simulator if no test data exists.
-
-    Args:
-        layer_type: Type of layer to test ('linear' or 'projection')
-        hidden_size: Hidden dimension size (default 128)
-        batch_size: Batch size (default 4)
-
-    Returns:
-        Dict with:
-            - success: bool
-            - assembly_code: Generated assembly code for the test
-            - golden_output_shape: Shape of expected output
-            - message: Status message
-    """
-    import torch
-    from torch import nn
-
-    from create_sim_env import create_sim_env
-    from sim_env_utils.build_env import build_sim_env
-    from asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
-
-    try:
-        # Clear build directory
-        import shutil
-        if BUILD_PATH.exists():
-            shutil.rmtree(BUILD_PATH)
-        BUILD_PATH.mkdir(parents=True, exist_ok=True)
-
-        real_data_ratio = (8*8 + 8) / (8 * 8)
-        fp_preload = [0.0, 1e-6, 1/hidden_size]
-
-        # Generate random test data
-        torch.manual_seed(42)
-        act_tensor = torch.randn(batch_size, hidden_size)
-        original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size, bias=False)
-        weights = original_layer.state_dict()
-
-        original_output = original_layer(act_tensor)
-
-        input_tensor = {
-            "act_tensor": act_tensor,
-            "weights": weights['weight'].t(),
-        }
-
-        golden_result = {
-            "input_tensor": input_tensor,
-            "original_output": original_output
-        }
-
-        # Generate assembly code
-        gen_assembly_code = f"; {layer_type.capitalize()} Test Generation \n"
-
-        # Set the addr offset for weight
-        gen_assembly_code += preload_addr_reg_asm(
-            addr_reg_to_set=[1, 2],
-            available_registers=[1, 2],
-            addr_reg_val=[
-                int(hidden_size * batch_size * real_data_ratio),
-                int((hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
-            ]
-        )
-
-        # Reset the registers
-        gen_assembly_code += reset_reg_asm(alive_registers=[1,2,3])
-
-        # Gen Activation Preload
-        gen_assembly_code += preload_act_asm(
-            vlen=64,
-            preload_len=4,
-            batch=batch_size,
-            hidden_size=hidden_size,
-            alive_registers=[1,2,3],
-            act_vram_offset=0,
-            activation_offset_reg=0,
-            stride_size=hidden_size
-        )
-
-        # Reset the registers
-        gen_assembly_code += reset_reg_asm(alive_registers=[1,2,3,4])
-
-        gen_assembly_code += projection_asm(
-            mlen=64,
-            blen=4,
-            batch=batch_size,
-            hidden_size=hidden_size,
-            alive_registers=[1,2,3,4],
-            w_base_hbm_offset_reg=1,
-            activation_base_address=0,
-            result_base_address=hidden_size * batch_size,
-            rope_enabled=False
-        )
-
-        # Create simulation environment
-        create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-        build_sim_env(
-            data_size=256,
-            mode="behave_sim",
-            asm=layer_type,
-            data=None,
-            specified_data_order=["act_tensor", "weights"]
-        )
-
-        return {
-            "success": True,
-            "assembly_code": gen_assembly_code,
-            "golden_output_shape": list(original_output.shape),
-            "message": f"Test environment setup complete for {layer_type} layer. HBM data files created.",
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "assembly_code": None,
-            "golden_output_shape": None,
-            "message": f"Failed to setup test environment: {e}",
-        }
+    return {
+        "mse": float(results["mse"]),
+        "mae": float(results["mae"]),
+        "max_error": float(results["max_error"]),
+        "match_rate": float(results["match_rate"]),
+    }

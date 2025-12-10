@@ -63,7 +63,7 @@ def main():
     parser.add_argument("task", nargs="?", help="Task to run (or use --interactive)")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive chat mode")
     parser.add_argument("--model", "-m", default="claude-sonnet-4-20250514", help="Model to use")
-    parser.add_argument("--max-iterations", "-n", type=int, default=5, help="Max iterations")
+    parser.add_argument("--max-iterations", "-n", type=int, default=30, help="Max iterations")
     args = parser.parse_args()
 
     # Check API key

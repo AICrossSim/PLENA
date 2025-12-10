@@ -4,8 +4,8 @@ Test each agent tool separately.
 
 Usage:
     python kernel_agents/test_tools.py
-    python kernel_agents/test_tools.py --tool setup_test_environment
     python kernel_agents/test_tools.py --tool run_simulator
+    python kernel_agents/test_tools.py --tool get_workload
 """
 
 import sys
@@ -22,7 +22,6 @@ from kernel_agents.anthropic_agent.tools import (
     get_assembly_code_examples,
     machine_code_generation,
     run_simulator,
-    setup_test_environment,
     get_instruction_size,
     get_template,
     get_doc,
@@ -30,159 +29,234 @@ from kernel_agents.anthropic_agent.tools import (
 )
 
 
+# Sample assembly code for testing
+SAMPLE_LINEAR_ASM = """; Linear Test with Loop Instructions
+; Preload Addr Reg Generation
+S_ADDI_INT gp1, gp0, 576
+C_SET_ADDR_REG a1, gp0, gp1
+S_ADDI_INT gp2, gp0, 19152
+C_SET_ADDR_REG a2, gp0, gp2
+; Reset Registers [[1, 2, 3]]
+S_ADDI_INT gp1, gp0, 0
+S_ADDI_INT gp2, gp0, 0
+S_ADDI_INT gp3, gp0, 0
+; Preload Activation Generation
+S_ADDI_INT gp1, gp0, 512
+C_SET_SCALE_REG gp1
+S_ADDI_INT gp1, gp0, 0
+S_ADDI_INT gp3, gp0, 0
+S_ADDI_INT gp2, gp0, 128
+C_SET_STRIDE_REG gp2
+C_LOOP_START gp4, 2
+S_ADDI_INT gp2, gp1, 0
+H_PREFETCH_V gp3, gp2, a0, 1, 0
+S_ADDI_INT gp3, gp3, 256
+S_ADDI_INT gp1, gp1, 64
+C_LOOP_END gp4
+; Reset Registers [[1, 2, 3, 4, 5, 6, 7]]
+S_ADDI_INT gp1, gp0, 0
+S_ADDI_INT gp2, gp0, 0
+S_ADDI_INT gp3, gp0, 0
+S_ADDI_INT gp4, gp0, 0
+S_ADDI_INT gp5, gp0, 0
+S_ADDI_INT gp6, gp0, 0
+S_ADDI_INT gp7, gp0, 0
+; Projection Generation (Loop-Optimized)
+S_ADDI_INT gp4, gp0, 16384
+C_SET_SCALE_REG gp4
+S_ADDI_INT gp4, gp0, 128
+C_SET_STRIDE_REG gp4
+S_ADDI_INT gp4, gp0, 0
+S_ADDI_INT gp1, gp0, 512
+S_ADDI_INT gp3, gp0, 0
+; Outer loop: 2 MLEN blocks
+C_LOOP_START gp5, 2
+S_ADDI_INT gp2, gp0, 0
+H_PREFETCH_M gp2, gp3, a1, 1, 0
+S_ADDI_INT gp3, gp3, 8192
+S_ADDI_INT gp2, gp2, 4096
+H_PREFETCH_M gp2, gp3, a1, 1, 0
+S_ADDI_INT gp7, gp0, 0
+; Middle loop: 16 iterations (unroll=1)
+C_LOOP_START gp6, 16
+M_MM 0, gp7, gp4
+S_ADDI_INT gp2, gp7, 4096
+S_ADDI_INT gp4, gp4, 256
+M_MM 0, gp2, gp4
+M_MM_WO 1, gp0, 0
+S_ADDI_INT gp1, gp1, 4
+S_ADDI_INT gp7, gp7, 4
+S_ADDI_INT gp4, gp0, 0
+C_LOOP_END gp6
+S_ADDI_INT gp1, gp1, 192
+S_ADDI_INT gp7, gp0, 8128
+S_SUB_INT gp3, gp3, gp7
+C_LOOP_END gp5
+"""
+
+
 def test_get_doc():
     """Test ISA documentation retrieval."""
-    print("\n" + "="*60)
-    print("TEST: get_doc('isa')")
-    print("="*60)
-    result = get_doc("isa")
-    print(result[:1000] + "..." if len(result) > 1000 else result)
+    print("\n" + "=" * 60)
+    print("TEST: get_doc() - Summary")
+    print("=" * 60)
+    result = get_doc()
+    print(f"  Available topics: {list(result.get('available_topics', {}).keys())}")
+    print(f"  Quick ref keys: {list(result.get('quick_reference', {}).keys())}")
+
+    print("\n" + "=" * 60)
+    print("TEST: get_doc('isa') - Full ISA spec")
+    print("=" * 60)
+    result_isa = get_doc("isa")
+    content = result_isa.get("content", "")
+    print(f"  Format: {result_isa.get('format', 'N/A')}")
+    print(f"  File: {result_isa.get('file_path', 'N/A')}")
+    print(f"  Content length: {len(content)} chars")
+    print(f"  Preview: {content[:200]}...")
+
+    print("\n" + "=" * 60)
+    print("TEST: get_doc('memory') - Memory layout")
+    print("=" * 60)
+    result_mem = get_doc("memory")
+    print(f"  Memory types: {list(result_mem.get('memory_types', {}).keys())}")
+
+    return result
 
 
 def test_get_workload():
     """Test workload dimensions retrieval."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: get_workload('llama-3.2-1b', 'ffn')")
-    print("="*60)
+    print("=" * 60)
     result = get_workload("llama-3.2-1b", "ffn", batch_size=4)
     for k, v in result.items():
         print(f"  {k}: {v}")
+    return result
 
 
 def test_get_template():
     """Test template retrieval."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: get_template('projection')")
-    print("="*60)
+    print("=" * 60)
     result = get_template("projection")
-    print(result[:1500] + "..." if len(result) > 1500 else result)
+    if "error" in result:
+        print(f"  Error: {result['error']}")
+    else:
+        print(f"  Signature: {result.get('signature', 'N/A')}")
+        print(f"  File: {result.get('file_path', 'N/A')}")
+        source = result.get("source", "")
+        print(f"  Source length: {len(source)} chars")
+    return result
 
 
 def test_get_examples():
     """Test assembly examples retrieval."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: get_assembly_code_examples('one-shot')")
-    print("="*60)
+    print("=" * 60)
     result = get_assembly_code_examples(mode="one-shot")
-    print(result[:1500] + "..." if len(result) > 1500 else result)
-
-
-def test_setup_environment():
-    """Test environment setup (creates HBM files)."""
-    print("\n" + "="*60)
-    print("TEST: setup_test_environment()")
-    print("="*60)
-    result = setup_test_environment(
-        layer_type="linear",
-        hidden_size=128,
-        batch_size=4
-    )
-    print(f"  success: {result['success']}")
-    print(f"  message: {result['message']}")
-    print(f"  golden_output_shape: {result['golden_output_shape']}")
-    if result['assembly_code']:
-        lines = result['assembly_code'].split('\n')
-        print(f"  assembly_code: {len(lines)} lines")
+    print(f"  Count: {result.get('count', 0)}")
+    if result.get("examples"):
+        for ex in result["examples"]:
+            print(f"  - {ex.get('name')} ({ex.get('type')}): {len(ex.get('code', ''))} chars")
     return result
 
 
-def test_machine_code(assembly_code: str):
+def test_machine_code():
     """Test machine code generation (syntax check)."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: machine_code_generation()")
-    print("="*60)
-    result = machine_code_generation(assembly_code)
+    print("=" * 60)
+    result = machine_code_generation(SAMPLE_LINEAR_ASM)
     print(f"  success: {result['success']}")
     print(f"  instruction_count: {result['instruction_count']}")
-    if result['syntax_errors']:
+    if result["syntax_errors"]:
         print(f"  syntax_errors: {result['syntax_errors']}")
     return result
 
 
-def test_instruction_size(assembly_code: str):
+def test_instruction_size():
     """Test instruction counting."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: get_instruction_size()")
-    print("="*60)
-    result = get_instruction_size(assembly_code)
-    print(f"  total: {result['total']}")
-    print(f"  by_type: {result['by_type']}")
+    print("=" * 60)
+    result = get_instruction_size(SAMPLE_LINEAR_ASM)
+    print(f"  total_instructions: {result.get('total_instructions', 0)}")
+    print(f"  by_category: {result.get('by_category', {})}")
+    return result
 
 
-def test_run_simulator(assembly_code: str):
-    """Test full simulator run."""
-    print("\n" + "="*60)
-    print("TEST: run_simulator()")
-    print("="*60)
-    result = run_simulator(assembly_code)
-    print(f"  success: {result['success']}")
-    print(f"  instruction_count: {result['instruction_count']}")
-    print(f"  latency_cycles: {result['latency_cycles']}")
-    print(f"  latency_ns: {result['latency_ns']}")
-    print(f"  accuracy: {result['accuracy']}")
-    if result['errors']:
-        print(f"  errors: {result['errors']}")
+def test_run_simulator():
+    """Test full simulator run with integrated setup."""
+    print("\n" + "=" * 60)
+    print("TEST: run_simulator() - Full pipeline test")
+    print("=" * 60)
+    result = run_simulator(
+        assembly_code=SAMPLE_LINEAR_ASM,
+        layer_type="linear",
+        hidden_size=128,
+        batch_size=4,
+        seq_len=1,
+    )
+    print(f"  success:     {result['success']}")
+    print(f"  latency_ns:  {result['latency_ns']}")
+    print(f"  mse:         {result['mse']}")
+    print(f"  match_rate:  {result['match_rate']}")
+    print(f"  instr_count: {result['instruction_count']}")
+    print(f"  test_config: {result['test_config']}")
+    if result["errors"]:
+        print(f"  errors:      {result['errors']}")
     return result
 
 
 def run_all_tests():
     """Run all tool tests in sequence."""
+    print("=" * 60)
+    print("RUNNING ALL TOOL TESTS")
+    print("=" * 60)
+
     # 1. Documentation tools
     test_get_doc()
     test_get_workload()
     test_get_template()
     test_get_examples()
 
-    # 2. Setup environment (creates HBM files)
-    env_result = test_setup_environment()
+    # 2. Assembly analysis tools
+    test_machine_code()
+    test_instruction_size()
 
-    if env_result['success'] and env_result['assembly_code']:
-        asm = env_result['assembly_code']
+    # 3. Full simulation (includes setup)
+    test_run_simulator()
 
-        # 3. Test assembly tools
-        test_machine_code(asm)
-        test_instruction_size(asm)
-
-        # 4. Run simulator
-        test_run_simulator(asm)
-    else:
-        print("\nSkipping simulator tests - environment setup failed")
+    print("\n" + "=" * 60)
+    print("ALL TESTS COMPLETED")
+    print("=" * 60)
 
 
 def run_single_tool(tool_name: str):
     """Run a single tool test."""
-    if tool_name == "get_doc":
-        test_get_doc()
-    elif tool_name == "get_workload":
-        test_get_workload()
-    elif tool_name == "get_template":
-        test_get_template()
-    elif tool_name == "get_examples":
-        test_get_examples()
-    elif tool_name == "setup_test_environment":
-        test_setup_environment()
-    elif tool_name == "machine_code_generation":
-        # Need assembly code first
-        env = test_setup_environment()
-        if env['success']:
-            test_machine_code(env['assembly_code'])
-    elif tool_name == "get_instruction_size":
-        env = test_setup_environment()
-        if env['success']:
-            test_instruction_size(env['assembly_code'])
-    elif tool_name == "run_simulator":
-        env = test_setup_environment()
-        if env['success']:
-            test_run_simulator(env['assembly_code'])
+    tool_tests = {
+        "get_doc": test_get_doc,
+        "get_workload": test_get_workload,
+        "get_template": test_get_template,
+        "get_examples": test_get_examples,
+        "get_assembly_code_examples": test_get_examples,
+        "machine_code_generation": test_machine_code,
+        "get_instruction_size": test_instruction_size,
+        "run_simulator": test_run_simulator,
+    }
+
+    if tool_name in tool_tests:
+        tool_tests[tool_name]()
     else:
         print(f"Unknown tool: {tool_name}")
-        print("Available tools: get_doc, get_workload, get_template, get_examples,")
-        print("                 setup_test_environment, machine_code_generation,")
-        print("                 get_instruction_size, run_simulator")
+        print(f"Available tools: {', '.join(tool_tests.keys())}")
 
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Test agent tools separately")
     parser.add_argument("--tool", "-t", help="Specific tool to test (default: run all)")
     args = parser.parse_args()

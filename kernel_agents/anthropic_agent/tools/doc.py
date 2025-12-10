@@ -1,176 +1,106 @@
 """Tool for retrieving ISA and hardware documentation."""
 
-import sys
 from typing import Dict, Any, Literal, Optional
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-
-# Add tools to path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "tools"))
+COMPILER_DOC_PATH = PROJECT_ROOT / "compiler" / "doc"
 
 
-def get_doc(topic: Optional[Literal["isa", "registers", "memory", "config"]] = None) -> Dict[str, Any]:
+def get_doc(topic: Optional[Literal["isa", "attention", "memory", "config", "constraints"]] = None) -> Dict[str, Any]:
     """
     Get ISA or hardware documentation.
 
     Args:
         topic: Documentation topic. One of:
-            - 'isa': Instruction set opcodes and formats
-            - 'registers': Register descriptions (gp, f, a registers)
-            - 'memory': Memory hierarchy (HBM, SRAM, VRAM)
+            - 'isa': Full ISA specification (instructions, formats, opcodes)
+            - 'attention': Flash attention implementation notes
+            - 'memory': Memory layout (HBM, SRAM regions)
             - 'config': Hardware config (MLEN, VLEN, BLEN)
-            - None: Return all documentation
+            - 'constraints': Simulator constraints (alignment, valid ranges)
+            - None: Return summary of available docs
 
     Returns:
         Dict with documentation content for requested topic(s)
     """
-    docs = {}
+    if topic is None:
+        return _get_doc_summary()
 
-    if topic in (None, "isa"):
-        docs["isa"] = _get_isa_doc()
+    if topic == "isa":
+        return _get_isa_doc()
+    elif topic == "attention":
+        return _get_attention_doc()
+    elif topic == "memory":
+        return _get_memory_doc()
+    elif topic == "config":
+        return _get_config_doc()
+    elif topic == "constraints":
+        return _get_constraints_doc()
+    else:
+        return {"error": f"Unknown topic: {topic}. Use 'isa', 'attention', 'memory', 'config', or 'constraints'"}
 
-    if topic in (None, "config"):
-        docs["config"] = _get_config_doc()
 
-    if topic in (None, "registers"):
-        docs["registers"] = _get_register_doc()
-
-    if topic in (None, "memory"):
-        docs["memory"] = _get_memory_doc()
-
-    return docs
+def _get_doc_summary() -> Dict[str, Any]:
+    """Get summary of available documentation."""
+    return {
+        "available_topics": {
+            "isa": "Full ISA specification - all instructions, formats, opcodes",
+            "attention": "Flash attention implementation notes and HBM layout",
+            "memory": "Memory hierarchy and SRAM layout",
+            "config": "Hardware parameters (MLEN, VLEN, BLEN)",
+            "constraints": "Simulator constraints - alignment requirements, valid address ranges",
+        },
+        "quick_reference": {
+            "registers": {
+                "gp0-gp15": "Integer registers (gp0 = always 0)",
+                "f0-f7": "Floating-point scalar registers",
+                "a0-a7": "HBM address base registers",
+            },
+            "key_instructions": {
+                "M_MM": "Matrix multiply: Vector_SRAM @ Matrix_SRAM -> Systolic Array",
+                "M_MM_WO": "Write out accumulated result to Vector SRAM",
+                "H_PREFETCH_M": "Prefetch matrix from HBM to Matrix SRAM",
+                "H_PREFETCH_V": "Prefetch vector from HBM to Vector SRAM",
+                "V_ADD_VV": "Vector-vector addition",
+                "S_ADDI_INT": "Add immediate to integer register",
+                "C_LOOP_START/END": "Loop control",
+            },
+            "hw_config": {"MLEN": 64, "VLEN": 64, "BLEN": 4},
+        },
+    }
 
 
 def _get_isa_doc() -> Dict[str, Any]:
-    """Get ISA opcode documentation."""
-    from assembler.parser import load_isa_definitions
+    """Get full ISA specification from plena_isa_spec.md."""
+    isa_file = COMPILER_DOC_PATH / "plena_isa_spec.md"
 
-    isa_path = PROJECT_ROOT / "src" / "definitions" / "operation.svh"
+    if not isa_file.exists():
+        return {"error": f"ISA spec file not found: {isa_file}"}
 
-    try:
-        opcodes = load_isa_definitions(str(isa_path))
-    except Exception as e:
-        opcodes = {"error": str(e)}
+    with open(isa_file) as f:
+        content = f.read()
 
     return {
-        "opcodes": opcodes,
-        "description": "PLENA ISA opcodes with hex values",
-        "instruction_categories": {
-            "Matrix (M_*)": [
-                "M_MM - Matrix multiply",
-                "M_TMM - Transposed matrix multiply",
-                "M_BMM - Batched matrix multiply",
-                "M_MM_WO - Matrix multiply write-out",
-                "M_MV - Matrix-vector multiply",
-                "M_MV_WO - Matrix-vector write-out",
-            ],
-            "Vector (V_*)": [
-                "V_ADD_VV - Vector-vector add",
-                "V_ADD_VF - Vector-scalar add",
-                "V_SUB_VV - Vector-vector subtract",
-                "V_SUB_VF - Vector-scalar subtract",
-                "V_MUL_VV - Vector-vector multiply",
-                "V_MUL_VF - Vector-scalar multiply",
-                "V_EXP_V - Vector exp",
-                "V_RECI_V - Vector reciprocal",
-                "V_RED_SUM - Vector reduction sum",
-                "V_RED_MAX - Vector reduction max",
-            ],
-            "Scalar FP (S_*_FP)": [
-                "S_ADD_FP - Scalar FP add",
-                "S_SUB_FP - Scalar FP subtract",
-                "S_MUL_FP - Scalar FP multiply",
-                "S_EXP_FP - Scalar FP exp",
-                "S_RECI_FP - Scalar FP reciprocal",
-                "S_SQRT_FP - Scalar FP sqrt",
-                "S_LD_FP - Load FP from SRAM",
-                "S_ST_FP - Store FP to SRAM",
-                "S_MAP_V_FP - Map scalar to vector",
-            ],
-            "Scalar INT (S_*_INT)": [
-                "S_ADD_INT - Scalar INT add",
-                "S_ADDI_INT - Scalar INT add immediate",
-                "S_SUB_INT - Scalar INT subtract",
-                "S_MUL_INT - Scalar INT multiply",
-                "S_LUI_INT - Load upper immediate",
-                "S_LD_INT - Load INT from SRAM",
-                "S_ST_INT - Store INT to SRAM",
-            ],
-            "HBM (H_*)": [
-                "H_PREFETCH_M - Prefetch matrix from HBM",
-                "H_PREFETCH_V - Prefetch vector from HBM",
-                "H_STORE_V - Store vector to HBM",
-            ],
-            "Control (C_*)": [
-                "C_SET_ADDR_REG - Set address register",
-                "C_SET_SCALE_REG - Set scale register",
-                "C_SET_STRIDE_REG - Set stride register",
-                "C_BREAK - Break/end execution",
-            ],
-        },
-        "instruction_formats": {
-            "R-type (3 registers)": "opcode rd, rs1, rs2",
-            "I-type (immediate)": "opcode rd, rs1, imm",
-            "HBM-type (5 operands)": "opcode rd, rs1, rs2, rstride, funct1",
-        },
+        "format": "markdown",
+        "content": content,
+        "file_path": str(isa_file),
     }
 
 
-def _get_config_doc() -> Dict[str, Any]:
-    """Get hardware configuration documentation."""
-    from utils.load_config import load_svh_settings
+def _get_attention_doc() -> Dict[str, Any]:
+    """Get flash attention implementation notes."""
+    attn_file = COMPILER_DOC_PATH / "attention_note.md"
 
-    cfg_path = PROJECT_ROOT / "src" / "definitions" / "configuration.svh"
+    if not attn_file.exists():
+        return {"error": f"Attention doc not found: {attn_file}"}
 
-    try:
-        settings = load_svh_settings(str(cfg_path))
-    except Exception as e:
-        settings = {"error": str(e)}
+    with open(attn_file) as f:
+        content = f.read()
 
     return {
-        "hardware_params": settings,
-        "key_parameters": {
-            "MLEN": "Matrix dimension (rows/cols in matrix unit)",
-            "VLEN": "Vector length (elements in vector unit)",
-            "BLEN": "Batch dimension (parallel batches)",
-            "MATRIX_SRAM_DEPTH": "Matrix SRAM depth",
-            "VECTOR_SRAM_DEPTH": "Vector SRAM depth",
-            "HBM_WIDTH": "HBM bus width in bits",
-        },
-        "typical_values": {
-            "MLEN": 64,
-            "VLEN": 64,
-            "BLEN": 4,
-        },
-    }
-
-
-def _get_register_doc() -> Dict[str, Any]:
-    """Get register documentation."""
-    return {
-        "integer_registers": {
-            "gp0": "Zero register (always 0, read-only)",
-            "gp1-gp15": "General purpose integer registers",
-            "usage": "Used for addresses, loop counters, offsets",
-        },
-        "fp_registers": {
-            "f0-f7": "Floating-point scalar registers",
-            "usage": "Used for scalar FP values, constants, accumulators",
-        },
-        "address_registers": {
-            "a0-a7": "HBM address base registers",
-            "usage": "Set base addresses for HBM prefetch/store operations",
-        },
-        "special_registers": {
-            "scale_reg": "Matrix scale factor (set via C_SET_SCALE_REG)",
-            "stride_reg": "Memory stride (set via C_SET_STRIDE_REG)",
-        },
-        "examples": [
-            "S_ADDI_INT gp1, gp0, 100  ; gp1 = 100",
-            "S_LD_FP f1, gp0, 1        ; f1 = FP_SRAM[1]",
-            "H_PREFETCH_M gp1, gp2, a0, 1, 0  ; prefetch from HBM[a0 + gp2]",
-        ],
+        "format": "markdown",
+        "content": content,
+        "file_path": str(attn_file),
     }
 
 
@@ -180,34 +110,102 @@ def _get_memory_doc() -> Dict[str, Any]:
         "memory_types": {
             "HBM": {
                 "description": "High Bandwidth Memory - main off-chip storage",
-                "usage": "Stores weights, activations, large tensors",
+                "usage": "Stores weights, activations, KV cache",
                 "access": "Via H_PREFETCH_M, H_PREFETCH_V, H_STORE_V",
+                "addressing": "Base (a0-a7) + offset (gp register)",
             },
             "Matrix_SRAM": {
                 "description": "On-chip SRAM for matrix operations",
-                "usage": "Stores weight tiles for matrix multiply",
-                "access": "Via H_PREFETCH_M, M_MM reads from here",
+                "size": "HBM_M_Prefetch_Amount × MLEN entries",
+                "usage": "Weight tiles for M_MM, M_TMM",
+                "access": "Loaded via H_PREFETCH_M, read by M_MM",
             },
             "Vector_SRAM": {
-                "description": "On-chip SRAM for vector operations",
-                "usage": "Stores activation vectors, intermediate results",
-                "access": "Via H_PREFETCH_V, H_STORE_V, vector ops",
+                "description": "On-chip SRAM for vector/activation data",
+                "size": "HBM_V_Prefetch_Amount × VLEN entries",
+                "usage": "Activations, intermediate results",
+                "access": "H_PREFETCH_V, H_STORE_V, vector ops (V_*)",
             },
             "FP_SRAM": {
-                "description": "Scalar floating-point register file",
-                "access": "Via S_LD_FP, S_ST_FP",
+                "description": "Scalar floating-point memory",
+                "size": "512 entries",
+                "access": "S_LD_FP, S_ST_FP, S_MAP_V_FP",
+                "usage": "FP constants, softmax accumulators (m, l)",
             },
             "INT_SRAM": {
-                "description": "Scalar integer register file",
-                "access": "Via S_LD_INT, S_ST_INT",
+                "description": "Scalar integer memory",
+                "size": "32 entries",
+                "access": "S_LD_INT, S_ST_INT",
+                "usage": "Loop counters, address offsets",
             },
         },
-        "addressing": {
-            "on_chip": "Linear addressing within SRAM",
-            "hbm": "Base + offset addressing (base in a-reg, offset in gp-reg)",
-        },
         "data_layout": {
-            "matrices": "Row-major, tiled by MLEN x MLEN",
+            "MXFP_format": "Blocks and scales stored separately",
+            "matrices": "Row-major, tiled by MLEN × MLEN",
             "vectors": "Contiguous, VLEN elements per access",
+            "stride_mode": "Interleaved batches for vectorization",
         },
+        "addressing_examples": [
+            "C_SET_ADDR_REG a1, gp0, gp1  ; a1 = {gp0, gp1} (concatenated)",
+            "H_PREFETCH_M gp2, gp3, a1, 1, 0  ; Matrix_SRAM[gp2] = HBM[a1 + gp3]",
+            "C_SET_STRIDE_REG gp4  ; Set stride for strided access",
+            "C_SET_SCALE_REG gp5   ; Set scale offset for MXFP",
+        ],
+    }
+
+
+def _get_constraints_doc() -> Dict[str, Any]:
+    """Get simulator constraints documentation."""
+    constraints_file = COMPILER_DOC_PATH / "simulator_constraints.md"
+
+    if not constraints_file.exists():
+        return {"error": f"Constraints doc not found: {constraints_file}"}
+
+    with open(constraints_file) as f:
+        content = f.read()
+
+    return {
+        "format": "markdown",
+        "content": content,
+        "file_path": str(constraints_file),
+    }
+
+
+def _get_config_doc() -> Dict[str, Any]:
+    """Get hardware configuration documentation."""
+    # Try to load from plena_settings.toml
+    settings_file = PROJECT_ROOT / "src" / "definitions" / "plena_settings.toml"
+
+    hw_params = {}
+    if settings_file.exists():
+        try:
+            import tomllib
+
+            with open(settings_file, "rb") as f:
+                hw_params = tomllib.load(f)
+        except Exception:
+            pass
+
+    return {
+        "tile_dimensions": {
+            "MLEN": {"value": 64, "description": "Matrix tile dimension (systolic array size)"},
+            "VLEN": {"value": 64, "description": "Vector length (elements per vector op)"},
+            "BLEN": {"value": 4, "description": "Batch tile size (parallel batches)"},
+            "HLEN": {"value": 16, "description": "Head dimension tile for attention"},
+        },
+        "hbm_prefetch": {
+            "HBM_M_Prefetch_Amount": "Number of MLEN rows fetched per H_PREFETCH_M",
+            "HBM_V_Prefetch_Amount": "Number of VLEN rows fetched per H_PREFETCH_V",
+        },
+        "precision": {
+            "weights": "MXFP (block floating point) - blocks + scales",
+            "activations": "MXFP high precision",
+            "kv_cache": "MXFP lower precision",
+        },
+        "typical_computation": {
+            "matmul_tile": "Process (BLEN, MLEN) @ (MLEN, MLEN) -> accumulate in systolic array",
+            "writeout": "M_MM_WO writes (BLEN, BLEN) result to Vector SRAM",
+        },
+        "settings_file": str(settings_file) if settings_file.exists() else None,
+        "loaded_params": hw_params if hw_params else "Could not load settings file",
     }
