@@ -39,9 +39,14 @@ Refer to `plena_settings.toml` for the detailed parameters.
 | **Matrix[i]** | i-th entry of the Matrix SRAM |
 | **Vector[i]** | i-th entry of the Vector SRAM |
 
+**Addressing Constraints:**
+- **Matrix SRAM:** Read Addresses `gp_reg<rs2> % MLEN` must be multiples of `BLEN`.
+- **Matrix SRAM:** Write Addresses `gp_reg<rd> % MLEN` must be multiples of `BLEN`.
+- **Vector SRAM:** Addresses must be multiples of `VLEN`.
+
 ### M_MM
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `opcode, 0, rs1, rs2`
 
 **Operation:** `Systolic Array = Vector_SRAM[gp_reg<rs1>] @ Matrix_SRAM[gp_reg<rs2>]`
 
@@ -51,7 +56,7 @@ Fetch an (BLEN,MLEN) vector from the Vector SRAM using the address provided by `
 
 ### M_TMM
 
-**Format:** `opcode, x, rs1, rs2`
+**Format:** `opcode, 0, rs1, rs2`
 
 **Operation:** `Systolic Array = Vector[gp_reg<rs1>] @ Matrix[gp_reg<rs2>]^T`
 
@@ -61,7 +66,7 @@ Similar to `M_MM`, but transposes the matrix.
 
 ### M_BMM
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `opcode, 0, rs1, rs2`
 
 **Operation:** `Systolic Array = Per Head (Vector_SRAM[gp_reg<rs2>] @ Matrix_SRAM[gp_reg<rs1> + gp_reg<rd>])`
 
@@ -73,7 +78,7 @@ Only take the sliced (HLEN, MLEN) matrix from the Matrix SRAM using the address 
 
 ### M_BTMM
 
-**Format:** `opcode, rd, rs1, rs2`
+**Format:** `opcode, 0, rs1, rs2`
 
 **Operation:** `Systolic Array = Per Head (Vector_SRAM[gp_reg<rs2>] @ Matrix_SRAM[gp_reg<rs1> + gp_reg<rd>])^T`
 
@@ -141,6 +146,10 @@ Store the accumulated result (MLEN, 1) stored in the first row of the systolic a
 | **Vector[i]** | i-th entry of the Vector SRAM |
 
 `rmask` is a binary flag indicating whether to apply the mask to the result. The mask is set by the `C_SET_V_MASK_REG` instruction.
+
+**Addressing Constraints:**
+- **Vector SRAM:** Read Addresses `gp_reg<rs1> % VLEN` and `gp_reg<rs2> % VLEN` must be multiples of `VLEN`.
+- **Vector SRAM:** Write Addresses `gp_reg<rd> % VLEN` must be multiples of `VLEN`.
 
 ### V_ADD_VV 
 
@@ -389,6 +398,10 @@ Copy a vector of length VLEN from FP_MEM to Vector SRAM.
 | **HBM[i]** | The i-th entry of the HBM |
 
 ### H_PREFETCH_M 
+
+**Addressing Constraints:**
+- **Matrix SRAM:** Write Addresses `gp_reg<rd>` must be multiples of `MLEN * MLEN`.
+- **Vector SRAM:** Write Addresses `gp_reg<rd>` must be multiples of `VLEN`.
 
 **Format:** `opcode, rd, rs1, rs2, rstride, precision`
 
