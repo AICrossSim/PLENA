@@ -1691,8 +1691,7 @@ async fn start() {
                 intsram_data.len() / std::mem::size_of::<u32>(),
             )
         };
-        accelerator.intsram.clear();
-        accelerator.intsram.extend_from_slice(int_vals);
+        accelerator.intsram[..int_vals.len()].copy_from_slice(&int_vals[..int_vals.len()]);
     }
     // - VRAM Preload (if provided)
     if let Some(vram_path) = opts.vram {
@@ -1719,7 +1718,8 @@ async fn start() {
         "Matrix SRAM Contents: \n {}",
         accelerator.m_machine.mram.read(0x0000).await.as_tensor()
     );
-    // println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
+    println!("INT SRAM Contents: \n {:?}", accelerator.intsram);
+    println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
 
     // Dump MRAM
     let mram_dump_path = "mram_dump.bin";
