@@ -62,6 +62,40 @@ The data stored in HBM convention is as follows:
 
 To make the prefetch process aware of that data layout, we need the C_SET_SCALE_REG to set the scale offset for the prefetch instructions, so that the prefetch process can know the distance between the data blocks and their scale factors in HBM. 
 
+
 To address MX-formatted weights in memory, compute the base plus the scale-block offset. For instance, when accessing the weight matrix, the address should be the address of the first element of the weight matrix plus the scales offset. That is hidden * sequence_length * batch_size * (data_size // 8) + ((hidden * sequence_length * batch_size) // block_dim) * (scale_width // 8)
 
 After that, the accelerator will automatically convert them into the correct FP data layout in the On-chip Matrix SRAM. Also, during the prefetch process, the C_SET_STRIDE_REG will be used to set the stride size for the prefetch instructions.
+
+---
+
+# Prefetch-Compute Pattern
+
+The key principle for efficient computation is: **data must be in SRAM before it can be used**.
+
+## Understanding SRAM as a Working Buffer
+
+Think of Matrix SRAM and Vector SRAM as working buffers:
+- `H_PREFETCH_M` copies data from HBM → Matrix SRAM at a specified SRAM address
+- `H_PREFETCH_V` copies data from HBM → Vector SRAM at a specified SRAM address
+- `M_MM` reads from SRAM addresses (not HBM!)
+
+**Critical insight:** The first argument of `H_PREFETCH_*` is the **SRAM destination address**. If you prefetch multiple tiles, they must go to different SRAM addresses, otherwise they overwrite each other.
+
+## Example: Why Multiple Prefetches Are Needed
+
+For a matrix multiply that accumulates across K dimension:
+- If K=128 and MLEN=64, you need 2 weight tiles (K/MLEN = 2)
+- The inner loop does 2 M_MM operations reading from Matrix SRAM[0] and Matrix SRAM[4096]
+- **Before** the inner loop, you must prefetch **both** tiles:
+  ```
+  H_PREFETCH_M to Matrix SRAM[0] from HBM[offset1]
+  H_PREFETCH_M to Matrix SRAM[4096] from HBM[offset2]
+  ```
+- Then the inner loop reads from addresses that already have data
+
+## Mental Model
+
+Before writing any M_MM instruction, ask: "What SRAM address does this read from? When was data written there?"
+
+If you can't trace back to a prefetch that wrote to that exact SRAM address, the data won't be there.

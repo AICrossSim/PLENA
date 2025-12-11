@@ -55,22 +55,23 @@ def run_simulator(
     import torch
     from torch import nn
 
-    # # Step 1: Assemble code first to check syntax
-    # from .machine_code import machine_code_generation
+    # Step 1: Assemble code first to check syntax
+    from .machine_code import machine_code_generation
 
-    # mc_result = machine_code_generation(assembly_code)
-    # if not mc_result["success"]:
-    #     return {
-    #         "success": False,
-    #         "latency_ns": None,
-    #         "mse": None,
-    #         "match_rate": None,
-    #         "instruction_count": 0,
-    #         "errors": mc_result["syntax_errors"],
-    #         "test_config": None,
-    #     }
+    mc_result = machine_code_generation(assembly_code)
+    if not mc_result["success"]:
+        return {
+            "success": False,
+            "latency_ns": None,
+            "mse": None,
+            "match_rate": None,
+            "instruction_count": 0,
+            "errors": mc_result["syntax_errors"],
+            "test_config": None,
+            "submitted_assembly": assembly_code,  # Include code for agent to reason about
+        }
 
-    # # # Step 2: Setup test environment based on layer type
+    # Step 2: Setup test environment based on layer type
     try:
         test_config = _setup_test_data(
             layer_type=layer_type,
@@ -86,9 +87,10 @@ def run_simulator(
             "latency_ns": None,
             "mse": None,
             "match_rate": None,
-            # "instruction_count": mc_result["instruction_count"],
+            "instruction_count": mc_result["instruction_count"],
             "errors": [f"Failed to setup test data: {e}"],
             "test_config": None,
+            "submitted_assembly": assembly_code,
         }
 
     # Step 3: Run the Rust simulator
@@ -110,9 +112,10 @@ def run_simulator(
             "latency_ns": None,
             "mse": None,
             "match_rate": None,
-            # "instruction_count": mc_result["instruction_count"],
+            "instruction_count": mc_result["instruction_count"],
             "errors": [f"Missing files after setup: {missing}"],
-            # "test_config": test_config,
+            "test_config": test_config,
+            "submitted_assembly": assembly_code,
         }
 
     cmd = [
@@ -139,9 +142,10 @@ def run_simulator(
             "latency_ns": None,
             "mse": None,
             "match_rate": None,
-            # "instruction_count": mc_result["instruction_count"],
+            "instruction_count": mc_result["instruction_count"],
             "errors": ["Simulator timeout (>120s) - possible infinite loop"],
-            # "test_config": test_config,
+            "test_config": test_config,
+            "submitted_assembly": assembly_code,
         }
     except Exception as e:
         return {
@@ -149,9 +153,10 @@ def run_simulator(
             "latency_ns": None,
             "mse": None,
             "match_rate": None,
-            # "instruction_count": mc_result["instruction_count"],
+            "instruction_count": mc_result["instruction_count"],
             "errors": [f"Failed to run simulator: {e}"],
-            # "test_config": test_config,
+            "test_config": test_config,
+            "submitted_assembly": assembly_code,
         }
 
     # Step 4: Parse output
@@ -164,9 +169,10 @@ def run_simulator(
             "latency_ns": None,
             "mse": None,
             "match_rate": None,
-            # "instruction_count": mc_result["instruction_count"],
+            "instruction_count": mc_result["instruction_count"],
             "errors": [f"Simulator error: {error_msg}"],
-            # "test_config": test_config,
+            "test_config": test_config,
+            "submitted_assembly": assembly_code,
         }
 
     latency_ns = _parse_latency_ns(combined_output)
@@ -188,20 +194,27 @@ def run_simulator(
                 "latency_ns": latency_ns,
                 "mse": f"accuracy check error: {e}",
                 "match_rate": None,
-                # "instruction_count": mc_result["instruction_count"],
+                "instruction_count": mc_result["instruction_count"],
                 "errors": [],
-                # "test_config": test_config,
+                "test_config": test_config,
+                "submitted_assembly": assembly_code,
             }
 
-    return {
+    result = {
         "success": True,
         "latency_ns": latency_ns,
         "mse": mse,
         "match_rate": match_rate,
-        # "instruction_count": mc_result["instruction_count"],
+        "instruction_count": mc_result["instruction_count"],
         "errors": [],
-        # "test_config": test_config,
+        "test_config": test_config,
     }
+
+    # Add debugging hint when MSE is high
+    if mse is not None and mse > 0.01:
+        result["debug_hint"] = "MSE is high. Before rewriting and calling the check memory tool, trace your code line-by-line to reason about it first."
+
+    return result
 
 
 def _setup_test_data(

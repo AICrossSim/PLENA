@@ -4,9 +4,11 @@
 
 The PLENA architecture supports four types of registers:
 
-- **gp_reg** (`gp0` to `gp15`): General-purpose integer registers
-- **fp_reg** (`f0` to `f7`): Floating-point registers
-- **hbm_addr_reg** (`a0` to `a7`): HBM address registers
+- **gp_reg** (`gp0` to `gp15`): 16 general-purpose integer registers (gp0-gp15 only, no gp16+)
+- **fp_reg** (`f0` to `f7`): 8 floating-point registers
+- **hbm_addr_reg** (`a0` to `a7`): 8 HBM address registers
+
+**Important:** There are exactly 16 GP registers (gp0-gp15). Using gp16 or higher will cause assembler errors.
 
 ## Assembly Syntax
 
@@ -66,25 +68,24 @@ Refer to `plena_settings.toml` for the detailed parameters.
 | **Vector[i]** | i-th entry of the Vector SRAM |
 
 **Addressing Constraints:**
-- **Matrix SRAM:** Read Addresses `gp_reg<rs2> % MLEN` must be multiples of `BLEN`.
-- **Matrix SRAM:** Write Addresses `gp_reg<rd> % MLEN` must be multiples of `BLEN`.
-- **Vector SRAM:** Addresses must be multiples of `VLEN`.
+- **Matrix SRAM read (M_MM rs1):** Address offset within tile (`addr % (MLEN*MLEN)`) must be a multiple of `BLEN`
+- **Matrix SRAM write (H_PREFETCH_M rd):** Destination address must be a multiple of `MLEN * MLEN` (4096 for MLEN=64)
+- **Vector SRAM write (M_MM_WO rd):** Address offset within row (`addr % MLEN`) must be a multiple of `BLEN`
+- **Vector SRAM:** General addresses should be multiples of `VLEN` or `BLEN` depending on instruction
 
 ### M_MM
 
 **Format:** `M_MM 0, rs1, rs2`
 
-**Operation:** `Systolic Array += Vector_SRAM[gp_reg<rs1>] @ Matrix_SRAM[gp_reg<rs2>]`
+**Operation:** `Systolic Array += Vector_SRAM[gp_reg<rs2>] @ Matrix_SRAM[gp_reg<rs1>]`
 
 **Description:**
 
-Fetch an (BLEN, MLEN) vector from the Vector SRAM using the address provided by `rs1` and an (MLEN, BLEN) matrix from the Matrix SRAM using the address provided by `rs2`. Then, perform an array of dot products. The result matrix (BLEN, BLEN) is internally accumulated in every PE of the systolic array. 0 is a placeholder here, it does not have the write access to the Vector SRAM.
+Fetch a (BLEN, MLEN) tile from Vector SRAM at address `gp_reg<rs2>` and a (MLEN, BLEN) tile from Matrix SRAM at address `gp_reg<rs1>`. Compute the matrix product and accumulate internally in the systolic array. The first operand `0` is a placeholder. Call M_MM multiple times to accumulate across K dimension, then use M_MM_WO to write results.
 
 **Example:**
 ```asm
-S_ADDI_INT gp2, gp0, 0      ; Vector SRAM address = 0
-S_ADDI_INT gp4, gp0, 0      ; Matrix SRAM address = 0
-M_MM 0, gp2, gp4            ; Accumulate Vector[0] @ Matrix[0] into systolic array
+M_MM 0, gp2, gp4   ; Accumulate Vector[gp4] @ Matrix[gp2]
 ```
 
 ### M_TMM
@@ -131,11 +132,16 @@ Store the accumulated result [MLEN // HLEN, MLEN, MLEN] to the Vector SRAM at th
 
 **Format:** `M_MM_WO rd, rs1, imm`
 
-**Operation:** 
+**Operation:** Write systolic array result (BLEN × BLEN) to Vector SRAM at `gp_reg<rd>`
 
 **Description:**
 
-Write the accumulated (BLEN × BLEN) tile from the systolic array into Vector SRAM starting at gp_reg<rd>. The tile is laid out row by row (BLEN rows). The row stride is gp_reg<rd> * MLEN (if gp_reg<rd> == 0, use 1 * MLEN). Within each stride, write BLEN elements starting at column offset gp_reg<rd> % MLEN, and the start at row gp_reg<rd> // MLEN in Matrix SRAM.
+Writes the accumulated (BLEN × BLEN) result tile from the systolic array to Vector SRAM. After this instruction, the systolic array is cleared and ready for new accumulation.
+
+**Example:**
+```asm
+M_MM_WO gp1, gp0, 0   ; Write result to Vector SRAM[gp1]
+```
 
 ### M_MV
 
@@ -437,62 +443,73 @@ Copy a vector of length VLEN from FP_MEM to Vector SRAM.
 | **Vector[i]** | The i-th entry of the Vector SRAM |
 | **HBM[i]** | The i-th entry of the HBM |
 
-### H_PREFETCH_M
+### HBM Memory Layout
 
-**Addressing Constraints:**
-- **Matrix SRAM:** Write Addresses `gp_reg<rd>` must be multiples of `MLEN * MLEN`.
-- **Vector SRAM:** Write Addresses `gp_reg<rd>` must be multiples of `VLEN`.
+Tensors are stored contiguously in HBM in the order they are loaded. For a linear layer `Y = X @ W`:
+- HBM[0]: Activation tensor X (size: `batch * hidden_size`)
+- HBM[act_size]: Weight tensor W (size: `hidden_size * hidden_size`)
+- HBM[act_size + weight_size]: Output tensor Y
+
+**Critical:** When setting up HBM address registers, the weight base address (`a1`) must be set to `act_size`, not 0.
+
+**Example setup:**
+```asm
+; For batch=4, hidden=128: act_size = 4*128 = 512
+S_ADDI_INT gp1, gp0, 512         ; Weight base offset
+C_SET_ADDR_REG a1, gp0, gp1      ; a1 = 512 (weight base in HBM)
+; a0 can remain 0 for activation base
+```
+
+### H_PREFETCH_M
 
 **Format:** `H_PREFETCH_M rd, rs1, rs2, rstride, precision`
 
-**Operation:** `Matrix[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg<rs2>]`
+**Operation:** `Matrix_SRAM[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg<rs2>]`
 
 **Description:**
 
-Prefetch a matrix of size **HBM_M_Prefetch_Amount × MLEN** from the HBM to the Matrix SRAM, with a stride width specified by **STRIDE_REG** (set via `C_SET_STRIDE_REG`).
+Prefetch a (MLEN × MLEN) weight tile from HBM to Matrix SRAM. Uses stride mode where element(row, col) is stored at HBM offset `col * stride + row`.
 
 **Operands:**
 - `rd`: Register containing destination address in Matrix SRAM
-- `rs1`: Register containing offset within HBM
+- `rs1`: Register containing HBM offset (relative to base address)
 - `rs2`: HBM address register index (`a0`-`a7`) containing base address
-- `rstride`: Stride register selector (use `1` to enable stride from STRIDE_REG)
+- `rstride`: Stride mode selector (`1` = use STRIDE_REG for stride mode)
 - `precision`: Data precision (`0` = Weights, `1` = KeyValue)
+
+**HBM Stride Mode:** For weight tile at row_block=k, col_block=j (each block is MLEN×MLEN):
+- HBM offset = `j * MLEN + k * MLEN * stride`
+- Example with stride=128, MLEN=64: tile(k=1, j=0) is at offset `0 + 1*64*128 = 8192`
 
 **Example:**
 ```asm
-S_ADDI_INT gp1, gp0, 576           ; gp1 = 576 (HBM base address for weights)
-C_SET_ADDR_REG a1, gp0, gp1        ; a1 = HBM base address
-
-S_ADDI_INT gp4, gp0, 128           ; gp4 = 128 (stride)
-C_SET_STRIDE_REG gp4               ; Set stride register
-
-S_ADDI_INT gp2, gp0, 0             ; gp2 = 0 (Matrix SRAM destination)
-S_ADDI_INT gp3, gp0, 0             ; gp3 = 0 (HBM offset)
-H_PREFETCH_M gp2, gp3, a1, 1, 0    ; Prefetch weights from HBM[a1+0] to Matrix[0]
+H_PREFETCH_M gp2, gp3, a1, 1, 0   ; Prefetch from HBM[a1+gp3] to Matrix SRAM[gp2]
 ```
 
 ### H_PREFETCH_V
 
 **Format:** `H_PREFETCH_V rd, rs1, rs2, rstride, precision`
 
-**Operation:** `Vector[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg<rs2>]`
+**Operation:** `Vector_SRAM[gp_reg<rd>] = HBM[gp_reg<rs1> + hbm_addr_reg<rs2>]`
 
 **Description:**
 
-Prefetch a matrix of size **HBM_V_Prefetch_Amount × VLEN** from the HBM to the Vector SRAM, with a stride width specified by **STRIDE_REG**.
+Prefetch activation tiles from HBM to Vector SRAM. Loads **HBM_V_Prefetch_Amount × VLEN** elements (typically BLEN × VLEN = 4 × 64 = 256 elements).
 
 **Operands:**
-- `rd`: Register containing destination address in Vector SRAM
-- `rs1`: Register containing offset within HBM
+- `rd`: Register containing destination address in Vector SRAM (where to store)
+- `rs1`: Register containing HBM offset (where to read from)
 - `rs2`: HBM address register index (`a0`-`a7`) containing base address
-- `rstride`: Stride register selector (`0` = no stride, `1` = use STRIDE_REG)
+- `rstride`: Stride mode selector (`1` = use STRIDE_REG for stride mode)
 - `precision`: Data precision (`0` = Activation, `1` = KeyValue)
+
+**Note:** `rd` and `rs1` are independent - `rd` is the SRAM destination, `rs1` is the HBM source offset. They should typically be different registers.
 
 **Example:**
 ```asm
-S_ADDI_INT gp3, gp0, 0             ; gp3 = 0 (Vector SRAM destination)
-S_ADDI_INT gp2, gp0, 0             ; gp2 = 0 (HBM offset)
-H_PREFETCH_V gp3, gp2, a0, 1, 0    ; Prefetch activations from HBM[a0+0] to Vector[0]
+S_ADDI_INT gp3, gp0, 0            ; Vector SRAM destination = 0
+S_ADDI_INT gp2, gp0, 64           ; HBM offset = 64
+H_PREFETCH_V gp3, gp2, a0, 1, 0   ; Prefetch from HBM[a0+64] to Vector SRAM[0]
 ```
 
 ### H_STORE_V
@@ -542,12 +559,21 @@ C_SET_ADDR_REG a1, gp0, gp1        ; a1 = {gp1, gp0} = 576
 
 Set the scale offset register. This is **required before H_PREFETCH_M and H_PREFETCH_V** operations when using MXFP format data. The scale offset specifies the distance between data blocks and their scale factors in HBM.
 
-**Typical value:** For weight matrices, set to `hidden_size * hidden_size` (total number of elements).
+**Critical:** The scale offset should match the tensor you're about to access:
+- For activations: `batch * hidden_size`
+- For weights: `hidden_size * hidden_size`
+
+You must call `C_SET_SCALE_REG` with the correct value before accessing each different tensor type.
 
 **Example:**
 ```asm
-S_ADDI_INT gp4, gp0, 16384         ; gp4 = 128*128 = 16384 (weight matrix size)
-C_SET_SCALE_REG gp4                ; Set scale offset
+; Before accessing activations (batch=4, hidden=128)
+S_ADDI_INT gp1, gp0, 512           ; 4 * 128 = 512
+C_SET_SCALE_REG gp1
+
+; Before accessing weights (hidden=128)
+S_ADDI_INT gp1, gp0, 16384         ; 128 * 128 = 16384
+C_SET_SCALE_REG gp1
 ```
 
 ### C_SET_STRIDE_REG
@@ -594,12 +620,17 @@ Triggers a breakpoint exception for debugging purposes. **Note:** Programs do no
 
 **Description:**
 
-Start a hardware loop. The loop count is set by `imm`. The register `rd` is used internally to track the loop counter.
+Start a hardware loop. The loop count is set by `imm`. The register `rd` is used internally by the hardware to track remaining iterations.
+
+**IMPORTANT:** The loop counter register `rd` does NOT contain the current iteration index. You must maintain your own index variable and increment it manually inside the loop.
 
 **Example:**
 ```asm
+S_ADDI_INT gp5, gp0, 0             ; idx = 0 (must track index separately!)
 C_LOOP_START gp4, 8                ; Start loop with 8 iterations
-; ... loop body ...
+  ; Use gp5 as the iteration index (0, 1, 2, ..., 7)
+  ; ... loop body using gp5 ...
+  S_ADDI_INT gp5, gp5, 1           ; idx++ (increment your own index)
 C_LOOP_END gp4                     ; End of loop
 ```
 

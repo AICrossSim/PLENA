@@ -6,11 +6,12 @@ from typing import Dict, Any
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 # Allowed directories for security
+# NOTE: compiler/asm_templates is excluded - agent must write assembly from first principles
 ALLOWED_DIRS = [
     "behavioral_simulator",
     "kernel_agents",
     "tools/assembler",
-    "compiler",
+    "compiler/doc",  # Only docs, not templates
     "src/definitions",
 ]
 

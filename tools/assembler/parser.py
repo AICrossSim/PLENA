@@ -97,9 +97,12 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
     with open(file_path, 'r') as file:
         for line in file:
             # Remove comments and strip whitespace
-            if line.startswith('//') :
+            # Handle both // and ; style comments
+            if line.startswith('//') or line.strip().startswith(';'):
                 continue
-            line = line.split('//')[0].strip().rstrip(';')
+            line = line.split('//')[0]  # Remove // comments
+            line = line.split(';')[0]   # Remove ; comments
+            line = line.strip()
             if not line:
                 continue
 
@@ -125,11 +128,11 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 if operand.endswith(';'):
                     operand = operand[:-1]
                 if operand.startswith('gp'):
-                    return int(operand[2:], 16)
+                    return int(operand[2:])  # decimal, not hex
                 elif operand.startswith('f'):
-                    return int(operand[1:], 16)
+                    return int(operand[1:])  # decimal, not hex
                 elif operand.startswith('a'):
-                    return int(operand[1:], 16)
+                    return int(operand[1:])  # decimal, not hex
                 else:
                     try:
                         return int(operand)
