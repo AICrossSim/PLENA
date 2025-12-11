@@ -4,9 +4,11 @@
 
 The PLENA architecture supports four types of registers:
 
-- **gp_reg** (`gp0` to `gp15`): General-purpose integer registers
-- **fp_reg** (`f0` to `f7`): Floating-point registers
-- **hbm_addr_reg** (`a0` to `a7`): HBM address registers
+- **gp_reg** (`gp0` to `gp15`): 16 general-purpose integer registers (gp0-gp15 only, no gp16+)
+- **fp_reg** (`f0` to `f7`): 8 floating-point registers
+- **hbm_addr_reg** (`a0` to `a7`): 8 HBM address registers
+
+**Important:** There are exactly 16 GP registers (gp0-gp15). Using gp16 or higher will cause assembler errors.
 
 ## Assembly Syntax
 
@@ -441,6 +443,23 @@ Copy a vector of length VLEN from FP_MEM to Vector SRAM.
 | **Vector[i]** | The i-th entry of the Vector SRAM |
 | **HBM[i]** | The i-th entry of the HBM |
 
+### HBM Memory Layout
+
+Tensors are stored contiguously in HBM in the order they are loaded. For a linear layer `Y = X @ W`:
+- HBM[0]: Activation tensor X (size: `batch * hidden_size`)
+- HBM[act_size]: Weight tensor W (size: `hidden_size * hidden_size`)
+- HBM[act_size + weight_size]: Output tensor Y
+
+**Critical:** When setting up HBM address registers, the weight base address (`a1`) must be set to `act_size`, not 0.
+
+**Example setup:**
+```asm
+; For batch=4, hidden=128: act_size = 4*128 = 512
+S_ADDI_INT gp1, gp0, 512         ; Weight base offset
+C_SET_ADDR_REG a1, gp0, gp1      ; a1 = 512 (weight base in HBM)
+; a0 can remain 0 for activation base
+```
+
 ### H_PREFETCH_M
 
 **Format:** `H_PREFETCH_M rd, rs1, rs2, rstride, precision`
@@ -540,12 +559,21 @@ C_SET_ADDR_REG a1, gp0, gp1        ; a1 = {gp1, gp0} = 576
 
 Set the scale offset register. This is **required before H_PREFETCH_M and H_PREFETCH_V** operations when using MXFP format data. The scale offset specifies the distance between data blocks and their scale factors in HBM.
 
-**Typical value:** For weight matrices, set to `hidden_size * hidden_size` (total number of elements).
+**Critical:** The scale offset should match the tensor you're about to access:
+- For activations: `batch * hidden_size`
+- For weights: `hidden_size * hidden_size`
+
+You must call `C_SET_SCALE_REG` with the correct value before accessing each different tensor type.
 
 **Example:**
 ```asm
-S_ADDI_INT gp4, gp0, 16384         ; gp4 = 128*128 = 16384 (weight matrix size)
-C_SET_SCALE_REG gp4                ; Set scale offset
+; Before accessing activations (batch=4, hidden=128)
+S_ADDI_INT gp1, gp0, 512           ; 4 * 128 = 512
+C_SET_SCALE_REG gp1
+
+; Before accessing weights (hidden=128)
+S_ADDI_INT gp1, gp0, 16384         ; 128 * 128 = 16384
+C_SET_SCALE_REG gp1
 ```
 
 ### C_SET_STRIDE_REG

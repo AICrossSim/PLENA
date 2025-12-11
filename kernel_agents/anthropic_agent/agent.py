@@ -116,10 +116,23 @@ Use this tool when MSE is high to understand what went wrong:
 - Compare side-by-side with expected golden values
 - Identify patterns: all zeros = not computed, wrong values = incorrect addressing
 
+BEFORE calling this tool, you MUST trace your code in your thinking:
+1. Pick a specific line (e.g., "Line 47: H_PREFETCH_M ...")
+2. Trace each register value back to where it was set
+3. Write out the calculation explicitly in your thinking
+4. If wrong, fix that specific line - don't rewrite from scratch
+
+IMPORTANT: Set num_batches and hidden_size to match your test configuration!
+Default is batch=4, hidden=128. If debugging fails, try skip_reorder=True for raw memory view.
+
 Returns per-row analysis showing simulated vs golden values, min/max/mean stats, and row-level MSE.""",
         "input_schema": {
             "type": "object",
             "properties": {
+                "assembly_code": {
+                    "type": "string",
+                    "description": "The assembly code being debugged (pass your current code)",
+                },
                 "num_rows": {
                     "type": "integer",
                     "description": "Number of rows to display (default 8, each row = 64 values)",
@@ -132,8 +145,20 @@ Returns per-row analysis showing simulated vs golden values, min/max/mean stats,
                     "type": "boolean",
                     "description": "Whether to show golden reference values (default True)",
                 },
+                "num_batches": {
+                    "type": "integer",
+                    "description": "Number of batches in output - MUST match your test config (default 4)",
+                },
+                "hidden_size": {
+                    "type": "integer",
+                    "description": "Hidden dimension size - MUST match your test config (default 128)",
+                },
+                "skip_reorder": {
+                    "type": "boolean",
+                    "description": "Skip stride reordering for raw memory view (default False). Use if debug fails.",
+                },
             },
-            "required": [],
+            "required": ["assembly_code"],
         },
     },
     {
@@ -142,12 +167,14 @@ Returns per-row analysis showing simulated vs golden values, min/max/mean stats,
 
 Use sparingly - only when documentation is insufficient. Prefer existing tools first.
 
+DO NOT read from compiler/asm_templates/ - you must write assembly from first principles
+using the ISA spec and memory layout docs provided in the system prompt.
+
 Useful paths:
 - behavioral_simulator/src/op.rs - Instruction execution logic
 - behavioral_simulator/testbench/check_mem.py - Golden comparison, MSE calculation
 - tools/assembler/assembly_to_binary.py - Assembler implementation
-- src/definitions/configuration.svh - Hardware params (VLEN, MLEN, BLEN)
-- compiler/doc/plena_isa_spec.md - Full ISA specification""",
+- src/definitions/configuration.svh - Hardware params (VLEN, MLEN, BLEN)""",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -190,7 +217,7 @@ class AnthropicAgent:
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-opus-4-20250514",
         api_key: Optional[str] = None,
         max_tokens: int = 16000,
         system_prompt: Optional[str] = None,
@@ -203,7 +230,7 @@ class AnthropicAgent:
         Args:
             model: Claude model to use
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
-            max_tokens: Max tokens per response (increased for thinking)
+            max_tokens: Max tokens per response
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT)
             enable_thinking: Enable extended thinking for better reasoning
             thinking_budget: Token budget for thinking (default 10000)

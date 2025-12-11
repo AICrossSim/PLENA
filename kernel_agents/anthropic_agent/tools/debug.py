@@ -13,9 +13,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "behavioral_simulator" / "testbench"))
 
 
 def debug_view_memory(
+    assembly_code: str = "",
     num_rows: int = 8,
     start_row: int = 0,
     show_golden: bool = True,
+    num_batches: int = 4,
+    hidden_size: int = 128,
+    skip_reorder: bool = False,
 ) -> Dict[str, Any]:
     """
     View simulator memory output and compare with golden reference for debugging.
@@ -26,12 +30,16 @@ def debug_view_memory(
     - Identify patterns (all zeros = not computed, wrong values = incorrect addressing)
 
     Args:
+        assembly_code: The assembly code being debugged (required for context)
         num_rows: Number of rows to display (default 8, each row = 64 values)
         start_row: Starting row index (default 0)
         show_golden: Whether to show golden reference values (default True)
+        num_batches: Number of batches in the output (default 4, set to match your test config)
+        hidden_size: Hidden dimension size (default 128, set to match your test config)
+        skip_reorder: Skip stride reordering - use for raw memory view (default False)
 
     Returns:
-        Dict with simulated values, golden values, and per-row error analysis
+        Dict with simulated values, golden values, per-row error analysis, and the code being debugged
     """
     from check_mem import (
         read_bin_file_as_array,
@@ -45,6 +53,7 @@ def debug_view_memory(
         "golden_values": None,
         "row_analysis": [],
         "error": None,
+        "assembly_code": assembly_code,
     }
 
     # Check if files exist
@@ -69,8 +78,13 @@ def debug_view_memory(
             num_rows=num_rows,
         )
 
-        # Reorder from stride mode to batch-wise layout
-        simulated = reorder_stride_mode(simulated, num_batches=4, elements_per_batch=128)
+        # Reorder from stride mode to batch-wise layout (unless skipped)
+        if not skip_reorder and num_batches > 0 and hidden_size > 0:
+            try:
+                simulated = reorder_stride_mode(simulated, num_batches=num_batches, elements_per_batch=hidden_size)
+            except (IndexError, ValueError) as e:
+                # If reorder fails, return raw data with warning
+                result["warning"] = f"Stride reorder failed ({e}), showing raw memory. Try skip_reorder=True or adjust num_batches/hidden_size."
 
         # Read golden if requested
         golden = None
@@ -89,12 +103,15 @@ def debug_view_memory(
         row_analysis = []
 
         values_per_row = 64
-        num_display_rows = min(num_rows, len(simulated) // values_per_row)
+        num_display_rows = min(num_rows, max(1, len(simulated) // values_per_row))
 
         for i in range(num_display_rows):
             start = i * values_per_row
-            end = start + values_per_row
+            end = min(start + values_per_row, len(simulated))
             sim_row = simulated[start:end]
+
+            if len(sim_row) == 0:
+                continue
 
             # Show summary: first 4, ..., last 4
             sim_summary = [f"{v:.4f}" for v in sim_row[:4]] + ["..."] + [f"{v:.4f}" for v in sim_row[-4:]]
@@ -130,15 +147,16 @@ def debug_view_memory(
         # Overall stats
         result["overall"] = {
             "total_values": len(simulated),
-            "simulated_range": [float(np.min(simulated)), float(np.max(simulated))],
+            "simulated_range": [float(np.min(simulated)), float(np.max(simulated))] if len(simulated) > 0 else [0, 0],
             "num_zeros": int(np.sum(simulated == 0)),
             "num_nans": int(np.sum(np.isnan(simulated))),
         }
 
-        if golden is not None:
+        if golden is not None and len(golden) > 0:
             min_len = min(len(simulated), len(golden))
-            mse = float(np.mean((simulated[:min_len] - golden[:min_len]) ** 2))
-            result["overall"]["mse"] = mse
+            if min_len > 0:
+                mse = float(np.mean((simulated[:min_len] - golden[:min_len]) ** 2))
+                result["overall"]["mse"] = mse
             result["overall"]["golden_range"] = [float(np.min(golden)), float(np.max(golden))]
 
     except Exception as e:
