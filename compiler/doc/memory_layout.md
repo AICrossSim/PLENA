@@ -62,4 +62,6 @@ The data stored in HBM convention is as follows:
 
 To make the prefetch process aware of that data layout, we need the C_SET_SCALE_REG to set the scale offset for the prefetch instructions, so that the prefetch process can know the distance between the data blocks and their scale factors in HBM. 
 
+To address MX-formatted weights in memory, compute the base plus the scale-block offset. For instance, when accessing the weight matrix, the address should be the address of the first element of the weight matrix plus the scales offset. That is hidden * sequence_length * batch_size * (data_size // 8) + ((hidden * sequence_length * batch_size) // block_dim) * (scale_width // 8)
+
 After that, the accelerator will automatically convert them into the correct FP data layout in the On-chip Matrix SRAM. Also, during the prefetch process, the C_SET_STRIDE_REG will be used to set the stride size for the prefetch instructions.
