@@ -2,10 +2,10 @@
   "MatrixMachine": {
     "Coefficients": {
       "P1": 50,
-      "P2": 500,
+      "P2": 100,
       "P3": 10,
       "P4": 10,
-      "P5": 400
+      "P5": 200
     },
 
     "Relationship": "P1 * MLEN * BLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) + P2 * MLEN * BLEN * (WT_MX_MANT_WIDTH + WT_MX_EXP_WIDTH + 1 + MX_SCALE_WIDTH) + P3 * (MLEN // BLOCK_DIM) * BLEN * (BLOCK_DIM * ACT_ELEMENT_WIDTH + MX_SCALE_WIDTH) + P4 * MLEN * (FP_EXP_WIDTH + FP_MANT_WIDTH + 1) + P5"
@@ -45,7 +45,7 @@
     "Coefficients": {
       "P1": 300,
       "P2": 300,
-      "P3": 800,
+      "P3": 100,
       "P4": 100,
       "P5": 100,
       "P6": 100

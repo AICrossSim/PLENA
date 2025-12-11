@@ -10,6 +10,13 @@ pub enum VectorPrecision {
     KeyValue,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum VectorOrder {
+    Normal,
+    Reverse,
+}
+
+
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub enum Opcode {
@@ -90,6 +97,7 @@ pub enum Opcode {
         rs1: u8,
         rs2: u8,
         rmask: u8,
+        rorder: VectorOrder,
     },
     V_MUL_VV {
         rd: u8,
@@ -268,6 +276,13 @@ pub enum Opcode {
     C_SET_V_MASK_REG {
         rd: u8,
     },
+    C_LOOP_START {
+        rd: u8,
+        imm: u32,
+    },
+    C_LOOP_END {
+        rd: u8,
+    },
     C_BREAK,
 }
 
@@ -281,6 +296,33 @@ const fn mask(width: u32) -> u32 {
 }
 
 impl Opcode {
+    #[inline]
+    fn matrix_precision_from(funct1: u8) -> MatrixPrecision {
+        if funct1 == 0 {
+            MatrixPrecision::Weights
+        } else {
+            MatrixPrecision::KeyValue
+        }
+    }
+
+    #[inline]
+    fn vector_precision_from(funct1: u8) -> VectorPrecision {
+        if funct1 == 0 {
+            VectorPrecision::Activation
+        } else {
+            VectorPrecision::KeyValue
+        }
+    }
+
+    #[inline]
+    fn vector_order_from(funct1: u8) -> VectorOrder {
+        if funct1 == 0 {
+            VectorOrder::Normal
+        } else {
+            VectorOrder::Reverse
+        }
+    }
+
     pub fn decode(instr: u32) -> Self {
         // eprintln!(
         //     "decode(): instr = 0x{instr:08X} ({instr:032b})"
@@ -290,6 +332,7 @@ impl Opcode {
         let rs1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(OPERAND_WIDTH)) as u8;
         let rs2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(OPERAND_WIDTH)) as u8;
         let rs3 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 3)) & mask(OPERAND_WIDTH)) as u8;
+        let funct1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 4)) & mask(OPERAND_WIDTH)) as u8;
         let imm = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(IMM_WIDTH)) as u32;
         let imm2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(IMM_2_WIDTH)) as u32;
 
@@ -313,7 +356,7 @@ impl Opcode {
             0x0D => Self::V_ADD_VV  { rd, rs1, rs2, rmask: rs3 },
             0x0E => Self::V_ADD_VF  { rd, rs1, rs2, rmask: rs3 },
             0x0F => Self::V_SUB_VV  { rd, rs1, rs2, rmask: rs3 },
-            0x10 => Self::V_SUB_VF  { rd, rs1, rs2, rmask: rs3 },
+            0x10 => Self::V_SUB_VF  { rd, rs1, rs2, rmask: rs3, rorder: Self::vector_order_from(funct1) },
             0x11 => Self::V_MUL_VV  { rd, rs1, rs2, rmask: rs3 },
             0x12 => Self::V_MUL_VF  { rd, rs1, rs2, rmask: rs3 },
             0x13 => Self::V_EXP_V   { rd, rs1, rmask: rs3 },
@@ -347,7 +390,7 @@ impl Opcode {
                 rs1,
                 rs2,
                 rstride: rs3,
-                precision: MatrixPrecision::Weights,
+                precision: Self::matrix_precision_from(funct1),
             },
             // 0x29 => Self::H_PREFETCH_M { rd, rs1, rs2, rstride: rs3, precision: MatrixPrecision::KeyValue },
             0x29 => Self::H_PREFETCH_V {
@@ -355,7 +398,7 @@ impl Opcode {
                 rs1,
                 rs2,
                 rstride: rs3,
-                precision: VectorPrecision::KeyValue,
+                precision: Self::vector_precision_from(funct1),
             },
             // 0x2A => Self::H_PREFETCH_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x2A => Self::H_STORE_V {
@@ -363,7 +406,7 @@ impl Opcode {
                 rs1,
                 rs2,
                 rstride: rs3,
-                precision: VectorPrecision::Activation,
+                precision: Self::vector_precision_from(funct1),
             },
             // 0x2B => Self::H_STORE_V { rd, rs1, rs2, rstride: rs3, precision: VectorPrecision::KeyValue },
             0x2B => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
@@ -374,7 +417,9 @@ impl Opcode {
             0x34 => Self::V_CMP_EQ_VF { rd, rs1, rs2 },
             0x35 => Self::V_TOPK_MASK { rd, rs1, rs2, k_scalar: rs3 },
             0x2E => Self::C_SET_V_MASK_REG { rd },
-            0x2F => Self::C_BREAK,
+            0x2F => Self::C_LOOP_START { rd, imm},
+            0x30 => Self::C_LOOP_END { rd },
+            0x31 => Self::C_BREAK,
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

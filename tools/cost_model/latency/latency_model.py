@@ -78,10 +78,10 @@ class instr_latency_model:
         print(f"Alone latency model saved to {output_file}")
 
     def obtain_overall_latency(self, updated_config):
-        batch_size = 1024
-        input_seq_len = 1024
-        output_seq_len = 128
-        device_num = 4
+        batch_size = 4
+        input_seq_len = 2048
+        output_seq_len = 1024
+        device_num = 1
         hardware_settings = self.hardware_config
         for key, value in updated_config.items():
             hardware_settings[key] = value

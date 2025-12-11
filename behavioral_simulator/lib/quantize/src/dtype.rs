@@ -163,8 +163,43 @@ fn test_f16() {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntType {
+    pub width: u32,
+}
+
+impl IntType {
+    pub const fn size_in_bits(self) -> u8 {
+        self.width as u8
+    }
+
+    /// Convert f32 to integer bits. Truncates the float to an integer.
+    pub const fn bits_from_f32(self, float: f32) -> u32 {
+        let int_val = float as i32;
+        let mask = if self.width >= 32 {
+            0xFFFFFFFFu32
+        } else {
+            ((1u64 << self.width) - 1) as u32
+        };
+        (int_val as u32) & mask
+    }
+
+    /// Convert integer bits to f32. Interprets bits as unsigned integer.
+    pub const fn convert_bits_to_f32(self, bits: u32) -> f32 {
+        let mask = if self.width >= 32 {
+            0xFFFFFFFFu32
+        } else {
+            ((1u64 << self.width) - 1) as u32
+        };
+        let masked_bits = bits & mask;
+        masked_bits as f32
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataType {
     Fp(FpType),
+    Int(IntType),
 }
 
 impl From<FpType> for DataType {
@@ -173,22 +208,27 @@ impl From<FpType> for DataType {
     }
 }
 
+
+
 impl DataType {
     pub fn size_in_bits(self) -> u8 {
         match self {
             DataType::Fp(fp_type) => fp_type.size_in_bits(),
+            DataType::Int(int_type) => int_type.size_in_bits(),
         }
     }
 
     pub const fn bits_from_f32(self, float: f32) -> u32 {
         match self {
             DataType::Fp(fp_type) => fp_type.bits_from_f32(float),
+            DataType::Int(int_type) => int_type.bits_from_f32(float),
         }
     }
 
     pub const fn convert_bits_to_f32(self, bits: u32) -> f32 {
         match self {
             DataType::Fp(fp_type) => fp_type.convert_bits_to_f32(bits),
+            DataType::Int(int_type) => int_type.convert_bits_to_f32(bits),
         }
     }
 
@@ -257,6 +297,15 @@ impl MxDataType {
         match self {
             MxDataType::Plain(elem) => elem,
             MxDataType::Mx { elem, .. } => elem,
+        }
+    }
+
+    /// Returns the size in bits of the element type
+    /// Works for both Plain (FP and Int) and Mx variants
+    pub fn size_in_bits(self) -> u8 {
+        match self {
+            MxDataType::Plain(data_type) => data_type.size_in_bits(),
+            MxDataType::Mx { elem, .. } => elem.size_in_bits(),
         }
     }
 }

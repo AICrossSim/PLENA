@@ -40,6 +40,8 @@ def batched_matmul_asm(
     assert k % mlen == 0, "k must be divisible by mlen"
     assert m % blen == 0, "m must be divisible by blen"
     assert n % blen == 0, "n must be divisible by blen"
+    print(f"b = {b}, m = {m}, k = {k}, n = {n}")
+    print(f"mlen = {mlen}, blen = {blen}")
 
     a_actual_register   = alive_registers[0]
     w_actual_register = alive_registers[1]
@@ -47,7 +49,7 @@ def batched_matmul_asm(
 
 
     generated_code += f"S_ADDI_INT gp{result_actual_register}, gp0, {result_base_address} \n"
-    for batch in range(b):
+    for batch in range(1, b + 1):
         # preload the activation matrix
         for i in range(math.ceil(n // blen)):
             assert w_prefetch_amount >= k, "w_prefetch_amount must be greater than or equal to k"
@@ -56,7 +58,7 @@ def batched_matmul_asm(
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {n} \n"
             generated_code += f"C_SET_STRIDE_REG gp{w_actual_register} \n"
             generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
-            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_actual_register}, a{w_base_hbm_offset_reg}, {w_prefetch_amount // k}, 0 \n"
+            generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_actual_register}, a{w_base_hbm_offset_reg}, 1, 0 \n"
             
             for j in range(math.ceil(m // blen)):
                 if j == 0:
@@ -68,7 +70,7 @@ def batched_matmul_asm(
                 if j % math.ceil((a_prefetch_amount * mlen) // k) == 0:
                     generated_code += f"H_PREFETCH_V gp{a_actual_register}, gp{a_actual_register}, a{a_base_hbm_offset_reg}, 1, 0 \n"
                     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, 0 \n"
-                for k in range(math.ceil(k // mlen)):
+                for g in range(math.ceil(k // mlen)):
                     generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
                     generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {blen * mlen} \n"
                     generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {blen * mlen} \n"

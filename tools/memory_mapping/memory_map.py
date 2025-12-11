@@ -113,7 +113,7 @@ def map_data_to_fake_hbm_for_rtl_sim(blocks, element_width, block_width, bias, b
             f.write("0x" + insert_bias_row + "\n")
 
 
-def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, append=True, hbm_row_width=64):
+def map_mx_data_to_hbm_for_behave_sim(blocks, element_width, block_width, bias, bias_width, directory, append=True, hbm_row_width=64):
     """
     Maps the quantized blocks and bias to binary memory file for fake HBM memory.
     Writes raw bytes instead of ASCII hex text.
@@ -126,6 +126,7 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
     
     output_file = os.path.join(directory, "hbm_for_behave_sim.bin")
     mode = 'ab' if append else 'wb'
+
     for row_idx, row in enumerate(blocks):
         hex_row = " ".join(f"0x{val:02X}" for val in row)
 
@@ -180,6 +181,28 @@ def map_data_to_fake_hbm_for_behave_sim(blocks, element_width, block_width, bias
             f.write(row_buffer)
     print_outputfile_contents(output_file)
     
+
+def map_normal_data_to_hbm_for_behave_sim(data, data_width, directory, append=True, hbm_row_width=64):
+    """
+    Maps the normal data to binary memory file for fake HBM memory.
+    """
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    output_file = os.path.join(directory, "hbm_for_behave_sim.bin")
+    mode = 'ab' if append else 'wb'
+    with open(output_file, mode) as f:
+        row_buffer = bytearray()
+        for i, element in enumerate(data):
+            hex_str = map_scale_to_value(element, data_width)
+            data_bytes = hex_to_bytes(hex_str)
+            row_buffer.extend(data_bytes)
+            if len(row_buffer) >= hbm_row_width:
+                f.write(row_buffer[:hbm_row_width])
+                row_buffer = bytearray()
+        if len(row_buffer) > 0:
+            f.write(row_buffer)
+    print_outputfile_contents(output_file)
+
 
 if __name__ == "__main__":
     directory = "../../test/weight"

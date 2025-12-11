@@ -15,71 +15,54 @@ import torch.nn.functional as F
 
 if __name__ == "__main__":
  
-    hidden_size = 64
+    
     vlen = 64
-    batch_size = 4
+    load_len = vlen * vlen
+    batch_size = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    fp_preload = [0.0, 1e-6, 1/hidden_size]
+    fp_preload = [0.0, 1e-6]
     preload_amount = 4
     hbm_data_width = 64
     
     torch.manual_seed(42)
-    input_tensor1 = torch.randn(batch_size, hidden_size)
-    input_tensor2 = input_tensor1
+    fp_preload = [0, 1]
+    # fp_sram = [fp_preload[0]] * vlen
 
+    gen_assembly_code = "; S MAP V Test Generation \n"
+    torch.manual_seed(42)
+    
+    input_tensor1 = torch.randn(batch_size, load_len)
     input_tensor = {
         "input_tensor1": input_tensor1,
         "input_tensor2": input_tensor1
     }
-
     weights = input_tensor1
-    original_output = input_tensor1
+    original_output = torch.max(input_tensor1.reshape(batch_size, vlen, vlen), dim=-1).values
 
     golden_result = {
         "input_tensor": input_tensor,
         "weights": weights,
         "original_output": original_output
     }
-    
-    gen_assembly_code = "; Two Input Test Generation \n"
-    
-    # Set the addr offset for weight and bias
-    gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_to_set=[1],
-        available_registers=[1],
-        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size * hidden_size * real_data_ratio, hbm_data_width))]
-    )
-    print("batch_size * hidden_size * real_data_ratio", batch_size * hidden_size * real_data_ratio)
-    # Reset the registers
-    gen_assembly_code += reset_reg_asm(
-        alive_registers=[1]
-    )
-    
-    # # Gen Activation Preload
+    # Gen Activation Preload for fp0
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
-        hidden_size=hidden_size,
+        hidden_size=load_len,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
         act_vram_offset=0,
         activation_offset_reg=0
     )
+    gen_assembly_code += f"S_ADDI_INT gp1, gp0, 0 \n"
+    for i in range(vlen):
+        gen_assembly_code += f"V_RED_MAX f1, gp1, 0 \n"
+        gen_assembly_code += f"S_ADDI_INT gp1, gp1, {vlen} \n"
+        gen_assembly_code += f"S_ST_FP f1, gp0, {i} \n"
 
-    gen_assembly_code += preload_act_asm(
-        vlen=vlen,
-        preload_len=preload_amount,
-        batch=batch_size,
-        hidden_size=hidden_size,
-        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
-        act_vram_offset=batch_size*hidden_size,
-        activation_offset_reg=1
-    )
-
-    # Reset the registers
-    gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4]
-    )
-
+    # gen_assembly_code += "; V_RED_MAX f1, gp0, 0 \n"
+    gen_assembly_code += f"S_ADDI_INT gp1, gp0, 0 \n"
+    gen_assembly_code += f"S_MAP_V_FP gp1, gp0, 0 \n"
+    
     create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1","input_tensor2"])

@@ -167,16 +167,20 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     C_SET_SCALE_REG        = 6'h2C,
     C_SET_STRIDE_REG       = 6'h2D,
     C_SET_V_MASK_REG       = 6'h2E,
+    C_LOOP_START           = 6'h2F,
+    C_LOOP_END             = 6'h30,
 
     // Extensions
-    V_PS_V                 = 6'h2E,
-    V_SHFT_V               = 6'h2F,
-    C_HADAMARD_TRANSFORM   = 6'h30,
-    C_BREAK                = 6'h31,
-    V_RED_MAX_IDX          = 6'h32,
-    V_SELECT_VVM           = 6'h33,
-    V_CMP_EQ_VF            = 6'h34,
-    V_TOPK_MASK            = 6'h35
+    V_PS_V                 = 6'h31,
+    V_SHFT_V               = 6'h32,
+    C_HADAMARD_TRANSFORM   = 6'h33,
+    C_BREAK                = 6'h34
+    V_RED_MAX_IDX          = 6'h35,
+    V_SELECT_VVM           = 6'h36,
+    V_CMP_EQ_VF            = 6'h37,
+    V_TOPK_MASK            = 6'h38
+
+
 } CUSTOM_ISA_OPCODE;
 
 

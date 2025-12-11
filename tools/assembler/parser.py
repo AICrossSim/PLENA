@@ -62,7 +62,7 @@ def load_isa_settings(file_path: str) -> dict:
 
 
 class Instruction:
-    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rstride: Optional[str], funct1: Optional[int], imm: Optional[int] = None):
+    def __init__(self, opcode: str, rd: str, rs1: Optional[str], rs2: Optional[str], rstride: Optional[str], funct1: Optional[int], funct2: Optional[int], imm: Optional[int] = None, rflag: Optional[int] = None):
 
         self.opcode = opcode
         self.rd = rd
@@ -70,11 +70,12 @@ class Instruction:
         self.rs2 = rs2
         self.rstride = rstride
         self.funct1 = funct1
+        self.funct2 = funct2
         self.imm = imm
         self.rmask = rstride
 
     def __repr__(self):
-        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, imm={self.imm})"
+        return f"Instruction(opcode='{self.opcode}', rd='{self.rd}', rs1='{self.rs1}', rs2='{self.rs2}', rstride = '{self.rstride}', funct1={self.funct1}, funct2={self.funct2}, imm={self.imm}, rflag={self.rflag})"
 
 
 def parse_asm_file(file_path: str) -> List[Instruction]:
@@ -109,7 +110,7 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                 continue  # Invalid line
             opcode = parts[0]
             operands = [part.strip() for part in ' '.join(parts[1:]).split(',')]
-            # print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
+            print(f"Parsing instruction: {line}", "operand length:", len(operands), "operands:", operands)
             
             # Decode based on number of operands, case-structure by length
             rd = None
@@ -117,6 +118,7 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
             rs2 = None
             rstride = None
             funct1 = None
+            funct2 = None
             imm = None
 
             # Helper to parse a register or int operand
@@ -225,9 +227,44 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                     funct1 = int(funct1_raw)
                 except ValueError:
                     funct1 = funct1_raw  # fallback, if not int, keep as string
+            elif len(operands) == 6:
+                operand_0, operand_1, operand_2, operand_3, operand_4, operand_5 = operands
+                rd = parse_reg_or_int(operand_0)
+                if operand_1.strip().startswith(('gp','f','a')):
+                    rs1 = parse_reg_or_int(operand_1)
+                else:
+                    try:
+                        imm = int(operand_1)
+                    except ValueError:
+                        imm = None
+                if operand_2.strip().startswith(('gp','f','a')):
+                    rs2 = parse_reg_or_int(operand_2)
+                else:
+                    try:
+                        imm = int(operand_2)
+                    except ValueError:
+                        pass
+                try:
+                    rstride = int(operand_3)
+                except ValueError:
+                    rstride = None
+                funct1_raw = operand_4.strip()
+                if funct1_raw.endswith(';'):
+                    funct1_raw = funct1_raw[:-1]
+                try:
+                    funct1 = int(funct1_raw)
+                except ValueError:
+                    funct1 = funct1_raw  # fallback, if not int, keep as string
+                funct2_raw = operand_5.strip()
+                if funct2_raw.endswith(';'):
+                    funct2_raw = funct2_raw[:-1]
+                try:
+                    funct2 = int(funct2_raw)
+                except ValueError:
+                    funct2 = funct2_raw  # fallback, if not int, keep as string
 
 
-            instructions.append(Instruction(opcode, rd, rs1, rs2, rstride, funct1, imm))
+            instructions.append(Instruction(opcode, rd, rs1, rs2, rstride, funct1, funct2, imm))
 
     return instructions
 

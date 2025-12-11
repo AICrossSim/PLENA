@@ -1,115 +1,126 @@
-import os
-from typing import Dict, List, Any, Optional
-from pathlib import Path
-
+from typing import List
 
 IMM2_BOUND = 2**18
+
 def projection_asm(
     mlen: int,
     blen: int,
     batch: int,
     hidden_size: int,
     alive_registers: List[int],
-    head_dim: int,
     w_base_hbm_offset_reg: int,
-    rope_hbm_offset_reg: int,
-    rope_on_chip_address: int,
     activation_base_address: int,
     result_base_address: int,
-    rope_enabled: bool = True
+    rope_enabled: bool = False,
+    rope_hbm_offset_reg: int = 0,
+    rope_on_chip_address: int = 0
 ) -> str:
     """
-    Generates assembly code for a general matrix multiplication operation.
+    Generates highly optimized assembly code for matrix multiplication.
     (Batch, Hidden Size) @ (Hidden Size, Hidden Size) -> (Batch, Hidden Size)
 
+    Key optimizations:
+    1. Eliminate dead code (register updates after last use in loop)
+    2. Use incremental result addressing within MLEN blocks
+    3. Minimize redundant register resets
+
     Args:
-        mlen (int): The number of rows in the first matrix.
-        blen (int): The number of columns in the second matrix.
-        alive_registers (List[int]): List of registers that are alive.
-        weight_base_address (int): index for the address mapper pointing to the base addr of the weight matrix.
-        rope_base_address (int): index for the address mapper pointing to the base addr of the rope matrix.
-        activation_base_address (int): addr pointing to the addr of activations in the vector sram.
+        mlen: Matrix tile size (rows)
+        blen: Vector tile size (batch dimension)
+        batch: Batch size (unused, assumed = blen)
+        hidden_size: Hidden dimension size
+        alive_registers: Available GP registers [result, w_actual, w_hbm_offset, a_actual]
+        w_base_hbm_offset_reg: HBM address register index for weights
+        activation_base_address: Vector SRAM address for activations
+        result_base_address: Vector SRAM address for output
+        rope_enabled: Whether RoPE is enabled (unused)
+        rope_hbm_offset_reg: RoPE HBM address register (unused)
+        rope_on_chip_address: RoPE on-chip address (unused)
+
     Returns:
-        str: Generated assembly code for projection, including dot product and RoPE(cond)
+        Generated assembly code string
     """
-    generated_code = ""
-    assert batch <= blen, "Batch size must be less than blen"
-    # get two registers from alive_registers, 1 as w address, 1 as a address
-    result_register     = alive_registers[0]
-    w_actual_register   = alive_registers[1]
-    w_hbm_offset_register = alive_registers[2]
-    a_actual_register   = alive_registers[3]
+    # Suppress unused parameter warnings (API compatibility)
+    _ = batch, rope_enabled, rope_hbm_offset_reg, rope_on_chip_address
 
-    # Set scale offset
-    #TODO: when hidden is large, cannot use addi command.
-    assert hidden_size * hidden_size < IMM2_BOUND, f"hidden_size * hidden_size must be less than {IMM2_BOUND}"
-    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size * hidden_size} \n"
-    generated_code += f"C_SET_SCALE_REG gp{a_actual_register} \n"
-    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {hidden_size} \n"
-    generated_code += f"C_SET_STRIDE_REG gp{a_actual_register} \n"
+    # Unpack registers
+    result_reg = alive_registers[0]
+    w_sram_reg = alive_registers[1]
+    w_hbm_reg = alive_registers[2]
+    act_reg = alive_registers[3]
 
-    # reset the registers
+    # Compute loop bounds
+    num_output_tiles = hidden_size // blen  # 32 tiles for hidden=128, blen=4
+    num_weight_tiles = hidden_size // mlen  # 2 tiles for hidden=128, mlen=64
+    tiles_per_mlen = mlen // blen           # 16 tiles fit in one MLEN block
 
-    row_loop_over_hid = hidden_size // blen
-    col_loop_over_hid = hidden_size // mlen
-    generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
-    generated_code += f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n"
+    # Memory layout constants
+    weight_tile_size = mlen * mlen          # 4096 for mlen=64
+    act_tile_stride = mlen * blen           # 256 for mlen=64, blen=4
+    hbm_row_stride = mlen * hidden_size     # 8192 for mlen=64, hidden=128
 
-    for i in range(row_loop_over_hid):
-        if i % (mlen // blen) == 0:
-            # Load a complete col of hidden size into on-chip memory  (hidden_size, mlen)
-            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
-            generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp0, {i * blen} \n"
-            for k in range (hidden_size // mlen):
-                generated_code += f"; <---- Generating New Row Tile at index {i} col {k} ----> \n"
-                generated_code += f"H_PREFETCH_M gp{w_actual_register}, gp{w_hbm_offset_register}, a{w_base_hbm_offset_reg}, 1, 0 \n"
-                generated_code += f"S_ADDI_INT gp{w_hbm_offset_register}, gp{w_hbm_offset_register}, {mlen * hidden_size} \n"
-                generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
-            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
+    # Build assembly as list of lines
+    lines = ["; Projection Generation (Optimized)"]
+
+    # Setup scale and stride registers (use act_reg as temp)
+    assert hidden_size * hidden_size < IMM2_BOUND
+    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {hidden_size * hidden_size}")
+    lines.append(f"C_SET_SCALE_REG gp{act_reg}")
+    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {hidden_size}")
+    lines.append(f"C_SET_STRIDE_REG gp{act_reg}")
+
+    # Initialize activation register
+    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {activation_base_address}")
+
+    # Track which MLEN block we're in
+    current_mlen_block = -1
+
+    for tile_idx in range(num_output_tiles):
+        mlen_block = tile_idx // tiles_per_mlen
+        tile_in_block = tile_idx % tiles_per_mlen
+        is_last_tile = (tile_idx == num_output_tiles - 1)
+
+        # === WEIGHT PREFETCH PHASE ===
+        # Prefetch weights when starting a new MLEN block
+        if mlen_block != current_mlen_block:
+            current_mlen_block = mlen_block
+            hbm_col_offset = mlen_block * mlen
+
+            # Initialize weight SRAM and HBM offset registers
+            lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp0, 0")
+            lines.append(f"S_ADDI_INT gp{w_hbm_reg}, gp0, {hbm_col_offset}")
+
+            # Prefetch all weight tiles for this column block
+            for k in range(num_weight_tiles):
+                lines.append(f"H_PREFETCH_M gp{w_sram_reg}, gp{w_hbm_reg}, a{w_base_hbm_offset_reg}, 1, 0")
+                if k < num_weight_tiles - 1:
+                    lines.append(f"S_ADDI_INT gp{w_hbm_reg}, gp{w_hbm_reg}, {hbm_row_stride}")
+                    lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp{w_sram_reg}, {weight_tile_size}")
+
+            # After prefetch, set weight SRAM base for first tile in block
+            lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp0, 0")
         else:
-            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {(i % (mlen // blen)) * blen} \n"
+            # Within same MLEN block - set weight offset for this tile
+            lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp0, {tile_in_block * blen}")
 
-        for j in range(col_loop_over_hid):
-            # Loop over the hidden size dimension
-            generated_code += f"; <---- Generating New Column Tile at row {i} col {j} \n"
-            generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
-            generated_code += f"S_ADDI_INT gp{w_actual_register}, gp{w_actual_register}, {mlen * mlen} \n"
-            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * blen} \n"
-        generated_code += f"M_MM_WO {result_register}, gp0, 0 \n"
-        generated_code += f"S_ADDI_INT gp{a_actual_register}, gp0, {activation_base_address} \n"
-        generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {blen} \n"
+        # === COMPUTE PHASE ===
+        # Matrix multiplications across hidden dimension
+        for j in range(num_weight_tiles):
+            lines.append(f"M_MM 0, gp{w_sram_reg}, gp{act_reg}")
+            # Update pointers only if more iterations remain in inner loop
+            if j < num_weight_tiles - 1:
+                lines.append(f"S_ADDI_INT gp{w_sram_reg}, gp{w_sram_reg}, {weight_tile_size}")
+                lines.append(f"S_ADDI_INT gp{act_reg}, gp{act_reg}, {act_tile_stride}")
 
-    
-    # RoPE
-    if rope_enabled:
-        generated_code += "; Generating RoPE code here \n"
-        generated_code += f"S_ADDI_INT gp{result_register}, gp0, {result_base_address} \n" 
-        
-        upper_base_register = alive_registers[0]
-        lower_base_register = alive_registers[1]
-        roped_upper_base_register = alive_registers[2]
-        roped_lower_base_register = alive_registers[3]
-        cos_base_register = alive_registers[4]
-        sin_base_register = alive_registers[5]
-        intermediate_1_register = alive_registers[6]
-        intermediate_2_register = alive_registers[7]
+        # === OUTPUT PHASE ===
+        # Compute and set result address, then write out
+        result_offset = mlen_block * mlen * blen + tile_in_block * blen
+        lines.append(f"S_ADDI_INT gp{result_reg}, gp0, {result_base_address + result_offset}")
+        lines.append(f"M_MM_WO {result_reg}, gp0, 0")
 
-        generated_code += f"S_ADDI_INT      gp{cos_base_register}, gp0, {rope_on_chip_address} \n"
-        generated_code += f"H_PREFETCH_V    gp{cos_base_register}, gp{rope_on_chip_address}, a{rope_hbm_offset_reg}, 0, 0 \n"
-        generated_code += f"S_ADDI_INT      gp{sin_base_register}, gp{cos_base_register}, {head_dim} \n"
-        generated_code += f"H_PREFETCH_V    gp{sin_base_register}, gp{rope_on_chip_address}, a{rope_hbm_offset_reg}, 0, 0 \n"
+        # === PREPARE NEXT ITERATION ===
+        # Reset activation pointer (skip on last iteration - saves 1 instruction)
+        if not is_last_tile:
+            lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {activation_base_address}")
 
-        for i in range(batch * head_dim):
-            generated_code += f"; <---- Generating RoPE code for batch {i // head_dim} head {i % head_dim} ----> \n"
-            generated_code += f"V_MUL_VV gp{intermediate_1_register}, gp{upper_base_register}, gp{cos_base_register} \n"
-            generated_code += f"V_MUL_VV gp{intermediate_2_register}, gp{lower_base_register}, gp{sin_base_register} \n"
-            generated_code += f"V_SUB_VV gp{roped_upper_base_register}, gp{intermediate_1_register}, gp{intermediate_2_register} \n"
-            generated_code += f"V_MUL_VV gp{intermediate_1_register}, gp{upper_base_register}, gp{sin_base_register} \n"
-            generated_code += f"V_MUL_VV gp{intermediate_2_register}, gp{lower_base_register}, gp{cos_base_register} \n"
-            generated_code += f"V_ADD_VV gp{roped_lower_base_register}, gp{intermediate_1_register}, gp{intermediate_2_register} \n"
-            generated_code += f"S_ADDI_INT gp{upper_base_register}, gp{upper_base_register}, {mlen} \n"
-            generated_code += f"S_ADDI_INT gp{lower_base_register}, gp{lower_base_register}, {mlen} \n"
-            generated_code += f"S_ADDI_INT gp{roped_upper_base_register}, gp{roped_upper_base_register}, {mlen} \n"
-            generated_code += f"S_ADDI_INT gp{roped_lower_base_register}, gp{roped_lower_base_register}, {mlen} \n"
-
-    return generated_code
+    return "\n".join(lines) + "\n"

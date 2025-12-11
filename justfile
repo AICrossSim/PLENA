@@ -34,33 +34,36 @@ build-behave-sim arg:
     cargo run --release -- --opcode "$asm_path" --hbm "$data_path" 
 
 build-behave-sim-debug arg:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_time=$(date +%s)
-    echo "========================================"
-    echo "Starting build-behave-sim-debug for: {{arg}}"
-    echo "========================================"
     # 1) Build env for the given target
     rm -rf behavioral_simulator/testbench/build
     python3 behavioral_simulator/testbench/{{arg}}_test.py
-    # 2) Compute absolute paths (so they still work after cd)
+    # # 2) Compute absolute paths (so they still work after cd)
+    asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
+    data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
+    fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
+    int_sram_path="$(pwd)/behavioral_simulator/testbench/build/int_sram.bin" && \
+    cd behavioral_simulator && \
+    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path" --intsram "$int_sram_path"
+    python3 behavioral_simulator/testbench/view_mem.py
+
+run-generated-asm:
+    asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
+    data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
+    fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
+    int_sram_path="$(pwd)/behavioral_simulator/testbench/build/int_sram.bin" && \
+    cd behavioral_simulator && \
+    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path" --intsram "$int_sram_path"
+    python3 behavioral_simulator/testbench/view_mem.py
+
+# Quiet mode: only output latency and error metrics
+run-generated-asm-quiet:
     asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
     data_path="$(pwd)/behavioral_simulator/testbench/build/hbm_for_behave_sim.bin" && \
     fp_sram_path="$(pwd)/behavioral_simulator/testbench/build/fp_sram.bin" && \
     cd behavioral_simulator && \
-    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path"
-    cd ..
+    RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path" --quiet
     python3 behavioral_simulator/testbench/view_mem.py
-    
-    end_time=$(date +%s)
-    elapsed=$((end_time - start_time))
-    minutes=$((elapsed / 60))
-    seconds=$((elapsed % 60))
-    echo ""
-    echo "========================================"
-    echo "Total pipeline execution time: ${minutes}m ${seconds}s (${elapsed}s)"
-    echo "========================================"
-    #python3 tools/utils/compare_match.py
+
 
 build-rtl-sim arg:
     rm -rf test/Instr_Level_Benchmark/build/{{arg}}

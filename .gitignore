@@ -11,12 +11,17 @@ build/
 
 .vscode
 
+boom-riscv/
+
 *.gtkw
 
 *.str
 *.jou
 
 doc/figure_gen/*
+
+tools/cost_model/latency/*.png
+tools/cost_model/utilisation/*.png
 
 moduleparamid
 default.svf
@@ -61,6 +66,7 @@ ckpts_*
 *.db
 *.db-journal
 co_design/interface/config.toml
+target/
 
 # behavioral simulator
 behavioral_simulator/target

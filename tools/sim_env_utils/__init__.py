@@ -1,1 +1,1 @@
-from .build_env import build_fake_sim_env
+from .build_env import create_mem_for_sim

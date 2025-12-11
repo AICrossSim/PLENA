@@ -38,10 +38,11 @@ class AssemblyToBinary:
         rs2 = instruction.rs2
         rstride = instruction.rstride
         funct1 = instruction.funct1
+        funct2 = instruction.funct2
         imm = instruction.imm
         rmask = instruction.rmask
         binary_instruction = 0
-        # print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, imm={imm}")
+        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, funct2={funct2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
 
@@ -52,7 +53,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["S_LUI_INT", "M_MV_WO", "M_BMM_WO", "M_BMV_WO"]:
+        elif instruction.opcode in ["S_LUI_INT", "M_MV_WO", "M_BMM_WO", "M_BMV_WO", "C_LOOP_START"]:
             binary_instruction = (
                 (imm << (opw + ow)) +
                 (rd << opw) +
@@ -64,12 +65,12 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG", "C_SET_V_MASK_REG"]:
+        elif instruction.opcode in [ "C_SET_SCALE_REG", "C_SET_STRIDE_REG", "C_SET_V_MASK_REG", "C_LOOP_END"]:
             binary_instruction = (
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V"]:
+        elif instruction.opcode in ["H_PREFETCH_M", "V_SUB_VF", "H_PREFETCH_V", "H_STORE_V"]:
             binary_instruction = (
                 (funct1 << (opw + 4 * ow)) +
                 (rstride << (opw + 3 * ow)) +
@@ -78,33 +79,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["V_SELECT_VVM"]:
-            # V_SELECT_VVM uses 4 vector operands: rd, rs1, rs2, mask (all vectors)
-            # mask is stored in rstride field from parser
-            mask = instruction.rstride if instruction.rstride is not None else 0
-            binary_instruction = (
-                (mask << (opw + 3 * ow)) +
-                (rs2 << (opw + 2 * ow)) +
-                (rs1 << (opw + ow)) +
-                (rd << opw) +
-                opcode
-            )
-        elif instruction.opcode in ["V_TOPK_MASK"]:
-            # V_TOPK_MASK uses 3 vector operands + 1 scalar: rd, rs1, rs2, k_scalar
-            # rd (vector): output mask
-            # rs1 (vector): confidence values
-            # rs2 (vector): input mask
-            # k_scalar (scalar): number of top elements to select
-            # The k_scalar is stored in rstride field from parser
-            k_scalar = instruction.rstride if instruction.rstride is not None else 0
-            binary_instruction = (
-                (k_scalar << (opw + 3 * ow)) +
-                (rs2 << (opw + 2 * ow)) +
-                (rs1 << (opw + ow)) +
-                (rd << opw) +
-                opcode
-            )
-        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_SUB_VV", "V_SUB_VF", "V_MUL_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
+        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_MUL_VV", "V_SUB_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
             binary_instruction = (
                 (rmask << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
