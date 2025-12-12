@@ -81,8 +81,8 @@ def env_setup(memory_data_manager, build_path: str, data_config, quant_config, h
         if entry["type"] == "mx":
             blocks = entry["blocks"]
             bias = entry["bias"]
-            print("blocks", blocks)
-            print("bias", bias)
+            # print("blocks", blocks)
+            # print("bias", bias)
             print(f"Processing mx file: {entry.get('filename', 'unknown')}")
             # map_data_to_fake_hbm_for_rtl_sim(   
             #                     blocks          =blocks,

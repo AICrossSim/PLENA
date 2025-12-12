@@ -196,8 +196,9 @@ if __name__ == "__main__":
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
     
     print("Viewing VRAM dump from 0 Base Address")
-    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
+    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=32)
     
+    '''
     # Compare with golden output, assuming all the output are stored at the 0 in VSRAM.
     try:
         from check_mem import compare_with_golden, print_comparison_results
@@ -221,7 +222,7 @@ if __name__ == "__main__":
         print("\nNote: check_mem module not available for comparison")
     except Exception as e:
         print(f"\nError during comparison: {e}")
-    
+    '''
     # print("Viewing VRAM dump from 16 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)
     

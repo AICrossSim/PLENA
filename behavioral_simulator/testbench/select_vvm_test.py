@@ -6,9 +6,9 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  select_vvm_debug, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
-from create_sim_env import create_sim_env, create_sim_env_dllm
-from sim_env_utils import build_fake_sim_env
+from compiler.asm_templates import  select_vvm_debug, preload_act_asm, preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
+from create_sim_env import create_sim_env
+from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
 
 from tools.memory_mapping.hbm_addr_map import align_addr_to_hbm_bandwidth
@@ -69,16 +69,13 @@ class TEST(torch.nn.Module):
         return x0
     
     def _stable_max_method(self, logits):
-        # 方式2: 利用最大logit做数值稳定处理，不显式softmax
+        # Method 2: use max logit for numerical stability (no explicit softmax)
         m = logits.max(dim=-1).values                 # (B, L)
         sub_result = logits - m.unsqueeze(-1)
         exp_shifted = torch.exp(sub_result)
         denom = exp_shifted.sum(dim=-1)               # (B, L)
         reciprocal_denom = 1.0 / denom
 
-        #exp_shifted = torch.exp(logits - m.unsqueeze(-1))  # (B, L, V)
-        #denom = exp_shifted.sum(dim=-1)               # (B, L)
-        #return 1.0 / denom                            # (B, L)
         return logits + reciprocal_denom.unsqueeze(-1)
 
     def _select_vvm(self, x1, x2, mask):
@@ -92,32 +89,17 @@ class TEST(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    # batch_size=4, gen_len=16
-    #result is  tensor([[6, 5, 5],
-    #                   [6, 5, 5],
-    #                   [6, 5, 5],
-    #                   [6, 5, 5]])
-
-    #logits.shape =  torch.Size([1, 148, 126464])
-
-    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     vocal_size = 64
     hidden_size = 64
     vlen = 64
     batch_size = 4
-    preload_amount = 4
+    preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
     fp_preload = [0.0, 1e-6, 1/hidden_size]
-
-    # Gen Weight and Test Data
-    # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
     
     torch.manual_seed(42)
     logits = torch.randn(batch_size, hidden_size, vocal_size)
-    # Print input_tensor split in half along columns, as two (4, 64) tensors
-    #print("input_tensor lhs (4, 64):\n", input_tensor[:, :64])
-    #print("input_tensor rhs (4, 64):\n", input_tensor[:, 64:])
 
     input_tensor1 = logits[:,1,:]
     input_tensor2 = logits[:,2,:]
@@ -143,7 +125,7 @@ if __name__ == "__main__":
     print('original_output.shape = ',original_output.shape)
     print('original_output = ',original_output)
     
-    gen_assembly_code = "; DLLM Test Generation \n"
+    gen_assembly_code = "; SELECT_VVM for dLLM Generation \n"
     
     # Set the addr offset for weight and bias
 
@@ -153,52 +135,44 @@ if __name__ == "__main__":
         addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size * vocal_size * real_data_ratio, hbm_data_width)),int(2*align_addr_to_hbm_bandwidth(batch_size * vocal_size * real_data_ratio, hbm_data_width))]
     )
 
-    #print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
-    #print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
-
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3]
     )
-    
-    # Gen Activation Preload
-    gen_assembly_code += preload_act_asm(
-        vlen=vlen,
-        preload_len=1,
-        batch=batch_size,
-        hidden_size=1*vocal_size,
-        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
-        act_vram_offset=0,
-        activation_offset_reg=0
-    )
 
     # # Gen Activation Preload
-    gen_assembly_code += preload_act_asm(
+    gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
         hidden_size=1*vocal_size,
+        scale = batch_size*vocal_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_hbm_offset=0,
         act_vram_offset=0,
         activation_offset_reg=0
     )
 
-    gen_assembly_code += preload_act_asm(
+    gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
         hidden_size=1*vocal_size,
+        scale = batch_size*vocal_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_hbm_offset=0,
         act_vram_offset=batch_size*vocal_size,
         activation_offset_reg=1
     )
     
-    gen_assembly_code += preload_act_asm(
+    gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
         hidden_size=1*vocal_size,
+        scale = batch_size*vocal_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_hbm_offset=0,
         act_vram_offset=2*batch_size*vocal_size,
         activation_offset_reg=2
     )
@@ -220,5 +194,5 @@ if __name__ == "__main__":
     )
     
 
-    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
-    build_fake_sim_env(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1", "input_tensor2", "mask"])
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor1", "input_tensor2", "mask"])

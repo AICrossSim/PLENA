@@ -26,15 +26,15 @@ def argmux_debug(
     for _ in range(batch_size):
         # calcualte the out = vector + reciprocal
         generated_code += f"S_ADD_FP f2, f0, f0 \n"
-        generated_code += f"V_RED_MAX f2, gp{act_addr}, 0\n"
+        generated_code += f"V_RED_MAX_IDX f2, gp{act_addr}, 0\n"
         # S' = S - m_curr
-        generated_code += f"V_SUB_VF gp{scratchpad_addr}, gp{act_addr}, f2, 0\n"
+        #generated_code += f"V_SUB_VF gp{scratchpad_addr}, gp{act_addr}, f2, 0\n"
         # P = exp(S')
-        generated_code += f"V_EXP_V gp{scratchpad_addr}, gp{scratchpad_addr}, 0 \n"
+        #generated_code += f"V_EXP_V gp{scratchpad_addr}, gp{scratchpad_addr}, 0 \n"
         # dum = sum(P)
-        generated_code += f"V_RED_SUM f2, gp{scratchpad_addr}\n"
+        #generated_code += f"V_RED_SUM f2, gp{scratchpad_addr}\n"
         # # Compute reciprocal
-        generated_code += f"S_RECI_FP f2, f2 \n"
+        #generated_code += f"S_RECI_FP f2, f2 \n"
         # S' = S+reciprocal
         generated_code += f"V_ADD_VF gp{scratchpad_addr}, gp{act_addr}, f2, 0 \n"
         

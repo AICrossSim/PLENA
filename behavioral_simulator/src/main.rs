@@ -676,71 +676,6 @@ impl VectorMachine {
         }
     }
 
-    async fn select(&mut self, vd: u32, vs1: u32, vs2: u32, vmask: u32) {
-        let (a, b, mask) = tokio::join!(
-            self.vram.read(vs1),
-            self.vram.read(vs2),
-            self.vram.read(vmask)
-        );
-        
-        // vd[i] = vmask[i] ? vs1[i] : vs2[i]
-        // In PyTorch: where(mask, vs1, vs2)
-        // Convert mask to boolean (assuming mask is non-zero for true) and select
-        // Do all tensor operations in one expression to avoid holding references across await
-        let result = a.as_tensor().where_self(&mask.as_tensor().ne(0.0), b.as_tensor());
-        let c = QuantTensor::quantize(result, a.data_type());
-        cycle!(*VECTOR_ADD_CYCLES);
-        self.vram.write(vd, c).await;
-    }
-
-    async fn cmp_eq(&mut self, vd: u32, vs1: u32, scalar: f32) {
-        let a = self.vram.read(vs1).await;
-        // Compare equal: mask[i] = (vec[i] == scalar) ? 1.0 : 0.0
-        let result = a.as_tensor().eq(scalar as f64).to_kind(tch::Kind::Float);
-        let c = QuantTensor::quantize(result, a.data_type());
-        cycle!(*VECTOR_ADD_CYCLES);
-        self.vram.write(vd, c).await;
-    }
-
-    async fn topk_mask(&mut self, vd: u32, confidence_addr: u32, mask_addr: u32, k: u32) {
-        // Read confidence vector and input mask
-        let (confidence, input_mask) = tokio::join!(
-            self.vram.read(confidence_addr),
-            self.vram.read(mask_addr)
-        );
-        
-        // Do all tensor operations in one expression to avoid holding references across await
-        // This ensures the function is Send-safe
-        let neg_inf = f32::NEG_INFINITY;
-        let k_i64 = k as i64;
-        
-        let result = {
-            let conf_tensor = confidence.as_tensor();
-            let mask_tensor = input_mask.as_tensor();
-            let seq_len = conf_tensor.size()[0];
-            let k_clamped = k_i64.min(seq_len);
-            
-            // Set non-masked positions to negative infinity
-            let masked_conf = conf_tensor.where_self(
-                &mask_tensor.ne(0.0), 
-                &tch::Tensor::full_like(conf_tensor, neg_inf as f64)
-            );
-            
-            // Get top-k indices (topk returns (values, indices))
-            let (_values, indices) = masked_conf.topk(k_clamped, 0, true, false);
-            
-            // Create output mask: 1.0 for top-k positions, 0.0 for others
-            let output_mask = tch::Tensor::zeros_like(conf_tensor).scatter_value(0, &indices, 1.0);
-            
-            // Ensure we only select from originally masked positions
-            output_mask.where_self(&mask_tensor.ne(0.0), &tch::Tensor::zeros_like(conf_tensor))
-        };
-        
-        let c = QuantTensor::quantize(result, confidence.data_type());
-        cycle!(*VECTOR_ADD_CYCLES);
-        self.vram.write(vd, c).await;
-    }
-
     async fn exp(&mut self, vd: u32, vs1: u32, rmask: u8, mask: u32) {
         let a = self.vram.read(vs1).await;
         if rmask == 0 {
@@ -847,23 +782,21 @@ impl VectorMachine {
         }
     }
 
-    async fn reduce_max_idx(&mut self, vs1: u32, f: f32) -> f32 {
+    async fn reduce_max_idx(&mut self, vs1: u32, prev_idx: u32, prev_max_val: f32, offset: u32) -> (u32, f32) {
         let a = self.vram.read(vs1).await;
-        println!("vram address = {:?}", vs1);
         cycle!(*VECTOR_MAX_CYCLES);
     
         let tensor = a.as_tensor();
     
-        // get length of the first dimension (size returns Vec<i64>)
+        // Get length of the first dimension (size returns Vec<i64>)
         let len_i64 = tensor.size()[0];
         let len = len_i64 as usize;
     
-        // find max value and its index
+        // Find max value and its index in current vector
         let mut max_val = f32::NEG_INFINITY;
         let mut max_idx: usize = 0;
     
         for i in 0..len {
-            // tensor.i expects an integer index; pass i as i64
             let v: f32 = tensor.i(i as i64).try_into().unwrap();
             if v > max_val {
                 max_val = v;
@@ -871,13 +804,74 @@ impl VectorMachine {
             }
         }
     
-        println!("<--- reduce_max_idx --->");
-        println!("reduce_max_idx: max_val = {:?}", max_val);
-        println!("reduce_max_idx: max_idx = {:?}", max_idx);
-        println!("reduce_max_idx: f = {:?}", f);
+        // Calculate global index by adding offset
+        let global_idx = offset + max_idx as u32;
     
-        // Return the index (as f32), keeping the same "compare with f" semantics
-        f32::max(max_idx as f32, f)
+        // Compare current max with previous max
+        // If current max is greater, return global index and new max value
+        // Otherwise keep previous index and value
+        if max_val > prev_max_val {
+            (global_idx, max_val)
+        } else {
+            (prev_idx, prev_max_val)
+        }
+    }
+
+    async fn select(&mut self, vd: u32, vs1: u32, vs2: u32, vmask: u32) {
+        let (a, b, mask) = tokio::join!(
+            self.vram.read(vs1),
+            self.vram.read(vs2),
+            self.vram.read(vmask)
+        );
+        
+        // vd[i] = vmask[i] ? vs1[i] : vs2[i]
+        // In PyTorch: where(mask, vs1, vs2)
+        // Convert mask to boolean (assuming mask is non-zero for true) and select
+        // Do all tensor operations in one expression to avoid holding references across await
+        let result = a.as_tensor().where_self(&mask.as_tensor().ne(0.0), b.as_tensor());
+        let c = QuantTensor::quantize(result, a.data_type());
+        cycle!(*VECTOR_ADD_CYCLES);
+        self.vram.write(vd, c).await;
+    }
+
+
+    async fn topk_mask(&mut self, vd: u32, confidence_addr: u32, mask_addr: u32, k: u32) {
+        // Read confidence vector and input mask
+        let (confidence, input_mask) = tokio::join!(
+            self.vram.read(confidence_addr),
+            self.vram.read(mask_addr)
+        );
+        
+        // Do all tensor operations in one expression to avoid holding references across await
+        // This ensures the function is Send-safe
+        let neg_inf = f32::NEG_INFINITY;
+        let k_i64 = k as i64;
+        
+        let result = {
+            let conf_tensor = confidence.as_tensor();
+            let mask_tensor = input_mask.as_tensor();
+            let seq_len = conf_tensor.size()[0];
+            let k_clamped = k_i64.min(seq_len);
+            
+            // Set non-masked positions to negative infinity
+            let masked_conf = conf_tensor.where_self(
+                &mask_tensor.ne(0.0), 
+                &tch::Tensor::full_like(conf_tensor, neg_inf as f64)
+            );
+            
+            // Get top-k indices (topk returns (values, indices))
+            let (_values, indices) = masked_conf.topk(k_clamped, 0, true, false);
+            
+            // Create output mask: 1.0 for top-k positions, 0.0 for others
+            let output_mask = tch::Tensor::zeros_like(conf_tensor).scatter_value(0, &indices, 1.0);
+            
+            // Ensure we only select from originally masked positions
+            output_mask.where_self(&mask_tensor.ne(0.0), &tch::Tensor::zeros_like(conf_tensor))
+        };
+        
+        let c = QuantTensor::quantize(result, confidence.data_type());
+        cycle!(*VECTOR_ADD_CYCLES);
+        self.vram.write(vd, c).await;
     }
 }
 
@@ -1156,9 +1150,9 @@ impl Accelerator {
                 }
             }
             
-            if !is_quiet() {
-                println!("execute op[{pc}] = {:?}", op);
-            }
+            // if !is_quiet() {
+            //     println!("execute op[{pc}] = {:?}", op);
+            // }
             
             let mut jump_pc: Option<usize> = None;
             
@@ -1327,15 +1321,6 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_CMP_EQ_VF { rd, rs1, rs2 } => {
-                    self.v_machine
-                        .cmp_eq(
-                            self.reg_file.gp_reg[*rd as usize],
-                            self.reg_file.gp_reg[*rs1 as usize],
-                            self.reg_file.fp_reg[*rs2 as usize].into(),
-                        )
-                        .await;
-                }
                 op::Opcode::V_TOPK_MASK { rd, rs1, rs2, k_scalar } => {
                     self.v_machine
                         .topk_mask(
@@ -1370,7 +1355,7 @@ impl Accelerator {
                 }
 
                 // Write to fp0 is a no-op.
-                op::Opcode::V_RED_SUM { rd: 0, .. } | op::Opcode::V_RED_MAX { rd: 0, .. } => (),
+                op::Opcode::V_RED_SUM { rd: 0, .. } | op::Opcode::V_RED_MAX { rd: 0, .. } | op::Opcode::V_RED_MAX_IDX { rd: 0, .. } => (),
 
                 op::Opcode::V_RED_SUM { rd, rs1, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
@@ -1398,16 +1383,32 @@ impl Accelerator {
                         .await;
                     self.reg_file.fp_reg[*rd as usize] = f16::from_f32(result);
                 }
-                op::Opcode::V_RED_MAX_IDX { rd, rs1 } => {
-                    let result = self
+                op::Opcode::V_RED_MAX_IDX { rd, rs1, rs2, rs3 } => {
+                    // V_RED_MAX_IDX: Similar to V_RED_MAX, but also outputs index
+                    // rd: gp register, output global maximum index
+                    // rs1: gp register, current vector address
+                    // rs2: gp register, offset (global offset)
+                    // rs3: fp register, used to store/compare maximum value (e.g., f1)
+                    
+                    let prev_idx = self.reg_file.gp_reg[*rd as usize];
+                    let prev_max_val = self.reg_file.fp_reg[*rs3 as usize].to_f32();
+                    let offset = self.reg_file.gp_reg[*rs2 as usize];
+                    
+                    let (result_idx, result_max_val) = self
                         .v_machine
                         .reduce_max_idx(
-                            self.reg_file.gp_reg[*rs1 as usize],
-                            self.reg_file.fp_reg[*rd as usize].into(),
+                            self.reg_file.gp_reg[*rs1 as usize],  // vector address
+                            prev_idx,                              // previous maximum index
+                            prev_max_val,                          // previous maximum value
+                            offset,                                // offset
                         )
                         .await;
-                    self.reg_file.fp_reg[*rd as usize] = f16::from_f32(result);
+                    
+                    // Update index and maximum value
+                    self.reg_file.gp_reg[*rd as usize] = result_idx;
+                    self.reg_file.fp_reg[*rs3 as usize] = f16::from_f32(result_max_val);
                 }
+                
 
                 // Write to fp0 is a no-op.
                 op::Opcode::S_ADD_FP { rd: 0, .. }
@@ -1510,6 +1511,39 @@ impl Accelerator {
                     self.intsram[(self.reg_file.gp_reg[*rs1 as usize] + *imm) as usize] =
                         self.reg_file.gp_reg[*rd as usize];
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                }
+                op::Opcode::S_SELECT_INT { rd, rs1, rs2, rs3 } => {
+                    // S_SELECT_INT: Vector-width element-wise select on INT SRAM with mask from VECTOR SRAM
+                    // Processes VLEN elements in one instruction
+                    // 
+                    // Operation: For each i in 0..VLEN:
+                    //   if mask_vector[i] != 0.0:  (mask from VECTOR SRAM as float)
+                    //     INT_SRAM[out_base + i] = INT_SRAM[src1_base + i]
+                    //   else:
+                    //     INT_SRAM[out_base + i] = INT_SRAM[src2_base + i]
+                    
+                    let out_base = self.reg_file.gp_reg[*rd as usize] as usize;
+                    let src1_base = self.reg_file.gp_reg[*rs1 as usize] as usize;
+                    let src2_base = self.reg_file.gp_reg[*rs2 as usize] as usize;
+                    let mask_addr = self.reg_file.gp_reg[*rs3 as usize];
+                    
+                    // Read entire mask vector (VLEN elements) from VECTOR SRAM
+                    let mask = self.v_machine.vram.read(mask_addr).await;
+                    let mask_tensor = mask.as_tensor();
+                    
+                    // Process all VLEN elements in parallel (conceptually)
+                    for i in 0..(*VLEN as usize) {
+                        let mask_val: f32 = mask_tensor.i(i as i64).try_into().unwrap();
+                        let result = if mask_val != 0.0 {
+                            self.intsram[src1_base + i]
+                        } else {
+                            self.intsram[src2_base + i]
+                        };
+                        self.intsram[out_base + i] = result;
+                    }
+                    
+                    // Cost: VLEN cycles for vector read + VLEN for parallel processing
+                    cycle!(*VLEN * 2);
                 }
                 op::Opcode::H_PREFETCH_M {
                     rd,
@@ -1737,7 +1771,6 @@ fn is_quiet() -> bool {
 }
 
 async fn start() {
-    let start_time = std::time::Instant::now();
     let opts = Opts::parse();
     QUIET_MODE.store(opts.quiet, std::sync::atomic::Ordering::Relaxed);
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM

@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  preload_act_asm, reset_reg_asm, preload_addr_reg_asm
+from compiler.asm_templates import  preload_act_asm, preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
@@ -21,9 +21,9 @@ if __name__ == "__main__":
 
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
     vocal_size = 2
-    hidden_size = 64
+    hidden_size = 128
     vlen = 64
-    batch_size = 4
+    batch_size = 2
     preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # )
     
     # Gen logtis Preload (B,L,V)
-    gen_assembly_code += preload_act_asm(
+    gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,

@@ -136,19 +136,16 @@ pub enum Opcode {
         rmask: u8,
     },
     V_RED_MAX_IDX {
-        rd: u8,
-        rs1: u8,
+        rd: u8,      // gp register: output index of maximum value
+        rs1: u8,     // gp register: current vector address
+        rs2: u8,     // gp register: offset (global offset)
+        rs3: u8,     // fp register: used to store/compare max value (e.g., f1)
     },
     V_SELECT_VVM{
         rd: u8,
         rs1: u8,
         rs2: u8,
         mask: u8,
-    },
-    V_CMP_EQ_VF {
-        rd: u8,
-        rs1: u8,
-        rs2: u8,
     },
     V_TOPK_MASK {
         rd: u8,
@@ -238,6 +235,13 @@ pub enum Opcode {
         rd: u8,
         rs1: u8,
         imm: u32,
+    },
+    S_SELECT_INT {
+        rd: u8,      // gp register: base offset for output in INT SRAM (VLEN elements)
+        rs1: u8,     // gp register: base offset for src1 in INT SRAM (selected when mask != 0, VLEN elements)
+        rs2: u8,     // gp register: base offset for src2 in INT SRAM (selected when mask == 0, VLEN elements)
+        rs3: u8,     // gp register: address of mask vector in VECTOR SRAM (VLEN float elements)
+                     // Processes VLEN elements per instruction
     },
 
     H_PREFETCH_M {
@@ -412,14 +416,14 @@ impl Opcode {
             0x2B => Self::C_SET_ADDR_REG { rd, rs1, rs2 },
             0x2C => Self::C_SET_SCALE_REG { rd },
             0x2D => Self::C_SET_STRIDE_REG { rd },
-            0x32 => Self::V_RED_MAX_IDX { rd, rs1 },
-            0x33 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
-            0x34 => Self::V_CMP_EQ_VF { rd, rs1, rs2 },
-            0x35 => Self::V_TOPK_MASK { rd, rs1, rs2, k_scalar: rs3 },
             0x2E => Self::C_SET_V_MASK_REG { rd },
             0x2F => Self::C_LOOP_START { rd, imm},
             0x30 => Self::C_LOOP_END { rd },
-            0x31 => Self::C_BREAK,
+            0x34 => Self::V_RED_MAX_IDX { rd, rs1, rs2, rs3 },
+            0x35 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
+            0x36 => Self::V_TOPK_MASK { rd, rs1, rs2, k_scalar: rs3 },
+            0x37 => Self::C_BREAK,
+            0x38 => Self::S_SELECT_INT { rd, rs1, rs2, rs3 },
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

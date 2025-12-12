@@ -4,7 +4,7 @@ from .ffn_asm import ffn_asm
 from .normalization_asm import rms_norm_asm
 from .embedding_asm import embedding_asm
 from .elementwise_add_asm import elementwise_add_asm
-from .preload_act import preload_act_asm
+from .preload_act import preload_act_asm, preload_act_asm_scale
 from .reset_reg_asm import reset_reg_asm
 from .preload_addr_reg import preload_addr_reg_asm
 from .batched_matmul_asm import batched_matmul_asm
@@ -17,6 +17,7 @@ from .get_transfer_index_asm import get_transfer_index_debug, get_transfer_index
 __all__ = [
     "projection_asm",
     "preload_act_asm",
+    "preload_act_asm_scale",
     "reset_reg_asm",
     "preload_addr_reg_asm",
     "flash_attn_asm",

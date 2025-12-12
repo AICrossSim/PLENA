@@ -42,7 +42,7 @@ class AssemblyToBinary:
         imm = instruction.imm
         rmask = instruction.rmask
         binary_instruction = 0
-        print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, funct2={funct2}, imm={imm}")
+        # print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, funct2={funct2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
 
@@ -59,7 +59,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V", "V_RED_SUM", "V_RED_MAX", "V_RED_MAX_IDX"]:
+        elif instruction.opcode in [ "S_MV_FP", "S_RECI_FP", "S_EXP_FP", "S_SQRT_FP", "V_EXP_V", "V_RED_SUM"]:
             binary_instruction = (
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
@@ -70,7 +70,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["H_PREFETCH_M", "V_SUB_VF", "H_PREFETCH_V", "H_STORE_V"]:
+        elif instruction.opcode in ["H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V"]:
             binary_instruction = (
                 (funct1 << (opw + 4 * ow)) +
                 (rstride << (opw + 3 * ow)) +
@@ -79,9 +79,59 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_MUL_VV", "V_SUB_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
+        elif instruction.opcode in ["V_SELECT_VVM"]:
+            # V_SELECT_VVM uses 4 vector operands: rd, rs1, rs2, mask (all vectors)
+            # mask is stored in rstride field from parser
+            mask = instruction.rstride if instruction.rstride is not None else 0
+            binary_instruction = (
+                (mask << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["V_TOPK_MASK"]:
+            # V_TOPK_MASK uses 3 vector operands + 1 scalar: rd, rs1, rs2, k_scalar
+            # rd (vector): output mask
+            # rs1 (vector): confidence values
+            # rs2 (vector): input mask
+            # k_scalar (scalar): number of top elements to select
+            # The k_scalar is stored in rstride field from parser
+            k_scalar = instruction.rstride if instruction.rstride is not None else 0
+            binary_instruction = (
+                (k_scalar << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["V_ADD_VV", "V_ADD_VF", "V_SUB_VF", "V_MUL_VV", "V_SUB_VV", "V_MUL_VF", "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX"]:
             binary_instruction = (
                 (rmask << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["V_RED_MAX_IDX"]:
+            # V_RED_MAX_IDX has 4 parameters: rd(gp_idx), rs1(gp_vec_addr), rs2(gp_offset), rmask(fp_register like f1)
+            binary_instruction = (
+                (rmask << (opw + 3 * ow)) +
+                (rs2 << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["S_SELECT_INT"]:
+            # S_SELECT_INT has 4 gp register parameters (processes VLEN elements per instruction):
+            #   rd: output base in INT SRAM (VLEN elements)
+            #   rs1: src1 base in INT SRAM (VLEN elements, selected when mask != 0)
+            #   rs2: src2 base in INT SRAM (VLEN elements, selected when mask == 0)
+            #   rstride (rs3): mask address in VECTOR SRAM (VLEN float elements)
+            # Note: using rstride field for mask address (rs3)
+            mask_addr_reg = instruction.rstride if instruction.rstride is not None else 0
+            binary_instruction = (
+                (mask_addr_reg << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +

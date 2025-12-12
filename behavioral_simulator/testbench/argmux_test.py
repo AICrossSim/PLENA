@@ -6,9 +6,9 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  argmux_debug, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
-from create_sim_env import create_sim_env, create_sim_env_dllm
-from sim_env_utils import build_fake_sim_env
+from compiler.asm_templates import  argmux_debug, preload_act_asm,preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
+from create_sim_env import create_sim_env
+from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
 
 
@@ -70,7 +70,6 @@ class TEST(torch.nn.Module):
     
     def _stable_max_method(self, logits):
         # Method 2: use max logit for numerical stability (no explicit softmax)
-        
         m = logits.max(dim=-1).values                 # (B, L)
         sub_result = logits - m.unsqueeze(-1)
         exp_shifted = torch.exp(sub_result)
@@ -82,7 +81,7 @@ class TEST(torch.nn.Module):
 
     def forward(self, input):
         x = input
-        output = self._stable_max_method(x.float()).type_as(x)
+        output = self._argmux(x.float()).type_as(x)
         return output
 
 
@@ -95,11 +94,13 @@ if __name__ == "__main__":
     hidden_size = 64
     vlen = 64
     batch_size = 4
+    preload_amount=1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
 
-    # Gen Weight and Test Data
-    # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
+    # Generate vlen random int32 data
+    int_preload = torch.randint(low=0, high=10, size=(vlen,), dtype=torch.int32)
+
     
     torch.manual_seed(42)
     logits = torch.randn(batch_size, hidden_size, vocal_size)
@@ -130,12 +131,14 @@ if __name__ == "__main__":
     )
     
     # Gen Activation Preload
-    gen_assembly_code += preload_act_asm(
+    gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
-        preload_len=4,
+        preload_len=preload_amount,
         batch=batch_size,
         hidden_size=1*vocal_size,
+        scale = batch_size*vocal_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
+        act_hbm_offset=0,
         act_vram_offset=0,
         activation_offset_reg=0
     )
@@ -147,13 +150,13 @@ if __name__ == "__main__":
     
     gen_assembly_code += argmux_debug(
         alive_registers=[1,2,3],                   # [act_addr, act2_addr, scratchpad_addr]
-        activation_base_address=0,                 # base address of input_tensor in VRAM
-        scratchpad_base_address=2*(batch_size+1) * vocal_size,  # output region, avoid the two input regions
+        activation_base_address= 0,                # base address of input_tensor in VRAM
+        scratchpad_base_address=batch_size * vocal_size,  # output region, avoid the two input regions
         vlen=vlen,
         batch_size=batch_size,
     )
     
-    create_sim_env(input_tensor, weights, gen_assembly_code, golden_result, fp_preload)
-    build_fake_sim_env(data_size=256, mode="behave_sim", asm="argmux", data=None, specified_data_order = ["input_tensor","model_weights"])
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload, int_preload)
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor"])
     
     
