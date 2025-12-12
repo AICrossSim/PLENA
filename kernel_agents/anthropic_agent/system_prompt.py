@@ -129,12 +129,12 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
    - Avoid micro-fixes and avoid re-issuing nearly identical kernels.
 
 8. ITERATE UNTIL ACCURATE
-   - Success criteria: MSE must be close to ~8e-04 (small margin allowed)
+   - Success criteria: MSE must be close to ~8.41e-04 (small margin allowed)
    - If MSE is too high (e.g., nan, > 0.01, or significantly above target):
      • Analyze what went wrong (wrong addresses, incorrect tiling, missing operations)
      • Fix the assembly code
      • Re-run simulator
-     • Keep iterating until MSE reaches ~8e-04
+     • Keep iterating until MSE reaches ~8.41e-04
    - Only terminate when MSE is close to target:
      • STOP calling tools.
      • Return final kernel in a ```asm``` block, plus a concise explanation.
@@ -256,6 +256,26 @@ BEFORE rewriting or using debug tools, you MUST trace your code in your thinking
 2. Trace each register value back to where it was set
 3. Write out the calculation explicitly in your thinking
 4. If wrong, fix that specific line - don't rewrite from scratch
+
+**INTERPRETING debug_view_memory OUTPUT:**
+
+When you see `sim_nonzero: N` in row analysis:
+- N = number of non-zero values per row
+- Expected: VLEN (64) non-zero values per output row
+- If N << VLEN (e.g., N=4): you're only writing BLEN columns per output tile
+
+Common cause: Missing loop over column blocks within output tile.
+- M_MM_WO writes only BLEN×BLEN (4×4) elements per call
+- For VLEN=64 output columns, need VLEN/BLEN = 16 M_MM_WO calls per tile
+- Pattern: `sim_nonzero=4` means you have 1 M_MM_WO where you need 16
+
+When you see `NaN` values in certain rows:
+- NaN = reading uninitialized memory or address collision
+- Check: Are output addresses unique? (no two M_MM_WO to same addr)
+- Check: Are Matrix SRAM prefetch addresses < total SRAM size?
+- Check: Is weight HBM offset correct? Wrong offset reads garbage → NaN after computation
+- Pattern: First rows OK, later rows NaN = loop index error causing address overflow
+- Trace the loop indices (j, k, c) at the failing iteration to find the bug
 
 ===============================================================================
 AVOID THESE FAILURE MODES

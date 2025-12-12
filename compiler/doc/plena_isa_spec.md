@@ -136,12 +136,32 @@ Store the accumulated result [MLEN // HLEN, MLEN, MLEN] to the Vector SRAM at th
 
 **Description:**
 
-Writes the accumulated (BLEN × BLEN) result tile from the systolic array to Vector SRAM. After this instruction, the systolic array is cleared and ready for new accumulation.
+Writes the accumulated (BLEN × BLEN) result tile from the systolic array to **Vector SRAM only** (not HBM). After this instruction, the systolic array is cleared and ready for new accumulation.
+
+**Important:** This instruction does NOT write to HBM. To persist results to HBM, you must follow up with `H_STORE_V` to copy from Vector SRAM to HBM.
 
 **Example:**
 ```asm
-M_MM_WO gp1, gp0, 0   ; Write result to Vector SRAM[gp1]
+M_MM_WO gp1, gp0, 0       ; Write result to Vector SRAM[gp1]
+H_STORE_V gp1, gp2, a2, 1, 0  ; Then store Vector SRAM[gp1] to HBM[a2+gp2]
 ```
+
+**Output Tiling Principle:**
+
+The systolic array accumulator holds only BLEN×BLEN (4×4) elements. Each M_MM_WO writes BLEN output columns, then clears the accumulator.
+
+To produce `out_cols` output columns:
+- Number of M_MM_WO calls = out_cols / BLEN
+- Each writes to a different column offset: `base + c * BLEN`
+
+```
+for c in range(out_cols // BLEN):    # column blocks
+  for k in range(K // MLEN):         # K accumulation
+    M_MM ...                         # accumulate
+  M_MM_WO addr = out_base + c*BLEN   # write BLEN columns
+```
+
+**Common mistake:** Only having 1 M_MM_WO per output tile writes just 4 columns instead of 64.
 
 ### M_MV
 
