@@ -15,7 +15,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "behavioral_simulator" / "testbench"))
 def debug_view_memory(
     assembly_code: str = "",
     num_rows: int = 8,
-    start_row: int = 0,
+    start_row: int = 8,
     show_golden: bool = True,
     num_batches: int = 4,
     hidden_size: int = 128,
@@ -75,7 +75,7 @@ def debug_view_memory(
             row_dim=64,
             num_bytes_per_val=2,
             start_row_idx=start_row,
-            num_rows=num_rows,
+            num_rows=None,
         )
 
         # Reorder from stride mode to batch-wise layout (unless skipped)

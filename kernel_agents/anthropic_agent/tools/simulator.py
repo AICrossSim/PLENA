@@ -19,6 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "compiler"))
 def run_simulator(
     assembly_code: str,
     layer_type: Literal["linear", "ffn", "attention", "rms_norm"] = "linear",
+    model_name: Optional[str] = None,
     hidden_size: int = 128,
     intermediate_size: Optional[int] = None,
     batch_size: int = 4,
@@ -37,7 +38,8 @@ def run_simulator(
     Args:
         assembly_code: PLENA assembly code string
         layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm')
-        hidden_size: Hidden dimension (default 128)
+        model_name: Model name (e.g., 'llama-3.2-1b') - if provided, auto-loads dimensions
+        hidden_size: Hidden dimension (default 128, overridden if model_name provided)
         intermediate_size: FFN intermediate size (default 4*hidden_size, only for ffn)
         batch_size: Batch size (default 4)
         seq_len: Sequence length (default 1)
@@ -54,6 +56,24 @@ def run_simulator(
     """
     import torch
     from torch import nn
+
+    # Step 0: Load dimensions from model config if model_name provided
+    if model_name:
+        from .workload import get_workload
+        workload = get_workload(model_name, layer_type, batch_size, seq_len)
+        if "error" in workload:
+            return {
+                "success": False,
+                "latency_ns": None,
+                "mse": None,
+                "match_rate": None,
+                "instruction_count": 0,
+                "errors": [workload["error"]],
+                "test_config": None,
+                "submitted_assembly": assembly_code,
+            }
+        hidden_size = workload.get("hidden_size", hidden_size)
+        intermediate_size = workload.get("intermediate_size", intermediate_size)
 
     # Step 1: Assemble code first to check syntax
     from .machine_code import machine_code_generation
@@ -184,7 +204,12 @@ def run_simulator(
 
     if golden_file.exists() and VRAM_DUMP_PATH.exists():
         try:
-            accuracy = _check_accuracy(str(VRAM_DUMP_PATH), str(golden_file))
+            accuracy = _check_accuracy(
+                str(VRAM_DUMP_PATH),
+                str(golden_file),
+                batch_size=test_config["batch_size"],
+                hidden_size=test_config["hidden_size"],
+            )
             mse = accuracy.get("mse")
             match_rate = accuracy.get("match_rate")
         except Exception as e:
@@ -333,9 +358,17 @@ def _parse_latency_ns(output: str) -> Optional[float]:
     return None
 
 
-def _check_accuracy(bin_file: str, golden_file: str) -> Dict[str, Any]:
-    """Compare simulator output with golden reference."""
+def _check_accuracy(bin_file: str, golden_file: str, batch_size: int = 4, hidden_size: int = 128) -> Dict[str, Any]:
+    """Compare simulator output with golden reference.
+
+    Output is stored AFTER activations in Vector SRAM to avoid overwriting.
+    Activations occupy (batch_size * hidden_size) elements = that many / 64 rows.
+    """
     from check_mem import compare_with_golden
+
+    # Calculate where output starts (after activations)
+    activation_elements = batch_size * hidden_size
+    activation_rows = activation_elements // 64  # Each row is 64 elements
 
     results = compare_with_golden(
         bin_file,
@@ -344,7 +377,7 @@ def _check_accuracy(bin_file: str, golden_file: str) -> Dict[str, Any]:
         man_width=7,
         num_bytes_per_val=2,
         row_dim=64,
-        start_row_idx=0,
+        start_row_idx=activation_rows,  # Start AFTER activations
         num_rows=None,
         use_stride_mode=True,
     )

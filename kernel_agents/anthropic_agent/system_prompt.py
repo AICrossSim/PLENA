@@ -25,6 +25,16 @@ def _load_memory_layout() -> str:
         return "[ERROR: Memory layout file not found at {mem_file}]"
 
 
+def _load_linear_example() -> str:
+    """Load linear projection assembly example."""
+    example_file = Path(__file__).parent / "linear_example.txt"
+
+    if example_file.exists():
+        return example_file.read_text()
+    else:
+        return "[ERROR: Linear example file not found at {example_file}]"
+
+
 _SYSTEM_PROMPT_TEMPLATE = """
 You are an expert PLENA assembly code generator and debugger for a custom Large Language Model accelerator.
 You operate inside a multi-turn automated tool-calling loop. There is **no human in the loop** after the first message.
@@ -311,19 +321,51 @@ OUTPUT STYLE RULES
 PLENA MEMORY LAYOUT CONVENTIONS
 ===============================================================================
 {memory_layout}
-
+{examples_section}
 ===============================================================================
 PLENA ISA SPECIFICATION (FULL DETAILS)
 ===============================================================================
 {isa_spec}
 """
 
+_EXAMPLES_SECTION_TEMPLATE = """
+===============================================================================
+EXAMPLE: LINEAR PROJECTION KERNEL (batch=4, hidden=128)
+===============================================================================
+The following is a complete, working linear projection kernel. Study its structure:
+- Address register setup (C_SET_ADDR_REG for weight HBM base)
+- Scale/stride configuration (C_SET_SCALE_REG, C_SET_STRIDE_REG)
+- Activation preload (H_PREFETCH_V with loop)
+- Weight prefetch and matrix multiply (H_PREFETCH_M, M_MM, M_MM_WO)
+- Nested loop structure for tiling
 
-def get_system_prompt() -> str:
-    """Get the full system prompt with dynamically loaded ISA spec and memory layout."""
+```asm
+{linear_example}
+```
+"""
+
+
+def get_system_prompt(include_examples: bool = False) -> str:
+    """Get the full system prompt with dynamically loaded ISA spec and memory layout.
+
+    Args:
+        include_examples: If True, include working assembly examples (linear projection).
+                         Default is False to keep prompt concise.
+    """
     isa_spec = _load_isa_spec()
     memory_layout = _load_memory_layout()
-    return _SYSTEM_PROMPT_TEMPLATE.format(isa_spec=isa_spec, memory_layout=memory_layout)
+
+    if include_examples:
+        linear_example = _load_linear_example()
+        examples_section = _EXAMPLES_SECTION_TEMPLATE.format(linear_example=linear_example)
+    else:
+        examples_section = ""
+
+    return _SYSTEM_PROMPT_TEMPLATE.format(
+        isa_spec=isa_spec,
+        memory_layout=memory_layout,
+        examples_section=examples_section
+    )
 
 
 # For backward compatibility - loads ISA spec at import time

@@ -7,7 +7,7 @@ import json
 from typing import Dict, List, Any, Optional
 
 import anthropic as anthropic_sdk
-from .system_prompt import SYSTEM_PROMPT
+from .system_prompt import SYSTEM_PROMPT, get_system_prompt
 
 from .tools import (
     machine_code_generation,
@@ -35,10 +35,13 @@ This is the PRIMARY tool for testing assembly code. It does everything automatic
 Returns:
 - success: bool - True if simulation completed
 - latency_ns: float - Execution time in nanoseconds
-- mse: float - Mean Squared Error vs golden. Must be close to target ~8e-04 (small margin allowed)
+- mse: float - Mean Squared Error vs golden. Must be close to target ~8.41e-04 (small margin allowed)
 - errors: list - Any errors encountered
 
-Success criteria: MSE close to ~8e-04. Keep iterating until this is achieved.""",
+IMPORTANT: If model_name is provided, dimensions are auto-loaded from model config.
+This ensures test dimensions match the model you're generating assembly for.
+
+Success criteria: MSE close to ~8.41e-04. Keep iterating until this is achieved.""",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -48,7 +51,11 @@ Success criteria: MSE close to ~8e-04. Keep iterating until this is achieved."""
                     "enum": ["linear", "ffn", "rms_norm"],
                     "description": "Layer type for test data generation (default: linear)",
                 },
-                "hidden_size": {"type": "integer", "description": "Hidden dimension (default: 128)"},
+                "model_name": {
+                    "type": "string",
+                    "description": "Model name (e.g., 'llama-3.2-1b') - auto-loads hidden_size/intermediate_size from config",
+                },
+                "hidden_size": {"type": "integer", "description": "Hidden dimension (default: 128, overridden if model_name provided)"},
                 "intermediate_size": {
                     "type": "integer",
                     "description": "FFN intermediate size (default: 4*hidden_size, only used for ffn)",
@@ -223,6 +230,7 @@ class AnthropicAgent:
         system_prompt: Optional[str] = None,
         enable_thinking: bool = True,
         thinking_budget: int = 10000,
+        include_examples: bool = False,
     ):
         """
         Initialize the agent.
@@ -234,11 +242,12 @@ class AnthropicAgent:
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT)
             enable_thinking: Enable extended thinking for better reasoning
             thinking_budget: Token budget for thinking (default 10000)
+            include_examples: Include working assembly examples in system prompt (default False)
         """
         self.client = anthropic_sdk.Anthropic(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
-        self.system_prompt = system_prompt or SYSTEM_PROMPT
+        self.system_prompt = system_prompt or get_system_prompt(include_examples=include_examples)
         self.messages: List[Dict] = []
         self.tools = list(TOOLS)  # Copy to allow modifications
         self.tool_functions = dict(TOOL_FUNCTIONS)
@@ -310,7 +319,7 @@ class AnthropicAgent:
             }
 
         response = self.client.messages.create(**api_params)
-        breakpoint()
+        # breakpoint()
 
         # Check if done
         if response.stop_reason == "end_turn":
