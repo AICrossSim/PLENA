@@ -249,15 +249,15 @@ if __name__ == "__main__":
     hidden_size = 64
     vlen = 64
     repeat_times = vocal_size//vocal_size_single
-    batch_size = 4
-    prompt_batch_size = 4
+    batch_size = 1
+    prompt_batch_size = batch_size
     mask_id=15
     preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     hbm_data_width = 64
     fp_preload = [0.0, 0.0, 0, 1e-3]
     # Different k values for each batch item (number of tokens to select)
-    k_values = [8, 8, 8, 8]
+    k_values = [8]
     
     torch.manual_seed(68)
     # logits shape should be (B, L, vocab_size) for get_transfer_index
