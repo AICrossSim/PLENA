@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  select_vvm_debug, preload_act_asm, preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm,get_transfer_index_debug,get_transfer_index_long_debug
+from compiler.asm_templates import  preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm, get_transfer_index_long_debug
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
@@ -106,25 +106,32 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
 
 
 """
+INT Memory Layout:
+==================================================================================================
+Address Range                                                       | Content     | Size
+==================================================================================================
+[0 : prompt_batch_size*hidden_size)                                 | x           | prompt_batch_size*hidden_size
+--------------------------------------------------------------------------------------------------
+[prompt_batch_size*hidden_size : 2*prompt_batch_size*hidden_size)   | x0          | prompt_batch_size*hidden_size
+==================================================================================================
+
 VRAM Memory Layout:
 ==================================================================================
-Address Range                                   | Content       | Size
+Address Range                                     | Content         | Size
 ==================================================================================
-[0 : B*L)                                       | output        | B * L
-                                                |               | (transfer_index result)
+[0 : B*L)                                         | transfer_index  | B * L
 ----------------------------------------------------------------------------------
-[B*L : B*L + vocal_size_single)                 | temp          | vocal_size_single
-                                                |               | (for exp(logits-max))
-                                                |               |
-[B*L + vlen : B*L + vocal_size_single + veln)   | logits        | vocal_size_single
-                                                |               | *** OVERLAPS with temp ***
-                                                |               | (offset +vlen from temp)
+[B*L : 2*B*L)                                     | mask            | B * L
 ----------------------------------------------------------------------------------
-[B*L + vocal_size_single + veln :               | mask          | B * L
-    B*L + vocal_size_single + veln + B*L)       |               |
+[2*B*L : 3*B*L)                                   | x0_p            | B * L
 ----------------------------------------------------------------------------------
-[B*L + vocal_size_single + veln + B*L : ...)    | x0_p          | vocal_size_single
-                                                |               | (softmax probabilities)
+                                                  |                 | (transfer_index result)
+[3*B*L : 3*B*L + vocal_size_single)               | temp            | vocal_size_single
+                                                  |                 | (for exp(logits-max))
+                                                  |                 |
+[3*B*L + vlen : 3*B*L + vocal_size_single + veln) | logits          | vocal_size_single
+                                                  |                 | *** OVERLAPS with temp ***
+                                                  |                 | (offset +vlen from temp)
 ==================================================================================
 
 Memory Reuse Strategy:
@@ -236,7 +243,8 @@ if __name__ == "__main__":
     # target logits.shape =  torch.Size([1, 64, 126464]) 126464=64*1976
 
     # Testing the operation logits in shape of (batch_size, hidden_size, vocal_size)
-    vocal_size = 64*2
+    # the largest setup for vocal_size and vocal_size_single is 64*1976 and 64*494 respectively
+    vocal_size = 64*4
     vocal_size_single = 64*2  #64*494
     hidden_size = 64
     vlen = 64
@@ -295,10 +303,13 @@ if __name__ == "__main__":
     gen_assembly_code = "; DLLM Test Generation \n"
     
     # Set the VRAM address offsets
-    temp_offset_address = (batch_size * hidden_size)+(batch_size * hidden_size)
+    transfer_idx_offset_address = 0
+    mask_offset_address = (batch_size * hidden_size)
+    x0_p_offset_address = (batch_size * hidden_size)*2
+    temp_offset_address = (batch_size * hidden_size)*3
     logits_offset_address = temp_offset_address + vlen
-    mask_offset_address = logits_offset_address + (vocal_size_single)
-    x_offset_address = mask_offset_address + (batch_size * hidden_size)
+    #mask_offset_address = (batch_size * hidden_size)*2 + logits_offset_address + (vocal_size_single)
+    
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1,2],
         available_registers=[1,2],
@@ -309,6 +320,7 @@ if __name__ == "__main__":
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
     )
+    
     
     # only preload mask (B,L)
     gen_assembly_code += preload_act_asm_scale(
@@ -322,19 +334,6 @@ if __name__ == "__main__":
         act_vram_offset=mask_offset_address,
         activation_offset_reg=1
     )
-    # preload x (B,L)
-    gen_assembly_code += preload_act_asm_scale(
-        vlen=vlen,
-        preload_len=preload_amount,
-        batch=batch_size,
-        hidden_size=hidden_size,
-        scale=batch_size*hidden_size,
-        alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
-        act_hbm_offset=0,  # x comes after mask in HBM
-        act_vram_offset=x_offset_address,
-        activation_offset_reg=2
-    )
-    
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
@@ -344,13 +343,14 @@ if __name__ == "__main__":
         alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
         logits_base_address=logits_offset_address,
         mask_base_address=mask_offset_address,
-        output_base_address=0,
+        transfer_idx_base_address=0,
         temp_base_address=temp_offset_address,
-        x0_p_base_address=x_offset_address + batch_size * hidden_size,
+        x0_p_base_address=x0_p_offset_address,
         k_values=k_values,
         vlen=vlen,
         repeat_times=repeat_times,
         batch_size=batch_size,
+        prompt_batch_size=prompt_batch_size,
         vocal_size_single=vocal_size_single,
         hidden_size=hidden_size,
     )

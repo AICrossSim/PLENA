@@ -422,8 +422,9 @@ impl Opcode {
             0x34 => Self::V_RED_MAX_IDX { rd, rs1, rs2, rs3 },
             0x35 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
             0x36 => Self::V_TOPK_MASK { rd, rs1, rs2, k_scalar: rs3 },
-            0x37 => Self::C_BREAK,
-            0x38 => Self::S_SELECT_INT { rd, rs1, rs2, rs3 },
+            0x37 => Self::S_SELECT_INT { rd, rs1, rs2, rs3 },
+            0x38 => Self::C_BREAK,
+            
             _ => {
                 eprintln!("Unknown opcode {opcode:#x}");
                 Self::Invalid

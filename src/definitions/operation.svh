@@ -176,8 +176,9 @@ typedef enum logic [instruction_pkg::OPCODE_WIDTH - 1:0] {
     V_RED_MAX_IDX          = 6'h34,
     V_SELECT_VVM           = 6'h35,
     V_TOPK_MASK            = 6'h36,
-    C_BREAK                = 6'h37,
-    S_SELECT_INT           = 6'h38
+    S_SELECT_INT           = 6'h37,
+    C_BREAK                = 6'h38
+    
 } CUSTOM_ISA_OPCODE;
 
 
