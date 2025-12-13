@@ -6,63 +6,28 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  argmux_debug, preload_act_asm,preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
+from compiler.asm_templates import argmux_debug, stable_max_softmax_method, preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
 
 
-from transformers import AutoTokenizer
-
-
-
-def get_transfer_index(
-    logits: torch.Tensor,
-    remasking: str,
-    mask_index: torch.Tensor,   # (B, L) bool
-    x: torch.Tensor,            # (B, L) long
-    threshold: float = 0.9,
-):
-    """
-    Returns:
-        x0: (B, L) long — proposed tokens
-        transfer_index: (B, L) bool — which positions to update this step
-    """
-    # 1) Sample proposal x0
-    # Gumbel-noise for exploration; if temperature==0, add_gumbel_noise should no-op
-    x0 = torch.argmax(logits, dim=-1)  # (B, L), long
-
-    # 2) Confidence for chosen tokens (or random)
-    if remasking == "low_confidence":
-        # Use higher precision for softmax stability
-        p = F.softmax(logits.to(torch.float64), dim=-1)
-        x0_p = torch.gather(p, dim=-1, index=x0.unsqueeze(-1)).squeeze(-1)  # (B, L), float64
-    elif remasking == "random":
-        x0_p = torch.rand(x0.shape, device=x0.device, dtype=torch.float64)  # (B, L)
-    else:
-        raise NotImplementedError(remasking)
-
-    # Only modify masked spots; keep others as original x and set their confidence to -inf
-    x0 = torch.where(mask_index, x0, x)
-
-    neg_inf = torch.tensor(torch.finfo(x0_p.dtype).min, device=x0_p.device, dtype=x0_p.dtype)
-    confidence = torch.where(mask_index, x0_p, neg_inf)  # (B, L)
-
-    # 3) Pick positions to transfer (vectorized)
-    # Transfer all masked positions whose confidence >= threshold
-    # (No top-k; purely threshold-based)
-    transfer_index = mask_index & (confidence >= threshold)
-    return x0, transfer_index
-
-
-
 class TEST(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, mode='stable_max'):
+        """
+        Args:
+            mode: 'argmux' or 'stable_max'
+                - 'argmux': Use argmax method
+                - 'stable_max': Use stable max softmax method to compute reciprocal
+        """
         super().__init__()
+        self.mode = mode
         self.weight = nn.Parameter(torch.ones(128))
+        
+        if mode not in ['argmux', 'stable_max']:
+            raise ValueError(f"mode must be 'argmux' or 'stable_max', but got '{mode}'")
 
     def _argmux(self, x):
-        
         x0 = torch.argmax(x, dim=-1)
         print('x = ',x)
         print('x0 = ',x0)
@@ -77,20 +42,26 @@ class TEST(torch.nn.Module):
         reciprocal_denom = 1.0 / denom
 
         print('reciprocal_denom = ', reciprocal_denom)
-        return logits + reciprocal_denom.unsqueeze(-1)
+        return reciprocal_denom
 
     def forward(self, input):
         x = input
-        output = self._argmux(x.float()).type_as(x)
+        if self.mode == 'argmux':
+            output = self._argmux(x)
+        elif self.mode == 'stable_max':
+            output = self._stable_max_method(x.float()).type_as(x)
+        else:
+            raise ValueError(f"Unknown mode: {self.mode}")
         return output
 
 
 if __name__ == "__main__":
 
-    #logits.shape =  torch.Size([1, 148, 126464])
-
-    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    vocal_size = 64
+    # ============ Configuration ============
+    # Select test mode: 'argmux' or 'stable_max'
+    TEST_MODE = 'argmux'  # Change this to switch test mode
+    # ========================================
+    
     hidden_size = 64
     vlen = 64
     batch_size = 4
@@ -98,23 +69,20 @@ if __name__ == "__main__":
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
 
-    # Generate vlen random int32 data
-    int_preload = torch.randint(low=0, high=10, size=(vlen,), dtype=torch.int32)
-
     
     torch.manual_seed(42)
-    logits = torch.randn(batch_size, hidden_size, vocal_size)
+    logits = torch.randn(batch_size, hidden_size)
 
-    input_tensor = logits[:,1,:]
-    original_layer = TEST()
-    weights = original_layer.state_dict()
+    input_tensor = logits
+    original_layer = TEST(mode=TEST_MODE)
     original_output = original_layer(input_tensor)
 
     golden_result = {
         "input_tensor": input_tensor,
-        "weights": weights,
         "original_output": original_output
     }
+    
+    print(f"==================== Test Mode: {TEST_MODE} ====================")
     
     gen_assembly_code = "; Argmux for dLLM Generation \n"
     
@@ -122,7 +90,7 @@ if __name__ == "__main__":
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1,2],
         available_registers=[1,2],
-        addr_reg_val=[int(batch_size * vocal_size * real_data_ratio), int(2*batch_size * vocal_size * real_data_ratio)]
+        addr_reg_val=[int(batch_size * hidden_size * real_data_ratio), int(2*batch_size * hidden_size * real_data_ratio)]
     )
 
     # Reset the registers
@@ -135,8 +103,8 @@ if __name__ == "__main__":
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
-        hidden_size=1*vocal_size,
-        scale = batch_size*vocal_size,
+        hidden_size=hidden_size,
+        scale = batch_size*hidden_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
         act_hbm_offset=0,
         act_vram_offset=0,
@@ -148,15 +116,27 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4]
     )
     
-    gen_assembly_code += argmux_debug(
-        alive_registers=[1,2,3],                   # [act_addr, act2_addr, scratchpad_addr]
-        activation_base_address= 0,                # base address of input_tensor in VRAM
-        scratchpad_base_address=batch_size * vocal_size,  # output region, avoid the two input regions
-        vlen=vlen,
-        batch_size=batch_size,
-    )
-    
-    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload, int_preload)
+    # Generate corresponding assembly code based on mode
+    if TEST_MODE == 'argmux':
+        gen_assembly_code += argmux_debug(
+            alive_registers=[1,2,3,4],                                 # [act_addr, act2_addr, scratchpad_addr]
+            input_base_address= 0,                                     # base address of input_tensor in VRAM
+            vlen=vlen,
+            batch_size=batch_size,
+        )
+    elif TEST_MODE == 'stable_max':
+        gen_assembly_code += stable_max_softmax_method(
+            alive_registers=[1,2,3,4],                                 # [act_addr, act2_addr, scratchpad_addr]
+            input_base_address= 0,                                     # base address of input_tensor in VRAM
+            output_base_address= 0,                                    # base address of output_tensor in VRAM
+            vlen=vlen,
+            batch_size=batch_size,
+        )
+    else:
+        raise ValueError(f"Unknown test mode: {TEST_MODE}")
+
+
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["input_tensor"])
     
     
