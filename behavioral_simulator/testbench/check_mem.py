@@ -124,40 +124,55 @@ def read_bin_file_as_array(bin_file,
     return np.array(values, dtype=np.float32)
 
 
-def reorder_stride_mode(data, num_batches=4, elements_per_batch=128):
+def reorder_stride_mode(data, num_batches=4, elements_per_batch=128, stride=64):
     """
     Reorder stride-mode data to batch-wise layout.
 
     Stride mode layout (how data is stored in VRAM):
+        For elements_per_batch=128: 2 chunks per batch
         [Batch0[0:64], Batch1[0:64], Batch2[0:64], Batch3[0:64],
          Batch0[64:128], Batch1[64:128], Batch2[64:128], Batch3[64:128]]
 
+        For elements_per_batch=256: 4 chunks per batch
+        [Batch0[0:64], Batch1[0:64], Batch2[0:64], Batch3[0:64],
+         Batch0[64:128], Batch1[64:128], Batch2[64:128], Batch3[64:128],
+         Batch0[128:192], Batch1[128:192], Batch2[128:192], Batch3[128:192],
+         Batch0[192:256], Batch1[192:256], Batch2[192:256], Batch3[192:256]]
+
     Batch-wise layout (how golden data is organized):
-        [Batch0[0:128], Batch1[0:128], Batch2[0:128], Batch3[0:128]]
+        [Batch0[0:elements_per_batch], Batch1[...], ...]
 
     Args:
         data: 1D numpy array in stride mode
         num_batches: Number of batches (default 4)
         elements_per_batch: Elements per batch (default 128)
+        stride: Stride size in stride mode (default 64, typically mlen)
 
     Returns:
         Reordered 1D numpy array in batch-wise layout
     """
-    chunk_size = elements_per_batch // 2  # 64 elements per chunk
+    chunk_size = stride  # Stride mode uses chunks of 'stride' elements (typically mlen=64)
+    chunks_per_batch = elements_per_batch // stride
     total_chunks = len(data) // chunk_size
+    expected_chunks = num_batches * chunks_per_batch
 
-    if total_chunks != num_batches * 2:
-        print(f"Warning: Expected {num_batches * 2} chunks, got {total_chunks}")
+    if total_chunks != expected_chunks:
+        print(f"Warning: Expected {expected_chunks} chunks, got {total_chunks}")
 
-    # Reshape into chunks: [chunk0, chunk1, ..., chunk7]
+    # Reshape into chunks: [chunk0, chunk1, ..., chunk_n]
     chunks = data.reshape(total_chunks, chunk_size)
 
-    # Reorder: [chunk0, chunk4, chunk1, chunk5, chunk2, chunk6, chunk3, chunk7]
-    # This groups each batch's two halves together
+    # Reorder: group all chunks for each batch together
+    # For 4 batches with 4 chunks each (256 elements):
+    #   batch0: chunks 0, 4, 8, 12
+    #   batch1: chunks 1, 5, 9, 13
+    #   batch2: chunks 2, 6, 10, 14
+    #   batch3: chunks 3, 7, 11, 15
     reordered_chunks = []
     for batch_idx in range(num_batches):
-        reordered_chunks.append(chunks[batch_idx])                  # First 64 elements
-        reordered_chunks.append(chunks[batch_idx + num_batches])    # Last 64 elements
+        for chunk_group in range(chunks_per_batch):
+            chunk_idx = chunk_group * num_batches + batch_idx
+            reordered_chunks.append(chunks[chunk_idx])
 
     return np.concatenate(reordered_chunks)
 

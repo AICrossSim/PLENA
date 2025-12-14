@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Optional
 
 IMM2_BOUND = 2**18
+
 
 def projection_asm(
     mlen: int,
@@ -13,22 +14,21 @@ def projection_asm(
     result_base_address: int,
     rope_enabled: bool = False,
     rope_hbm_offset_reg: int = 0,
-    rope_on_chip_address: int = 0
+    rope_on_chip_address: int = 0,
+    out_features: Optional[int] = None,
 ) -> str:
     """
-    Generates highly optimized assembly code for matrix multiplication.
-    (Batch, Hidden Size) @ (Hidden Size, Hidden Size) -> (Batch, Hidden Size)
+    Generates optimized assembly code for matrix multiplication (linear layer).
+    (Batch, in_features) @ (in_features, out_features) -> (Batch, out_features)
 
-    Key optimizations:
-    1. Eliminate dead code (register updates after last use in loop)
-    2. Use incremental result addressing within MLEN blocks
-    3. Minimize redundant register resets
+    Supports both square matrices (hidden_size x hidden_size) and rectangular
+    matrices when out_features is specified.
 
     Args:
         mlen: Matrix tile size (rows)
         blen: Vector tile size (batch dimension)
         batch: Batch size (unused, assumed = blen)
-        hidden_size: Hidden dimension size
+        hidden_size: Input dimension (in_features)
         alive_registers: Available GP registers [result, w_actual, w_hbm_offset, a_actual]
         w_base_hbm_offset_reg: HBM address register index for weights
         activation_base_address: Vector SRAM address for activations
@@ -36,12 +36,18 @@ def projection_asm(
         rope_enabled: Whether RoPE is enabled (unused)
         rope_hbm_offset_reg: RoPE HBM address register (unused)
         rope_on_chip_address: RoPE on-chip address (unused)
+        out_features: Output dimension. If None, defaults to hidden_size (square matrix)
 
     Returns:
         Generated assembly code string
     """
     # Suppress unused parameter warnings (API compatibility)
     _ = batch, rope_enabled, rope_hbm_offset_reg, rope_on_chip_address
+
+    # Support rectangular matrices: in_features x out_features
+    in_features = hidden_size
+    if out_features is None:
+        out_features = hidden_size  # Backward compatible: square matrix
 
     # Unpack registers
     result_reg = alive_registers[0]
@@ -50,23 +56,25 @@ def projection_asm(
     act_reg = alive_registers[3]
 
     # Compute loop bounds
-    num_output_tiles = hidden_size // blen  # 32 tiles for hidden=128, blen=4
-    num_weight_tiles = hidden_size // mlen  # 2 tiles for hidden=128, mlen=64
-    tiles_per_mlen = mlen // blen           # 16 tiles fit in one MLEN block
+    num_output_tiles = out_features // blen   # Output tiles (columns of weight)
+    num_weight_tiles = in_features // mlen    # Accumulation tiles (rows of weight)
+    tiles_per_mlen = mlen // blen             # Tiles fit in one MLEN block
 
     # Memory layout constants
-    weight_tile_size = mlen * mlen          # 4096 for mlen=64
-    act_tile_stride = mlen * blen           # 256 for mlen=64, blen=4
-    hbm_row_stride = mlen * hidden_size     # 8192 for mlen=64, hidden=128
+    weight_tile_size = mlen * mlen            # 4096 for mlen=64
+    act_tile_stride = mlen * blen             # 256 for mlen=64, blen=4
+    hbm_row_stride = mlen * out_features      # Stride between weight row blocks in HBM
 
     # Build assembly as list of lines
     lines = ["; Projection Generation (Optimized)"]
+    lines.append(f"; Linear: (batch, {in_features}) @ ({in_features}, {out_features}) -> (batch, {out_features})")
 
     # Setup scale and stride registers (use act_reg as temp)
-    assert hidden_size * hidden_size < IMM2_BOUND
-    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {hidden_size * hidden_size}")
+    # Scale = total weight matrix size, Stride = output dimension
+    assert in_features * out_features < IMM2_BOUND, f"Weight size {in_features}x{out_features} exceeds IMM2_BOUND"
+    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {in_features * out_features}")
     lines.append(f"C_SET_SCALE_REG gp{act_reg}")
-    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {hidden_size}")
+    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {out_features}")
     lines.append(f"C_SET_STRIDE_REG gp{act_reg}")
 
     # Initialize activation register
