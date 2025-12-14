@@ -102,6 +102,7 @@ def _ffn_asm_unrolled(
     intermediate_register = alive_registers[4]
     gate_result_register = alive_registers[5]
     w_hbm_offset_register = alive_registers[6]
+    m_stride_register = alive_registers[7]
 
     # reset the registers
     generated_code = "; FFN Generation \n"
@@ -206,6 +207,7 @@ def _ffn_asm_unrolled(
     generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size} \n"
     generated_code += f"C_SET_STRIDE_REG gp{w_actual_register} \n"
     generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0 \n"
+    generated_code += f"S_ADDI_INT gp{m_stride_register}, gp0, {((batch * seq_len) // blen)} \n"
     # Storing the results to the activation base region
     act_result_register = gate_result_register
     generated_code += f"S_ADDI_INT gp{act_result_register}, gp0, {activation_base_address} \n"
@@ -228,10 +230,10 @@ def _ffn_asm_unrolled(
             generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_actual_register}, 0 \n"
             for inner_loop_index in range (intermediate_size // mlen):
                 generated_code += f"M_MM 0, gp{w_actual_register}, gp{a_actual_register} \n"
-                generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_actual_register}, {mlen * mlen} \n"
+                generated_code += f"S_ADDI_INT gp{w_temp_register}, gp{w_temp_register}, {mlen * mlen} \n"
                 generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {mlen * batch * seq_len} \n"
             generated_code += f"M_MM_WO gp{intermediate_register}, gp0, 0 \n"
-            generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{intermediate_register}, {blen * mlen} \n"    # generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {activation_base_address} \n"
+            generated_code += f"S_ADDI_INT gp{intermediate_register}, gp{intermediate_register}, {mlen * blen} \n"    # generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {activation_base_address} \n"
         if (weight_row + 1) % (mlen // blen) == 0 and weight_row != intermediate_size // blen - 1:
             generated_code += f"S_ADDI_INT gp{act_result_register}, gp{act_result_register}, {mlen * batch * seq_len} \n"
     return generated_code

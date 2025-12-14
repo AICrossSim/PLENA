@@ -301,6 +301,7 @@ impl Opcode {
             VectorOrder::Reverse
         }
     }
+
     pub fn decode(instr: u32) -> Self {
         // eprintln!(
         //     "decode(): instr = 0x{instr:08X} ({instr:032b})"

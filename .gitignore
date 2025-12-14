@@ -11,6 +11,8 @@ build/
 
 .vscode
 
+boom-riscv/
+
 *.gtkw
 
 *.str

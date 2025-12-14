@@ -26,15 +26,24 @@ def create_sim_env(input_tensor, generated_code, golden_result, fp_preload = Non
             torch.save(input_tensor, f)
     with open(os.path.join(build_dir, "generated_asm_code.asm"), "w") as f:
         f.write(generated_code)
+
     # Store golden_result in a readable format, including tensor contents.
     if fp_preload is not None:
-        with open(os.path.join(build_dir, "fp_sram.bin"), "wb") as f:
-            fp16_array = np.array(fp_preload, dtype=np.float16)
-            f.write(fp16_array.tobytes())
+        fp_to_load = fp_preload
+    else:
+        fp_to_load = torch.zeros(10, dtype=torch.float16)
+    with open(os.path.join(build_dir, "fp_sram.bin"), "wb") as f:
+        fp16_array = np.array(fp_to_load, dtype=np.float16)
+        f.write(fp16_array.tobytes())
+
     if int_preload is not None:
-        int_array = np.array(int_preload, dtype=np.uint32)
-        with open(os.path.join(build_dir, "int_sram.bin"), "wb") as f:
-            f.write(int_array.tobytes())
+        int_to_load = int_preload
+    else:   
+        int_to_load = torch.zeros(10, dtype=torch.int32)
+    with open(os.path.join(build_dir, "int_sram.bin"), "wb") as f:
+        int_array = np.array(int_to_load, dtype=np.uint32)
+        f.write(int_array.tobytes())
+    
     with open(os.path.join(build_dir, "golden_result.txt"), "w") as f:
         f.write("Input Tensor:\n")
         if isinstance(input_tensor, dict):

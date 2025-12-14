@@ -3,16 +3,70 @@ import logging
 from cfl_cocotb import SRC_PATH
 from cfl_tools.logger import get_logger
 from memory_mapping.rand_gen import Random_MXFP_Tensor_Generator
-from utils.load_config import load_svh_settings
+from utils.load_config import load_toml_config
 from pathlib import Path
+import torch
 
 logger = get_logger("testbench")
 logger.setLevel(logging.DEBUG)
 
-def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
+class MemoryDataManager:
+    """Manages memory data from pt files, supporting multiple mx and int entries."""
+    def __init__(self):
+        self.mx_entries = []  # Can have multiple mx entries
+        self.int_entries = []  # Can have multiple int entries
     
-    config_settings = load_svh_settings(str(SRC_PATH / "definitions" / "configuration.svh"))
-    precision_settings = load_svh_settings(str(SRC_PATH / "definitions" / "precision.svh"))
+    def add_mx_file(self, filename, blocks, bias):
+        """Add an mx type data entry."""
+        self.mx_entries.append({
+            "filename": filename,
+            "type": "mx",
+            "blocks": blocks,
+            "bias": bias
+        })
+    
+    def add_int_file(self, filename, data):
+        """Add an int type data entry."""
+        self.int_entries.append({
+            "filename": filename,
+            "type": "int",
+            "data": data
+        })
+    
+    def get_all_entries(self):
+        """Get all entries as a list for iteration."""
+        entries = []
+        entries.extend(self.mx_entries)
+        entries.extend(self.int_entries)
+        return entries
+    
+    def to_dict(self):
+        """Convert to dictionary format for backward compatibility if needed."""
+        result = {}
+        if self.mx_entries:
+            result["mx"] = {
+                "blocks": [entry["blocks"] for entry in self.mx_entries],
+                "bias": [entry["bias"] for entry in self.mx_entries]
+            }
+        if self.int_entries:
+            # For backward compatibility, use "normal" key
+            # If multiple int entries, combine them or use the last one
+            if len(self.int_entries) == 1:
+                result["normal"] = {
+                    "data": self.int_entries[0]["data"]
+                }
+            else:
+                # If multiple int entries, use the last one (or could combine)
+                result["normal"] = {
+                    "data": self.int_entries[-1]["data"]
+                }
+        return result
+
+def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
+    
+    plena_toml_path = str(SRC_PATH / "definitions" / "plena_settings.toml")
+    config_settings = load_toml_config(plena_toml_path, "CONFIG")
+    precision_settings = load_toml_config(plena_toml_path, "PRECISION")
     if mode == "behave_sim":
         asm_file = Path(PROJECT_PATH / "behavioral_simulator" / "testbench" / "build" / "generated_asm_code.asm")
     else:
@@ -22,14 +76,15 @@ def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, speci
 
     data_config = {
         "tensor_size": [1, data_size],
-        "block_size" : [1, precision_settings["BLOCK_DIM"]],
+        "block_size" : [1, precision_settings["HBM_M_WEIGHT_TYPE"]["block"]],
     }
 
     quant_config = {
-            "exp_width": precision_settings["ACT_MXFP_EXP_WIDTH"],
-            "man_width": precision_settings["ACT_MXFP_MANT_WIDTH"],
-            "exp_bias_width": precision_settings["MX_SCALE_WIDTH"],
+            "exp_width": precision_settings["HBM_V_ACT_TYPE"]["ELEM"]["exponent"],
+            "man_width": precision_settings["HBM_V_ACT_TYPE"]["ELEM"]["mantissa"],
+            "exp_bias_width": precision_settings["HBM_V_ACT_TYPE"]["SCALE"]["exponent"],
             "block_size": data_config["block_size"],
+            "int_width": precision_settings["HBM_V_INT_TYPE"]["DATA_TYPE"]["width"],
             "skip_first_dim": False,
         }
 
@@ -50,32 +105,35 @@ def build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, speci
         grp_bias.append(bias)
     else:
         # The provided path (args.data) is a directory. Enumerate all .pt and .pth files within,
-        # then load and quantize all of them. Collect the results in dictionaries keyed by filename.
+        # then load and quantize all of them. Collect the results in a MemoryDataManager.
         target_dir = PROJECT_PATH / "behavioral_simulator" / "testbench" / "build"
         if specified_data_order is not None:
             pt_files = [target_dir / f"{data}.pt" for data in specified_data_order]
         else:
             pt_files = list(target_dir.glob("*.pt")) + list(target_dir.glob("*.pth"))
         
-        grp_blocks = []
-        grp_bias = []
+        memory_data_manager = MemoryDataManager()
         for pt_file in pt_files:
-            # print("loading file", pt_file)  # Muted for cleaner output
-            file_raw_data = Random_MXFP_Tensor_Generator(
-                shape           =   tuple(data_config["tensor_size"]),
-                quant_config    =   quant_config,
-                config_settings =   config_settings,
-                directory       =   Path(asm_file).parent,
-                filename        =   pt_file
-            )
-            file_tensor = file_raw_data.tensor_load()
-            blocks, bias = file_raw_data.quantize_tensor(file_tensor)
-            for block, b in zip(blocks, bias):
-                grp_blocks.append(block)
-                grp_bias.append(b)
+            if pt_file.stem != "int":
+                print("loading file", pt_file)
+                file_raw_data = Random_MXFP_Tensor_Generator(
+                    shape           =   tuple(data_config["tensor_size"]),
+                    quant_config    =   quant_config,
+                    config_settings =   config_settings,
+                    directory       =   Path(asm_file).parent,
+                    filename        =   pt_file
+                )
+                file_tensor = file_raw_data.tensor_load()
+                blocks, bias = file_raw_data.quantize_tensor(file_tensor)
+                # Multiple mx files are all kept
+                memory_data_manager.add_mx_file(pt_file.name, blocks, bias)
+            else:
+                print("loading file", pt_file)
+                int_data = torch.load(pt_file)
+                memory_data_manager.add_int_file(pt_file.name, int_data)
     # generate_golden_result(data, logger, precision_settings, data_config)
-    env_setup(grp_blocks, grp_bias, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"])
+    env_setup(memory_data_manager, asm_file.parent, data_config, quant_config, hbm_row_width=config_settings["HBM_WIDTH"]["value"])
 
 if __name__ == "__main__":
-    build_sim_env()
+    create_mem_for_sim()
     pass

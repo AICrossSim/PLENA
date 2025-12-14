@@ -38,10 +38,11 @@ class AssemblyToBinary:
         rs2 = instruction.rs2
         rstride = instruction.rstride
         funct1 = instruction.funct1
+        funct2 = instruction.funct2
         imm = instruction.imm
         rmask = instruction.rmask
         binary_instruction = 0
-        # print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, imm={imm}")  # Muted for cleaner output
+        # print(f"Converting instruction: {instruction.opcode} with opcode={hex(opcode)}, rd={rd}, rs1={rs1}, rs2={rs2}, rstride={rstride}, funct1={funct1}, funct2={funct2}, imm={imm}")
         ow = self.operands_width
         opw = self.opcode_width
 
@@ -76,7 +77,7 @@ class AssemblyToBinary:
                 (rd << opw) +
                 opcode
             )
-        elif instruction.opcode in [ "H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V", "V_SUB_VF"]:
+        elif instruction.opcode in ["H_PREFETCH_M", "H_PREFETCH_V", "H_STORE_V", "V_SUB_VF"]:
             binary_instruction = (
                 (funct1 << (opw + 4 * ow)) +
                 (rstride << (opw + 3 * ow)) +

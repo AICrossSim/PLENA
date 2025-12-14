@@ -8,7 +8,7 @@ from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import rms_norm_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 
 
 # Taken from LLAMA RMSNorm implementation
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         preload_len=4,
         batch=4,
         hidden_size=128,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=hidden_size
@@ -118,13 +118,13 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
+        alive_registers=[1,2,3,4]
     )
 
     gen_assembly_code += rms_norm_asm(
         _eps_offset=1,
         reci_hid_offset=2,
-        alive_registers=[1,2,3,4],
+        alive_registers=[1,2,3,4,5],
         activation_base_address = 0,
         scratchpad_base_address = hidden_size * batch_size,
         vlen=64,
@@ -133,8 +133,27 @@ if __name__ == "__main__":
     )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["act_tensor", "weights"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["act_tensor", "weights"])
+
+    # Save comparison parameters for view_mem.py
+    # RMS stores result at activation_base_address (overwrites input in-place)
+    import json
+    vlen = 64
+    result_vram_offset = 0  # activation_base_address
+    result_start_row = result_vram_offset // vlen
+    num_result_rows = (batch_size * hidden_size) // vlen
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": batch_size,
+        "elements_per_batch": hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
     print("================================================")

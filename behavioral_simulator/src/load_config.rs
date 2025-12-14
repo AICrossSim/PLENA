@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, sync::LazyLock, env};
 
 // Import the types from your main module
-use quantize::{DataType, FpType, MxDataType};
+use quantize::{DataType, FpType, IntType, MxDataType};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigValue {
@@ -29,9 +29,15 @@ pub struct FpTypeConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct IntTypeConfig {
+    pub width: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum DataTypeConfig {
     Fp(FpTypeConfig),
+    Int(IntTypeConfig),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -111,6 +117,8 @@ pub struct PrecisionSection {
     pub hbm_v_act_type: MxDataTypeConfig,
     #[serde(rename = "HBM_V_KV_TYPE")]
     pub hbm_v_kv_type: MxDataTypeConfig,
+    #[serde(rename = "HBM_V_INT_TYPE")]
+    pub hbm_v_int_type: MxDataTypeConfig,
     #[serde(rename = "SCALAR_FP")]
     pub scalar_fp: DataTypeConfig,
 }
@@ -252,6 +260,14 @@ impl Default for AcceleratorConfig {
                         }),
                     },
                 },
+                hbm_v_int_type: MxDataTypeConfig {
+                    format: "Plain".to_string(),
+                    data: MxDataTypeData::Plain {
+                        data_type: DataTypeConfig::Int(IntTypeConfig {
+                            width: 32,
+                        }),
+                    },
+                },
                 scalar_fp: DataTypeConfig::Fp(FpTypeConfig {
                     sign: true,
                     exponent: 8,
@@ -335,10 +351,19 @@ impl From<FpTypeConfig> for FpType {
     }
 }
 
+impl From<IntTypeConfig> for IntType {
+    fn from(config: IntTypeConfig) -> Self {
+        IntType {
+            width: config.width,
+        }
+    }
+}
+
 impl From<DataTypeConfig> for DataType {
     fn from(config: DataTypeConfig) -> Self {
         match config {
             DataTypeConfig::Fp(fp_config) => DataType::Fp(fp_config.into()),
+            DataTypeConfig::Int(int_config) => DataType::Int(int_config.into()),
         }
     }
 }
@@ -430,9 +455,9 @@ pub fn hbm_v_prefetch_amount() -> u32 {
     CONFIG.config.hbm_v_prefetch_amount.value
 }
 
-pub fn hbm_v_writeback_amount() -> u32 {
-    CONFIG.config.hbm_v_writeback_amount.value
-}
+// pub fn hbm_v_writeback_amount() -> u32 {
+//     CONFIG.config.hbm_v_writeback_amount.value
+// }
 
 pub fn matrix_kv_type() -> MxDataType {
     CONFIG.precision.hbm_m_kv_type.clone().into()
@@ -445,6 +470,10 @@ pub fn vector_activation_type() -> MxDataType {
 pub fn vector_kv_type() -> MxDataType {
     CONFIG.precision.hbm_v_kv_type.clone().into()
 }
+
+// pub fn vector_int_type() -> MxDataType {
+//     CONFIG.precision.hbm_v_int_type.clone().into()
+// }
 
 // Additional accessor functions for new parameters
 pub fn mlen() -> u32 {
@@ -467,9 +496,9 @@ pub fn blen() -> u32 {
     CONFIG.config.blen.value
 }
 
-pub fn dc_en() -> u32 {
-    CONFIG.config.dc_en.value
-}
+// pub fn dc_en() -> u32 {
+//     CONFIG.config.dc_en.value
+// }
 
 // Latency accessor functions (automatically uses DC_EN setting from config)
 pub fn systolic_processing_overhead() -> u32 {
@@ -508,9 +537,6 @@ pub fn vector_reci_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.vector_reci_cycles)
 }
 
-pub fn scalar_fp_longest_operate_cycles() -> u32 {
-    get_dc_lib_value(&CONFIG.latency.scalar_fp_longest_operate_cycles)
-}
 
 pub fn scalar_fp_basic_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.scalar_fp_basic_cycles)
@@ -534,12 +560,4 @@ pub fn scalar_int_basic_cycles() -> u32 {
 
 pub fn max_loop_instructions() -> usize {
     CONFIG.config.max_loop_instructions.value
-}
-// Utility function to generate example config file
-pub fn generate_example_config() -> Result<(), Box<dyn std::error::Error>> {
-    let config = AcceleratorConfig::default();
-    let toml_content = toml::to_string_pretty(&config)?;
-    fs::write("plena_settings.toml", toml_content)?;
-    println!("Example plena_settings.toml generated successfully!");
-    Ok(())
 }

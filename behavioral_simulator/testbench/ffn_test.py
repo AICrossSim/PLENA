@@ -8,7 +8,7 @@ from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import ffn_asm, preload_addr_reg_asm, reset_reg_asm, preload_act_asm
 from create_sim_env import create_sim_env
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 
 
 class LlamaFeedForward(nn.Module):
@@ -64,16 +64,16 @@ class LlamaFeedForward(nn.Module):
         # print("silu activation:\n", self.act(self.w1(x)))
         # print("product of silu activation and gate projection:\n", self.act(self.w1(x)) * self.w2(x))
         silu_mixed_out = self.act(self.w1(x)) * self.w2(x)
-        # silu_mixed_out = silu_mixed_out.reshape(silu_mixed_out.shape[0] * silu_mixed_out.shape[1], silu_mixed_out.shape[-1])
-        # print(f"silu mixed out of shape {silu_mixed_out.shape}: \n")
-        # print("silu mixed out (upper all elements):")
-        # print(silu_mixed_out[:, :8])
-        # print("silu mixed out (mid upper all elements):")
-        # print(silu_mixed_out[:, 64:72])
-        # print("silu mixed out (mid lower all elements):")
-        # print(silu_mixed_out[:, 128:135])
-        # print("silu mixed out (lower all elements):")
-        # print(silu_mixed_out[:, 192:199])
+        silu_mixed_out = silu_mixed_out.reshape(silu_mixed_out.shape[0] * silu_mixed_out.shape[1], silu_mixed_out.shape[-1])
+        print(f"silu mixed out of shape {silu_mixed_out.shape}: \n")
+        print("silu mixed out (upper all elements):")
+        print(silu_mixed_out[:, :8])
+        print("silu mixed out (mid upper all elements):")
+        print(silu_mixed_out[:, 64:72])
+        print("silu mixed out (mid lower all elements):")
+        print(silu_mixed_out[:, 128:135])
+        print("silu mixed out (lower all elements):")
+        print(silu_mixed_out[:, 192:199])
         outcome = self.w3(silu_mixed_out)
         print("final output (upper all elements):")
         print(outcome[:, :8])
@@ -202,4 +202,27 @@ if __name__ == "__main__":
         )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["act_tensor", "weight_up_layer", "weight_gate_layer", "weight_down_layer"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["act_tensor", "weight_up_layer", "weight_gate_layer", "weight_down_layer"])
+
+    # Save comparison parameters for view_mem.py
+    # FFN stores result at activation_base_address (overwrites input)
+    import json
+    result_vram_offset = 0  # activation_base_address
+    effective_batch = batch_size * seq_len
+    result_start_row = result_vram_offset // vlen
+    num_result_rows = (effective_batch * hidden_size) // vlen
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": effective_batch,
+        "elements_per_batch": hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
+
+    print("================================================")
+    print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
+    print("================================================")
