@@ -21,6 +21,7 @@ def run_simulator(
     layer_type: Literal["linear", "ffn", "attention", "rms_norm"] = "linear",
     model_name: Optional[str] = None,
     hidden_size: int = 128,
+    output_size: Optional[int] = None,
     intermediate_size: Optional[int] = None,
     batch_size: int = 4,
     seq_len: int = 1,
@@ -39,7 +40,8 @@ def run_simulator(
         assembly_code: PLENA assembly code string
         layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm')
         model_name: Model name (e.g., 'llama-3.2-1b') - if provided, auto-loads dimensions
-        hidden_size: Hidden dimension (default 128, overridden if model_name provided)
+        hidden_size: Input dimension (default 128, overridden if model_name provided)
+        output_size: Output dimension for linear layer (default: same as hidden_size)
         intermediate_size: FFN intermediate size (default 4*hidden_size, only for ffn)
         batch_size: Batch size (default 4)
         seq_len: Sequence length (default 1)
@@ -96,6 +98,7 @@ def run_simulator(
         test_config = _setup_test_data(
             layer_type=layer_type,
             hidden_size=hidden_size,
+            output_size=output_size,
             intermediate_size=intermediate_size,
             batch_size=batch_size,
             seq_len=seq_len,
@@ -208,7 +211,8 @@ def run_simulator(
                 str(VRAM_DUMP_PATH),
                 str(golden_file),
                 batch_size=test_config["batch_size"],
-                hidden_size=test_config["hidden_size"],
+                input_size=test_config["hidden_size"],
+                output_size=test_config.get("output_size", test_config["hidden_size"]),
             )
             mse = accuracy.get("mse")
             match_rate = accuracy.get("match_rate")
@@ -245,6 +249,7 @@ def run_simulator(
 def _setup_test_data(
     layer_type: str,
     hidden_size: int,
+    output_size: Optional[int],
     intermediate_size: Optional[int],
     batch_size: int,
     seq_len: int,
@@ -268,24 +273,28 @@ def _setup_test_data(
     # Compute data ratio for quantization
     real_data_ratio = (8 * 8 + 8) / (8 * 8)
 
+    # Default output_size to hidden_size if not specified
+    out_size = output_size if output_size is not None else hidden_size
+
     test_config = {
         "layer_type": layer_type,
         "hidden_size": hidden_size,
+        "output_size": out_size,
         "batch_size": batch_size,
         "seq_len": seq_len,
     }
 
     if layer_type == "linear":
-        # Simple linear layer: (batch, hidden) @ (hidden, hidden) -> (batch, hidden)
+        # Linear layer: (batch, hidden_size) @ (hidden_size, output_size) -> (batch, output_size)
         fp_preload = [0.0, 1e-6, 1 / hidden_size]
 
         act_tensor = torch.randn(batch_size * seq_len, hidden_size)
-        layer = nn.Linear(hidden_size, hidden_size, bias=False)
+        layer = nn.Linear(hidden_size, out_size, bias=False)
         golden_output = layer(act_tensor)
 
         input_tensors = {
             "act_tensor": act_tensor,
-            "weights": layer.weight.t(),
+            "weights": layer.weight.t(),  # Shape: (hidden_size, output_size)
         }
         data_order = ["act_tensor", "weights"]
         test_config["output_shape"] = list(golden_output.shape)
@@ -358,16 +367,22 @@ def _parse_latency_ns(output: str) -> Optional[float]:
     return None
 
 
-def _check_accuracy(bin_file: str, golden_file: str, batch_size: int = 4, hidden_size: int = 128) -> Dict[str, Any]:
+def _check_accuracy(
+    bin_file: str,
+    golden_file: str,
+    batch_size: int = 4,
+    input_size: int = 128,
+    output_size: int = 128,
+) -> Dict[str, Any]:
     """Compare simulator output with golden reference.
 
     Output is stored AFTER activations in Vector SRAM to avoid overwriting.
-    Activations occupy (batch_size * hidden_size) elements = that many / 64 rows.
+    Activations occupy (batch_size * input_size) elements = that many / 64 rows.
     """
     from check_mem import compare_with_golden
 
     # Calculate where output starts (after activations)
-    activation_elements = batch_size * hidden_size
+    activation_elements = batch_size * input_size
     activation_rows = activation_elements // 64  # Each row is 64 elements
 
     results = compare_with_golden(
@@ -380,6 +395,8 @@ def _check_accuracy(bin_file: str, golden_file: str, batch_size: int = 4, hidden
         start_row_idx=activation_rows,  # Start AFTER activations
         num_rows=None,
         use_stride_mode=True,
+        num_batches=batch_size,
+        elements_per_batch=output_size,
     )
     return {
         "mse": float(results["mse"]),

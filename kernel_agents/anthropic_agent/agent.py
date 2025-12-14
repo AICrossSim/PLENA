@@ -7,7 +7,7 @@ import json
 from typing import Dict, List, Any, Optional
 
 import anthropic as anthropic_sdk
-from .system_prompt import SYSTEM_PROMPT, get_system_prompt
+from .system_prompt import get_system_prompt
 
 from .tools import (
     machine_code_generation,
@@ -55,7 +55,8 @@ Success criteria: MSE close to ~8.41e-04. Keep iterating until this is achieved.
                     "type": "string",
                     "description": "Model name (e.g., 'llama-3.2-1b') - auto-loads hidden_size/intermediate_size from config",
                 },
-                "hidden_size": {"type": "integer", "description": "Hidden dimension (default: 128, overridden if model_name provided)"},
+                "hidden_size": {"type": "integer", "description": "Input dimension (default: 128, overridden if model_name provided)"},
+                "output_size": {"type": "integer", "description": "Output dimension for linear layer (default: same as hidden_size)"},
                 "intermediate_size": {
                     "type": "integer",
                     "description": "FFN intermediate size (default: 4*hidden_size, only used for ffn)",
@@ -319,7 +320,8 @@ class AnthropicAgent:
             }
 
         response = self.client.messages.create(**api_params)
-        # breakpoint()
+        breakpoint()
+
 
         # Check if done
         if response.stop_reason == "end_turn":

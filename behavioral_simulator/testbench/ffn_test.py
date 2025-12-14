@@ -162,10 +162,10 @@ if __name__ == "__main__":
     # FFN Generation - Choose optimization mode:
     # use_loop_instructions=True: Loop version (185 lines, ~57k ns)
     # use_fused_up_gate=True: Fused Up+Gate (activation reuse optimization)
-    USE_FUSED_OPTIMIZATION = True  # Set to True to test fused optimization
+    USE_FUSED_OPTIMIZATION = False  # Set to True to test fused optimization
 
     if USE_FUSED_OPTIMIZATION:
-        # Fused version needs 12 registers (use hex chars for 10, 11)
+        # Fused version needs 12 registers (gp1-gp12)
         gen_assembly_code += ffn_asm(
             mlen=mlen,
             vlen=vlen,
@@ -174,16 +174,16 @@ if __name__ == "__main__":
             seq_len=seq_len,
             hidden_size=hidden_size,
             intermediate_size=inter_dim,
-            alive_registers=[1,2,3,4,5,6,7,8,9,'a','b','c'],
+            alive_registers=[1,2,3,4,5,6,7,8,9,10,11,12],
             up_weight_hbm_offset_reg=1,
             gate_weight_hbm_offset_reg=2,
             down_weight_hbm_offset_reg=3,
             const_one_fp_address=1,
             activation_base_address=0,
-            use_fused_up_gate=True
+            use_fused_up_gate=False
         )
     else:
-        # Loop version needs 10 registers (use hex char for 10)
+        # Loop version needs 10 registers (gp1-gp10)
         gen_assembly_code += ffn_asm(
             mlen=mlen,
             vlen=vlen,
@@ -192,7 +192,7 @@ if __name__ == "__main__":
             seq_len=seq_len,
             hidden_size=hidden_size,
             intermediate_size=inter_dim,
-            alive_registers=[1,2,3,4,5,6,7,8,9,'a'],
+            alive_registers=[1,2,3,4,5,6,7,8,9,10],
             up_weight_hbm_offset_reg=1,
             gate_weight_hbm_offset_reg=2,
             down_weight_hbm_offset_reg=3,

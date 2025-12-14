@@ -19,6 +19,7 @@ def debug_view_memory(
     show_golden: bool = True,
     num_batches: int = 4,
     hidden_size: int = 128,
+    output_size: Optional[int] = None,
     skip_reorder: bool = False,
 ) -> Dict[str, Any]:
     """
@@ -35,7 +36,8 @@ def debug_view_memory(
         start_row: Starting row index (default 0)
         show_golden: Whether to show golden reference values (default True)
         num_batches: Number of batches in the output (default 4, set to match your test config)
-        hidden_size: Hidden dimension size (default 128, set to match your test config)
+        hidden_size: Input dimension size (default 128, set to match your test config)
+        output_size: Output dimension size (default: same as hidden_size)
         skip_reorder: Skip stride reordering - use for raw memory view (default False)
 
     Returns:
@@ -79,12 +81,13 @@ def debug_view_memory(
         )
 
         # Reorder from stride mode to batch-wise layout (unless skipped)
-        if not skip_reorder and num_batches > 0 and hidden_size > 0:
+        out_size = output_size if output_size is not None else hidden_size
+        if not skip_reorder and num_batches > 0 and out_size > 0:
             try:
-                simulated = reorder_stride_mode(simulated, num_batches=num_batches, elements_per_batch=hidden_size)
+                simulated = reorder_stride_mode(simulated, num_batches=num_batches, elements_per_batch=out_size)
             except (IndexError, ValueError) as e:
                 # If reorder fails, return raw data with warning
-                result["warning"] = f"Stride reorder failed ({e}), showing raw memory. Try skip_reorder=True or adjust num_batches/hidden_size."
+                result["warning"] = f"Stride reorder failed ({e}), showing raw memory. Try skip_reorder=True or adjust num_batches/output_size."
 
         # Read golden if requested
         golden = None

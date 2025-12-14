@@ -27,12 +27,8 @@ def _load_memory_layout() -> str:
 
 def _load_linear_example() -> str:
     """Load linear projection assembly example."""
-    example_file = Path(__file__).parent / "linear_example.txt"
-
-    if example_file.exists():
-        return example_file.read_text()
-    else:
-        return "[ERROR: Linear example file not found at {example_file}]"
+    from .examples import LINEAR_PROJECTION_EXAMPLE
+    return LINEAR_PROJECTION_EXAMPLE
 
 
 _SYSTEM_PROMPT_TEMPLATE = """
@@ -225,6 +221,51 @@ Since H_STORE_V is not implemented, results must remain in Vector SRAM.
 The simulator will check Vector SRAM contents against golden reference.
 
 ===============================================================================
+CRITICAL: M_MM AND M_MM_WO ACCUMULATION PATTERN
+===============================================================================
+THIS IS THE MOST COMMON BUG. Understanding this is essential for correct code.
+
+**How M_MM works:**
+- M_MM ACCUMULATES into the systolic array (does NOT overwrite)
+- Multiple M_MM calls ADD to the same accumulator
+- The accumulator is NOT cleared between M_MM calls
+
+**How M_MM_WO works:**
+- M_MM_WO writes the accumulated result to Vector SRAM
+- M_MM_WO CLEARS the accumulator after writing
+- After M_MM_WO, the accumulator is reset to zero
+
+**Correct pattern for matrix multiply Y = X @ W with K-dimension tiling:**
+```
+For each output column block (c):
+    For each K tile (k):        ; K accumulation loop
+        M_MM ...                ; Accumulate partial product for this K tile
+    M_MM_WO ...                 ; Write AFTER all K tiles accumulated
+```
+
+**WRONG pattern (clears accumulator too early):**
+```
+For each K tile (k):
+    For each output column block (c):
+        M_MM ...
+        M_MM_WO ...             ; WRONG! Clears before next K can accumulate!
+```
+
+**Example with K=2 tiles:**
+```asm
+; CORRECT: Both K tiles accumulate, then write
+M_MM 0, gp_weight_k0, gp_act_k0    ; Accumulate K=0
+M_MM 0, gp_weight_k1, gp_act_k1    ; Accumulate K=1 (adds to K=0 result)
+M_MM_WO gp_output, gp0, 0          ; Write complete result
+
+; WRONG: Writing after each K clears the accumulator
+M_MM 0, gp_weight_k0, gp_act_k0    ; Accumulate K=0
+M_MM_WO gp_output, gp0, 0          ; Writes K=0 only, CLEARS accumulator!
+M_MM 0, gp_weight_k1, gp_act_k1    ; K=1 starts fresh (K=0 lost!)
+M_MM_WO gp_output, gp0, 0          ; Overwrites with K=1 only - WRONG RESULT!
+```
+
+===============================================================================
 ASSEMBLY SYNTAX RULES
 ===============================================================================
 CRITICAL: Register operands MUST use register names, not bare integers.
@@ -300,6 +341,8 @@ You must NEVER:
 • Use bare integers (0, 1, 2) where register names (gp0, gp1, gp2) are expected.
 • Skip C_SET_SCALE_REG before weight prefetch - this WILL cause incorrect data.
 • Write incomplete loops that only compute some output tiles.
+• Put M_MM_WO inside the K accumulation loop - this clears the accumulator too early!
+• Forget that M_MM accumulates and M_MM_WO clears - the MOST COMMON BUG.
 
 ===============================================================================
 OUTPUT STYLE RULES
