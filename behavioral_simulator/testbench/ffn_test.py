@@ -178,3 +178,26 @@ if __name__ == "__main__":
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["act_tensor", "weight_up_layer", "weight_gate_layer", "weight_down_layer"])
+
+    # Save comparison parameters for view_mem.py
+    # FFN stores result at activation_base_address (overwrites input)
+    import json
+    result_vram_offset = 0  # activation_base_address
+    effective_batch = batch_size * seq_len
+    result_start_row = result_vram_offset // vlen
+    num_result_rows = (effective_batch * hidden_size) // vlen
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": effective_batch,
+        "elements_per_batch": hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
+
+    print("================================================")
+    print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
+    print("================================================")
