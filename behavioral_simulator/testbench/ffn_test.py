@@ -64,16 +64,16 @@ class LlamaFeedForward(nn.Module):
         # print("silu activation:\n", self.act(self.w1(x)))
         # print("product of silu activation and gate projection:\n", self.act(self.w1(x)) * self.w2(x))
         silu_mixed_out = self.act(self.w1(x)) * self.w2(x)
-        # silu_mixed_out = silu_mixed_out.reshape(silu_mixed_out.shape[0] * silu_mixed_out.shape[1], silu_mixed_out.shape[-1])
-        # print(f"silu mixed out of shape {silu_mixed_out.shape}: \n")
-        # print("silu mixed out (upper all elements):")
-        # print(silu_mixed_out[:, :8])
-        # print("silu mixed out (mid upper all elements):")
-        # print(silu_mixed_out[:, 64:72])
-        # print("silu mixed out (mid lower all elements):")
-        # print(silu_mixed_out[:, 128:135])
-        # print("silu mixed out (lower all elements):")
-        # print(silu_mixed_out[:, 192:199])
+        silu_mixed_out = silu_mixed_out.reshape(silu_mixed_out.shape[0] * silu_mixed_out.shape[1], silu_mixed_out.shape[-1])
+        print(f"silu mixed out of shape {silu_mixed_out.shape}: \n")
+        print("silu mixed out (upper all elements):")
+        print(silu_mixed_out[:, :8])
+        print("silu mixed out (mid upper all elements):")
+        print(silu_mixed_out[:, 64:72])
+        print("silu mixed out (mid lower all elements):")
+        print(silu_mixed_out[:, 128:135])
+        print("silu mixed out (lower all elements):")
+        print(silu_mixed_out[:, 192:199])
         outcome = self.w3(silu_mixed_out)
         print("final output (upper all elements):")
         print(outcome[:, :8])
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         preload_len=4,
         batch=batch_size * seq_len,
         hidden_size=hidden_size,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=hidden_size
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         seq_len=seq_len,
         hidden_size=hidden_size,
         intermediate_size=inter_dim,
-        alive_registers=[1,2,3,4,5,6,7],
+        alive_registers=[1,2,3,4,5,6,7,8,9],
         up_weight_hbm_offset_reg=1,
         gate_weight_hbm_offset_reg=2,
         down_weight_hbm_offset_reg=3,

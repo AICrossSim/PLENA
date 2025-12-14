@@ -212,8 +212,8 @@ if __name__ == "__main__":
             num_bytes_per_val=2,
             row_dim=64,
             start_row_idx=0,
-            num_batches = 4,
-            num_rows=8,  # Compare first 4 rows (matching golden output)
+            num_batches = 8, # Batch * Seq
+            num_rows=16,  # Compare first 4 rows (matching golden output)
             elements_per_batch=128
         )
         print_comparison_results(results, verbose=True)
@@ -228,8 +228,8 @@ if __name__ == "__main__":
     # print("Viewing VRAM dump from 48 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=48, load_row_size=32)
     
-    # print("Viewing VRAM dump from Q Base Address")
-    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
+    # print("Viewing VRAM dump from 16 Base Address")
+    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=16)
     
     # print("\nViewing VRAM dump from S Base Address")
     # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=16)

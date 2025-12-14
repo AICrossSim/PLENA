@@ -1081,6 +1081,7 @@ impl Accelerator {
                     } else {
                         self.reg_file.gp_reg[*rstride as usize]
                     };
+                    println!("stride_len = {:?}", stride_len);
                     self.m_machine
                         .mm_wo(
                             self.reg_file.gp_reg[*rd as usize] + *imm as u32,
@@ -1714,10 +1715,11 @@ async fn start() {
         "Vector SRAM Contents: \n {}",
         accelerator.v_machine.vram.read(0x0000).await.as_tensor()
     );
-    println!(
-        "Matrix SRAM Contents: \n {}",
-        accelerator.m_machine.mram.read(0x0000).await.as_tensor()
-    );
+
+    // println!(
+    //     "Matrix SRAM Contents: \n {}",
+    //     accelerator.m_machine.mram.read(0x0000).await.as_tensor()
+    // );
     println!("INT SRAM Contents: \n {:?}", accelerator.intsram);
     println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
 
