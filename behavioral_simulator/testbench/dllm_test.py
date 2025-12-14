@@ -284,7 +284,7 @@ if __name__ == "__main__":
     # ============================================================
     model_path = 'GSAI-ML/LLaDA-8B-Instruct'
     device = 'cuda'
-    steps = 2
+    steps = 1
     gen_length = 64
     block_length = 64
     mask_id = 126336
@@ -301,7 +301,7 @@ if __name__ == "__main__":
         torch_dtype=torch.bfloat16
     ).to(device).eval()
 
-    prompt_text = "What is 1 + 1?"
+    prompt_text = "What is 6 + 8? and What is the capital of UK?"
     prompt = tokenizer(prompt_text)['input_ids']
     prompt = torch.tensor(prompt).to(device).unsqueeze(0)
     prompt_len = prompt.shape[1]
@@ -336,7 +336,6 @@ if __name__ == "__main__":
     # ============================================================
     
     # Set up simulator parameters
-    #k_values = [64]
     vocal_size = 64*1976
     vocal_size_single = 64*494  #64*494
     hidden_size = gen_length
@@ -359,37 +358,54 @@ if __name__ == "__main__":
     num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps)
     print('num_transfer_tokens = ',num_transfer_tokens)
 
-    #T=1
-    logits = model(x).logits
-    logits_wo_prompt = logits[:, prompt.shape[1]:, :]          # (B, L, V)  
-    # Calculate block mask index for the generation block
+    # ============================================================
+    # Running TEST on CPU with T time steps (parameterized)
+    # ============================================================
     
-    # Prepare data for CPU test
-    logits_cpu_1 = logits_wo_prompt.cpu()  # (B, L, V) on cpu
-    mask_cpu_1 = (x[:, prompt.shape[1]:] == mask_id).cpu()  # KEY FIX: compute from actual x, not all ones
-    x_cpu = torch.full((prompt_batch_size, hidden_size), mask_id, dtype=torch.long)  # Keep as long
-    k_values_1 = num_transfer_tokens.cpu()[:, 0]  # Shape (B,) - first step's k values
-
-    original_layer = TEST()
-    original_output = original_layer(logits_cpu_1, mask_cpu_1, x_cpu, k_values_1)
-    test_x = original_output  # Extract the updated x
-
-    #T=2 
-    x[:, prompt.shape[1]:] = test_x.clone().to(device)
-    logits = model(x).logits
-    logits_wo_prompt = logits[:, prompt.shape[1]:, :]          # (B, L, V)  
-    # Calculate block mask index for the generation block
-    block_mask_index = (x[:, prompt.shape[1]:prompt.shape[1] + block_length] == mask_id)
+    # Initialize storage for all time steps
+    logits_cpu_list = []
+    mask_cpu_list = []
+    k_values_list = []
     
-    # Prepare data for CPU test
-    logits_cpu_2 = logits_wo_prompt.cpu()  # (B, L, V) on cpu
-    x_cpu = test_x.clone()  # Use result from T=1 as starting point
-    mask_cpu_2 = (x_cpu == mask_id)  # Only positions still equal to mask_id are masked
-    k_values_2 = num_transfer_tokens.cpu()[:, 1]  # Shape (B,) - second step's k values
-
-    original_layer = TEST()
-    original_output = original_layer(logits_cpu_2, mask_cpu_2, x_cpu, k_values_2)
-    test_x = original_output  # Extract the updated x
+    # Initialize x_cpu for the first iteration
+    x_cpu = torch.full((prompt_batch_size, hidden_size), mask_id, dtype=torch.long)
+    test_x = x_cpu.clone()
+    
+    # Run T iterations
+    for t in range(steps):
+        print(f"Running TEST iteration T={t+1}/{steps}")
+        
+        # Update x with previous iteration results (skip for first iteration)
+        if t > 0:
+            x[:, prompt.shape[1]:] = test_x.clone().to(device)
+        
+        # Run model inference
+        logits = model(x).logits
+        logits_wo_prompt = logits[:, prompt.shape[1]:, :]  # (B, L, V)
+        
+        # Prepare data for CPU test
+        logits_cpu = logits_wo_prompt.cpu()  # (B, L, V) on cpu
+        
+        # Compute mask based on current x state
+        if t == 0:
+            mask_cpu = (x[:, prompt.shape[1]:] == mask_id).cpu()
+            x_cpu = torch.full((prompt_batch_size, hidden_size), mask_id, dtype=torch.long)
+        else:
+            x_cpu = test_x.clone()  # Use result from previous iteration
+            mask_cpu = (x_cpu == mask_id)  # Only positions still equal to mask_id are masked
+        
+        # Get k values for this time step
+        k_values = num_transfer_tokens.cpu()[:, t]  # Shape (B,) - current step's k values
+        
+        # Store for simulator
+        logits_cpu_list.append(logits_cpu)
+        mask_cpu_list.append(mask_cpu)
+        k_values_list.append(k_values)
+        
+        # Run TEST layer
+        original_layer = TEST()
+        original_output = original_layer(logits_cpu, mask_cpu, x_cpu, k_values)
+        test_x = original_output  # Extract the updated x for next iteration
 
     
     # ============================================================
@@ -417,14 +433,15 @@ if __name__ == "__main__":
     # Running SIMULATOR on CPU
     # ============================================================
     print(f"\n{'='*80}")
-    print(f"Simulator Running..")
+    print(f"Simulator Running with T={steps} time steps..")
     print(f"{'='*80}")
     
     int_preload = torch.randint(low=mask_id, high=mask_id+1, size=(prompt_batch_size*hidden_size,), dtype=torch.int32)
 
+    # Concatenate all time steps
     input_tensor = {
-        "logits": torch.cat([logits_cpu_1 , logits_cpu_2], dim=0),
-        "mask": torch.cat([mask_cpu_1 , mask_cpu_2], dim=0).type_as(logits_cpu_1), # Convert mask to float for vram store (simulator requires float input)
+        "logits": torch.cat(logits_cpu_list, dim=0),  # Concatenate all T logits along batch dimension
+        "mask": torch.cat(mask_cpu_list, dim=0).type_as(logits_cpu_list[0]), # Convert mask to float for vram store (simulator requires float input)
         "int": int_preload,
     }
 
@@ -433,12 +450,11 @@ if __name__ == "__main__":
         "original_output": original_output
     }
 
-    # Set the VRAM address offsets
-    T=2
+    # Set the VRAM address offsets (T is now parameterized as steps)
     transfer_idx_offset_address = 0
-    mask_offset_address = (batch_size * hidden_size)*T
-    x0_p_offset_address = (batch_size * hidden_size)*T*2
-    temp_offset_address = (batch_size * hidden_size)*T*3
+    mask_offset_address = (batch_size * hidden_size)*steps
+    x0_p_offset_address = (batch_size * hidden_size)*steps*2
+    temp_offset_address = (batch_size * hidden_size)*steps*3
     logits_offset_address = temp_offset_address + vlen
     
     gen_assembly_code = "; DLLM Test Generation \n"
@@ -458,9 +474,9 @@ if __name__ == "__main__":
     gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
         preload_len=preload_amount,
-        batch=batch_size*T,
+        batch=batch_size*steps,
         hidden_size=hidden_size,
-        scale=batch_size*hidden_size*T,
+        scale=batch_size*hidden_size*steps,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
         act_hbm_offset=0,
         act_vram_offset=mask_offset_address,
@@ -470,7 +486,7 @@ if __name__ == "__main__":
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
     )
-    k_values=[k_values_1, k_values_2]
+    # Use the collected k_values from all T iterations
     gen_assembly_code += get_transfer_index_long_debug(
         alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
         logits_base_address=logits_offset_address,
@@ -478,8 +494,9 @@ if __name__ == "__main__":
         transfer_idx_base_address=0,
         temp_base_address=temp_offset_address,
         x0_p_base_address=x0_p_offset_address,
-        k_values=k_values,
+        k_values=k_values_list,
         vlen=vlen,
+        T=steps,
         repeat_times=repeat_times,
         batch_size=batch_size,
         prompt_batch_size=prompt_batch_size,
