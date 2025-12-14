@@ -198,29 +198,23 @@ if __name__ == "__main__":
     print("Viewing VRAM dump from 0 Base Address")
     view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
     
-    # Compare with golden output, assuming all the output are stored at the 0 in VSRAM.
-    try:
-        from check_mem import compare_with_golden, print_comparison_results
-        print("\n" + "="*60)
-        print("Comparing with Golden Output")
-        print("="*60)
-        results = compare_with_golden(
-            vram_file,
-            golden_file,
-            exp_width=8,
-            man_width=7,
-            num_bytes_per_val=2,
-            row_dim=64,
-            start_row_idx=0,
-            num_batches = 8, # Batch * Seq
-            num_rows=16,  # Compare first 4 rows (matching golden output)
-            elements_per_batch=128
-        )
-        print_comparison_results(results, verbose=True)
-    except ImportError:
-        print("\nNote: check_mem module not available for comparison")
-    except Exception as e:
-        print(f"\nError during comparison: {e}")
+    # Load comparison params and compare with golden output
+    import json
+    from check_mem import compare_with_golden, print_comparison_results
+
+    params_file = os.path.join(script_dir, "behavioral_simulator", "testbench", "build", "comparison_params.json")
+    with open(params_file, "r") as f:
+        params = json.load(f)
+
+    results = compare_with_golden(
+        vram_file, golden_file,
+        exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=64,
+        start_row_idx=params["start_row_idx"],
+        num_batches=params["num_batches"],
+        num_rows=params["num_rows"],
+        elements_per_batch=params["elements_per_batch"]
+    )
+    print_comparison_results(results, verbose=True)
     
     # print("Viewing VRAM dump from 16 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)

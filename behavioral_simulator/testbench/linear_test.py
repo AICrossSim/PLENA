@@ -12,7 +12,7 @@ from sim_env_utils import create_mem_for_sim
 if __name__ == "__main__":
     # Testing rectangular linear: (batch, in_features) @ (in_features, out_features) -> (batch, out_features)
     in_features = 128
-    out_features = 128  # Square matrix test (set to 256 for rectangular)
+    out_features = 256  # Rectangular matrix test
     batch_size = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/in_features]
@@ -96,11 +96,22 @@ if __name__ == "__main__":
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order=["act_tensor", "weights"])
 
-    # Print comparison parameters for view_mem.py
+    # Save comparison parameters for view_mem.py
+    import json
     result_start_row = result_vram_offset // 64  # Row where results start
     num_result_rows = (batch_size * out_features) // 64
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": batch_size,
+        "elements_per_batch": out_features
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
+
     print("================================================")
     print("Finished generating assembly code")
     print(f"Result location: row {result_start_row}, {num_result_rows} rows")
-    print(f"Comparison params: start_row_idx={result_start_row}, num_rows={num_result_rows}, num_batches={batch_size}, elements_per_batch={out_features}")
+    print(f"Comparison params: {comparison_params}")
     print("================================================")
