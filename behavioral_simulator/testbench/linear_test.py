@@ -13,7 +13,7 @@ if __name__ == "__main__":
     # Testing rectangular linear: (batch, in_features) @ (in_features, out_features) -> (batch, out_features)
     in_features = 128
     out_features = 256  # Rectangular matrix test
-    batch_size = 4
+    batch_size = 8
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/in_features]
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         batch=batch_size,
         hidden_size=in_features,      # in_features (input dimension)
         out_features=out_features,     # out_features (output dimension) - rectangular support!
-        alive_registers=[1,2,3,4],
+        alive_registers=[1,2,3,4,5,6],
         w_base_hbm_offset_reg=1,
         activation_base_address=0,
         result_base_address=result_vram_offset,
