@@ -1,3 +1,15 @@
+# On-chip Memory Layout Convention
+
+There are four on-chip SRAM in total.
+- Matrix SRAM: Used to store the weight matrix from HBM only, cannot be written by matrix sram. And only the matrix machine can read weight datafrom this memory.
+- Vector SRAM: Used as the scatchpad for activations and intermediate outputs (Not Weight Data), it has two ports:
+ - Port A (RW): Used to prefetch and write back data from HBM or Used to load data to vector machine for V_* ops
+ - Port B (RW): Used to load data to vector machine for V_* ops and matrix machine for M_* ops, and write back the computed result from matrix and vector sram.
+- Scalar INT SRAM: Used as the extended register file for S_*_INT ops
+- Scalar FP SRAM: Used as the extended register file for S_*_FP ops, we have preloaded file to this memory, it will store some FP constant for the computation.
+
+All the on-chip address are specified in the gp register, and the address are in the unit of data elements (not related to the data type).
+
 # On-chip Vector SRAM Memory Layout Convention
 
 By default, the memory layout follows this format:
@@ -11,7 +23,6 @@ The data stored in Vector SRAM is reshaped to `[h // VLEN, b, s, VLEN]`.
 
 **Rationale:** The hidden dimension is split along the `VLEN` boundary to enable efficient multi-batch GEMM operations. This layout allows parallel processing across batches while maintaining vector-length alignment requirements.
 
-**Note:** Addresses are specified in units of data elements (not bytes).
 
 ### Example: Activation Tensor
 
@@ -24,14 +35,14 @@ For an activation tensor with shape `[batch=4, hidden=128]` and `VLEN=64`:
 
 ### Output Tensor Location by Layer Type
 
-Different layer types store their outputs at different locations in Vector SRAM:
+Different layer types store their final outputs at different locations in Vector SRAM. Assuming the activations are stored from the Vector SRAM starting from address 0. All the intermediate outputs are stored after the activations, also in the same shape format.
 
 | Layer Type | Output Location | Reason |
 |------------|-----------------|--------|
 | **Linear** | AFTER activations | Input needed for gradient computation |
-| **RMS Norm** | IN-PLACE (overwrites input) | Element-wise operation, input no longer needed |
-| **FFN** | IN-PLACE (final output) | Multiple stages; final output overwrites input |
-| **Attention** | IN-PLACE (final output) | Multiple stages; final output overwrites input |
+| **RMS Norm** | REPLACE activations | Element-wise operation, input no longer needed |
+| **FFN** | REPLACE activations| Multiple stages; final output overwrites input |
+| **Attention** | REPLACE activations | Multiple stages; final output overwrites input |
 
 ### Linear Layer Output Location
 
@@ -41,26 +52,11 @@ For a linear layer Y = X @ W with X shape `[batch, hidden]`:
 - Activations occupy: `batch * hidden` elements = addresses `[0, batch*hidden)`
 - **Output must start at:** `batch * hidden` (e.g., address 512 for batch=4, hidden=128)
 
-```
-Vector SRAM Layout for Linear Layer [4, 128] @ [128, 128]:
-┌─────────────────────────────────────────────────────────┐
-│ Address 0-255:   X[:, 0:64]   (activations first half)  │
-│ Address 256-511: X[:, 64:128] (activations second half) │
-├─────────────────────────────────────────────────────────┤
-│ Address 512-767: Y[:, 0:64]   (OUTPUT first half)       │  ← M_MM_WO writes here
-│ Address 768-1023: Y[:, 64:128] (OUTPUT second half)     │
-└─────────────────────────────────────────────────────────┘
-```
+Example assuming BLEN = 4, VLEN = 64, and MLEN = 64.
 
-**Example M_MM_WO addressing:**
-```asm
-; For output tile j (j=0 or j=1), write to:
-; base_output_addr + j * (batch * VLEN) = 512 + j * 256
-S_ADDI_INT gp10, gp0, 512       ; Output base = batch * hidden = 4 * 128
-S_ADDI_INT gp11, gp0, 256       ; Output tile stride = batch * VLEN = 4 * 64
-; For j=0: M_MM_WO writes to 512
-; For j=1: M_MM_WO writes to 768
-```
+For every M_MM_WO, the accumulated results from the matrix unit with shape (BLEN, BLEN) are written to the Vector SRAM. The write address is composed of a column offset plus a row offset: every column offset is a multiple of BLEN, and every row offset is a multiple of MLEN × BLEN.
+
+For example, if you want to write the accumulated result to the second (BLEN, BLEN) block within a (BLEN, MLEN) region of the Vector SRAM, the row offset stays the same, but the column offset becomes BLEN.
 
 # On-chip Matrix SRAM Memory Layout Convention
 
@@ -70,26 +66,29 @@ For a high-dimensional matrix stored in HBM, `(MLEN, MLEN)` tiles are extracted 
 
 ## Tile Addressing
 
-Each `(MLEN, MLEN)` tile is stored contiguously in row-major order. Tiles are addressed sequentially:
+Each `(MLEN, MLEN)` tile is stored contiguously in row-major order. Tiles are addressed sequentially.
 
-- **Address 0:** Tile (0, 0) - rows `[0..MLEN-1]`, columns `[0..MLEN-1]`
-- **Address MLEN²:** Tile (0, 1) - rows `[0..MLEN-1]`, columns `[MLEN..2*MLEN-1]`
-- **Address 2×MLEN²:** Tile (0, 2) - rows `[0..MLEN-1]`, columns `[2*MLEN..3*MLEN-1]`
-- **Address (num_col_tiles)×MLEN²:** Tile (1, 0) - rows `[MLEN..2*MLEN-1]`, columns `[0..MLEN-1]`
-- And so on...
+Consider a large matrix of shape `(2*MLEN, 2*MLEN)`, logically divided into four `(MLEN, MLEN)` tiles arranged as `[[0, 1], [2, 3]]`. The tiles are mapped as follows:
+- **Address 0..MLEN-1:** Tile 0 of Matrix[0][0]
+- **Address MLEN..2*MLEN-1:** Tile 1 of Matrix[0][1]
+- **Address 2*MLEN..3*MLEN-1:** Tile 2 of Matrix[1][0]
+- **Address 3*MLEN..4*MLEN-1:** Tile 3 of Matrix[1][1]
 
 **Rationale:** The matrix is tiled and stored in the On-chip Matrix SRAM to enable efficient matrix multiplication operations. This row-major tile layout allows parallel processing across tiles while maintaining matrix-length alignment requirements.
 
-### Example: Weight Matrix
+---
 
-For a weight matrix with shape `[128, 128]` and `MLEN=64`:
+# Scalar FP Memory (FP_MEM)
 
-- Tiled into `[2, 2]` blocks of `[64, 64]` each
-- Matrix SRAM addresses (in element units):
-  - Tile (0,0): Address 0 (rows 0-63, columns 0-63)
-  - Tile (0,1): Address 4096 = 64×64 (rows 0-63, columns 64-127)
-  - Tile (1,0): Address 8192 = 2×64×64 (rows 64-127, columns 0-63)
-  - Tile (1,1): Address 12288 = 3×64×64 (rows 64-127, columns 64-127)
+FP_MEM is a small memory for scalar floating-point constants. It is preloaded before execution with layer-specific constants. Use `S_LD_FP` to load values into FP registers.
+
+**Example:**
+```asm
+S_LD_FP f1, gp0, 1    ; Load FP_MEM[1] into f1
+S_LD_FP f3, gp0, 2    ; Load FP_MEM[2] into f3
+```
+
+The exact contents of FP_MEM depend on the layer type and are provided via the `fp_sram_layout` field in the workload configuration.
 
 ---
 
@@ -101,15 +100,6 @@ For a weight matrix with shape `[128, 128]` and `MLEN=64`:
 Data in HBM uses MXFP (Microscaling) format where each block of 8 elements has an associated scale factor. This means the **actual HBM size is larger than the logical tensor size**.
 
 **MXFP overhead ratio:** `(8 elements + 1 scale) / 8 elements = 1.125`
-
-### HBM Tensor Layout
-
-Tensors are stored contiguously in HBM in load order:
-```
-HBM[0]:                    Activation tensor
-HBM[act_hbm_size]:         Weight tensor
-HBM[act_hbm_size + w_hbm_size]: Output tensor (if needed)
-```
 
 ### Computing HBM Base Addresses
 
@@ -163,29 +153,7 @@ The accelerator automatically converts MXFP data to the correct FP layout in on-
 
 ## Stride Register Setup
 
-Use `C_SET_STRIDE_REG` to set the row stride for matrix prefetch operations (typically `hidden_size`).
-
----
-
-# Scalar FP Memory (FP_MEM)
-
-FP_MEM is a small memory for scalar floating-point constants. It is preloaded before execution with layer-specific constants. Use `S_LD_FP` to load values into FP registers.
-
-**Example:**
-```asm
-S_LD_FP f1, gp0, 1    ; Load FP_MEM[1] into f1
-S_LD_FP f3, gp0, 2    ; Load FP_MEM[2] into f3
-```
-
-The exact contents of FP_MEM depend on the layer type and are provided via the `fp_sram_layout` field in the workload configuration.
-
----
-
-# Vector SRAM Scratchpad
-
-For intermediate computations, use a single scratchpad address located after the activation data. Reuse this address by processing results immediately before overwriting with the next computation.
-
-**Scratchpad address:** `batch_size × hidden_size` (immediately after activations)
+Use `C_SET_STRIDE_REG` to set the row stride for matrix prefetch operations (typically `hidden_size`) and is not related to the MX data type.
 
 ---
 

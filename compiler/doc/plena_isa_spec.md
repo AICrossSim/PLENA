@@ -133,7 +133,7 @@ Store the accumulated result [MLEN // HLEN, MLEN, MLEN] to the Vector SRAM at th
 
 ### M_MM_WO
 
-**Format:** `M_MM_WO rd, rs1, imm`
+**Format:** `M_MM_WO rd, 0, imm`
 
 **Operation:** Write systolic array result (BLEN × BLEN) to Vector SRAM at `gp_reg<rd>`
 
