@@ -14,6 +14,7 @@ def get_transfer_index_long_debug(
     x0_p_base_address: int,   # x0_p (B,L)
     k_values: List[int],
     vlen: int,
+    T: int, #time step for duffusion
     repeat_times: int,
     batch_size: int,
     prompt_batch_size: int,
@@ -46,7 +47,7 @@ def get_transfer_index_long_debug(
     generated_code += f"S_ADDI_INT gp{temp_addr}, gp0, {temp_base_address} \n"
     generated_code += f"S_ADDI_INT gp{x0_p_addr}, gp0, {x0_p_base_address} \n"
     
-    for t in range(2):  
+    for t in range(T):  
         # Loop over batch_size rows
         for batch_idx in range(batch_size):  
             for i in range(vlen):
@@ -63,7 +64,7 @@ def get_transfer_index_long_debug(
                         preload_len=1,
                         batch=1,
                         hidden_size=vocal_size_single,
-                        scale=2*batch_size*hidden_size*vocal_size_single*repeat_times,
+                        scale=T*batch_size*hidden_size*vocal_size_single*repeat_times,
                         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
                         act_hbm_offset=hbm_offset,
                         act_vram_offset=vram_offset,
@@ -88,7 +89,7 @@ def get_transfer_index_long_debug(
                         preload_len=1,
                         batch=1,
                         hidden_size=vocal_size_single,
-                        scale=2*batch_size*hidden_size*vocal_size_single*repeat_times,
+                        scale=T*batch_size*hidden_size*vocal_size_single*repeat_times,
                         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
                         act_hbm_offset=hbm_offset,
                         act_vram_offset=vram_offset,

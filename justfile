@@ -34,6 +34,12 @@ build-behave-sim arg:
     cargo run --release -- --opcode "$asm_path" --hbm "$data_path" 
 
 build-behave-sim-debug arg:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    start_time=$(date +%s)
+    echo "========================================"
+    echo "Starting build-behave-sim-debug for: {{arg}}"
+    echo "========================================"
     # 1) Build env for the given target
     rm -rf behavioral_simulator/testbench/build
     python3 behavioral_simulator/testbench/{{arg}}_test.py
@@ -44,7 +50,16 @@ build-behave-sim-debug arg:
     int_sram_path="$(pwd)/behavioral_simulator/testbench/build/int_sram.bin" && \
     cd behavioral_simulator && \
     RUST_BACKTRACE=1 cargo run --release -- --opcode "$asm_path" --hbm "$data_path" --fpsram "$fp_sram_path" --intsram "$int_sram_path"
+    cd ..
     python3 behavioral_simulator/testbench/view_mem.py
+    end_time=$(date +%s)
+    elapsed=$((end_time - start_time))
+    minutes=$((elapsed / 60))
+    seconds=$((elapsed % 60))
+    echo ""
+    echo "========================================"
+    echo "Total pipeline execution time: ${minutes}m ${seconds}s (${elapsed}s)"
+    echo "========================================"
 
 run-generated-asm:
     asm_path="$(pwd)/behavioral_simulator/testbench/build/generated_machine_code.mem" && \
