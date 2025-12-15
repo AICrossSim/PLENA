@@ -80,7 +80,8 @@ class LlamaFeedForward(nn.Module):
         print("final output (mid upper all elements):")
         print(outcome[:, 64:72])
         # print("final output:\n", self.w3(self.act(self.w1(x)) * self.w2(x)))
-        return self.w3(self.act(self.w1(x)) * self.w2(x))
+        # return self.w3(self.act(self.w1(x)) * self.w2(x))
+        return self.w1(x)
 
 if __name__ == "__main__":
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
@@ -133,9 +134,9 @@ if __name__ == "__main__":
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1, 2, 3],
         available_registers=[1, 2, 3],
-        addr_reg_val=[int(hidden_size * batch_size * seq_len * real_data_ratio), 
-        int(hidden_size * batch_size * seq_len * real_data_ratio) + int(hidden_size * inter_dim * real_data_ratio), 
-        int(hidden_size * batch_size * seq_len * real_data_ratio) + int(hidden_size * inter_dim * real_data_ratio) + int(inter_dim * hidden_size * real_data_ratio)]
+        addr_reg_val=[int(hidden_size * batch_size * seq_len * real_data_ratio), ]
+        # int(hidden_size * batch_size * seq_len * real_data_ratio) + int(hidden_size * inter_dim * real_data_ratio), 
+        # int(hidden_size * batch_size * seq_len * real_data_ratio) + int(hidden_size * inter_dim * real_data_ratio) + int(inter_dim * hidden_size * real_data_ratio)]
     )
 
     print("up_addr_hbm_val:", int(hidden_size * batch_size * seq_len * real_data_ratio))
@@ -175,6 +176,9 @@ if __name__ == "__main__":
         const_one_fp_address=1,
         activation_base_address=0
     )
+    with open("behavioral_simulator/testbench/ffn_test.asm", "w") as f:
+        f.write(gen_assembly_code)
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["act_tensor", "weight_up_layer", "weight_gate_layer", "weight_down_layer"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["act_tensor", "weight_up_layer"])
+                                                                                                    #   , "weight_gate_layer", "weight_down_layer"])

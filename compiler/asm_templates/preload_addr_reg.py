@@ -19,7 +19,7 @@ def preload_addr_reg_asm(
         else:
             # use S_LUI_INT, Load the upper 20 bits of the address first, then add the lower 12 bits
             generated_code += f"S_LUI_INT gp{available_registers[i]}, {addr_reg_val[i] >> 12} \n"
-            generated_code += f"S_ADDI_INT gp{available_registers[i]}, gp{available_registers[i]}, {available_registers[i] & 0xFFF} \n"
+            generated_code += f"S_ADDI_INT gp{available_registers[i]}, gp{available_registers[i]}, {addr_reg_val[i] & 0xFFF} \n"
         
         generated_code += f"C_SET_ADDR_REG a{addr_reg_to_set[i]}, gp0, gp{available_registers[i]} \n"
 

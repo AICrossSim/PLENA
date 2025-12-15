@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
+        alive_registers=[1,2,3,4,5]
     )
     
     # Gen Activation Preload
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         preload_len=4,
         batch=4,
         hidden_size=128,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=hidden_size
@@ -118,13 +118,13 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
+        alive_registers=[1,2,3,4,5]
     )
 
     gen_assembly_code += rms_norm_asm(
         _eps_offset=1,
         reci_hid_offset=2,
-        alive_registers=[1,2,3,4],
+        alive_registers=[1,2],
         activation_base_address = 0,
         scratchpad_base_address = hidden_size * batch_size,
         vlen=64,

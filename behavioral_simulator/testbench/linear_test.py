@@ -12,7 +12,7 @@ from sim_env_utils import create_mem_for_sim
 if __name__ == "__main__":
     # Testing rectangular linear: (batch, in_features) @ (in_features, out_features) -> (batch, out_features)
     in_features = 128
-    out_features = 256  # Rectangular matrix test
+    out_features = 64  # Rectangular matrix test
     batch_size = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/in_features]
@@ -26,6 +26,9 @@ if __name__ == "__main__":
     print(f"Linear: ({batch_size}, {in_features}) @ ({in_features}, {out_features}) -> ({batch_size}, {out_features})")
     print("original_output shape:", original_output.shape)
     print("original_output is:\n", original_output)
+    
+    print("weight shape:", weights['weight'].shape)
+    sys.exit(0)
 
     # Weight is stored as (out_features, in_features) in PyTorch, we transpose for our layout
     # Our layout: (in_features, out_features) for matmul: act @ weight
@@ -38,6 +41,8 @@ if __name__ == "__main__":
         "input_tensor": input_tensor,
         "original_output": original_output
     }
+    
+    print("original_output shape:", original_output.shape)
 
     gen_assembly_code = "; Linear Test Generation (Rectangular Matrix)\n"
     gen_assembly_code += f"; Shape: ({batch_size}, {in_features}) @ ({in_features}, {out_features}) -> ({batch_size}, {out_features})\n"
@@ -86,12 +91,14 @@ if __name__ == "__main__":
         batch=batch_size,
         hidden_size=in_features,      # in_features (input dimension)
         out_features=out_features,     # out_features (output dimension) - rectangular support!
-        alive_registers=[1,2,3,4],
+        alive_registers=[1,2,3,4,5],
         w_base_hbm_offset_reg=1,
         activation_base_address=0,
         result_base_address=result_vram_offset,
         rope_enabled=False
     )
+    
+    # sys.exit(0)
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order=["act_tensor", "weights"])
@@ -109,6 +116,9 @@ if __name__ == "__main__":
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
+    
+    with open("behavioral_simulator/testbench/linear_test.asm", "w") as f:
+        f.write(gen_assembly_code)
 
     print("================================================")
     print("Finished generating assembly code")
