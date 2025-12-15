@@ -218,8 +218,6 @@ impl MatrixMachine {
         // println!("m_addr = {:?}", m_addr);
         // println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
-        // println!("mat_offset = {:?}", mat_offset);
-        // println!("mat_base = {:?}", mat_base);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(mat_offset <= self.mlen);
         let mat_row_offset = mat_offset as i64;

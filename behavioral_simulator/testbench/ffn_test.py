@@ -100,12 +100,7 @@ if __name__ == "__main__":
     original_layer = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
     weight_up_layer = torch.randn(inter_dim, hidden_size)
     weight_gate_layer = torch.randn(inter_dim, hidden_size)
-    weight_down_layer = torch.ones(hidden_size, inter_dim)
-    print(f"weight_down_layer of shape {weight_down_layer.t().shape}: \n")
-    print("upper all elements:")
-    print(weight_down_layer.t()[:, :8])
-    print("lower all elements:")
-    print(weight_down_layer.t()[:, 64:72])
+    weight_down_layer = torch.randn(hidden_size, inter_dim)
 
     # Set weights for w1, w2, w3 to the generated tensors
     with torch.no_grad():
