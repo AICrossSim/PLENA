@@ -186,7 +186,7 @@ def compare_with_golden(bin_file,
                         start_row_idx=0,
                         num_batches=4,
                         num_rows=None,
-                        tolerance=1,
+                        tolerance=0.2,
                         use_stride_mode=True,
                         elements_per_batch=128):
     """
@@ -258,11 +258,12 @@ def compare_with_golden(bin_file,
             errors / np.abs(golden_values),
             errors
         )
+    print("relative_errors is:\n", relative_errors)
     mean_relative_error = np.mean(relative_errors)
 
-    # Match rate (within tolerance)
-    within_tolerance = errors <= tolerance
-    match_rate = np.sum(within_tolerance) / len(errors) * 100.0
+    # Match rate (within tolerance) - using relative error
+    within_tolerance = relative_errors <= tolerance
+    match_rate = np.sum(within_tolerance) / len(relative_errors) * 100.0
 
     return {
         'mse': mse,
@@ -289,34 +290,11 @@ def print_comparison_results(results, verbose=False):
     print("=" * 60)
     print("Comparison Results")
     print("=" * 60)
-    print(f"Golden values shape:     {results['golden_shape']}")
-    print(f"Simulated values shape:  {results['simulated_shape']}")
-    print(f"Number of values:        {len(results['golden_values'])}")
-    print()
     print("Error Metrics:")
     print(f"  Mean Squared Error (MSE):     {results['mse']:.6e}")
-    print(f"  Mean Absolute Error (MAE):    {results['mae']:.6f}")
-    print(f"  Maximum Absolute Error:      {results['max_error']:.6f}")
     print(f"  Mean Relative Error:          {results['relative_error']:.6f}")
+    print(f"  Match Rate:                    {results['match_rate']:.6f}%")
     print()
-
-    if verbose:
-        errors = results['errors']
-        print("Error Statistics:")
-        print(f"  Min error:                  {np.min(errors):.6f}")
-        print(f"  Max error:                  {np.max(errors):.6f}")
-        print(f"  Median error:               {np.median(errors):.6f}")
-        print(f"  Std deviation:             {np.std(errors):.6f}")
-        print()
-
-        # Find indices with largest errors
-        top_5_indices = np.argsort(errors)[-5:][::-1]
-        print("Top 5 Largest Errors:")
-        for idx in top_5_indices:
-            print(f"  Index {idx:4d}: Golden={results['golden_values'][idx]:8.4f}, "
-                  f"Simulated={results['simulated_values'][idx]:8.4f}, "
-                  f"Error={errors[idx]:.6f}")
-
 
 if __name__ == "__main__":
     # Example usage
