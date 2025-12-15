@@ -48,7 +48,7 @@ Success criteria: MSE close to ~8.41e-04. Keep iterating until this is achieved.
                 "assembly_code": {"type": "string", "description": "PLENA assembly code to test"},
                 "layer_type": {
                     "type": "string",
-                    "enum": ["linear", "ffn", "rms_norm"],
+                    "enum": ["linear", "ffn", "rms_norm", "silu"],
                     "description": "Layer type for test data generation (default: linear)",
                 },
                 "model_name": {
@@ -69,11 +69,15 @@ Success criteria: MSE close to ~8.41e-04. Keep iterating until this is achieved.
     },
     {
         "name": "get_workload",
-        "description": """Get model dimensions for a specific layer type.
+        "description": """Get model dimensions and FP_SRAM layout for a specific layer type.
 
-        
 Use this to get correct dimensions (hidden_size, intermediate_size, etc.) for real models.
-Returns hardware config (MLEN=64, VLEN=64, BLEN=4) and layer-specific shapes.""",
+Returns:
+- hw_config: Hardware config (MLEN=64, VLEN=64, BLEN=4)
+- layer-specific shapes
+- fp_sram_layout: CRITICAL - tells you which constants are at which FP_SRAM indices.
+  ALWAYS check fp_sram_layout to know where 1.0, epsilon, etc. are stored.
+  Example for silu: {0: "0.0", 1: "1.0"} means load 1.0 from index 1, not 0.""",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -83,7 +87,7 @@ Returns hardware config (MLEN=64, VLEN=64, BLEN=4) and layer-specific shapes."""
                 },
                 "layer_type": {
                     "type": "string",
-                    "enum": ["ffn", "attention", "projection", "rms_norm"],
+                    "enum": ["ffn", "attention", "projection", "rms_norm", "silu"],
                     "description": "Layer type",
                 },
                 "batch_size": {"type": "integer", "description": "Batch size (default: 1)"},
@@ -320,7 +324,7 @@ class AnthropicAgent:
             }
 
         response = self.client.messages.create(**api_params)
-        breakpoint()
+        # breakpoint()
 
 
         # Check if done

@@ -22,7 +22,18 @@ For an activation tensor with shape `[batch=4, hidden=128]` and `VLEN=64`:
   - Address 0: First 64 elements of hidden dim for all batches
   - Address 256: Second 64 elements of hidden dim for all batches
 
-### Output Tensor Location (M_MM_WO)
+### Output Tensor Location by Layer Type
+
+Different layer types store their outputs at different locations in Vector SRAM:
+
+| Layer Type | Output Location | Reason |
+|------------|-----------------|--------|
+| **Linear** | AFTER activations | Input needed for gradient computation |
+| **RMS Norm** | IN-PLACE (overwrites input) | Element-wise operation, input no longer needed |
+| **FFN** | IN-PLACE (final output) | Multiple stages; final output overwrites input |
+| **Attention** | IN-PLACE (final output) | Multiple stages; final output overwrites input |
+
+### Linear Layer Output Location
 
 **CRITICAL:** When writing output with `M_MM_WO`, you must write to addresses AFTER the activations to avoid overwriting input data that may still be needed.
 
@@ -156,6 +167,45 @@ Use `C_SET_STRIDE_REG` to set the row stride for matrix prefetch operations (typ
 
 ---
 
+# Scalar FP Memory (FP_MEM)
+
+FP_MEM is a small memory for scalar floating-point constants. It is preloaded before execution with layer-specific constants. Use `S_LD_FP` to load values into FP registers.
+
+**Example:**
+```asm
+S_LD_FP f1, gp0, 1    ; Load FP_MEM[1] into f1
+S_LD_FP f3, gp0, 2    ; Load FP_MEM[2] into f3
+```
+
+The exact contents of FP_MEM depend on the layer type and are provided via the `fp_sram_layout` field in the workload configuration.
+
+---
+
+# Vector SRAM Scratchpad
+
+For intermediate computations, use a single scratchpad address located after the activation data. Reuse this address by processing results immediately before overwriting with the next computation.
+
+**Scratchpad address:** `batch_size × hidden_size` (immediately after activations)
+
+---
+
+# Test Environment Data Layout
+
+In the test environment:
+- **Activations are in HBM** at address 0. You MUST use `H_PREFETCH_V` to load them into Vector SRAM before use.
+- **FP constants are pre-loaded** into FP_MEM (see `fp_sram_layout`).
+- **Weights (if needed) are in HBM** after activations. Use `H_PREFETCH_M` to load them.
+
+| Data | Location | Pre-loaded? | Action Required |
+|------|----------|-------------|-----------------|
+| Activations | HBM address 0 | No | Use `H_PREFETCH_V` to load to VRAM |
+| Weights | HBM after activations | No | Use `H_PREFETCH_M` to load to MSRAM |
+| FP constants | FP_MEM | Yes | Use `S_LD_FP` to load into FP registers |
+
+**Important**: All activation and weight data must be explicitly prefetched from HBM before computation.
+
+---
+
 # Prefetch-Compute Pattern
 
 The key principle for efficient computation is: **data must be in SRAM before it can be used**.
@@ -256,3 +306,31 @@ S_ADDI_INT gp3, gp0, 256           ; VRAM dest for tile 1
 S_ADDI_INT gp4, gp0, 64            ; HBM offset for column slice 1
 H_PREFETCH_V gp3, gp4, a0, 1, 0    ; rd=256, rs1=64 ✓
 ```
+
+---
+
+# Vector Operation Loop Requirement
+
+## Prefetch vs Compute Granularity
+
+`H_PREFETCH_V` and `V_*` instructions operate at different granularities:
+
+| Operation | Granularity |
+|-----------|-------------|
+| `H_PREFETCH_V` | `HBM_V_Prefetch_Amount × VLEN` elements |
+| `V_*` instructions | `VLEN` elements |
+
+After prefetching N elements, you need `N / VLEN` vector operations to process all data.
+
+## Loop Pattern
+
+```asm
+; After prefetch loads N elements to VRAM starting at base_addr:
+S_ADDI_INT gp1, gp0, <base_addr>
+C_LOOP_START gp2, <N / VLEN>
+  V_<op> gp1, ...                  ; process VLEN elements
+  S_ADDI_INT gp1, gp1, <VLEN>      ; advance pointer
+C_LOOP_END gp2
+```
+
+Without the loop, only the first VLEN elements are processed.

@@ -5,7 +5,9 @@
 The PLENA architecture supports four types of registers:
 
 - **gp_reg** (`gp0` to `gp15`): 16 general-purpose integer registers (gp0-gp15 only, no gp16+)
+  - **gp0 is always 0**: Use `S_ADDI_INT gpX, gp0, value` to load immediate values.
 - **fp_reg** (`f0` to `f7`): 8 floating-point registers
+  - **f0 is always 0.0**: Use `S_ADD_FP fX, f0, f0` to initialize any FP register to 0.0.
 - **hbm_addr_reg** (`a0` to `a7`): 8 HBM address registers
 
 **Important:** There are exactly 16 GP registers (gp0-gp15). Using gp16 or higher will cause assembler errors.
@@ -36,7 +38,8 @@ Instructions follow one of the following encoding formats:
 | Format | Operands | Used By |
 |--------|----------|---------|
 | `OPCODE rd, rs1, rs2, rstride, precision` | 5 operands | H_PREFETCH_M, H_PREFETCH_V, H_STORE_V |
-| `OPCODE rd, rs1, rs2, rmask` | 4 operands | V_ADD_VV, V_MUL_VV, etc. |
+| `OPCODE rd, rs1, fp2, rmask, rorder` | 5 operands | V_SUB_VF |
+| `OPCODE rd, rs1, rs2, rmask` | 4 operands | V_ADD_VV, V_MUL_VV, V_ADD_VF, V_MUL_VF, V_SUB_VV |
 | `OPCODE rd, rs1, rmask` | 3 operands | V_EXP_V, V_RECI_V |
 | `OPCODE 0, rs1, rs2` | 3 operands | M_MM, M_TMM, M_MV, M_TMV |
 | `OPCODE rd, rs1, rs2` | 3 operands | S_ADD_INT, C_SET_ADDR_REG |
@@ -248,12 +251,21 @@ Similar to `V_ADD_VV`, but performs element-wise subtraction.
 **Format:** `V_SUB_VF rd, rs1, fp2, rmask, rorder`
 
 **Operation:**
-- If `rorder = 0` (Normal): `Vector[gp_reg<rd>] & gp_rmask = (Vector[gp_reg<rs1>] & gp_reg<rmask>) - Broadcast(fp_reg<fp2>) & gp_reg<rmask>`
-- If `rorder > 0` (Reverse): `Vector[gp_reg<rd>] & gp_rmask = Broadcast(fp_reg<fp2>) & gp_reg<rmask> - (Vector[gp_reg<rs1>] & gp_reg<rmask>)`
+- If `rorder = 0` (Normal): `Vector[gp_reg<rd>] = Vector[gp_reg<rs1>] - fp_reg<fp2>`
+- If `rorder = 1` (Reverse): `Vector[gp_reg<rd>] = fp_reg<fp2> - Vector[gp_reg<rs1>]`
 
 **Description:**
 
-Similar to `V_ADD_VF`, but performs element-wise subtraction. The `rorder` parameter (decoded from `funct1`) controls the order of subtraction.
+Element-wise subtraction between a vector and a scalar. The `rorder` parameter controls subtraction order.
+
+**Example:**
+```asm
+; Negate a vector: -x = 0 - x (use f0=0.0 with rorder=1)
+V_SUB_VF gp2, gp1, f0, 0, 1    ; Vector[gp2] = 0.0 - Vector[gp1] = -Vector[gp1]
+
+; Subtract scalar from vector: x - 1.0 (use rorder=0)
+V_SUB_VF gp2, gp1, f1, 0, 0    ; Vector[gp2] = Vector[gp1] - f1
+```
 
 ### V_MUL_VV
 
@@ -277,43 +289,66 @@ Similar to `V_ADD_VF`, but performs element-wise multiplication.
 
 ### V_EXP_V
 
-**Format:** `V_EXP_V rd, rs1, x, rmask`
+**Format:** `V_EXP_V rd, rs1, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] = exp(Vector[gp_reg<rs1>])`
 
 **Description:**
 
-Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, perform element-wise exponentiation, and store the resulting vector back into the Vector SRAM at the address specified by `rd`.
+Fetch a (VLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, perform element-wise exponentiation, and store the resulting vector back into the Vector SRAM at the address specified by `rd`.
+
+**Example:**
+```asm
+V_EXP_V gp2, gp1, 0    ; Vector[gp2] = exp(Vector[gp1])
+```
 
 ### V_RECI_V
 
-**Format:** `V_RECI_V rd, rs1, x`
+**Format:** `V_RECI_V rd, rs1, rmask`
 
 **Operation:** `Vector[gp_reg<rd>] = reciprocal(Vector[gp_reg<rs1>])`
 
 **Description:**
 
-Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, perform element-wise reciprocal, and store the resulting vector back into the Vector SRAM at the address specified by `rd`.
+Fetch a (VLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, perform element-wise reciprocal, and store the resulting vector back into the Vector SRAM at the address specified by `rd`.
+
+**Example:**
+```asm
+V_RECI_V gp2, gp1, 0   ; Vector[gp2] = 1.0 / Vector[gp1]
+```
 
 ### V_RED_SUM
 
-**Format:** `V_RED_SUM rd, rs1, 0`
+**Format:** `V_RED_SUM rd, rs1`
 
-**Operation:** `fp_reg<rd> = sum(Vector[gp_reg<rs1>], fp_reg<rd>)`
+**Operation:** `fp_reg<rd> += sum(Vector[gp_reg<rs1>])`
 
 **Description:**
 
-Fetch an (MLEN, 1) vector from the Vector SRAM using the address provided by `rs1`, and a single floating-point value from the FP register file using the index specified by `rd`. Perform element-wise addition on the combined vector, and store the resulting sum back into the FP register file at the index specified by `rd`. This instruction is designed to facilitate continuous summation along a high-dimension vector.
+Fetch a (VLEN, 1) vector from the Vector SRAM at address `gp_reg<rs1>`, sum all elements, and **accumulate** (add) the result into `fp_reg<rd>`.
+
+**Critical:** Initialize the destination register to 0 before the first V_RED_SUM. Use the same register for multiple reductions to accumulate across tiles.
+
+```asm
+; Correct: accumulate directly into f3
+S_ADD_FP f3, f0, f0        ; f3 = 0 (initialize once)
+V_RED_SUM f3, gp2          ; f3 += sum(tile0)
+V_RED_SUM f3, gp3          ; f3 += sum(tile1) - accumulates!
+
+; Wrong: using intermediate register
+V_RED_SUM f4, gp2          ; f4 not initialized!
+S_ADD_FP f3, f3, f4        ; Redundant and incorrect
+```
 
 ### V_RED_MAX
 
-**Format:** `V_RED_MAX rd, rs1, 0`
+**Format:** `V_RED_MAX rd, rs1`
 
-**Operation:** `fp_reg<rd> = max(Vector[gp_reg<rs1>], fp_reg<rd>)`
+**Operation:** `fp_reg<rd> = max(max(Vector[gp_reg<rs1>]), fp_reg<rd>)`
 
 **Description:**
 
-Similar to `V_RED_SUM` but performs the max value selection operation.
+Similar to `V_RED_SUM` but finds the maximum value. Accumulates the max across multiple calls.
 
 ---
 
@@ -413,19 +448,19 @@ Load upper immediate value into the integer register.
 
 #### S_EXP_FP
 
-**Format:** `S_EXP_FP rd, rs1, x`
+**Format:** `S_EXP_FP rd, rs1`
 
 **Operation:** `fp_reg<rd> = exp(fp_reg<rs1>)`
 
 #### S_RECI_FP
 
-**Format:** `S_RECI_FP rd, rs1, x`
+**Format:** `S_RECI_FP rd, rs1`
 
-**Operation:** `fp_reg<rd> = reciprocal(fp_reg<rs1>)`
+**Operation:** `fp_reg<rd> = 1.0 / fp_reg<rs1>`
 
 #### S_SQRT_FP
 
-**Format:** `S_SQRT_FP rd, rs1, x`
+**Format:** `S_SQRT_FP rd, rs1`
 
 **Operation:** `fp_reg<rd> = sqrt(fp_reg<rs1>)`
 
@@ -434,6 +469,8 @@ Load upper immediate value into the integer register.
 **Format:** `S_LD_FP rd, rs1, imm`
 
 **Operation:** `fp_reg<rd> = FP_MEM[gp_reg<rs1> + imm]`
+
+**Note:** FP_MEM can be preloaded with constants. Use S_LD_FP to load them into FP registers before use.
 
 #### S_ST_FP
 

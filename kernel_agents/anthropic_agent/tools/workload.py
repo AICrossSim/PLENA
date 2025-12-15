@@ -66,6 +66,11 @@ def get_workload(
             "gate_weight_shape": [hidden_size, intermediate_size],
             "down_weight_shape": [intermediate_size, hidden_size],
             "input_shape": [batch_size * seq_len, hidden_size],
+            "fp_sram_layout": {
+                0: "0.0 (for negation: 0 - x = -x)",
+                1: "1e-6 (epsilon)",
+                2: "1.0 (for sigmoid: 1 + exp(-x))",
+            },
         })
 
     elif layer_type == "attention":
@@ -89,10 +94,26 @@ def get_workload(
         })
 
     elif layer_type == "rms_norm":
+        eps = model_config.get("rms_norm_eps", 1e-5)
         workload.update({
             "hidden_size": hidden_size,
-            "eps": model_config.get("rms_norm_eps", 1e-5),
+            "eps": eps,
             "input_shape": [batch_size * seq_len, hidden_size],
+            "fp_sram_layout": {
+                0: "0.0 (unused)",
+                1: f"epsilon = {eps}",
+                2: f"1/hidden_size = {1.0 / hidden_size}",
+            },
+        })
+
+    elif layer_type == "silu":
+        workload.update({
+            "hidden_size": hidden_size,
+            "input_shape": [batch_size * seq_len, hidden_size],
+            "fp_sram_layout": {
+                0: "0.0 (for negation: 0 - x = -x)",
+                1: "1.0 (for sigmoid: 1 + exp(-x))",
+            },
         })
 
     return workload

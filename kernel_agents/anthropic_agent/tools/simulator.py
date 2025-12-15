@@ -18,7 +18,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "compiler"))
 
 def run_simulator(
     assembly_code: str,
-    layer_type: Literal["linear", "ffn", "attention", "rms_norm"] = "linear",
+    layer_type: Literal["linear", "ffn", "attention", "rms_norm", "silu"] = "linear",
     model_name: Optional[str] = None,
     hidden_size: int = 128,
     output_size: Optional[int] = None,
@@ -38,7 +38,7 @@ def run_simulator(
 
     Args:
         assembly_code: PLENA assembly code string
-        layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm')
+        layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm', 'silu')
         model_name: Model name (e.g., 'llama-3.2-1b') - if provided, auto-loads dimensions
         hidden_size: Input dimension (default 128, overridden if model_name provided)
         output_size: Output dimension for linear layer (default: same as hidden_size)
@@ -213,6 +213,7 @@ def run_simulator(
                 batch_size=test_config["batch_size"],
                 input_size=test_config["hidden_size"],
                 output_size=test_config.get("output_size", test_config["hidden_size"]),
+                output_in_place=test_config.get("output_in_place", False),
             )
             mse = accuracy.get("mse")
             match_rate = accuracy.get("match_rate")
@@ -261,7 +262,7 @@ def _setup_test_data(
     from torch import nn
 
     from create_sim_env import create_sim_env
-    from sim_env_utils.build_env import build_sim_env
+    from sim_env_utils import create_mem_for_sim
 
     # Clear and recreate build directory
     if BUILD_PATH.exists():
@@ -298,6 +299,11 @@ def _setup_test_data(
         }
         data_order = ["act_tensor", "weights"]
         test_config["output_shape"] = list(golden_output.shape)
+        test_config["fp_sram_layout"] = {
+            "0": "0.0 (unused)",
+            "1": "epsilon = 1e-6",
+            "2": f"1/hidden_size = {1 / hidden_size}"
+        }
 
     elif layer_type == "ffn":
         # FFN: up_proj, gate_proj, down_proj with SiLU activation
@@ -324,30 +330,60 @@ def _setup_test_data(
         }
         data_order = ["act_tensor", "up_weights", "gate_weights", "down_weights"]
         test_config["output_shape"] = list(golden_output.shape)
+        test_config["fp_sram_layout"] = {
+            "0": "0.0 (unused)",
+            "1": "epsilon = 1e-6",
+            "2": "1.0 (for scaling)"
+        }
 
     elif layer_type == "rms_norm":
-        # RMS Normalization
-        fp_preload = [0.0, 1e-6, 1.0]
-        eps = 1e-5
+        # RMS Normalization: x / sqrt(mean(x^2) + eps)
+        eps = 1e-6
+        fp_preload = [0.0, eps, 1.0 / hidden_size]
 
         act_tensor = torch.randn(batch_size * seq_len, hidden_size)
         # RMS norm: x / sqrt(mean(x^2) + eps)
         rms = torch.sqrt(torch.mean(act_tensor**2, dim=-1, keepdim=True) + eps)
         golden_output = act_tensor / rms
 
+        # RMS norm stores output IN-PLACE (overwrites activation at address 0)
         input_tensors = {"act_tensor": act_tensor}
         data_order = ["act_tensor"]
         test_config["output_shape"] = list(golden_output.shape)
+        test_config["output_in_place"] = True  # Flag for accuracy check
+        test_config["fp_sram_layout"] = {
+            "0": "0.0 (unused)",
+            "1": f"epsilon = {eps}",
+            "2": f"1/hidden_size = {1.0 / hidden_size}"
+        }
+
+    elif layer_type == "silu":
+        # SiLU activation: x * sigmoid(x) = x * (1 / (1 + exp(-x)))
+        # FP SRAM layout: [0]=0.0, [1]=1.0 (for sigmoid computation)
+        fp_preload = [0.0, 1.0]
+
+        act_tensor = torch.randn(batch_size * seq_len, hidden_size)
+        golden_output = nn.functional.silu(act_tensor)
+
+        # SiLU stores output IN-PLACE
+        input_tensors = {"act_tensor": act_tensor}
+        data_order = ["act_tensor"]
+        test_config["output_shape"] = list(golden_output.shape)
+        test_config["output_in_place"] = True
+        test_config["fp_sram_layout"] = {
+            "0": "0.0 (for negation: 0 - x = -x)",
+            "1": "1.0 (for sigmoid: 1 + exp(-x))"
+        }
 
     else:
-        raise ValueError(f"Unsupported layer_type: {layer_type}. Use 'linear', 'ffn', or 'rms_norm'")
+        raise ValueError(f"Unsupported layer_type: {layer_type}. Use 'linear', 'ffn', 'rms_norm', or 'silu'")
 
     # Create golden result structure
     golden_result = {"input_tensor": input_tensors, "original_output": golden_output}
 
     # Setup simulation environment
     create_sim_env(input_tensors, assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm=layer_type, data=None, specified_data_order=data_order)
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm=layer_type, data=None, specified_data_order=data_order)
 
     return test_config
 
@@ -373,17 +409,25 @@ def _check_accuracy(
     batch_size: int = 4,
     input_size: int = 128,
     output_size: int = 128,
+    output_in_place: bool = False,
 ) -> Dict[str, Any]:
     """Compare simulator output with golden reference.
 
-    Output is stored AFTER activations in Vector SRAM to avoid overwriting.
-    Activations occupy (batch_size * input_size) elements = that many / 64 rows.
+    For most layers: Output is stored AFTER activations in Vector SRAM.
+    For RMS norm: Output is stored IN-PLACE (overwrites activation at row 0).
     """
     from check_mem import compare_with_golden
 
-    # Calculate where output starts (after activations)
-    activation_elements = batch_size * input_size
-    activation_rows = activation_elements // 64  # Each row is 64 elements
+    if output_in_place:
+        # RMS norm: output overwrites input at row 0
+        start_row_idx = 0
+        # Number of rows = (batch_size * output_size) / 64
+        num_rows = (batch_size * output_size) // 64
+    else:
+        # Other layers: output stored after activations
+        activation_elements = batch_size * input_size
+        start_row_idx = activation_elements // 64  # Each row is 64 elements
+        num_rows = None
 
     results = compare_with_golden(
         bin_file,
@@ -392,8 +436,8 @@ def _check_accuracy(
         man_width=7,
         num_bytes_per_val=2,
         row_dim=64,
-        start_row_idx=activation_rows,  # Start AFTER activations
-        num_rows=None,
+        start_row_idx=start_row_idx,
+        num_rows=num_rows,
         use_stride_mode=True,
         num_batches=batch_size,
         elements_per_batch=output_size,
