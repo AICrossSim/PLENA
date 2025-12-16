@@ -11,6 +11,57 @@ from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 
 
+class RMSNorm(torch.nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
+        """
+        Initialize the RMSNorm normalization layer.
+
+        Args:
+            dim (int): The dimension of the input tensor.
+            eps (float, optional): A small value added to the denominator for numerical stability. Default is 1e-6.
+
+        Attributes:
+            eps (float): A small value added to the denominator for numerical stability.
+            weight (nn.Parameter): Learnable scaling parameter.
+
+        """
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def _norm(self, x):
+        """
+        Apply the RMSNorm normalization to the input tensor.
+
+        Args:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            torch.Tensor: The normalized tensor.
+
+        """
+        print("x", x)
+        print("x.pow(2)", x.pow(2))
+        print("x.pow(2).mean(-1, keepdim=True)", x.pow(2).mean(-1, keepdim=True))
+        
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+    def forward(self, x):
+        """
+        Forward pass through the RMSNorm layer.
+
+        Args:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            torch.Tensor: The output tensor after applying RMSNorm.
+
+        """
+        output = self._norm(x.float()).type_as(x)
+        return output * self.weight
+
+
+
 class LlamaFeedForward(nn.Module):
     """
     Standard FeedForward layer used in Llama architectures:
@@ -34,52 +85,6 @@ class LlamaFeedForward(nn.Module):
         self.act = torch.nn.SiLU() if activation == "silu" else getattr(torch.nn, activation)()
 
     def forward(self, x: Tensor) -> Tensor:
-        # SwiGLU: (x @ w1) * silu(x @ w3)
-        # print("input_tensor:\n", x)
-        # print("up weight:\n", self.w1.weight.t())
-        # up_proj = self.w1(x)
-        print("up projection (all elements):")
-        w1_out = self.w1(x)
-        w1_out = w1_out.reshape(w1_out.shape[0] * w1_out.shape[1], w1_out.shape[-1])
-        print("self.w1(x) (upper all elements):")
-        print(w1_out[:, :8])
-        print("self.w1(x) (mid upper all elements):")
-        print(w1_out[:, 64:72])
-        print("self.w1(x) (mid lower all elements):")
-        print(w1_out[:, 128:135])
-        print("self.w1(x) (lower all elements):")
-        print(w1_out[:, 192:199])
-
-        # w2_out = self.w2(x)
-        # w2_out = w2_out.reshape(w2_out.shape[0] * w2_out.shape[1], w2_out.shape[-1])
-        # print("self.w2(x) (upper all elements):")
-        # print(w2_out[:, :8])
-        # print("self.w2(x) (mid upper all elements):")
-        # print(w2_out[:, 64:72])
-        # print("self.w2(x) (mid lower all elements):")
-        # print(w2_out[:, 128:135])
-        # print("self.w2(x) (lower all elements):")
-        # print("gate projection:\n", self.w2(x))
-
-        # print("silu activation:\n", self.act(self.w1(x)))
-        # print("product of silu activation and gate projection:\n", self.act(self.w1(x)) * self.w2(x))
-        silu_mixed_out = self.act(self.w1(x)) * self.w2(x)
-        silu_mixed_out = silu_mixed_out.reshape(silu_mixed_out.shape[0] * silu_mixed_out.shape[1], silu_mixed_out.shape[-1])
-        print(f"silu mixed out of shape {silu_mixed_out.shape}: \n")
-        print("silu mixed out (upper all elements):")
-        print(silu_mixed_out[:, :8])
-        print("silu mixed out (mid upper all elements):")
-        print(silu_mixed_out[:, 64:72])
-        print("silu mixed out (mid lower all elements):")
-        print(silu_mixed_out[:, 128:135])
-        print("silu mixed out (lower all elements):")
-        print(silu_mixed_out[:, 192:199])
-        outcome = self.w3(silu_mixed_out)
-        print("final output (upper all elements):")
-        print(outcome[:, :8])
-        print("final output (mid upper all elements):")
-        print(outcome[:, 64:72])
-        # print("final output:\n", self.w3(self.act(self.w1(x)) * self.w2(x)))
         return self.w3(self.act(self.w1(x)) * self.w2(x))
     
     
@@ -99,18 +104,20 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     act_tensor = torch.rand(batch_size, seq_len, hidden_size)
 
-    original_layer = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
+    ffn = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
+    rms_norm = RMSNorm(dim=hidden_size)
+
     weight_up_layer = torch.randn(inter_dim, hidden_size)
     weight_gate_layer = torch.randn(inter_dim, hidden_size)
     weight_down_layer = torch.randn(hidden_size, inter_dim)
 
     # Set weights for w1, w2, w3 to the generated tensors
     with torch.no_grad():
-        original_layer.w1.weight.copy_(weight_up_layer)
-        original_layer.w2.weight.copy_(weight_gate_layer)
-        original_layer.w3.weight.copy_(weight_down_layer)
+        ffn.w1.weight.copy_(weight_up_layer)
+        ffn.w2.weight.copy_(weight_gate_layer)
+        ffn.w3.weight.copy_(weight_down_layer)
 
-    original_output = original_layer(act_tensor)
+    original_output = rms_norm(ffn(act_tensor))
 
     input_tensor = {
         "act_tensor": act_tensor.reshape(batch_size * seq_len, hidden_size),
@@ -213,6 +220,21 @@ if __name__ == "__main__":
             const_one_fp_address=1,
             activation_base_address=0,
             use_loop_instructions=True
+        )
+        # Reset the registers
+        gen_assembly_code += reset_reg_asm(
+            alive_registers=[1,2,3,4,5,6,7,8,9,10,11,12]
+        )
+
+        gen_assembly_code += rms_norm_asm(
+            _eps_offset=1,
+            reci_hid_offset=2,
+            alive_registers=[1,2,3,4,5],
+            activation_base_address = 0,
+            scratchpad_base_address = hidden_size * batch_size * seq_len,
+            vlen=vlen,
+            batch_size=batch_size * seq_len,
+            hidden_dim=hidden_size
         )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
