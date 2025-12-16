@@ -184,6 +184,7 @@ def _computing_pv_code(
 
     # Address Settings
     generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * mlen * mlen} \n"
+
     generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {v_head_index * head_dim} \n"
     generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index * mlen * mlen} \n"
     # generated_code += f"S_ADDI_INT gp{mm_wo_stride_register}, gp0, {((q_head_num * head_dim) // mlen)} \n"
@@ -199,7 +200,7 @@ def _computing_pv_code(
         # Update v_base_register and reset p_base_register and pv_base_register
         generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * mlen * mlen} \n"
         generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index * head_dim + (i+1) * blen} \n"
-        generated_code += f"S_ADDI_INT gp{v_base_register}, gp{v_base_register}, {mlen} \n"
+        generated_code += f"S_ADDI_INT gp{v_base_register}, gp{v_base_register}, {blen} \n"
 
     return generated_code
 
@@ -468,7 +469,7 @@ def flash_attn_asm(
                 alive_registers_int =   alive_registers_int[0:1],
             )
 
-            # loop over per q_index_2_kv_index_ratio q heads (q_len // MLEN), compute q_index_2_kv_index_ratio heads in parallel.
+            # # loop over per q_index_2_kv_index_ratio q heads (q_len // MLEN), compute q_index_2_kv_index_ratio heads in parallel.
             for j in range(q_seq_iteration_number):
                 # Compute S = QKT result
                 generated_code += qkt_multiply(
@@ -512,20 +513,20 @@ def flash_attn_asm(
                         same_v_head=(inner_q_head_index != 0),
                     )
 
-                #     generated_code += reset_reg_asm(alive_registers_int[0:4])
-                #     generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
+                    generated_code += reset_reg_asm(alive_registers_int[0:4])
+                    generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
 
-                #     generated_code += _computing_o_code(
-                #         mlen=mlen,
-                #         alive_registers_int=alive_registers_int[0:3],
-                #         alive_registers_fp=alive_registers_fp[0:1],
-                #         m_res_base_address=stored_m_fp_res_address,
-                #         pv_base_address=pv_base_address + inner_q_head_index * mlen * mlen,
-                #         o_old_base_address=o_old_base_address + kv_head_index * mlen,
-                #         head_dim=d,
-                #         q_head_num=hq,
-                #     )
-                #     stored_m_fp_res_address += 3 * mlen
+                    generated_code += _computing_o_code(
+                        mlen=mlen,
+                        alive_registers_int=alive_registers_int[0:3],
+                        alive_registers_fp=alive_registers_fp[0:1],
+                        m_res_base_address=stored_m_fp_res_address,
+                        pv_base_address=pv_base_address + inner_q_head_index * mlen * mlen,
+                        o_old_base_address=o_old_base_address + kv_head_index * mlen,
+                        head_dim=d,
+                        q_head_num=hq,
+                    )
+                    stored_m_fp_res_address += 3 * mlen
                     break
                 break
             break

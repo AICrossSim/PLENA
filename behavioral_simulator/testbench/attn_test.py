@@ -38,7 +38,9 @@ if __name__ == "__main__":
     num_q_heads = 16
     num_kv_heads = 4
     h_qkv = 16
+    hidden_size = h_qkv * num_q_heads
     mlen = 64
+    vlen = 64
     blen = 4
     qk_scale = 1.0 / math.sqrt(h_qkv)
     real_data_ratio = (8*8 + 8) / (8 * 8)
@@ -107,14 +109,14 @@ if __name__ == "__main__":
         preload_len=4,
         batch=batch_size,
         hidden_size=h_qkv * num_q_heads * s_q,
-        alive_registers=[1,2,3],
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0
     )
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
+        alive_registers=[1,2,3,4,5]
     )
 
     # Start the flash attention process
@@ -135,5 +137,27 @@ if __name__ == "__main__":
         v_base_hbm_offset_reg=2
     )
 
+
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = ["q", "k", "v"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["q", "k", "v"])
+
+    import json
+    result_vram_offset = 0  # activation_base_address
+    effective_batch = batch_size * s_q
+    result_start_row = result_vram_offset // vlen
+    num_result_rows = (effective_batch * hidden_size) // vlen
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": effective_batch,
+        "elements_per_batch": hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
+
+    print("================================================")
+    print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
+    print("================================================")

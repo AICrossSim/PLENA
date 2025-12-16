@@ -95,7 +95,7 @@ if __name__ == "__main__":
     seq_len = 2
 
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, seq_len, hidden_size)
+    act_tensor = torch.rand(batch_size, seq_len, hidden_size)
 
     original_layer = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
     weight_up_layer = torch.randn(inter_dim, hidden_size)
