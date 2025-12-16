@@ -2,6 +2,16 @@
 
 from pathlib import Path
 
+LAYER_PROMPTS_DIR = Path(__file__).parent / "layer_prompts"
+
+
+def _load_layer_prompt(layer_type: str) -> str:
+    """Load layer-specific computation guide."""
+    layer_file = LAYER_PROMPTS_DIR / f"{layer_type}.md"
+    if layer_file.exists():
+        return layer_file.read_text()
+    return ""
+
 
 def _load_isa_spec() -> str:
     """Load ISA specification from plena_isa_spec.md."""
@@ -55,8 +65,8 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
 ===============================================================================
 
 1. UNDERSTAND THE TASK
-   - Extract layer type, shapes, target hardware behavior.
-   - If shapes are unknown, call get_workload() **ONCE**.
+   - Extract layer type, shapes, target hardware behavior from the task prompt.
+   - The workload configuration (hidden_size, batch_size, etc.) is provided in the task.
 
 2. PLAN THE KERNEL INTERNALLY (USE EXTENDED THINKING!)
    - You have extended thinking enabled. USE IT to reason deeply about:
@@ -79,6 +89,16 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
      • Vector ops
      • Results left in Vector SRAM (H_STORE_V not implemented)
    - Avoid incremental, line-by-line building.
+
+   **SHAPE TRACKING COMMENTS (MANDATORY):**
+   At the START of your assembly, write a comment block that tracks:
+   - Input tensor shapes (original and flattened)
+   - Output tensor shape and total elements
+   - How many iterations/tiles needed to cover ALL output elements
+   - Intermediate shapes for multi-stage computations (e.g., attention scores)
+
+   This forces you to plan completeness upfront. If output has N rows, your code
+   must write N rows - not just 1 as a "demonstration."
 
 4. SELF-REVIEW YOUR CODE (CRITICAL - DO THIS IN THINKING!)
    Before calling any tool, mentally trace through your assembly code:
@@ -111,22 +131,21 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
       - Total M_MM_WO calls needed = total_elements / elements_per_write
       - Count your actual M_MM_WO calls x loop iterations. Do they match?
 
-5. Generate opcode before running simulation
-   - Use machine_code_generation() to convert assembly to machine code.
-   - you will get syntax_errors and instruction_count in the response.
-   - If syntax_errors is not empty, fix all errors in one go and regenerate machine code
-
-6. PRIMARY TOOL: run_simulator()
-   to verify the performance of the written assembly code, you need to generate machine code first and then running this tool
-   - run_simulator() performs:
-     • assembly → machine code
+5. PRIMARY TOOL: run_simulator()
+   - run_simulator() is your MAIN validation tool. It handles everything automatically:
+     • assembly → machine code conversion (no need to call machine_code_generation separately)
+     • test data setup
      • correctness checking
      • latency measurement
      • golden reference comparison
-   - This is your MAIN tool. Use it to validate substantive kernel revisions.
+   - Use it to validate substantive kernel revisions.
+   - If you get syntax errors, fix all errors in one go and re-run simulator.
 
-7. ITERATE STRATEGICALLY
-   - When simulation shows errors or high MSE:
+   NOTE: machine_code_generation() is available for quick syntax-only checks if needed,
+   but run_simulator() already includes syntax checking internally.
+
+6. ITERATE STRATEGICALLY
+   - When simulation shows errors or low match_rate:
      • Use debug_view_memory() to see actual vs expected values
      • Look for patterns: all zeros = not computed, wrong values = bad addressing
      • Analyze what went wrong (tiling, addresses, missing operations)
@@ -134,26 +153,29 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
      • Re-test with run_simulator().
    - Avoid micro-fixes and avoid re-issuing nearly identical kernels.
 
-8. ITERATE UNTIL ACCURATE
-   - Success criteria: Match Rate must be close to ~80% (small margin allowed)
-   - If MSE is too high (e.g., nan, > 0.01, or significantly above target):
-     • Analyze what went wrong (wrong addresses, incorrect tiling, missing operations)
-     • Fix the assembly code
-     • Re-run simulator
-     • Keep iterating until Match Rate reaches ~80%
-   - Only terminate when Match Rate is close to target:
-     • STOP calling tools.
-     • Return final kernel in a ```asm``` block, plus a concise explanation.
+7. ITERATE UNTIL ACCURATE (MANDATORY - DO NOT GIVE UP)
+   - Success criteria depends on layer type:
+     • Linear: match_rate > 85%
+     • FFN: match_rate > 75%
+     • Attention: match_rate > 70%
+     • RMS norm, SiLU, Softmax: match_rate > 95%
+
+   - CRITICAL: Keep iterating until target match_rate is reached.
+     • NEVER return "final" code with low match_rate
+     • NEVER write partial code saying "repeat for others" - generate ALL code
+
+   - If match_rate is below target:
+     • Use debug_view_memory() to compare actual vs expected
+     • Identify pattern: zeros = not computed, wrong values = bad addressing
+     • If match_rate ≈ 1/N of target: you only computed 1/N of output - complete the rest
+     • Fix and re-run until target reached
+
+   - Only terminate when match_rate meets target OR iteration limit exhausted.
 
 
 ===============================================================================
 RULES ON TOOL USAGE
 ===============================================================================
-
-get_workload():
-    Use once to determine hidden_size, intermediate_size, batch_size, seq_len.
-    Do NOT repeat unless configuration changes.
-
 
 machine_code_generation():
     Lightweight syntax check.
@@ -165,7 +187,7 @@ run_simulator():
     No need to call machine_code_generation() before this.
 
 debug_view_memory():
-    Use when MSE is high to debug what went wrong.
+    Use when match_rate is low to debug what went wrong.
     Shows actual output values vs golden expected values.
     Helps identify: zeros (not computed), wrong values (bad addressing).
 
@@ -187,7 +209,7 @@ SIMULATOR (Rust):
     behavioral_simulator/runtime/       - Runtime engine
 
 TESTBENCH (Python):
-    behavioral_simulator/testbench/check_mem.py   - Golden comparison, MSE calc
+    behavioral_simulator/testbench/check_mem.py   - Golden comparison, match_rate calc
     behavioral_simulator/testbench/ffn_test.py    - FFN test setup
     behavioral_simulator/testbench/linear_test.py - Linear test setup
 
@@ -282,7 +304,7 @@ Immediates (imm) are plain integers. Only the IMM operand position takes integer
 ===============================================================================
 CRITICAL REASONING REQUIREMENTS (USE YOUR THINKING CAREFULLY)
 ===============================================================================
-After writing code, SIMULATE it like a debugger stepping through execution some examples.
+After writing code, SIMULATE it like a debugger stepping through execution.
 
 **REGISTER VALUE TRACING:**
 
@@ -299,7 +321,7 @@ Before calling simulator, trace iteration 1 and 2 of your innermost loop:
 - Are these the values you expect?
 - Do they CHANGE between iteration 1 and 2?
 
-**WHEN DEBUGGING HIGH MSE:**
+**WHEN DEBUGGING LOW MATCH RATE:**
 
 BEFORE rewriting or using debug tools, you MUST trace your code in your thinking:
 
@@ -329,20 +351,29 @@ When you see `NaN` values in certain rows:
 - Trace the loop indices (j, k, c) at the failing iteration to find the bug
 
 ===============================================================================
-AVOID THESE FAILURE MODES
+LAYER-SPECIFIC COMPUTATION GUIDE
 ===============================================================================
-You must NEVER:
-• Generate code one instruction at a time.
-• Say: "Good, basic syntax works. Let me build up step by step."
-• Produce infinite loops of tool_use calls.
-• Output long verbose reasoning in your response (keep thinking in thinking block).
-• Repeat templates or filler text.
-• Use unimplemented instructions (M_BMV, M_BTMV, M_BMV_WO, H_STORE_V).
-• Use bare integers (0, 1, 2) where register names (gp0, gp1, gp2) are expected.
-• Skip C_SET_SCALE_REG before weight prefetch - this WILL cause incorrect data.
-• Write incomplete loops that only compute some output tiles.
-• Put M_MM_WO inside the K accumulation loop - this clears the accumulator too early!
-• Forget that M_MM accumulates and M_MM_WO clears - the MOST COMMON BUG.
+{layer_prompt}
+===============================================================================
+COMMON MISTAKES TO AVOID
+===============================================================================
+
+**Register & Setup Errors:**
+• gp0 is hardwired to 0. To multiply by a constant, load it into another register first.
+• Address registers (a0-a7) must be initialized with C_SET_ADDR_REG before use in H_PREFETCH.
+• C_SET_SCALE_REG must be called before H_PREFETCH_M, or data will be corrupted.
+• Use register names (gp0, gp1) not bare integers (0, 1) for register operands.
+
+**Memory & Computation Errors:**
+• In-place operations overwrite data. Save to scratchpad first if you need the original later.
+• M_MM accumulates into the systolic array. M_MM_WO writes the result AND clears it.
+• Never put M_MM_WO inside the K-accumulation loop - it clears partial results too early.
+• Unimplemented instructions (M_BMV, M_BTMV, M_BMV_WO, H_STORE_V) will crash the simulator.
+
+**Workflow Errors:**
+• Do not generate code one instruction at a time or build up incrementally.
+• Do not give up before reaching target match_rate. Use debug_view_memory() to diagnose issues.
+• Do not write incomplete kernels that only compute partial output.
 
 ===============================================================================
 OUTPUT STYLE RULES
@@ -388,15 +419,18 @@ The following is a complete, working linear projection kernel. Study its structu
 """
 
 
-def get_system_prompt(include_examples: bool = False) -> str:
+def get_system_prompt(layer_type: str = "linear", include_examples: bool = False) -> str:
     """Get the full system prompt with dynamically loaded ISA spec and memory layout.
 
     Args:
+        layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm', 'silu', 'softmax').
+                   Loads layer-specific computation guide.
         include_examples: If True, include working assembly examples (linear projection).
                          Default is False to keep prompt concise.
     """
     isa_spec = _load_isa_spec()
     memory_layout = _load_memory_layout()
+    layer_prompt = _load_layer_prompt(layer_type)
 
     if include_examples:
         linear_example = _load_linear_example()
@@ -407,6 +441,7 @@ def get_system_prompt(include_examples: bool = False) -> str:
     return _SYSTEM_PROMPT_TEMPLATE.format(
         isa_spec=isa_spec,
         memory_layout=memory_layout,
+        layer_prompt=layer_prompt,
         examples_section=examples_section
     )
 

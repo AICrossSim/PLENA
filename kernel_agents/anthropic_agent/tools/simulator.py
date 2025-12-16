@@ -18,11 +18,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "compiler"))
 
 def run_simulator(
     assembly_code: str,
-    layer_type: Literal["linear", "ffn", "attention", "rms_norm", "silu"] = "linear",
+    layer_type: Literal["linear", "ffn", "attention", "rms_norm", "silu", "softmax"] = "linear",
     model_name: Optional[str] = None,
     hidden_size: int = 128,
     output_size: Optional[int] = None,
     intermediate_size: Optional[int] = None,
+    num_heads: Optional[int] = None,
     batch_size: int = 4,
     seq_len: int = 1,
 ) -> Dict[str, Any]:
@@ -38,13 +39,14 @@ def run_simulator(
 
     Args:
         assembly_code: PLENA assembly code string
-        layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm', 'silu')
+        layer_type: Type of layer ('linear', 'ffn', 'attention', 'rms_norm', 'silu', 'softmax')
         model_name: Model name (e.g., 'llama-3.2-1b') - if provided, auto-loads dimensions
         hidden_size: Input dimension (default 128, overridden if model_name provided)
         output_size: Output dimension for linear layer (default: same as hidden_size)
         intermediate_size: FFN intermediate size (default 4*hidden_size, only for ffn)
+        num_heads: Number of attention heads (default 1, only for attention)
         batch_size: Batch size (default 4)
-        seq_len: Sequence length (default 1)
+        seq_len: Sequence length (default 1, use >1 for attention)
 
     Returns:
         Dict with:
@@ -100,6 +102,7 @@ def run_simulator(
             hidden_size=hidden_size,
             output_size=output_size,
             intermediate_size=intermediate_size,
+            num_heads=num_heads,
             batch_size=batch_size,
             seq_len=seq_len,
             assembly_code=assembly_code,
@@ -240,9 +243,19 @@ def run_simulator(
         "test_config": test_config,
     }
 
-    # Add debugging hint when MSE is high
-    if mse is not None and mse > 0.01:
-        result["debug_hint"] = "MSE is high. Before rewriting and calling the check memory tool, trace your code line-by-line to reason about it first."
+    # Add debugging hint when match_rate is low
+    # Thresholds: linear >85%, ffn/attention >75% (due to accumulated quantization), others >95%
+    layer = test_config.get("layer_type", "linear") if test_config else "linear"
+    if layer == "ffn":
+        threshold = 0.75  # Lower threshold for FFN due to accumulated quantization across 3 matmuls + SiLU
+    elif layer == "attention":
+        threshold = 0.70  # Lower threshold for attention due to Q@K.T + softmax + @V stages
+    elif layer == "linear":
+        threshold = 0.85
+    else:
+        threshold = 0.95
+    if match_rate is not None and match_rate < threshold:
+        result["debug_hint"] = f"Match rate ({match_rate:.1%}) is below target ({threshold:.0%}). Before rewriting and calling the check memory tool, trace your code line-by-line to reason about it first."
 
     return result
 
@@ -252,12 +265,14 @@ def _setup_test_data(
     hidden_size: int,
     output_size: Optional[int],
     intermediate_size: Optional[int],
+    num_heads: Optional[int],
     batch_size: int,
     seq_len: int,
     assembly_code: str,
 ) -> Dict[str, Any]:
     """Setup test environment with random data for the given layer type."""
     import shutil
+    import math
     import torch
     from torch import nn
 
@@ -306,21 +321,22 @@ def _setup_test_data(
         }
 
     elif layer_type == "ffn":
-        # FFN: up_proj, gate_proj, down_proj with SiLU activation
+        # FFN: up_proj, gate_proj, down_proj with SiLU activation (SwiGLU)
+        # Formula: down(silu(up(x)) * gate(x))
         inter_size = intermediate_size or (4 * hidden_size)
         test_config["intermediate_size"] = inter_size
-        fp_preload = [0.0, 1e-6, 1.0]
+        fp_preload = [0.0, 1.0]  # FP SRAM[0]=0.0, FP SRAM[1]=1.0 for SiLU
 
         act_tensor = torch.randn(batch_size * seq_len, hidden_size)
         up_proj = nn.Linear(hidden_size, inter_size, bias=False)
         gate_proj = nn.Linear(hidden_size, inter_size, bias=False)
         down_proj = nn.Linear(inter_size, hidden_size, bias=False)
 
-        # FFN forward: down(silu(gate(x)) * up(x))
+        # SwiGLU forward: down(silu(up(x)) * gate(x))
         up_out = up_proj(act_tensor)
         gate_out = gate_proj(act_tensor)
-        silu_gate = nn.functional.silu(gate_out)
-        golden_output = down_proj(silu_gate * up_out)
+        silu_up = nn.functional.silu(up_out)
+        golden_output = down_proj(silu_up * gate_out)
 
         input_tensors = {
             "act_tensor": act_tensor,
@@ -330,10 +346,10 @@ def _setup_test_data(
         }
         data_order = ["act_tensor", "up_weights", "gate_weights", "down_weights"]
         test_config["output_shape"] = list(golden_output.shape)
+        test_config["output_in_place"] = True  # FFN stores output at activation_base_address (row 0)
         test_config["fp_sram_layout"] = {
-            "0": "0.0 (unused)",
-            "1": "epsilon = 1e-6",
-            "2": "1.0 (for scaling)"
+            "0": "0.0 (for negation in SiLU)",
+            "1": "1.0 (for sigmoid: 1 / (1 + exp(-x)))"
         }
 
     elif layer_type == "rms_norm":
@@ -375,8 +391,81 @@ def _setup_test_data(
             "1": "1.0 (for sigmoid: 1 + exp(-x))"
         }
 
+    elif layer_type == "softmax":
+        # Softmax: exp(x - max(x)) / sum(exp(x - max(x)))
+        # FP SRAM layout: [0]=0.0 (for sum init)
+        fp_preload = [0.0, 1.0]
+
+        act_tensor = torch.randn(batch_size * seq_len, hidden_size)
+        golden_output = torch.softmax(act_tensor, dim=-1)
+
+        # Softmax stores output IN-PLACE
+        input_tensors = {"act_tensor": act_tensor}
+        data_order = ["act_tensor"]
+        test_config["output_shape"] = list(golden_output.shape)
+        test_config["output_in_place"] = True
+        test_config["fp_sram_layout"] = {
+            "0": "0.0 (for initializing sum accumulator)",
+            "1": "1.0 (unused, but available)"
+        }
+
+    elif layer_type == "attention":
+        # Single-head or multi-head attention: softmax(Q @ K.T / sqrt(d)) @ V
+        # For simplicity, we test single-head attention with:
+        # Q, K, V: [batch, seq_len, head_dim] where head_dim = hidden_size / num_heads
+        n_heads = num_heads or 1
+        head_dim = hidden_size // n_heads
+        qk_scale = 1.0 / math.sqrt(head_dim)
+
+        # FP SRAM layout: [0]=0.0, [1]=scale (1/sqrt(d)), [2]=-inf (for causal mask)
+        fp_preload = [0.0, qk_scale, float('-inf')]
+
+        test_config["num_heads"] = n_heads
+        test_config["head_dim"] = head_dim
+        test_config["qk_scale"] = qk_scale
+
+        # Generate Q, K, V tensors - shape [batch, seq_len, hidden_size]
+        # For multi-head: conceptually [batch, seq_len, num_heads, head_dim]
+        Q = torch.randn(batch_size, seq_len, hidden_size)
+        K = torch.randn(batch_size, seq_len, hidden_size)
+        V = torch.randn(batch_size, seq_len, hidden_size)
+
+        # Compute attention for each head
+        # Reshape to [batch, num_heads, seq_len, head_dim]
+        Q_heads = Q.view(batch_size, seq_len, n_heads, head_dim).transpose(1, 2)
+        K_heads = K.view(batch_size, seq_len, n_heads, head_dim).transpose(1, 2)
+        V_heads = V.view(batch_size, seq_len, n_heads, head_dim).transpose(1, 2)
+
+        # Attention scores: [batch, num_heads, seq_len, seq_len]
+        scores = torch.matmul(Q_heads, K_heads.transpose(-2, -1)) * qk_scale
+        attn_weights = torch.softmax(scores, dim=-1)
+
+        # Attention output: [batch, num_heads, seq_len, head_dim]
+        attn_output = torch.matmul(attn_weights, V_heads)
+
+        # Reshape back to [batch, seq_len, hidden_size]
+        golden_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, hidden_size)
+
+        # Flatten for simulator: [batch * seq_len, hidden_size]
+        golden_output = golden_output.view(batch_size * seq_len, hidden_size)
+
+        # Input tensors flattened for HBM
+        input_tensors = {
+            "Q": Q.view(batch_size * seq_len, hidden_size),
+            "K": K.view(batch_size * seq_len, hidden_size),
+            "V": V.view(batch_size * seq_len, hidden_size),
+        }
+        data_order = ["Q", "K", "V"]
+        test_config["output_shape"] = list(golden_output.shape)
+        test_config["output_in_place"] = True  # Output overwrites Q location
+        test_config["fp_sram_layout"] = {
+            "0": "0.0 (for accumulator init)",
+            "1": f"qk_scale = 1/sqrt({head_dim}) = {qk_scale:.6f}",
+            "2": "-inf (for causal masking, optional)"
+        }
+
     else:
-        raise ValueError(f"Unsupported layer_type: {layer_type}. Use 'linear', 'ffn', 'rms_norm', or 'silu'")
+        raise ValueError(f"Unsupported layer_type: {layer_type}. Use 'linear', 'ffn', 'attention', 'rms_norm', 'silu', or 'softmax'")
 
     # Create golden result structure
     golden_result = {"input_tensor": input_tensors, "original_output": golden_output}

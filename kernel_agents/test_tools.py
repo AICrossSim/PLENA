@@ -19,11 +19,9 @@ sys.path.insert(0, str(PROJECT_ROOT / "compiler"))
 sys.path.insert(0, str(PROJECT_ROOT / "behavioral_simulator" / "testbench"))
 
 from kernel_agents.anthropic_agent.tools import (
-    get_assembly_code_examples,
     machine_code_generation,
     run_simulator,
     get_instruction_size,
-    get_template,
     get_doc,
     get_workload,
 )
@@ -134,35 +132,6 @@ def test_get_workload():
     return result
 
 
-def test_get_template():
-    """Test template retrieval."""
-    print("\n" + "=" * 60)
-    print("TEST: get_template('projection')")
-    print("=" * 60)
-    result = get_template("projection")
-    if "error" in result:
-        print(f"  Error: {result['error']}")
-    else:
-        print(f"  Signature: {result.get('signature', 'N/A')}")
-        print(f"  File: {result.get('file_path', 'N/A')}")
-        source = result.get("source", "")
-        print(f"  Source length: {len(source)} chars")
-    return result
-
-
-def test_get_examples():
-    """Test assembly examples retrieval."""
-    print("\n" + "=" * 60)
-    print("TEST: get_assembly_code_examples('one-shot')")
-    print("=" * 60)
-    result = get_assembly_code_examples(mode="one-shot")
-    print(f"  Count: {result.get('count', 0)}")
-    if result.get("examples"):
-        for ex in result["examples"]:
-            print(f"  - {ex.get('name')} ({ex.get('type')}): {len(ex.get('code', ''))} chars")
-    return result
-
-
 def test_machine_code():
     """Test machine code generation (syntax check)."""
     print("\n" + "=" * 60)
@@ -219,8 +188,6 @@ def run_all_tests():
     # 1. Documentation tools
     test_get_doc()
     test_get_workload()
-    test_get_template()
-    test_get_examples()
 
     # 2. Assembly analysis tools
     test_machine_code()
@@ -239,9 +206,6 @@ def run_single_tool(tool_name: str):
     tool_tests = {
         "get_doc": test_get_doc,
         "get_workload": test_get_workload,
-        "get_template": test_get_template,
-        "get_examples": test_get_examples,
-        "get_assembly_code_examples": test_get_examples,
         "machine_code_generation": test_machine_code,
         "get_instruction_size": test_instruction_size,
         "run_simulator": test_run_simulator,

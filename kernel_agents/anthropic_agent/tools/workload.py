@@ -86,11 +86,29 @@ def get_workload(
             "o_proj_shape": [num_attention_heads * head_dim, hidden_size],
         })
 
-    elif layer_type == "projection":
+    elif layer_type in ("projection", "linear"):
         workload.update({
             "hidden_size": hidden_size,
             "input_shape": [batch_size * seq_len, hidden_size],
             "weight_shape": [hidden_size, hidden_size],
+            "description": "Single matrix multiply: Y = X @ W",
+        })
+
+    elif layer_type == "fully_connected":
+        # Alias for FFN - "fully connected" in LLMs typically means the FFN block
+        workload.update({
+            "hidden_size": hidden_size,
+            "intermediate_size": intermediate_size,
+            "activation": model_config.get("hidden_act", "silu"),
+            "up_weight_shape": [hidden_size, intermediate_size],
+            "gate_weight_shape": [hidden_size, intermediate_size],
+            "down_weight_shape": [intermediate_size, hidden_size],
+            "input_shape": [batch_size * seq_len, hidden_size],
+            "description": "FFN with SwiGLU: Y = down(silu(up(X)) * gate(X))",
+            "fp_sram_layout": {
+                0: "0.0 (for negation: 0 - x = -x)",
+                1: "1.0 (for sigmoid: 1 + exp(-x))",
+            },
         })
 
     elif layer_type == "rms_norm":

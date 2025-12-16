@@ -25,7 +25,7 @@ def debug_view_memory(
     """
     View simulator memory output and compare with golden reference for debugging.
 
-    Use this tool when MSE is high to understand what went wrong:
+    Use this tool when match_rate is low to understand what went wrong:
     - See actual values produced by your assembly code
     - Compare side-by-side with expected golden values
     - Identify patterns (all zeros = not computed, wrong values = incorrect addressing)

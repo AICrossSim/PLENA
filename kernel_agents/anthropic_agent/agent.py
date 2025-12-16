@@ -13,7 +13,6 @@ from .tools import (
     machine_code_generation,
     run_simulator,
     get_instruction_size,
-    get_workload,
     debug_view_memory,
     read_file,
 )
@@ -35,20 +34,26 @@ This is the PRIMARY tool for testing assembly code. It does everything automatic
 Returns:
 - success: bool - True if simulation completed
 - latency_ns: float - Execution time in nanoseconds
-- mse: float - Mean Squared Error vs golden. Must be close to target ~8.41e-04 (small margin allowed)
+- match_rate: float - Percentage of values within tolerance vs golden
+- mse: float - Mean Squared Error vs golden (secondary metric)
 - errors: list - Any errors encountered
 
 IMPORTANT: If model_name is provided, dimensions are auto-loaded from model config.
 This ensures test dimensions match the model you're generating assembly for.
 
-Success criteria: MSE close to ~8.41e-04. Keep iterating until this is achieved.""",
+Success criteria by layer type:
+- Linear: match_rate > 85%
+- FFN: match_rate > 75% (lower due to accumulated quantization across 3 matmuls + SiLU)
+- Attention: match_rate > 70% (lower due to Q@K.T + softmax + @V stages)
+- RMS norm, SiLU, Softmax: match_rate > 95%
+Keep iterating until the target is achieved.""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "assembly_code": {"type": "string", "description": "PLENA assembly code to test"},
                 "layer_type": {
                     "type": "string",
-                    "enum": ["linear", "ffn", "rms_norm", "silu"],
+                    "enum": ["linear", "ffn", "attention", "rms_norm", "silu", "softmax"],
                     "description": "Layer type for test data generation (default: linear)",
                 },
                 "model_name": {
@@ -61,46 +66,22 @@ Success criteria: MSE close to ~8.41e-04. Keep iterating until this is achieved.
                     "type": "integer",
                     "description": "FFN intermediate size (default: 4*hidden_size, only used for ffn)",
                 },
+                "num_heads": {
+                    "type": "integer",
+                    "description": "Number of attention heads (default: 1, only used for attention)",
+                },
                 "batch_size": {"type": "integer", "description": "Batch size (default: 4)"},
-                "seq_len": {"type": "integer", "description": "Sequence length (default: 1)"},
+                "seq_len": {"type": "integer", "description": "Sequence length (default: 1, use >1 for attention)"},
             },
             "required": ["assembly_code"],
-        },
-    },
-    {
-        "name": "get_workload",
-        "description": """Get model dimensions and FP_SRAM layout for a specific layer type.
-
-Use this to get correct dimensions (hidden_size, intermediate_size, etc.) for real models.
-Returns:
-- hw_config: Hardware config (MLEN=64, VLEN=64, BLEN=4)
-- layer-specific shapes
-- fp_sram_layout: CRITICAL - tells you which constants are at which FP_SRAM indices.
-  ALWAYS check fp_sram_layout to know where 1.0, epsilon, etc. are stored.
-  Example for silu: {0: "0.0", 1: "1.0"} means load 1.0 from index 1, not 0.""",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "model_name": {
-                    "type": "string",
-                    "description": "Model name (e.g., 'llama-3.2-1b', 'llama-3.1-8b')",
-                },
-                "layer_type": {
-                    "type": "string",
-                    "enum": ["ffn", "attention", "projection", "rms_norm", "silu"],
-                    "description": "Layer type",
-                },
-                "batch_size": {"type": "integer", "description": "Batch size (default: 1)"},
-                "seq_len": {"type": "integer", "description": "Sequence length (default: 1)"},
-            },
-            "required": ["model_name", "layer_type"],
         },
     },
     {
         "name": "machine_code_generation",
         "description": """Check assembly syntax by assembling to machine code.
 
-Use this for quick syntax validation without running full simulation. you have to first generate the machine code to be runed in the simulator, you cannot run the assmbely code in the simulator
+Use this ONLY for quick syntax validation without running full simulation.
+NOTE: run_simulator() already includes syntax checking, so you typically don't need to call this separately.
 Returns syntax_errors list and instruction_count.""",
         "input_schema": {
             "type": "object",
@@ -123,7 +104,7 @@ Returns breakdown by category (Matrix, Vector, Scalar, HBM, Control).""",
         "name": "debug_view_memory",
         "description": """View simulator memory output and compare with golden reference for debugging.
 
-Use this tool when MSE is high to understand what went wrong:
+Use this tool when match_rate is low to understand what went wrong:
 - See actual values produced by your assembly code
 - Compare side-by-side with expected golden values
 - Identify patterns: all zeros = not computed, wrong values = incorrect addressing
@@ -137,7 +118,7 @@ BEFORE calling this tool, you MUST trace your code in your thinking:
 IMPORTANT: Set num_batches and hidden_size to match your test configuration!
 Default is batch=4, hidden=128. If debugging fails, try skip_reorder=True for raw memory view.
 
-Returns per-row analysis showing simulated vs golden values, min/max/mean stats, and row-level MSE.""",
+Returns per-row analysis showing simulated vs golden values, min/max/mean stats, and per-row accuracy.""",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -184,7 +165,7 @@ using the ISA spec and memory layout docs provided in the system prompt.
 
 Useful paths:
 - behavioral_simulator/src/op.rs - Instruction execution logic
-- behavioral_simulator/testbench/check_mem.py - Golden comparison, MSE calculation
+- behavioral_simulator/testbench/check_mem.py - Golden comparison, match_rate calculation
 - tools/assembler/assembly_to_binary.py - Assembler implementation
 - src/definitions/configuration.svh - Hardware params (VLEN, MLEN, BLEN)""",
         "input_schema": {
@@ -209,7 +190,6 @@ TOOL_FUNCTIONS = {
     "machine_code_generation": machine_code_generation,
     "run_simulator": run_simulator,
     "get_instruction_size": get_instruction_size,
-    "get_workload": get_workload,
     "debug_view_memory": debug_view_memory,
     "read_file": read_file,
 }
@@ -236,6 +216,7 @@ class AnthropicAgent:
         enable_thinking: bool = True,
         thinking_budget: int = 10000,
         include_examples: bool = False,
+        layer_type: str = "linear",
     ):
         """
         Initialize the agent.
@@ -248,11 +229,14 @@ class AnthropicAgent:
             enable_thinking: Enable extended thinking for better reasoning
             thinking_budget: Token budget for thinking (default 10000)
             include_examples: Include working assembly examples in system prompt (default False)
+            layer_type: Layer type for layer-specific prompt ('linear', 'ffn', 'attention', etc.)
         """
         self.client = anthropic_sdk.Anthropic(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
-        self.system_prompt = system_prompt or get_system_prompt(include_examples=include_examples)
+        self.system_prompt = system_prompt or get_system_prompt(
+            layer_type=layer_type, include_examples=include_examples
+        )
         self.messages: List[Dict] = []
         self.tools = list(TOOLS)  # Copy to allow modifications
         self.tool_functions = dict(TOOL_FUNCTIONS)
