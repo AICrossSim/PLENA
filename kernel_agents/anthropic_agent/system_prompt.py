@@ -86,16 +86,16 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
    a) REGISTER INITIALIZATION CHECK:
       - List every register you use (gp0-gp15, f0-f7, a0-a7)
       - For each: Is it initialized BEFORE first use?
-      - COMMON BUG: Using a register in S_SUB_INT before setting its value
+      - GW? COMMON BUG: Using a register in S_SUB_INT before setting its value
 
    b) LOOP CORRECTNESS CHECK:
-      - For each C_LOOP_START: What register? How many iterations?
+      - For each C_LOOP_START: Which register is used as the loop counter? How many iterations?
       - Does the iteration count match your tiling math?
       - At loop end, are pointers reset correctly for next iteration?
       - COMMON BUG: Forgetting to reset activation pointer after inner loop
 
    c) DATA DEPENDENCY CHECK:
-      - For every memory READ (M_MM, V_* ops), trace WHERE that data comes from
+      - For every memory READ (M_*, V_* ops), trace WHERE that data comes from
       - Was it prefetched? Was it computed by a prior instruction?
       - If M_MM reads from Matrix SRAM address X, when was X written by H_PREFETCH_M?
       - Ask: "If I execute this code step by step, is the data there when I need it?"
@@ -106,10 +106,10 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
       - Does the final address make sense? Is it within expected bounds?
 
    e) COMPLETENESS CHECK:
-      - How many output elements total? (batch × output_dim)
-      - How many elements does each M_MM_WO write? (BLEN × BLEN)
+      - How many output elements total? (batch x output_dim)
+      - How many elements does each M_MM_WO write? (BLEN x BLEN)
       - Total M_MM_WO calls needed = total_elements / elements_per_write
-      - Count your actual M_MM_WO calls × loop iterations. Do they match?
+      - Count your actual M_MM_WO calls x loop iterations. Do they match?
 
 5. Generate opcode before running simulation
    - Use machine_code_generation() to convert assembly to machine code.
@@ -135,13 +135,13 @@ HIGH-LEVEL WORKFLOW (FOLLOW THIS STRICTLY)
    - Avoid micro-fixes and avoid re-issuing nearly identical kernels.
 
 8. ITERATE UNTIL ACCURATE
-   - Success criteria: MSE must be close to ~8.41e-04 (small margin allowed)
+   - Success criteria: Match Rate must be close to ~80% (small margin allowed)
    - If MSE is too high (e.g., nan, > 0.01, or significantly above target):
      • Analyze what went wrong (wrong addresses, incorrect tiling, missing operations)
      • Fix the assembly code
      • Re-run simulator
-     • Keep iterating until MSE reaches ~8.41e-04
-   - Only terminate when MSE is close to target:
+     • Keep iterating until Match Rate reaches ~80%
+   - Only terminate when Match Rate is close to target:
      • STOP calling tools.
      • Return final kernel in a ```asm``` block, plus a concise explanation.
 
