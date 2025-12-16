@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import ffn_asm, preload_addr_reg_asm, reset_reg_asm, preload_act_asm
+from compiler.asm_templates import ffn_asm, preload_addr_reg_asm, reset_reg_asm, preload_act_asm, rms_norm_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 
@@ -81,6 +81,8 @@ class LlamaFeedForward(nn.Module):
         print(outcome[:, 64:72])
         # print("final output:\n", self.w3(self.act(self.w1(x)) * self.w2(x)))
         return self.w3(self.act(self.w1(x)) * self.w2(x))
+    
+    
 
 if __name__ == "__main__":
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
@@ -177,6 +179,23 @@ if __name__ == "__main__":
             activation_base_address=0,
             use_fused_up_gate=False
         )
+
+        # Reset the registers
+        gen_assembly_code += reset_reg_asm(
+            alive_registers=[1,2,3,4,5,6,7,8,9,10,11,12]
+        )
+
+        gen_assembly_code += rms_norm_asm(
+            _eps_offset=1,
+            reci_hid_offset=2,
+            alive_registers=[1,2,3,4,5],
+            activation_base_address = 0,
+            scratchpad_base_address = hidden_size * batch_size,
+            vlen=64,
+            batch_size=4,
+            hidden_dim=128
+        )
+
     else:
         # Loop version needs 10 registers (gp1-gp10)
         gen_assembly_code += ffn_asm(
