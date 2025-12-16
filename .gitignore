@@ -35,7 +35,6 @@ tools/alib-52/
 acc_simulator/third_party/fast-hadamard-transform/
 behavioral_simulator/testbench/original_output.txt
 tools/sys_modelling/*.png
-tools/aria-llama-ops/
 
 src/basic_components/synopsis/
 .Xil
