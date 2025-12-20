@@ -115,7 +115,7 @@ def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, 
         memory_data_manager = MemoryDataManager()
         for pt_file in pt_files:
             if pt_file.stem != "int":
-                print("loading file", pt_file)
+                # print("loading file", pt_file)
                 file_raw_data = Random_MXFP_Tensor_Generator(
                     shape           =   tuple(data_config["tensor_size"]),
                     quant_config    =   quant_config,
@@ -128,7 +128,7 @@ def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, 
                 # Multiple mx files are all kept
                 memory_data_manager.add_mx_file(pt_file.name, blocks, bias)
             else:
-                print("loading file", pt_file)
+                # print("loading file", pt_file)
                 int_data = torch.load(pt_file)
                 memory_data_manager.add_int_file(pt_file.name, int_data)
     # generate_golden_result(data, logger, precision_settings, data_config)

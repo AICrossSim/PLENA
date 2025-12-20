@@ -258,7 +258,7 @@ def compare_with_golden(bin_file,
             errors / np.abs(golden_values),
             errors
         )
-    print("relative_errors is:\n", relative_errors)
+    # print("relative_errors is:\n", relative_errors)
     mean_relative_error = np.mean(relative_errors)
 
     # Match rate (within tolerance) - using relative error

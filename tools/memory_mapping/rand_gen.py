@@ -9,7 +9,8 @@ from quant.quantizer.hardware_quantizer import _mx_fp_quantize_hardware, _minifl
 from quant.quantizer.hardware_quantizer.mxint import _mx_int_quantize_hardware
 
 logger = get_logger("test_bin_mxfp")
-set_logging_verbosity("debug")
+# set_logging_verbosity("debug")
+set_logging_verbosity("warning")
 set_excepthook()
 
 class Random_MXINT_Tensor_Generator:
@@ -117,7 +118,7 @@ class Random_MXFP_Tensor_Generator:
     def tensor_load(self):
         if self.directory and self.filename:
             file_path = os.path.join(self.directory, self.filename)
-            print("loading file", file_path)
+            # print("loading file", file_path)
             if os.path.exists(file_path):
                 tensor = torch.load(file_path)
                 logger.debug(f"Tensor loaded from {file_path}")

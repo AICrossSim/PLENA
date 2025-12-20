@@ -81,9 +81,9 @@ def env_setup(memory_data_manager, build_path: str, data_config, quant_config, h
         if entry["type"] == "mx":
             blocks = entry["blocks"]
             bias = entry["bias"]
-            print("blocks", blocks)
-            print("bias", bias)
-            print(f"Processing mx file: {entry.get('filename', 'unknown')}")
+            # print("blocks", blocks)
+            # print("bias", bias)
+            # print(f"Processing mx file: {entry.get('filename', 'unknown')}")
             # map_data_to_fake_hbm_for_rtl_sim(   
             #                     blocks          =blocks,
             #                     element_width   =quant_config["exp_width"] + quant_config["man_width"] + 1,
@@ -106,7 +106,7 @@ def env_setup(memory_data_manager, build_path: str, data_config, quant_config, h
                                     hbm_row_width   =hbm_row_width)
         elif entry["type"] == "int":
             data = entry["data"]
-            print(f"Processing int file: {entry.get('filename', 'unknown')}")
+            # print(f"Processing int file: {entry.get('filename', 'unknown')}")
             map_normal_data_to_hbm_for_behave_sim(
                                     data            =data,
                                     data_width      =quant_config["int_width"],
