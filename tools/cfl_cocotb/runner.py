@@ -163,9 +163,27 @@ def veri_runner(
 
     # Group path is components/<group>
     test_filepath = inspect.stack()[1].filename
-    group_path = Path(test_filepath).parent.parent
+    test_dir = Path(test_filepath).parent
+    group_path = test_dir.parent
     # Components path is components
     module_path = group_path.joinpath("rtl").joinpath(f"{module}.sv")
+
+    # Resolve relative paths in additional_include_paths
+    if additional_include_paths:
+        additional_include_paths = [
+            str((test_dir / p).resolve()) if not Path(p).is_absolute() else p
+            for p in additional_include_paths
+        ]
+
+    # Resolve relative paths in definitions_path
+    if definitions_path:
+        if isinstance(definitions_path, str):
+            definitions_path = [str((test_dir / definitions_path).resolve()) if not Path(definitions_path).is_absolute() else definitions_path]
+        else:
+            definitions_path = [
+                str((test_dir / p).resolve()) if not Path(p).is_absolute() else p
+                for p in definitions_path
+            ]
 
     if template:
         template_path = group_path.joinpath("rtl").joinpath(f"{module}.sv.template")
