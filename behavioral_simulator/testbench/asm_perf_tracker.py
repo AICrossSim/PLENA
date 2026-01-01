@@ -24,6 +24,14 @@ class AsmPerfTracker:
         total_lines = len(self.assembly_code.splitlines())
         self.stats.append(f"\nTotal assembly lines: {total_lines}")
 
+        # Print summary to console
+        print("\n" + "=" * 60)
+        print(f"{self.test_name} Assembly Generation Stats")
+        print("=" * 60)
+        for stat in self.stats:
+            print(stat)
+        print("=" * 60)
+
         # Write to perf.log in root
         perf_file_path = Path(__file__).parent.parent.parent / output_file
         with open(perf_file_path, "w") as f:

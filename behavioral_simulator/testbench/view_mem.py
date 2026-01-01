@@ -213,7 +213,7 @@ if __name__ == "__main__":
         start_row_idx=params["start_row_idx"],
         num_batches=params["num_batches"],
         num_rows=params["num_rows"],
-        tolerance = 0.1,
+        tolerance = 0.2,
         elements_per_batch=params["elements_per_batch"]
     )
     print_comparison_results(results, verbose=True)

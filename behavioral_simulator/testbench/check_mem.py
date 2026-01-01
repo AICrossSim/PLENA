@@ -297,6 +297,25 @@ def print_comparison_results(results, verbose=False):
     print(f"  Match Rate:                    {results['match_rate']:.6f}%")
     print()
 
+    if verbose:
+        import numpy as np
+        errors = results['errors']
+        print("Error Statistics:")
+        print(f"  Min error:                  {np.min(errors):.6f}")
+        print(f"  Max error:                  {np.max(errors):.6f}")
+        print(f"  Median error:               {np.median(errors):.6f}")
+        print(f"  Std deviation:             {np.std(errors):.6f}")
+        print()
+
+        # Find indices with largest errors
+        top_5_indices = np.argsort(errors)[-5:][::-1]
+        print("Top 5 Largest Errors:")
+        for idx in top_5_indices:
+            print(f"  Index {idx:4d}: Golden={results['golden_values'][idx]:8.4f}, "
+                  f"Simulated={results['simulated_values'][idx]:8.4f}, "
+                  f"Error={errors[idx]:.6f}")
+        print()
+
 if __name__ == "__main__":
     # Example usage
     script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
