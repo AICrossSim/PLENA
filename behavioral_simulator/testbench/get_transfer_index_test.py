@@ -20,132 +20,31 @@ from transformers import AutoTokenizer
 # how to run this testbench?
 # -> just build-behave-sim-debug get_transfer_index 2>&1 | tee simulation_dllm.log
 
-########## Code copied from FastdLLM for reference ############
-
-def get_transfer_index(
-    logits: torch.Tensor,
-    remasking: str,
-    mask_index: torch.Tensor,   # (B, L) bool
-    x: torch.Tensor,            # (B, L) long
-    threshold: float = 0.9,
-):
-    """
-    Returns:
-        x0: (B, L) long — proposed tokens
-        transfer_index: (B, L) bool — which positions to update this step
-    """
-    # 1) Sample proposal x0
-    # Gumbel-noise for exploration; if temperature==0, add_gumbel_noise should no-op
-    x0 = torch.argmax(logits, dim=-1)  # (B, L), long
-
-    # 2) Confidence for chosen tokens (or random)
-    if remasking == "low_confidence":
-        # Use higher precision for softmax stability
-        p = F.softmax(logits.to(torch.float64), dim=-1)
-        x0_p = torch.gather(p, dim=-1, index=x0.unsqueeze(-1)).squeeze(-1)  # (B, L), float64
-    elif remasking == "random":
-        x0_p = torch.rand(x0.shape, device=x0.device, dtype=torch.float64)  # (B, L)
-    else:
-        raise NotImplementedError(remasking)
-
-    # Only modify masked spots; keep others as original x and set their confidence to -inf
-    x0 = torch.where(mask_index, x0, x)
-
-    neg_inf = torch.tensor(torch.finfo(x0_p.dtype).min, device=x0_p.device, dtype=x0_p.dtype)
-    confidence = torch.where(mask_index, x0_p, neg_inf)  # (B, L)
-
-    # 3) Pick positions to transfer (vectorized)
-    # Transfer all masked positions whose confidence >= threshold
-    # (No top-k; purely threshold-based)
-    transfer_index = mask_index & (confidence >= threshold)
-    return x0, transfer_index
-
-
-
-def generate(model, prompt, steps=128, gen_length=128, block_length=128, temperature=0.,
-             remasking='low_confidence', mask_id=126336, threshold=None, factor=None):
-    '''
-    Args:
-        model: Mask predictor.
-        prompt: A tensor of shape (1, L).
-        steps: Sampling steps, less than or equal to gen_length.
-        gen_length: Generated answer length.
-        block_length: Block length, less than or equal to gen_length. If less than gen_length, it means using semi_autoregressive remasking.
-        temperature: Categorical distribution sampling temperature.
-        cfg_scale: Unsupervised classifier-free guidance scale.
-        remasking: Remasking strategy. 'low_confidence' or 'random'.
-        mask_id: The toke id of [MASK] is 126336.
-    '''
-    x = torch.full((prompt.shape[0], prompt.shape[1] + gen_length), mask_id, dtype=torch.long).to(model.device)
-    x[:, :prompt.shape[1]] = prompt.clone()
-
-    assert gen_length % block_length == 0
-    num_blocks = gen_length // block_length
-
-    assert steps % num_blocks == 0
-    steps = steps // num_blocks
-
-    nfe = 0
-    for num_block in range(num_blocks):
-        block_mask_index = (x[:, prompt.shape[1] + num_block * block_length: prompt.shape[1] + (num_block + 1) * block_length] == mask_id)
-        num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps)
-        i = 0
-        while True:
-            nfe += 1
-            mask_index = (x == mask_id)
-            logits = model(x).logits
-            mask_index[:, prompt.shape[1] + (num_block + 1) * block_length:] = 0
-            x0, transfer_index = get_transfer_index(logits, temperature, remasking, mask_index, x, num_transfer_tokens[:, i], threshold)
-            x[transfer_index] = x0[transfer_index]
-            i += 1
-            if (x[:, prompt.shape[1] + num_block * block_length: prompt.shape[1] + (num_block + 1) * block_length] == mask_id).sum() == 0:
-                break
-    return x, nfe
-
-###############################################################
-
 
 """
 INT Memory Layout:
 ==================================================================================================
 Address Range                                                       | Content     | Size
 ==================================================================================================
-[0 : prompt_batch_size*hidden_size)                                 | x           | prompt_batch_size*hidden_size
+[0 : prompt_batch_size*gen_length)                                  | x           | prompt_batch_size*gen_length
 --------------------------------------------------------------------------------------------------
-[prompt_batch_size*hidden_size : 2*prompt_batch_size*hidden_size)   | x0          | prompt_batch_size*hidden_size
+[prompt_batch_size*gen_length : 2*prompt_batch_size*gen_length)     | x0          | prompt_batch_size*gen_length
 ==================================================================================================
 
 VRAM Memory Layout:
 ==================================================================================
-Address Range                                     | Content         | Size
+Address Range                                          | Content         | Size
 ==================================================================================
-[0 : B*L)                                         | transfer_index  | B * L
+[0 : B*vlen)                                           | transfer_index  | B * vlen
 ----------------------------------------------------------------------------------
-[B*L : 2*B*L)                                     | mask            | B * L
+[B*vlen : 2*B*vlen)                                    | mask            | B * vlen
 ----------------------------------------------------------------------------------
-[2*B*L : 3*B*L)                                   | x0_p            | B * L
+[2*B*vlen : 3*B*vlen)                                  | x0_p            | B * vlen
 ----------------------------------------------------------------------------------
-                                                  |                 | (transfer_index result)
-[3*B*L : 3*B*L + vocal_size_single)               | temp            | vocal_size_single
-                                                  |                 | (for exp(logits-max))
-                                                  |                 |
-[3*B*L + vlen : 3*B*L + vocal_size_single + veln) | logits          | vocal_size_single
-                                                  |                 | *** OVERLAPS with temp ***
-                                                  |                 | (offset +vlen from temp)
+[3*B*vlen : 3*B*vlen + vocal_size_single)              | logits          | edge MODE, juts preload a chunk of logits from HBM to SRAM each time 
+OR                                                     |                 |
+[3*B*L + vlen : 3*B*L + vocal_size*gen_length*batch_R) | logits          | performance MODE, preload [batch_R,gen_length,vocal_size] of logits each time
 ==================================================================================
-
-Memory Reuse Strategy:
-    - temp and logits OVERLAP by (vocal_size_single - vlen) elements
-    - When processing logits in vlen-sized chunks:
-        * Process logits[i*vlen : (i+1)*vlen]
-        * Compute exp() and store in temp[i*vlen : (i+1)*vlen]
-        * By the time we need temp[0:vlen], logits[0:vlen] is already consumed
-    - This saves (vocal_size_single - vlen) elements of VRAM
-
-Example (vocal_size_single=640, vlen=64):
-    temp:   [256, 896)
-    logits: [320, 960)  ← starts vlen elements after temp
-    overlap:[320, 896)  ← 576 elements shared between temp and logits
 """
 
 class TEST(torch.nn.Module):
@@ -175,7 +74,6 @@ class TEST(torch.nn.Module):
 
         # Only modify masked spots; keep others as original x and set their confidence to -inf
         x0 = torch.where(mask_index, x0, x)
-        #x0 = x0
         
         neg_inf = torch.tensor(torch.finfo(x0_p.dtype).min, device=x0_p.device, dtype=x0_p.dtype)
         print('mask_index.shape= ', mask_index.shape)
@@ -210,23 +108,6 @@ class TEST(torch.nn.Module):
         output = torch.cat([x , x0,transfer_index], dim=0)
         return output
 
-    def _stable_max_method(self, logits):
-        # Method 2: use max logit for numerical stability (no explicit softmax)
-        #logits # (B, L, V)
-        m = logits.max(dim=-1).values                 # (B, L)
-        sub_result = logits - m.unsqueeze(-1)         # (B, L, V)
-        exp_shifted = torch.exp(sub_result)           # (B, L, V)
-        denom = exp_shifted.sum(dim=-1)               # (B, L)
-        reciprocal_denom = 1.0 / denom                # (B, L)
-
-        print('reciprocal_denom = ', reciprocal_denom)
-        #return logits + reciprocal_denom.unsqueeze(-1)
-
-        x0 = torch.argmax(logits, dim=-1)
-
-        output = torch.cat([reciprocal_denom , x0], dim=0)
-        return output
-
     def forward(self, logits, mask_index, x, num_transfer_tokens):
         """
         Args:
@@ -238,22 +119,24 @@ class TEST(torch.nn.Module):
             transfer_index: (B, L) bool — selected positions mask
         """
         output = self._get_transfer_index(logits, mask_index, x, num_transfer_tokens).type_as(logits)
-        #output = self._stable_max_method(logits).type_as(logits)
         return output
 
 
 if __name__ == "__main__":
+    # Testing the operation logits in shape of (batch_size, gen_length, vocal_size)
+    # example [16,64,64*1984]
 
-    # target logits.shape =  torch.Size([1, 64, 126464]) 126464=64*1976
-
-    # Testing the operation logits in shape of (batch_size, hidden_size, vocal_size)
-    # the largest setup for vocal_size and vocal_size_single is 64*1976 and 64*494 respectively
-    mode = "edge"
+    # ============ Configuration ============
+    # Select test mode: 'edge' or 'performance'
+    TEST_MODE = 'performance'  # Change this to switch test mode
+    if TEST_MODE not in ['edge', 'performance']:
+        raise ValueError(f"TEST_MODE must be 'edge' or 'performance', but got '{TEST_MODE}'")
+    # ========================================
     steps=1
-    vocal_size = 64*4  #1984=64*31
-    vocal_size_single = 64*2  #64*494
-    hidden_size = 64
-    vlen = 128
+    vocal_size = 64*4 
+    vocal_size_single = 64*2
+    gen_length = 64
+    vlen = 128  # reminder: 1. sync this value in the "plena_settings.toml" 2.veln>gen_length
     repeat_times = vocal_size//vocal_size_single
     batch_size = 4
     batch_R = 2
@@ -261,7 +144,7 @@ if __name__ == "__main__":
     mask_id=0
     preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    hbm_data_width = hidden_size
+    hbm_data_width = 64 # fix number according to the HBM2e setup
     fp_preload = [0.0, 0.0, 0, 1e-3]
     # Different k values for each batch item (number of tokens to select)
     k_values = [8]
@@ -272,18 +155,18 @@ if __name__ == "__main__":
     
     torch.manual_seed(68)
     # logits shape should be (B, L, vocab_size) for get_transfer_index
-    x = torch.full((prompt_batch_size, hidden_size), mask_id)
-    int_preload = torch.randint(low=mask_id, high=mask_id+1, size=(prompt_batch_size*hidden_size,), dtype=torch.int32)
-    logits = torch.randn(batch_size, hidden_size * vocal_size)
+    x = torch.full((prompt_batch_size, gen_length), mask_id)
+    int_preload = torch.randint(low=mask_id, high=mask_id+1, size=(prompt_batch_size*gen_length,), dtype=torch.int32)
+    logits = torch.randn(batch_size, gen_length * vocal_size)
     x = x.type_as(logits)
 
     # Generate random mask (some positions are masked, some are not)
     # mask should be (B, L) matching the sequence length
-    mask = torch.rand(batch_size, hidden_size) < 0.5
+    mask = torch.rand(batch_size, gen_length) < 0.5
     
     # Pad mask to align with vlen if needed
-    if hidden_size < vlen:
-        pad_size = vlen - hidden_size
+    if gen_length < vlen:
+        pad_size = vlen - gen_length
         # Pad with False (dummy values) on the right side (dim=1)
         mask_padded = torch.cat([mask, torch.zeros(batch_size, pad_size, dtype=torch.bool)], dim=1)
         # Use original mask for golden result computation
@@ -296,13 +179,12 @@ if __name__ == "__main__":
     num_transfer_tokens = torch.tensor(k_values, dtype=torch.long)
     original_layer = TEST()
     # Use original mask (without padding) for golden result
-    original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask_for_golden, x, num_transfer_tokens)
-    #original_output = torch.max(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1).values
-    #original_output = torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
+    original_output = original_layer(logits.reshape(batch_size, gen_length, vocal_size), mask_for_golden, x, num_transfer_tokens)
+    #original_output = torch.max(logits.reshape(batch_size, gen_length, vocal_size), dim=-1).values
+    #original_output = torch.sum(logits.reshape(batch_size, gen_length, vocal_size), dim=-1)
     # Convert mask to float for quantization (simulator requires float input)
     # Use padded mask for simulation
     mask = mask_padded.type_as(logits)
-    #int_mask_preload = torch.cat([mask , int_preload], dim=0)
     x = x.type_as(logits)
 
     print('x.shape= ', x.shape)
@@ -331,18 +213,12 @@ if __name__ == "__main__":
     transfer_idx_offset_address = 0
     mask_offset_address = (batch_size * vlen)
     x0_p_offset_address = (batch_size * vlen)*2
-    logits_offset_address = x0_p_offset_address + vlen
-
-    print('logits_offset_address = ',logits_offset_address)
-
-    logits_i_address = logits_offset_address + 63*vlen*(repeat_times*vocal_size_single // vlen)
-    print('logits_i_address = ',logits_i_address)
-    #mask_offset_address = (batch_size * hidden_size)*2 + logits_offset_address + (vocal_size_single)
+    logits_offset_address = (batch_size * vlen)*3
     
     gen_assembly_code += preload_addr_reg_asm(
         addr_reg_to_set=[1,2],
         available_registers=[1,2],
-        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size*hidden_size*vocal_size*real_data_ratio, hbm_data_width)),int(align_addr_to_hbm_bandwidth(batch_size*hidden_size*vocal_size*real_data_ratio, hbm_data_width)+align_addr_to_hbm_bandwidth(batch_size*hidden_size*real_data_ratio, hbm_data_width))]
+        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size*gen_length*vocal_size*real_data_ratio, hbm_data_width)),int(align_addr_to_hbm_bandwidth(batch_size*gen_length*vocal_size*real_data_ratio, hbm_data_width)+align_addr_to_hbm_bandwidth(batch_size*gen_length*real_data_ratio, hbm_data_width))]
     )
 
     # Reset the registers
@@ -370,7 +246,7 @@ if __name__ == "__main__":
     )
 
 
-    if mode == "edge":
+    if TEST_MODE == "edge":
         gen_assembly_code += get_transfer_index_edge(
             alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
             logits_base_address=logits_offset_address,
@@ -384,7 +260,7 @@ if __name__ == "__main__":
             batch_size=batch_size,
             prompt_batch_size=prompt_batch_size,
             vocal_size_single=vocal_size_single,
-            hidden_size=hidden_size,
+            gen_length=gen_length,
         )
     else:
         gen_assembly_code += get_transfer_index_performance(
@@ -400,7 +276,7 @@ if __name__ == "__main__":
             prompt_batch_size=prompt_batch_size,
             batch_R=batch_R,
             vocal_size=vocal_size,
-            hidden_size=hidden_size,
+            gen_length=gen_length,
         )
     
     
