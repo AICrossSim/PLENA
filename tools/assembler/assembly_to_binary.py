@@ -46,9 +46,21 @@ class AssemblyToBinary:
         ow = self.operands_width
         opw = self.opcode_width
 
-        if instruction.opcode in ["S_ADDI_INT",  "M_MM_WO", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "S_MAP_V_FP", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
+        if instruction.opcode in ["S_ADDI_INT",  "M_MM_WO", "S_LD_FP", "S_ST_FP", "S_LD_INT", "S_ST_INT", "V_RED_MAX", "V_RECI_V", "V_EXP_V"]:
             binary_instruction = (
                 (imm << (opw + 2 * ow)) +
+                (rs1 << (opw + ow)) +
+                (rd << opw) +
+                opcode
+            )
+        elif instruction.opcode in ["S_MAP_V_FP"]:
+            # S_MAP_V_FP: rd, rs1, imm, len_reg (4 operands)
+            # Format: opcode (6) + rd (4) + rs1 (4) + len_reg (4) + imm (14)
+            # len_reg is stored in rstride field from parser
+            len_reg = instruction.rstride if instruction.rstride is not None else 0
+            binary_instruction = (
+                (imm << (opw + 3 * ow)) +
+                (len_reg << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
                 (rd << opw) +
                 opcode
@@ -91,14 +103,17 @@ class AssemblyToBinary:
                 opcode
             )
         elif instruction.opcode in ["V_TOPK_MASK"]:
-            # V_TOPK_MASK uses 3 vector operands + 1 scalar: rd, rs1, rs2, k_scalar
+            # V_TOPK_MASK uses 3 vector operands + 2 scalars: rd, rs1, rs2, k_scalar, len_reg
             # rd (vector): output mask
             # rs1 (vector): confidence values
             # rs2 (vector): input mask
             # k_scalar (scalar): number of top elements to select
-            # The k_scalar is stored in rstride field from parser
+            # len_reg (scalar): vector length
+            # The k_scalar is stored in rstride field, len_reg in funct1 field from parser
             k_scalar = instruction.rstride if instruction.rstride is not None else 0
+            len_reg = instruction.funct1 if instruction.funct1 is not None else 0
             binary_instruction = (
+                (len_reg << (opw + 4 * ow)) +
                 (k_scalar << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +
@@ -123,14 +138,17 @@ class AssemblyToBinary:
                 opcode
             )
         elif instruction.opcode in ["S_SELECT_INT"]:
-            # S_SELECT_INT has 4 gp register parameters (processes VLEN elements per instruction):
-            #   rd: output base in INT SRAM (VLEN elements)
-            #   rs1: src1 base in INT SRAM (VLEN elements, selected when mask != 0)
-            #   rs2: src2 base in INT SRAM (VLEN elements, selected when mask == 0)
-            #   rstride (rs3): mask address in VECTOR SRAM (VLEN float elements)
-            # Note: using rstride field for mask address (rs3)
+            # S_SELECT_INT has 5 gp register parameters:
+            #   rd: output base in INT SRAM
+            #   rs1: src1 base in INT SRAM (selected when mask != 0)
+            #   rs2: src2 base in INT SRAM (selected when mask == 0)
+            #   rstride (rs3): mask address in VECTOR SRAM
+            #   funct1 (rs4/len_reg): number of elements to process
+            # Note: using rstride field for mask address (rs3), funct1 field for len_reg (rs4)
             mask_addr_reg = instruction.rstride if instruction.rstride is not None else 0
+            len_reg = instruction.funct1 if instruction.funct1 is not None else 0
             binary_instruction = (
+                (len_reg << (opw + 4 * ow)) +
                 (mask_addr_reg << (opw + 3 * ow)) +
                 (rs2 << (opw + 2 * ow)) +
                 (rs1 << (opw + ow)) +

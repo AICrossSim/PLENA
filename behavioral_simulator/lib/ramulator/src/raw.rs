@@ -91,7 +91,7 @@ impl Ramulator {
             "LPDDR5" => 8,
             "GDDR6" => 8,
             "HBM" => 2,
-            "HBM2" => 2,
+            "HBM2" => 4,  // it supports BL4 (Burst Length 4)
             "HBM3" => 2,
             _ => unreachable!(),
         };

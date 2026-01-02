@@ -216,17 +216,26 @@ def parse_asm_file(file_path: str) -> List[Instruction]:
                         imm = int(operand_2)
                     except ValueError:
                         pass
-                try:
-                    rstride = int(operand_3)
-                except ValueError:
-                    rstride = None
+                # operand_3 can be register or immediate
+                if operand_3.strip().startswith(('gp','f','a')):
+                    rstride = parse_reg_or_int(operand_3)
+                else:
+                    try:
+                        rstride = int(operand_3)
+                    except ValueError:
+                        rstride = None
+                # operand_4 can be register (for new instructions with 5 reg params) or funct1
                 funct1_raw = operand_4.strip()
                 if funct1_raw.endswith(';'):
                     funct1_raw = funct1_raw[:-1]
-                try:
-                    funct1 = int(funct1_raw)
-                except ValueError:
-                    funct1 = funct1_raw  # fallback, if not int, keep as string
+                if funct1_raw.startswith(('gp','f','a')):
+                    # This is a register, store it in funct1 field for now
+                    funct1 = parse_reg_or_int(funct1_raw)
+                else:
+                    try:
+                        funct1 = int(funct1_raw)
+                    except ValueError:
+                        funct1 = funct1_raw  # fallback, if not int, keep as string
             elif len(operands) == 6:
                 operand_0, operand_1, operand_2, operand_3, operand_4, operand_5 = operands
                 rd = parse_reg_or_int(operand_0)

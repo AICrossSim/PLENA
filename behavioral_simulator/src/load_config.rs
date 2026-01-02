@@ -143,6 +143,8 @@ pub struct LatencySection {
     pub vector_max_cycles: LatencyValue,
     #[serde(rename = "VECTOR_SUM_CYCLES")]
     pub vector_sum_cycles: LatencyValue,
+    #[serde(rename = "VECTOR_TOPK_CYCLES")]
+    pub vector_topk_cycles: LatencyValue,
     #[serde(rename = "SCALAR_FP_LONGEST_OPERATE_CYCLES")]
     pub scalar_fp_longest_operate_cycles: LatencyValue,
     #[serde(rename = "SCALAR_FP_BASIC_CYCLES")]
@@ -309,6 +311,10 @@ impl Default for AcceleratorConfig {
                 },
                 vector_sum_cycles: LatencyValue {
                     dc_lib_en: 8,
+                    dc_lib_dis: 20,
+                },
+                vector_topk_cycles: LatencyValue {
+                    dc_lib_en: 20,
                     dc_lib_dis: 20,
                 },
                 scalar_fp_longest_operate_cycles: LatencyValue {
@@ -523,6 +529,10 @@ pub fn vector_sum_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.vector_sum_cycles)
 }
 
+pub fn vector_topk_cycles() -> u32 {
+    get_dc_lib_value(&CONFIG.latency.vector_topk_cycles)
+}
+
 pub fn vector_add_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.vector_add_cycles)
 }
@@ -558,6 +568,15 @@ pub fn scalar_fp_reci_cycles() -> u32 {
 
 pub fn scalar_int_basic_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.scalar_int_basic_cycles)
+}
+
+// SRAM transfer and select cycles - these are fixed values as they're not in config
+pub fn sram_vector_transfer_cycles() -> u32 {
+    1  // Fixed value for SRAM vector transfer cycles
+}
+
+pub fn sram_select_cycles() -> u32 {
+    1  // Fixed value for SRAM select cycles
 }
 
 pub fn max_loop_instructions() -> usize {

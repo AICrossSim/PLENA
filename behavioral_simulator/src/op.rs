@@ -152,6 +152,7 @@ pub enum Opcode {
         rs1: u8,
         rs2: u8,
         k_scalar: u8,
+        len_reg: u8,  // Register containing vector length
     },
 
     S_ADD_FP {
@@ -200,6 +201,7 @@ pub enum Opcode {
         rd: u8,
         rs1: u8,
         imm: u32,
+        len_reg: u8,  // Register containing vector length
     },
 
     S_ADD_INT {
@@ -237,11 +239,11 @@ pub enum Opcode {
         imm: u32,
     },
     S_SELECT_INT {
-        rd: u8,      // gp register: base offset for output in INT SRAM (VLEN elements)
-        rs1: u8,     // gp register: base offset for src1 in INT SRAM (selected when mask != 0, VLEN elements)
-        rs2: u8,     // gp register: base offset for src2 in INT SRAM (selected when mask == 0, VLEN elements)
-        rs3: u8,     // gp register: address of mask vector in VECTOR SRAM (VLEN float elements)
-                     // Processes VLEN elements per instruction
+        rd: u8,      // gp register: base offset for output in INT SRAM
+        rs1: u8,     // gp register: base offset for src1 in INT SRAM (selected when mask != 0)
+        rs2: u8,     // gp register: base offset for src2 in INT SRAM (selected when mask == 0)
+        rs3: u8,     // gp register: address of mask vector in VECTOR SRAM
+        len_reg: u8, // gp register: number of elements to process
     },
 
     H_PREFETCH_M {
@@ -294,6 +296,7 @@ const OPERAND_WIDTH: u32 = 4;
 const OPCODE_WIDTH: u32 = 6;
 const IMM_WIDTH: u32 = 22;
 const IMM_2_WIDTH: u32 = 18;
+const IMM_3_WIDTH: u32 = 14;  // For instructions with 3 register operands + imm
 
 const fn mask(width: u32) -> u32 {
     ((1 << width) - 1) as u32
@@ -336,9 +339,11 @@ impl Opcode {
         let rs1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(OPERAND_WIDTH)) as u8;
         let rs2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(OPERAND_WIDTH)) as u8;
         let rs3 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 3)) & mask(OPERAND_WIDTH)) as u8;
+        let rs4 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 4)) & mask(OPERAND_WIDTH)) as u8;
         let funct1 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 4)) & mask(OPERAND_WIDTH)) as u8;
         let imm = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH)) & mask(IMM_WIDTH)) as u32;
         let imm2 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 2)) & mask(IMM_2_WIDTH)) as u32;
+        let imm3 = ((instr >> (OPCODE_WIDTH + OPERAND_WIDTH * 3)) & mask(IMM_3_WIDTH)) as u32;  // For rd, rs1, rs2, imm format
 
         match opcode {
             0x00 => Self::Invalid,
@@ -378,7 +383,7 @@ impl Opcode {
             0x1D => Self::S_SQRT_FP { rd, rs1 },
             0x1E => Self::S_LD_FP { rd, rs1, imm: imm2 },
             0x1F => Self::S_ST_FP { rd, rs1, imm: imm2 },
-            0x20 => Self::S_MAP_V_FP { rd, rs1, imm: imm2 },
+            0x20 => Self::S_MAP_V_FP { rd, rs1, imm: imm3, len_reg: rs2 },
 
             // Scalar Operations (INT)
             0x21 => Self::S_ADD_INT { rd, rs1, rs2 },
@@ -421,8 +426,8 @@ impl Opcode {
             0x30 => Self::C_LOOP_END { rd },
             0x34 => Self::V_RED_MAX_IDX { rd, rs1, rs2, rs3 },
             0x35 => Self::V_SELECT_VVM { rd, rs1, rs2, mask: rs3 },
-            0x36 => Self::V_TOPK_MASK { rd, rs1, rs2, k_scalar: rs3 },
-            0x37 => Self::S_SELECT_INT { rd, rs1, rs2, rs3 },
+            0x36 => Self::V_TOPK_MASK { rd, rs1, rs2, k_scalar: rs3, len_reg: rs4 },
+            0x37 => Self::S_SELECT_INT { rd, rs1, rs2, rs3, len_reg: rs4 },
             0x38 => Self::C_BREAK,
             
             _ => {

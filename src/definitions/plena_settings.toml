@@ -29,13 +29,13 @@ value = 512
 value = 1024
 
 [CONFIG.VECTOR_SRAM_SIZE]
-value = 1024
+value = 262144  # 32MB: 262144 rows * 64 VLEN * 2 bytes (FP16) = 33,554,432 bytes = 32 MB
 
 [CONFIG.HBM_M_Prefetch_Amount]
 value = 64
 
 [CONFIG.HBM_V_Prefetch_Amount]
-value = 1
+value = 4
 
 [CONFIG.HBM_V_Writeback_Amount]
 value = 16
@@ -159,6 +159,10 @@ dc_lib_dis = 7
 [LATENCY.VECTOR_MAX_CYCLES]
 dc_lib_en = 4
 dc_lib_dis = 4
+
+[LATENCY.VECTOR_TOPK_CYCLES]
+dc_lib_en = 20
+dc_lib_dis = 20
 
 [LATENCY.VECTOR_SUM_CYCLES]
 dc_lib_en = 8

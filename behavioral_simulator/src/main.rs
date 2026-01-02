@@ -1,6 +1,7 @@
 mod load_config;
 mod op; // Add this line to include the config module
 
+use std::collections::HashMap;
 use std::future::Future;
 use std::io::Write;
 use std::mem::ManuallyDrop;
@@ -8,6 +9,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::Parser;
 use futures::StreamExt;
@@ -36,7 +38,10 @@ static VECTOR_MUL_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_mul_cycles());
 static VECTOR_EXP_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_exp_cycles());
 static VECTOR_RECI_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_reci_cycles());
 static VECTOR_MAX_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_max_cycles());
+static VECTOR_TOPK_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_topk_cycles());
 static VECTOR_SUM_CYCLES: LazyLock<u32> = LazyLock::new(|| vector_sum_cycles());
+static SRAM_VECTOR_TRANSFER_CYCLES: LazyLock<u32> = LazyLock::new(|| sram_vector_transfer_cycles());
+static SRAM_SELECT_CYCLES: LazyLock<u32> = LazyLock::new(|| sram_select_cycles());
 static SCALAR_FP_BASIC_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_basic_cycles());
 static SCALAR_FP_EXP_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_exp_cycles());
 static SCALAR_FP_SQRT_CYCLES: LazyLock<u32> = LazyLock::new(|| scalar_fp_sqrt_cycles());
@@ -60,6 +65,82 @@ static VECTOR_ACTIVATION_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_ac
 static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type());
 static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount());
 static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
+
+// Instruction profiling statistics
+static INSTRUCTION_STATS: LazyLock<HashMap<&'static str, AtomicU64>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    // Category-level stats (for backward compatibility)
+    map.insert("matrix_ops", AtomicU64::new(0));
+    map.insert("vector_ops", AtomicU64::new(0));
+    map.insert("scalar_ops", AtomicU64::new(0));
+    map.insert("memory_ops", AtomicU64::new(0));
+    map.insert("control_ops", AtomicU64::new(0));
+    map.insert("h_prefetch_v", AtomicU64::new(0));
+    map.insert("h_prefetch_m", AtomicU64::new(0));
+    map.insert("total_cycles", AtomicU64::new(0));
+    
+    // Individual instruction stats
+    // Vector instructions
+    map.insert("V_ADD_VV", AtomicU64::new(0));
+    map.insert("V_ADD_VF", AtomicU64::new(0));
+    map.insert("V_SUB_VV", AtomicU64::new(0));
+    map.insert("V_SUB_VF", AtomicU64::new(0));
+    map.insert("V_MUL_VV", AtomicU64::new(0));
+    map.insert("V_MUL_VF", AtomicU64::new(0));
+    map.insert("V_EXP_V", AtomicU64::new(0));
+    map.insert("V_RECI_V", AtomicU64::new(0));
+    map.insert("V_RED_SUM", AtomicU64::new(0));
+    map.insert("V_RED_MAX", AtomicU64::new(0));
+    map.insert("V_RED_MAX_IDX", AtomicU64::new(0));
+    map.insert("V_SELECT_VVM", AtomicU64::new(0));
+    map.insert("V_TOPK_MASK", AtomicU64::new(0));
+    
+    // Scalar instructions
+    map.insert("S_ADD_FP", AtomicU64::new(0));
+    map.insert("S_SUB_FP", AtomicU64::new(0));
+    map.insert("S_MUL_FP", AtomicU64::new(0));
+    map.insert("S_MAX_FP", AtomicU64::new(0));
+    map.insert("S_EXP_FP", AtomicU64::new(0));
+    map.insert("S_RECI_FP", AtomicU64::new(0));
+    map.insert("S_SQRT_FP", AtomicU64::new(0));
+    map.insert("S_ADD_INT", AtomicU64::new(0));
+    map.insert("S_ADDI_INT", AtomicU64::new(0));
+    map.insert("S_SUB_INT", AtomicU64::new(0));
+    map.insert("S_MUL_INT", AtomicU64::new(0));
+    map.insert("S_LUI_INT", AtomicU64::new(0));
+    map.insert("S_LD_INT", AtomicU64::new(0));
+    map.insert("S_ST_INT", AtomicU64::new(0));
+    map.insert("S_LD_FP", AtomicU64::new(0));
+    map.insert("S_ST_FP", AtomicU64::new(0));
+    map.insert("S_MAP_V_FP", AtomicU64::new(0));
+    map.insert("S_SELECT_INT", AtomicU64::new(0));
+    
+    // Control instructions
+    map.insert("C_SET_ADDR_REG", AtomicU64::new(0));
+    map.insert("C_SET_SCALE_REG", AtomicU64::new(0));
+    map.insert("C_SET_STRIDE_REG", AtomicU64::new(0));
+    map.insert("C_SET_V_MASK_REG", AtomicU64::new(0));
+    map.insert("C_LOOP_START", AtomicU64::new(0));
+    map.insert("C_LOOP_END", AtomicU64::new(0));
+    map.insert("C_BREAK", AtomicU64::new(0));
+    
+    // Matrix instructions
+    map.insert("M_MM", AtomicU64::new(0));
+    map.insert("M_MM_WO", AtomicU64::new(0));
+    map.insert("M_TMM", AtomicU64::new(0));
+    map.insert("M_BMM", AtomicU64::new(0));
+    map.insert("M_BTMM", AtomicU64::new(0));
+    map.insert("M_BMM_WO", AtomicU64::new(0));
+    map.insert("M_MV", AtomicU64::new(0));
+    map.insert("M_TMV", AtomicU64::new(0));
+    map.insert("M_MV_WO", AtomicU64::new(0));
+    
+    // HBM instructions
+    map.insert("H_PREFETCH_M", AtomicU64::new(0));
+    map.insert("H_PREFETCH_V", AtomicU64::new(0));
+    
+    map
+});
 
 /// Address handling utilities.
 ///
@@ -89,6 +170,41 @@ macro_rules! cycle {
         runtime::Executor::current()
             .resolve_at(PERIOD * ($cycle as u32))
             .await;
+    };
+}
+
+macro_rules! profile_cycle {
+    ($category: expr, $cycle: expr) => {
+        let cycles = $cycle as u64;
+        INSTRUCTION_STATS.get($category).unwrap().fetch_add(cycles, Ordering::Relaxed);
+        INSTRUCTION_STATS.get("total_cycles").unwrap().fetch_add(cycles, Ordering::Relaxed);
+        runtime::Executor::current()
+            .resolve_at(PERIOD * ($cycle as u32))
+            .await;
+    };
+}
+
+macro_rules! record_cycles {
+    ($category: expr, $cycle: expr) => {
+        let cycles = $cycle as u64;
+        if let Some(cat) = INSTRUCTION_STATS.get($category) {
+            cat.fetch_add(cycles, Ordering::Relaxed);
+        }
+        if let Some(total) = INSTRUCTION_STATS.get("total_cycles") {
+            total.fetch_add(cycles, Ordering::Relaxed);
+        }
+    };
+    ($category: expr, $instr: expr, $cycle: expr) => {
+        let cycles = $cycle as u64;
+        if let Some(cat) = INSTRUCTION_STATS.get($category) {
+            cat.fetch_add(cycles, Ordering::Relaxed);
+        }
+        if let Some(instr) = INSTRUCTION_STATS.get($instr) {
+            instr.fetch_add(cycles, Ordering::Relaxed);
+        }
+        if let Some(total) = INSTRUCTION_STATS.get("total_cycles") {
+            total.fetch_add(cycles, Ordering::Relaxed);
+        }
     };
 }
 
@@ -505,6 +621,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor() + (f as f64), a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_ADD_VF", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             // mask is a bitmask; each bit controls whether to apply 'f' to corresponding mask_unit-section
@@ -524,6 +641,7 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_ADD_VF", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -534,10 +652,12 @@ impl VectorMachine {
             if matches!(rorder, op::VectorOrder::Normal) {
                 let c = QuantTensor::quantize(a.as_tensor() - (f as f64), a.data_type());
                 cycle!(*VECTOR_ADD_CYCLES);
+                record_cycles!("vector_ops", "V_ADD_VF", *VECTOR_ADD_CYCLES);
                 self.vram.write(vd, c).await;
             } else {
                 let c = QuantTensor::quantize((f as f64) - a.as_tensor(), a.data_type());
                 cycle!(*VECTOR_ADD_CYCLES);
+                record_cycles!("vector_ops", "V_ADD_VF", *VECTOR_ADD_CYCLES);
                 self.vram.write(vd, c).await;
             }
         } else {
@@ -562,6 +682,7 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_SUB_VF", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -571,6 +692,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor() * (f as f64), a.data_type());
             cycle!(*VECTOR_MUL_CYCLES);
+            record_cycles!("vector_ops", "V_MUL_VF", *VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             // println!("======================== V_ADD_VF ==========================");
@@ -593,6 +715,7 @@ impl VectorMachine {
                 println!("c = {}", c.as_tensor());
             }
             cycle!(*VECTOR_MUL_CYCLES);
+            record_cycles!("vector_ops", "V_MUL_VF", *VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -602,6 +725,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor() + b.as_tensor(), a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_ADD_VV", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             // println!("======================== V_ADD ==========================");
@@ -624,6 +748,7 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_ADD_VV", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -633,6 +758,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor() - b.as_tensor(), a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_SUB_VV", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             let result = a.as_tensor().shallow_clone();
@@ -648,6 +774,7 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_ADD_CYCLES);
+            record_cycles!("vector_ops", "V_SUB_VV", *VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -657,6 +784,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor() * b.as_tensor(), a.data_type());
             cycle!(*VECTOR_MUL_CYCLES);
+            record_cycles!("vector_ops", "V_MUL_VV", *VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             let result = a.as_tensor().shallow_clone();
@@ -672,6 +800,7 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_MUL_CYCLES);
+            record_cycles!("vector_ops", "V_MUL_VV", *VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -681,6 +810,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor().exp(), a.data_type());
             cycle!(*VECTOR_EXP_CYCLES);
+            record_cycles!("vector_ops", "V_EXP_V", *VECTOR_EXP_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             let result = a.as_tensor().shallow_clone();
@@ -696,6 +826,7 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_EXP_CYCLES);
+            record_cycles!("vector_ops", "V_EXP_V", *VECTOR_EXP_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
@@ -705,6 +836,7 @@ impl VectorMachine {
         if rmask == 0 {
             let c = QuantTensor::quantize(a.as_tensor().reciprocal(), a.data_type());
             cycle!(*VECTOR_RECI_CYCLES);
+            record_cycles!("vector_ops", "V_RECI_V", *VECTOR_RECI_CYCLES);
             self.vram.write(vd, c).await;
         } else {
             let result = a.as_tensor().shallow_clone();
@@ -720,25 +852,33 @@ impl VectorMachine {
             }
             let c = QuantTensor::quantize(result, a.data_type());
             cycle!(*VECTOR_RECI_CYCLES);
+            record_cycles!("vector_ops", "V_RECI_V", *VECTOR_RECI_CYCLES);
             self.vram.write(vd, c).await;
         }
     }
 
-    async fn vector_transfer_fp(&mut self, vd: u32, f: &[f16]) {
-        assert_eq!(f.len(), self.vram.tile_size() as usize, "Input vector length must match tile_size");
-        // Convert f16 slice to f32 vector
-        let f32_vec: Vec<f32> = f.iter().map(|x| f32::from(*x)).collect();
+    async fn vector_transfer_fp(&mut self, vd: u32, f: &[f16], vec_len: usize) {
+        assert!(f.len() >= vec_len, "Input vector length must be at least vec_len");
+        assert!(vec_len <= self.vram.tile_size() as usize, "vec_len cannot exceed tile_size");
+        // Convert f16 slice to f32 vector (only use vec_len elements)
+        let f32_vec: Vec<f32> = f[..vec_len].iter().map(|x| f32::from(*x)).collect();
+        // Pad with zeros if vec_len < tile_size
+        let mut padded_vec = f32_vec;
+        while padded_vec.len() < self.vram.tile_size() as usize {
+            padded_vec.push(0.0);
+        }
         // Create tensor from f32 vector
-        let tensor = tch::Tensor::from_slice(&f32_vec);
+        let tensor = tch::Tensor::from_slice(&padded_vec);
         // Quantize the tensor according to vram data type
         let c = QuantTensor::quantize(tensor, self.vram.ty());
-        cycle!(*VLEN);
+        cycle!(vec_len as u32);
         self.vram.write(vd, c).await;
     }
 
     async fn reduce_sum(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_SUM_CYCLES);
+        record_cycles!("vector_ops", "V_RED_SUM", *VECTOR_SUM_CYCLES);
         if rmask == 0 {
             let val: f32 = a.as_tensor().sum(tch::Kind::Float).try_into().unwrap();
             f + val
@@ -762,6 +902,7 @@ impl VectorMachine {
     async fn reduce_max(&mut self, vs1: u32, f: f32, rmask: u8, mask: u32) -> f32 {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_MAX_CYCLES);
+        record_cycles!("vector_ops", "V_RED_MAX", *VECTOR_MAX_CYCLES);
         if rmask == 0 {
             let val: f32 = a.as_tensor().max().try_into().unwrap();
             f32::max(val, f)
@@ -785,6 +926,7 @@ impl VectorMachine {
     async fn reduce_max_idx(&mut self, vs1: u32, prev_idx: u32, prev_max_val: f32, offset: u32) -> (u32, f32) {
         let a = self.vram.read(vs1).await;
         cycle!(*VECTOR_MAX_CYCLES);
+        record_cycles!("vector_ops", "V_RED_MAX_IDX", *VECTOR_MAX_CYCLES);
     
         let tensor = a.as_tensor();
     
@@ -831,11 +973,12 @@ impl VectorMachine {
         let result = a.as_tensor().where_self(&mask.as_tensor().ne(0.0), b.as_tensor());
         let c = QuantTensor::quantize(result, a.data_type());
         cycle!(*VECTOR_ADD_CYCLES);
+        record_cycles!("vector_ops", "V_SELECT_VVM", *VECTOR_ADD_CYCLES);
         self.vram.write(vd, c).await;
     }
 
 
-    async fn topk_mask(&mut self, vd: u32, confidence_addr: u32, mask_addr: u32, k: u32) {
+    async fn topk_mask(&mut self, vd: u32, confidence_addr: u32, mask_addr: u32, k: u32, vec_len: u32) {
         // Read confidence vector and input mask
         let (confidence, input_mask) = tokio::join!(
             self.vram.read(confidence_addr),
@@ -846,31 +989,47 @@ impl VectorMachine {
         // This ensures the function is Send-safe
         let neg_inf = f32::NEG_INFINITY;
         let k_i64 = k as i64;
+        let vec_len_i64 = vec_len as i64;
         
         let result = {
             let conf_tensor = confidence.as_tensor();
             let mask_tensor = input_mask.as_tensor();
-            let seq_len = conf_tensor.size()[0];
-            let k_clamped = k_i64.min(seq_len);
+            
+            // Only process the first vec_len elements
+            let conf_slice = conf_tensor.narrow(0, 0, vec_len_i64);
+            let mask_slice = mask_tensor.narrow(0, 0, vec_len_i64);
+            
+            let k_clamped = k_i64.min(vec_len_i64);
             
             // Set non-masked positions to negative infinity
-            let masked_conf = conf_tensor.where_self(
-                &mask_tensor.ne(0.0), 
-                &tch::Tensor::full_like(conf_tensor, neg_inf as f64)
+            let masked_conf = conf_slice.where_self(
+                &mask_slice.ne(0.0), 
+                &tch::Tensor::full_like(&conf_slice, neg_inf as f64)
             );
             
             // Get top-k indices (topk returns (values, indices))
             let (_values, indices) = masked_conf.topk(k_clamped, 0, true, false);
             
             // Create output mask: 1.0 for top-k positions, 0.0 for others
-            let output_mask = tch::Tensor::zeros_like(conf_tensor).scatter_value(0, &indices, 1.0);
+            let output_mask_slice = tch::Tensor::zeros_like(&conf_slice).scatter_value(0, &indices, 1.0);
             
             // Ensure we only select from originally masked positions
-            output_mask.where_self(&mask_tensor.ne(0.0), &tch::Tensor::zeros_like(conf_tensor))
+            let result_slice = output_mask_slice.where_self(&mask_slice.ne(0.0), &tch::Tensor::zeros_like(&conf_slice));
+            
+            // Pad result to full tile_size with zeros
+            if vec_len < self.tile_size {
+                let padding_size = self.tile_size as i64 - vec_len_i64;
+                let padding = tch::Tensor::zeros(&[padding_size], (tch::Kind::Float, tch::Device::Cpu));
+                tch::Tensor::cat(&[result_slice, padding], 0)
+            } else {
+                result_slice
+            }
         };
         
         let c = QuantTensor::quantize(result, confidence.data_type());
-        cycle!(*VECTOR_ADD_CYCLES);
+        //cycle!(vec_len);
+        cycle!(20);
+        record_cycles!("vector_ops", "V_TOPK_MASK", 20);
         self.vram.write(vd, c).await;
     }
 }
@@ -962,7 +1121,7 @@ impl Accelerator {
             assert!(element_bits.is_power_of_two());
 
             let len_in_bits_per_load = element_bits as u32 * load_dim;
-            assert!(len_in_bits_per_load.is_multiple_of(8 * 64));
+            assert!(len_in_bits_per_load.is_multiple_of(8 * (*VLEN))); // 8 * 64
             let len_in_bytes_per_load = len_in_bits_per_load / 8;
 
             // Calculate scale bytes per load iteration (for Mx types)
@@ -1321,13 +1480,14 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_TOPK_MASK { rd, rs1, rs2, k_scalar } => {
+                op::Opcode::V_TOPK_MASK { rd, rs1, rs2, k_scalar, len_reg } => {
                     self.v_machine
                         .topk_mask(
                             self.reg_file.gp_reg[*rd as usize],
                             self.reg_file.gp_reg[*rs1 as usize],
                             self.reg_file.gp_reg[*rs2 as usize],
                             self.reg_file.gp_reg[*k_scalar as usize],
+                            self.reg_file.gp_reg[*len_reg as usize],
                         )
                         .await;
                 }
@@ -1423,11 +1583,13 @@ impl Accelerator {
                     self.reg_file.fp_reg[*rd as usize] =
                         self.reg_file.fp_reg[*rs1 as usize] + self.reg_file.fp_reg[*rs2 as usize];
                     cycle!(*SCALAR_FP_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_ADD_FP", *SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_SUB_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         self.reg_file.fp_reg[*rs1 as usize] - self.reg_file.fp_reg[*rs2 as usize];
                     cycle!(*SCALAR_FP_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_SUB_FP", *SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_MAX_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[*rd as usize] = f16::max(
@@ -1435,88 +1597,108 @@ impl Accelerator {
                         self.reg_file.fp_reg[*rs2 as usize],
                     );
                     cycle!(*SCALAR_FP_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_MAX_FP", *SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_MUL_FP { rd, rs1, rs2 } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         self.reg_file.fp_reg[*rs1 as usize] * self.reg_file.fp_reg[*rs2 as usize];
                     cycle!(*SCALAR_FP_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_MUL_FP", *SCALAR_FP_BASIC_CYCLES);
                 }
                 op::Opcode::S_EXP_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         f16::from_f32(f32::exp(self.reg_file.fp_reg[*rs1 as usize].into()));
                     cycle!(*SCALAR_FP_EXP_CYCLES);
+                    record_cycles!("scalar_ops", "S_EXP_FP", *SCALAR_FP_EXP_CYCLES);
                 }
                 op::Opcode::S_RECI_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         f16::ONE / self.reg_file.fp_reg[*rs1 as usize];
                     cycle!(*SCALAR_FP_RECI_CYCLES);
+                    record_cycles!("scalar_ops", "S_RECI_FP", *SCALAR_FP_RECI_CYCLES);
                 }
                 op::Opcode::S_SQRT_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         f16::from_f32(f32::from(self.reg_file.fp_reg[*rs1 as usize]).sqrt());
                     cycle!(*SCALAR_FP_SQRT_CYCLES);
+                    record_cycles!("scalar_ops", "S_SQRT_FP", *SCALAR_FP_SQRT_CYCLES);
                 }
                 op::Opcode::S_LD_FP { rd, rs1, imm } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         self.fpsram[(self.reg_file.gp_reg[*rs1 as usize] + *imm) as usize];
                     cycle!(1);
+                    record_cycles!("scalar_ops", "S_LD_FP", 1);
                 }
                 op::Opcode::S_ST_FP { rd, rs1, imm } => {
                     self.fpsram[(self.reg_file.gp_reg[*rs1 as usize] + *imm) as usize] =
                         self.reg_file.fp_reg[*rd as usize];
                     cycle!(1);
+                    record_cycles!("scalar_ops", "S_ST_FP", 1);
                 }
-                op::Opcode::S_MAP_V_FP { rd, rs1, imm } => {
+                op::Opcode::S_MAP_V_FP { rd, rs1, imm, len_reg } => {
                     let start_idx = (self.reg_file.gp_reg[*rs1 as usize] + *imm) as usize;
-                    let end_idx = start_idx + *VLEN as usize;
+                    let vec_len = self.reg_file.gp_reg[*len_reg as usize] as usize;
+                    let end_idx = start_idx + vec_len;
                     let f = &self.fpsram[start_idx..end_idx];
                     self.v_machine
                         .vector_transfer_fp(
                             self.reg_file.gp_reg[*rd as usize],
                             f,
+                            vec_len,
                         )
                         .await;
-                    cycle!(*VLEN);
+                    // Cost: vec_len cycles for reading from FP SRAM
+                    // The vector_transfer_fp already accounts for vec_len cycles for writing to VECTOR SRAM
+                    cycle!(vec_len as u32);
+                    record_cycles!("scalar_ops", "S_MAP_V_FP", vec_len as u32);
+                    //cycle!(1);
                 }
                 op::Opcode::S_ADD_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[*rd as usize] = self.reg_file.gp_reg[*rs1 as usize]
                         .wrapping_add(self.reg_file.gp_reg[*rs2 as usize]);
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_ADD_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_ADDI_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[*rd as usize] =
                         self.reg_file.gp_reg[*rs1 as usize].wrapping_add(*imm as u32);
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_ADDI_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_SUB_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[*rd as usize] = self.reg_file.gp_reg[*rs1 as usize]
                         .wrapping_sub(self.reg_file.gp_reg[*rs2 as usize]);
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_SUB_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_MUL_INT { rd, rs1, rs2 } => {
                     self.reg_file.gp_reg[*rd as usize] = self.reg_file.gp_reg[*rs1 as usize]
                         .wrapping_mul(self.reg_file.gp_reg[*rs2 as usize]);
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_MUL_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_LUI_INT { rd, imm } => {
                     self.reg_file.gp_reg[*rd as usize] = (*imm as u32) << 12;
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_LUI_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_LD_INT { rd, rs1, imm } => {
                     self.reg_file.gp_reg[*rd as usize] =
                         self.intsram[(self.reg_file.gp_reg[*rs1 as usize] + *imm) as usize];
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_LD_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
                 op::Opcode::S_ST_INT { rd, rs1, imm } => {
                     self.intsram[(self.reg_file.gp_reg[*rs1 as usize] + *imm) as usize] =
                         self.reg_file.gp_reg[*rd as usize];
                     cycle!(*SCALAR_INT_BASIC_CYCLES);
+                    record_cycles!("scalar_ops", "S_ST_INT", *SCALAR_INT_BASIC_CYCLES);
                 }
-                op::Opcode::S_SELECT_INT { rd, rs1, rs2, rs3 } => {
-                    // S_SELECT_INT: Vector-width element-wise select on INT SRAM with mask from VECTOR SRAM
-                    // Processes VLEN elements in one instruction
+                op::Opcode::S_SELECT_INT { rd, rs1, rs2, rs3, len_reg } => {
+                    // S_SELECT_INT: Element-wise select on INT SRAM with mask from VECTOR SRAM
+                    // Processes len_reg elements in one instruction
                     // 
-                    // Operation: For each i in 0..VLEN:
+                    // Operation: For each i in 0..vec_len:
                     //   if mask_vector[i] != 0.0:  (mask from VECTOR SRAM as float)
                     //     INT_SRAM[out_base + i] = INT_SRAM[src1_base + i]
                     //   else:
@@ -1526,13 +1708,14 @@ impl Accelerator {
                     let src1_base = self.reg_file.gp_reg[*rs1 as usize] as usize;
                     let src2_base = self.reg_file.gp_reg[*rs2 as usize] as usize;
                     let mask_addr = self.reg_file.gp_reg[*rs3 as usize];
+                    let vec_len = self.reg_file.gp_reg[*len_reg as usize] as usize;
                     
-                    // Read entire mask vector (VLEN elements) from VECTOR SRAM
+                    // Read mask vector from VECTOR SRAM
                     let mask = self.v_machine.vram.read(mask_addr).await;
                     let mask_tensor = mask.as_tensor();
                     
-                    // Process all VLEN elements in parallel (conceptually)
-                    for i in 0..(*VLEN as usize) {
+                    // Process vec_len elements
+                    for i in 0..vec_len {
                         let mask_val: f32 = mask_tensor.i(i as i64).try_into().unwrap();
                         let result = if mask_val != 0.0 {
                             self.intsram[src1_base + i]
@@ -1542,8 +1725,10 @@ impl Accelerator {
                         self.intsram[out_base + i] = result;
                     }
                     
-                    // Cost: VLEN cycles for vector read + VLEN for parallel processing
-                    cycle!(*VLEN * 2);
+                    // Cost: vec_len cycles for vector read + vec_len for parallel processing
+                    cycle!(vec_len as u32 * 1);
+                    record_cycles!("scalar_ops", "S_SELECT_INT", vec_len as u32 * 1);
+                    //cycle!(4);
                 }
                 op::Opcode::H_PREFETCH_M {
                     rd,
@@ -1552,6 +1737,9 @@ impl Accelerator {
                     rstride,
                     precision,
                 } => {
+                    // Record start time for H_PREFETCH_M latency measurement
+                    let start_time = Executor::current().now();
+                    
                     // TODO: rstride support to be added
                     let offset = self.reg_file.gp_reg[*rs1 as usize];
                     let addr = self.reg_file.hbm_addr_reg[*rs2 as usize];
@@ -1586,6 +1774,16 @@ impl Accelerator {
                             xfer,
                         )
                         .await;
+                    
+                    // Record end time and accumulate latency
+                    let end_time = Executor::current().now();
+                    let elapsed_ns = ((end_time.to_secs() - start_time.to_secs()) * 1e9) as u64;
+                    if let Some(prefetch_m) = INSTRUCTION_STATS.get("h_prefetch_m") {
+                        prefetch_m.fetch_add(elapsed_ns, Ordering::Relaxed);
+                    }
+                    if let Some(instr) = INSTRUCTION_STATS.get("H_PREFETCH_M") {
+                        instr.fetch_add(elapsed_ns, Ordering::Relaxed);
+                    }
                 }
                 op::Opcode::H_PREFETCH_V {
                     rd,
@@ -1594,6 +1792,9 @@ impl Accelerator {
                     rstride,
                     precision,
                 } => {
+                    // Record start time for H_PREFETCH_V latency measurement
+                    let start_time = Executor::current().now();
+                    
                     // TODO: rstride support to be added
                     let offset = self.reg_file.gp_reg[*rs1 as usize];
                     let addr = self.reg_file.hbm_addr_reg[*rs2 as usize];
@@ -1625,6 +1826,16 @@ impl Accelerator {
                         .vram
                         .continous_write_delayed(dest, *PREFETCH_V_AMOUNT, xfer)
                         .await;
+                    
+                    // Record end time and accumulate latency
+                    let end_time = Executor::current().now();
+                    let elapsed_ns = ((end_time.to_secs() - start_time.to_secs()) * 1e9) as u64;
+                    if let Some(prefetch_v) = INSTRUCTION_STATS.get("h_prefetch_v") {
+                        prefetch_v.fetch_add(elapsed_ns, Ordering::Relaxed);
+                    }
+                    if let Some(instr) = INSTRUCTION_STATS.get("H_PREFETCH_V") {
+                        instr.fetch_add(elapsed_ns, Ordering::Relaxed);
+                    }
                 }
                 op::Opcode::H_STORE_V {
                     rd,
@@ -1638,18 +1849,22 @@ impl Accelerator {
                         | (self.reg_file.gp_reg[*rs2 as usize] as u64);
                     self.reg_file.hbm_addr_reg[*rd as usize] = imm;
                     cycle!(1);
+                    record_cycles!("control_ops", "C_SET_ADDR_REG", 1);
                 }
                 op::Opcode::C_SET_SCALE_REG { rd } => {
                     self.reg_file.scale = self.reg_file.gp_reg[*rd as usize];
                     cycle!(1);
+                    record_cycles!("control_ops", "C_SET_SCALE_REG", 1);
                 }
                 op::Opcode::C_SET_STRIDE_REG { rd } => {
                     self.reg_file.stride = self.reg_file.gp_reg[*rd as usize];
                     cycle!(1);
+                    record_cycles!("control_ops", "C_SET_STRIDE_REG", 1);
                 }
                 op::Opcode::C_SET_V_MASK_REG { rd } => {
                     self.reg_file.v_mask = self.reg_file.gp_reg[*rd as usize];
                     cycle!(1);
+                    record_cycles!("control_ops", "C_SET_V_MASK_REG", 1);
                 }
                 op::Opcode::C_LOOP_START { rd, imm } => {
                     // Store iteration count in register
@@ -1670,6 +1885,7 @@ impl Accelerator {
                         println!("C_LOOP_START: Starting loop at PC {} with {} iterations", pc, iteration_count);
                     }
                     cycle!(1);
+                    record_cycles!("control_ops", "C_LOOP_START", 1);
                 }
                 op::Opcode::C_LOOP_END { rd } => {
                     // Find the matching loop (most recent loop with matching register)
@@ -1710,6 +1926,7 @@ impl Accelerator {
                         panic!("C_LOOP_END: No matching C_LOOP_START found for register {}", *rd);
                     }
                     cycle!(1);
+                    record_cycles!("control_ops", "C_LOOP_END", 1);
                 }
                 op::Opcode::C_BREAK => {
                     // Break out of the innermost loop
@@ -1723,6 +1940,7 @@ impl Accelerator {
                         panic!("C_BREAK: No active loop to break out of");
                     }
                     cycle!(1);
+                    record_cycles!("control_ops", "C_BREAK", 1);
                 }
             }
             
@@ -1801,7 +2019,7 @@ async fn start() {
     }; // Share same dim with VSRAM
 
     let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
-        ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
+        ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(16).unwrap()),
         memory::MemoryBacked::with_capacity(*HBM_SIZE),
     )));
 
@@ -1819,7 +2037,7 @@ async fn start() {
             bmm_scale: 0.25,
             v_mask: 0,
         },
-        intsram: vec![0; 1024],
+        intsram: vec![0; 4096],
         fpsram: vec![f16::ZERO; 1024],
         loop_stack: Vec::new(),
     };
@@ -1917,6 +2135,147 @@ async fn start() {
         "HBM Statistics - Bytes read: {:?} | Bytes written: {:?} | Utilization: {:.2e} bytes/sec",
         memory_stats.total_bytes_read, memory_stats.total_bytes_written, utilization
     );
+
+    // Report instruction profiling statistics
+    let total_cycles = INSTRUCTION_STATS.get("total_cycles").unwrap().load(Ordering::Relaxed);
+    let total_simulation_time_secs = Executor::current().now().to_secs();
+    let total_simulation_time_ns = total_simulation_time_secs * 1e9;
+    let instruction_time_ns = total_cycles as f64;
+    let hbm_time_ns = total_simulation_time_ns - instruction_time_ns;
+    
+    if total_cycles > 0 && !is_quiet() {
+        eprintln!("\nInstruction Latency Breakdown:");
+        eprintln!("============================");
+
+        
+        
+        // Report individual vector instructions
+        eprintln!("\nVector Instructions:");
+        let vector_instrs = ["V_ADD_VV", "V_ADD_VF", "V_SUB_VV", "V_SUB_VF", "V_MUL_VV", "V_MUL_VF", 
+                            "V_EXP_V", "V_RECI_V", "V_RED_SUM", "V_RED_MAX", "V_RED_MAX_IDX", 
+                            "V_SELECT_VVM", "V_TOPK_MASK"];
+        for instr in &vector_instrs {
+            if let Some(cycles) = INSTRUCTION_STATS.get(*instr) {
+                let cycle_count = cycles.load(Ordering::Relaxed);
+                if cycle_count > 0 {
+                    let percentage = (cycle_count as f64 / total_simulation_time_ns) * 100.0;
+                    let time_ns = cycle_count as f64;
+                    eprintln!("  {:<15}: {:>8} cycles ({:>5.1}%) - {:.1} ns",
+                             instr, cycle_count, percentage, time_ns);
+                }
+            }
+        }
+        
+        // Report individual scalar instructions
+        eprintln!("\nScalar Instructions:");
+        let scalar_instrs = ["S_ADD_FP", "S_SUB_FP", "S_MUL_FP", "S_MAX_FP", "S_EXP_FP", "S_RECI_FP", "S_SQRT_FP",
+                            "S_ADD_INT", "S_ADDI_INT", "S_SUB_INT", "S_MUL_INT", "S_LUI_INT",
+                            "S_LD_INT", "S_ST_INT", "S_LD_FP", "S_ST_FP", "S_MAP_V_FP", "S_SELECT_INT"];
+        for instr in &scalar_instrs {
+            if let Some(cycles) = INSTRUCTION_STATS.get(*instr) {
+                let cycle_count = cycles.load(Ordering::Relaxed);
+                if cycle_count > 0 {
+                    let percentage = (cycle_count as f64 / total_simulation_time_ns) * 100.0;
+                    let time_ns = cycle_count as f64;
+                    eprintln!("  {:<15}: {:>8} cycles ({:>5.1}%) - {:.1} ns",
+                             instr, cycle_count, percentage, time_ns);
+                }
+            }
+        }
+        
+        // Report individual control instructions
+        eprintln!("\nControl Instructions:");
+        let control_instrs = ["C_SET_ADDR_REG", "C_SET_SCALE_REG", "C_SET_STRIDE_REG", "C_SET_V_MASK_REG",
+                             "C_LOOP_START", "C_LOOP_END", "C_BREAK"];
+        for instr in &control_instrs {
+            if let Some(cycles) = INSTRUCTION_STATS.get(*instr) {
+                let cycle_count = cycles.load(Ordering::Relaxed);
+                if cycle_count > 0 {
+                    let percentage = (cycle_count as f64 / total_simulation_time_ns) * 100.0;
+                    let time_ns = cycle_count as f64;
+                    eprintln!("  {:<15}: {:>8} cycles ({:>5.1}%) - {:.1} ns",
+                             instr, cycle_count, percentage, time_ns);
+                }
+            }
+        }
+        
+        // Report individual matrix instructions
+        eprintln!("\nMatrix Instructions:");
+        let matrix_instrs = ["M_MM", "M_MM_WO", "M_TMM", "M_BMM", "M_BTMM", "M_BMM_WO",
+                            "M_MV", "M_TMV", "M_MV_WO"];
+        for instr in &matrix_instrs {
+            if let Some(cycles) = INSTRUCTION_STATS.get(*instr) {
+                let cycle_count = cycles.load(Ordering::Relaxed);
+                if cycle_count > 0 {
+                    let percentage = (cycle_count as f64 / total_simulation_time_ns) * 100.0;
+                    let time_ns = cycle_count as f64;
+                    eprintln!("  {:<15}: {:>8} cycles ({:>5.1}%) - {:.1} ns",
+                             instr, cycle_count, percentage, time_ns);
+                }
+            }
+        }
+
+
+        // Report category-level summary
+        eprintln!("\nCategory Summary:");
+        let compute_categories = ["matrix_ops", "vector_ops", "scalar_ops", "control_ops"];
+        for category in &compute_categories {
+            if let Some(cycles) = INSTRUCTION_STATS.get(*category) {
+                let cycle_count = cycles.load(Ordering::Relaxed);
+                if cycle_count > 0 {
+                    let percentage = (cycle_count as f64 / total_simulation_time_ns) * 100.0;
+                    let time_ns = cycle_count as f64;
+                    eprintln!("  {:<12}: {:>8} cycles ({:>5.1}%) - {:.1} ns",
+                             category, cycle_count, percentage, time_ns);
+                }
+            }
+        }
+        
+        // Report HBM prefetch operations (using nanoseconds)
+        eprintln!("\nHBM Instructions:");
+        let hbm_instrs = ["H_PREFETCH_V", "H_PREFETCH_M"];
+        for instr in &hbm_instrs {
+            if let Some(ns) = INSTRUCTION_STATS.get(*instr) {
+                let ns_count = ns.load(Ordering::Relaxed);
+                if ns_count > 0 {
+                    let percentage = (ns_count as f64 / total_simulation_time_ns) * 100.0;
+                    eprintln!("  {:<15}: {:>8} ns    ({:>5.1}%) - {:.1} ns",
+                             instr, ns_count, percentage, ns_count as f64);
+                }
+            }
+        }
+        
+
+        
+
+        // Report other memory operations if any
+        if let Some(memory_ops) = INSTRUCTION_STATS.get("memory_ops") {
+            let memory_count = memory_ops.load(Ordering::Relaxed);
+            if memory_count > 0 {
+                let percentage = (memory_count as f64 / total_simulation_time_ns) * 100.0;
+                eprintln!("  {:<15}: {:>8} ns    ({:>5.1}%) - {:.1} ns",
+                         "memory_ops", memory_count, percentage, memory_count as f64);
+            }
+        }
+        
+
+
+        
+
+        // Add remaining HBM time breakdown (other HBM operations not captured above)
+        let prefetch_v_time = INSTRUCTION_STATS.get("H_PREFETCH_V").map(|v| v.load(Ordering::Relaxed) as f64).unwrap_or(0.0);
+        let prefetch_m_time = INSTRUCTION_STATS.get("H_PREFETCH_M").map(|v| v.load(Ordering::Relaxed) as f64).unwrap_or(0.0);
+        let other_hbm_time = hbm_time_ns - prefetch_v_time - prefetch_m_time;
+        if other_hbm_time > 0.0 {
+            let other_hbm_percentage = (other_hbm_time / total_simulation_time_ns) * 100.0;
+            eprintln!("  {:<15}: {:>8} ns    ({:>5.1}%) - {:.1} ns",
+                     "hbm_other", other_hbm_time as u64, other_hbm_percentage, other_hbm_time);
+        }
+        
+        eprintln!("\n----------------------------");
+        eprintln!("{:<15}: {:>8} ns    (100.0%) - {:.1} ns",
+                 "total", total_simulation_time_ns as u64, total_simulation_time_ns);
+    }
 }
 
 #[tokio::main]

@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm, get_transfer_index_long_debug
+from compiler.asm_templates import  preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm, get_transfer_index_performance,get_transfer_index_edge
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
@@ -221,7 +221,11 @@ class TEST(torch.nn.Module):
 
         print('reciprocal_denom = ', reciprocal_denom)
         #return logits + reciprocal_denom.unsqueeze(-1)
-        return reciprocal_denom
+
+        x0 = torch.argmax(logits, dim=-1)
+
+        output = torch.cat([reciprocal_denom , x0], dim=0)
+        return output
 
     def forward(self, logits, mask_index, x, num_transfer_tokens):
         """
@@ -244,40 +248,61 @@ if __name__ == "__main__":
 
     # Testing the operation logits in shape of (batch_size, hidden_size, vocal_size)
     # the largest setup for vocal_size and vocal_size_single is 64*1976 and 64*494 respectively
-    vocal_size = 64*4
+    mode = "edge"
+    steps=1
+    vocal_size = 64*4  #1984=64*31
     vocal_size_single = 64*2  #64*494
     hidden_size = 64
-    vlen = 64
+    vlen = 128
     repeat_times = vocal_size//vocal_size_single
-    batch_size = 1
+    batch_size = 4
+    batch_R = 2
     prompt_batch_size = batch_size
-    mask_id=15
+    mask_id=0
     preload_amount = 1
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    hbm_data_width = 64
+    hbm_data_width = hidden_size
     fp_preload = [0.0, 0.0, 0, 1e-3]
     # Different k values for each batch item (number of tokens to select)
     k_values = [8]
+
+    k_values_list = []
+    for t in range(steps):
+        k_values_list.append(k_values)
     
     torch.manual_seed(68)
     # logits shape should be (B, L, vocab_size) for get_transfer_index
     x = torch.full((prompt_batch_size, hidden_size), mask_id)
-    int_preload = torch.randint(low=15, high=16, size=(prompt_batch_size*hidden_size,), dtype=torch.int32)
+    int_preload = torch.randint(low=mask_id, high=mask_id+1, size=(prompt_batch_size*hidden_size,), dtype=torch.int32)
     logits = torch.randn(batch_size, hidden_size * vocal_size)
     x = x.type_as(logits)
 
     # Generate random mask (some positions are masked, some are not)
     # mask should be (B, L) matching the sequence length
     mask = torch.rand(batch_size, hidden_size) < 0.5
+    
+    # Pad mask to align with vlen if needed
+    if hidden_size < vlen:
+        pad_size = vlen - hidden_size
+        # Pad with False (dummy values) on the right side (dim=1)
+        mask_padded = torch.cat([mask, torch.zeros(batch_size, pad_size, dtype=torch.bool)], dim=1)
+        # Use original mask for golden result computation
+        mask_for_golden = mask
+    else:
+        mask_padded = mask
+        mask_for_golden = mask
 
     # K values for each batch
     num_transfer_tokens = torch.tensor(k_values, dtype=torch.long)
     original_layer = TEST()
-    original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask, x, num_transfer_tokens)
+    # Use original mask (without padding) for golden result
+    original_output = original_layer(logits.reshape(batch_size, hidden_size, vocal_size), mask_for_golden, x, num_transfer_tokens)
     #original_output = torch.max(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1).values
     #original_output = torch.sum(logits.reshape(batch_size, hidden_size, vocal_size), dim=-1)
     # Convert mask to float for quantization (simulator requires float input)
-    mask = mask.type_as(logits)
+    # Use padded mask for simulation
+    mask = mask_padded.type_as(logits)
+    #int_mask_preload = torch.cat([mask , int_preload], dim=0)
     x = x.type_as(logits)
 
     print('x.shape= ', x.shape)
@@ -304,10 +329,14 @@ if __name__ == "__main__":
     
     # Set the VRAM address offsets
     transfer_idx_offset_address = 0
-    mask_offset_address = (batch_size * hidden_size)
-    x0_p_offset_address = (batch_size * hidden_size)*2
-    temp_offset_address = (batch_size * hidden_size)*3
-    logits_offset_address = temp_offset_address + vlen
+    mask_offset_address = (batch_size * vlen)
+    x0_p_offset_address = (batch_size * vlen)*2
+    logits_offset_address = x0_p_offset_address + vlen
+
+    print('logits_offset_address = ',logits_offset_address)
+
+    logits_i_address = logits_offset_address + 63*vlen*(repeat_times*vocal_size_single // vlen)
+    print('logits_i_address = ',logits_i_address)
     #mask_offset_address = (batch_size * hidden_size)*2 + logits_offset_address + (vocal_size_single)
     
     gen_assembly_code += preload_addr_reg_asm(
@@ -326,34 +355,54 @@ if __name__ == "__main__":
     gen_assembly_code += preload_act_asm_scale(
         vlen=vlen,
         preload_len=preload_amount,
-        batch=batch_size,
-        hidden_size=hidden_size,
-        scale=batch_size*hidden_size,
+        batch=1,
+        hidden_size=batch_size*vlen,
+        scale=batch_size*vlen,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
         act_hbm_offset=0,
         act_vram_offset=mask_offset_address,
         activation_offset_reg=1
     )
+    
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3,4,5,6,7,8]
     )
+
+
+    if mode == "edge":
+        gen_assembly_code += get_transfer_index_edge(
+            alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
+            logits_base_address=logits_offset_address,
+            transfer_idx_base_address=transfer_idx_offset_address,
+            mask_base_address=mask_offset_address,
+            x0_p_base_address=x0_p_offset_address,
+            k_values=k_values_list,
+            vlen=vlen,
+            T=steps,
+            repeat_times=repeat_times,
+            batch_size=batch_size,
+            prompt_batch_size=prompt_batch_size,
+            vocal_size_single=vocal_size_single,
+            hidden_size=hidden_size,
+        )
+    else:
+        gen_assembly_code += get_transfer_index_performance(
+            alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
+            logits_base_address=logits_offset_address,
+            transfer_idx_base_address=transfer_idx_offset_address,
+            mask_base_address=mask_offset_address,
+            x0_p_base_address=x0_p_offset_address,
+            k_values=k_values_list,
+            vlen=vlen,
+            T=steps,
+            batch_size=batch_size,
+            prompt_batch_size=prompt_batch_size,
+            batch_R=batch_R,
+            vocal_size=vocal_size,
+            hidden_size=hidden_size,
+        )
     
-    gen_assembly_code += get_transfer_index_long_debug(
-        alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
-        logits_base_address=logits_offset_address,
-        mask_base_address=mask_offset_address,
-        transfer_idx_base_address=0,
-        temp_base_address=temp_offset_address,
-        x0_p_base_address=x0_p_offset_address,
-        k_values=k_values,
-        vlen=vlen,
-        repeat_times=repeat_times,
-        batch_size=batch_size,
-        prompt_batch_size=prompt_batch_size,
-        vocal_size_single=vocal_size_single,
-        hidden_size=hidden_size,
-    )
     
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload, int_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="dllm", data=None, specified_data_order = ["logits", "mask", "int"])

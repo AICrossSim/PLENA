@@ -10,9 +10,9 @@ from .preload_addr_reg import preload_addr_reg_asm
 from .batched_matmul_asm import batched_matmul_asm
 
 from .select_vvm_asm import select_vvm_debug
-from .argmux_asm import argmux_debug, stable_max_softmax_method
+from .argmax_asm import argmax_debug, stable_max_softmax_method
 from .topk_mask_asm import topk_mask_debug, topk_mask_simple
-from .get_transfer_index_asm import get_transfer_index_long_debug
+from .get_transfer_index_asm import get_transfer_index_performance, get_transfer_index_edge
 
 __all__ = [
     "projection_asm",
@@ -28,9 +28,10 @@ __all__ = [
     "embedding_asm",
     "batched_matmul_asm",
     "select_vvm_debug",
-    "argmux_debug",
+    "argmax_debug",
     "stable_max_softmax_method",
     "topk_mask_debug",
     "topk_mask_simple",
-    "get_transfer_index_long_debug",
+    "get_transfer_index_performance",
+    "get_transfer_index_edge",
 ]

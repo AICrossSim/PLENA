@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import argmux_debug, stable_max_softmax_method, preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
+from compiler.asm_templates import argmax_debug, stable_max_softmax_method, preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
@@ -16,18 +16,18 @@ class TEST(torch.nn.Module):
     def __init__(self, mode='stable_max'):
         """
         Args:
-            mode: 'argmux' or 'stable_max'
-                - 'argmux': Use argmax method
+            mode: 'argmax' or 'stable_max'
+                - 'argmax': Use argmax method
                 - 'stable_max': Use stable max softmax method to compute reciprocal
         """
         super().__init__()
         self.mode = mode
         self.weight = nn.Parameter(torch.ones(128))
         
-        if mode not in ['argmux', 'stable_max']:
-            raise ValueError(f"mode must be 'argmux' or 'stable_max', but got '{mode}'")
+        if mode not in ['argmax', 'stable_max']:
+            raise ValueError(f"mode must be 'argmax' or 'stable_max', but got '{mode}'")
 
-    def _argmux(self, x):
+    def _argmax(self, x):
         x0 = torch.argmax(x, dim=-1)
         print('x = ',x)
         print('x0 = ',x0)
@@ -46,8 +46,8 @@ class TEST(torch.nn.Module):
 
     def forward(self, input):
         x = input
-        if self.mode == 'argmux':
-            output = self._argmux(x)
+        if self.mode == 'argmax':
+            output = self._argmax(x)
         elif self.mode == 'stable_max':
             output = self._stable_max_method(x.float()).type_as(x)
         else:
@@ -58,13 +58,13 @@ class TEST(torch.nn.Module):
 if __name__ == "__main__":
 
     # ============ Configuration ============
-    # Select test mode: 'argmux' or 'stable_max'
-    TEST_MODE = 'argmux'  # Change this to switch test mode
+    # Select test mode: 'argmax' or 'stable_max'
+    TEST_MODE = 'argmax'  # Change this to switch test mode
     # ========================================
     
     hidden_size = 64
     vlen = 64
-    batch_size = 4
+    batch_size = 1
     preload_amount=1
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     
     print(f"==================== Test Mode: {TEST_MODE} ====================")
     
-    gen_assembly_code = "; Argmux for dLLM Generation \n"
+    gen_assembly_code = "; Argmax for dLLM Generation \n"
     
     # Set the addr offset for weight and bias
     gen_assembly_code += preload_addr_reg_asm(
@@ -117,8 +117,8 @@ if __name__ == "__main__":
     )
     
     # Generate corresponding assembly code based on mode
-    if TEST_MODE == 'argmux':
-        gen_assembly_code += argmux_debug(
+    if TEST_MODE == 'argmax':
+        gen_assembly_code += argmax_debug(
             alive_registers=[1,2,3,4],                                 # [act_addr, act2_addr, scratchpad_addr]
             input_base_address= 0,                                     # base address of input_tensor in VRAM
             vlen=vlen,
