@@ -14,7 +14,7 @@ value = 16
 value = 64
 
 [CONFIG.VLEN]
-value = 128
+value = 64
 
 [CONFIG.BROADCAST_AMOUNT]
 value = 4
@@ -26,7 +26,7 @@ value = 1073741824
 value = 512
 
 [CONFIG.MATRIX_SRAM_SIZE]
-value = 1024
+value = 64
 
 [CONFIG.VECTOR_SRAM_SIZE]
 value = 262144  # 32MB: 262144 rows * 64 VLEN * 2 bytes (FP16) = 33,554,432 bytes = 32 MB
@@ -35,7 +35,7 @@ value = 262144  # 32MB: 262144 rows * 64 VLEN * 2 bytes (FP16) = 33,554,432 byte
 value = 64
 
 [CONFIG.HBM_V_Prefetch_Amount]
-value = 4
+value = 1
 
 [CONFIG.HBM_V_Writeback_Amount]
 value = 16

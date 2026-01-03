@@ -136,10 +136,10 @@ if __name__ == "__main__":
     vocal_size = 64*4 
     vocal_size_single = 64*2
     gen_length = 64
-    vlen = 128  # reminder: 1. sync this value in the "plena_settings.toml" 2.veln>gen_length
+    vlen = 64  # reminder: 1. sync this value in the "plena_settings.toml" 2.veln>gen_length
     repeat_times = vocal_size//vocal_size_single
-    batch_size = 4
-    batch_R = 2
+    batch_size = 2
+    batch_R = 1
     prompt_batch_size = batch_size
     mask_id=0
     preload_amount = 1
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     for t in range(steps):
         k_values_list.append(k_values)
     
-    torch.manual_seed(68)
+    torch.manual_seed(66)
     # logits shape should be (B, L, vocab_size) for get_transfer_index
     x = torch.full((prompt_batch_size, gen_length), mask_id)
     int_preload = torch.randint(low=mask_id, high=mask_id+1, size=(prompt_batch_size*gen_length,), dtype=torch.int32)
@@ -255,6 +255,7 @@ if __name__ == "__main__":
             x0_p_base_address=x0_p_offset_address,
             k_values=k_values_list,
             vlen=vlen,
+            preload_len=preload_amount,
             T=steps,
             repeat_times=repeat_times,
             batch_size=batch_size,
@@ -271,6 +272,7 @@ if __name__ == "__main__":
             x0_p_base_address=x0_p_offset_address,
             k_values=k_values_list,
             vlen=vlen,
+            preload_len=preload_amount,
             T=steps,
             batch_size=batch_size,
             prompt_batch_size=prompt_batch_size,

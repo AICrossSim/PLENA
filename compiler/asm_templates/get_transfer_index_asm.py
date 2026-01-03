@@ -11,6 +11,7 @@ def get_transfer_index_edge(
     x0_p_base_address: int,   # x0_p (B,L)
     k_values: List[int],
     vlen: int,
+    preload_len: int,
     T: int, #time step for duffusion
     repeat_times: int,
     batch_size: int,
@@ -58,7 +59,7 @@ def get_transfer_index_edge(
                     vram_offset = logits_base_address
                     generated_code += preload_act_asm_scale(
                         vlen=vlen,
-                        preload_len=1,
+                        preload_len=preload_len,
                         batch=1,
                         hidden_size=vocal_size_single,
                         scale=T*batch_size*gen_length*vocal_size_single*repeat_times,
@@ -83,7 +84,7 @@ def get_transfer_index_edge(
                     vram_offset = logits_base_address
                     generated_code += preload_act_asm_scale(
                         vlen=vlen,
-                        preload_len=1,
+                        preload_len=preload_len,
                         batch=1,
                         hidden_size=vocal_size_single,
                         scale=T*batch_size*gen_length*vocal_size_single*repeat_times,
@@ -153,6 +154,7 @@ def get_transfer_index_performance(
     x0_p_base_address: int,   # x0_p (B,L)
     k_values: List[int],
     vlen: int,
+    preload_len: int,
     T: int, #time step for duffusion
     batch_size: int,
     prompt_batch_size: int,
@@ -193,7 +195,7 @@ def get_transfer_index_performance(
             vram_offset = logits_base_address
             generated_code += preload_act_asm_scale(
                 vlen=vlen,
-                preload_len=1,
+                preload_len=preload_len,
                 batch=1,
                 hidden_size=gen_length*vocal_size*batch_R,
                 scale=T*batch_size*gen_length*vocal_size,

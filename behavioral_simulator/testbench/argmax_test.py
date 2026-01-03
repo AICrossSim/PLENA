@@ -11,6 +11,7 @@ from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
 
+from tools.memory_mapping.hbm_addr_map import align_addr_to_hbm_bandwidth
 
 class TEST(torch.nn.Module):
     def __init__(self, mode='stable_max'):
@@ -28,20 +29,20 @@ class TEST(torch.nn.Module):
             raise ValueError(f"mode must be 'argmax' or 'stable_max', but got '{mode}'")
 
     def _argmax(self, x):
-        x0 = torch.argmax(x, dim=-1)
+        x0 = torch.argmax(x, dim=-1)              # (B, L)
         print('x = ',x)
         print('x0 = ',x0)
         return x0
     
     def _stable_max_method(self, logits):
         # Method 2: use max logit for numerical stability (no explicit softmax)
-        m = logits.max(dim=-1).values                 # (B, L)
-        sub_result = logits - m.unsqueeze(-1)
-        exp_shifted = torch.exp(sub_result)
-        denom = exp_shifted.sum(dim=-1)               # (B, L)
-        reciprocal_denom = 1.0 / denom
+        m = logits.max(dim=-1).values             # (B, L)
+        sub_result = logits - m.unsqueeze(-1)     # (B, L, V)
+        exp_shifted = torch.exp(sub_result)       # (B, L, V)
+        denom = exp_shifted.sum(dim=-1)           # (B, L)
+        reciprocal_denom = 1.0 / denom            # (B, L)
 
-        print('reciprocal_denom = ', reciprocal_denom)
+        print('reciprocal_denom.shape = ', reciprocal_denom.shape)
         return reciprocal_denom
 
     def forward(self, input):
@@ -59,19 +60,21 @@ if __name__ == "__main__":
 
     # ============ Configuration ============
     # Select test mode: 'argmax' or 'stable_max'
-    TEST_MODE = 'argmax'  # Change this to switch test mode
+    TEST_MODE = 'stable_max'  # Change this to switch test mode
     # ========================================
     
-    hidden_size = 64
+    vocal_size=64
+    gen_length = 64
     vlen = 64
-    batch_size = 1
+    batch_size = 2
     preload_amount=1
+    hbm_data_width=64
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    fp_preload = [0.0, 1e-6, 1/hidden_size]
+    fp_preload = [0.0, 0.0, 0.0]
 
     
     torch.manual_seed(42)
-    logits = torch.randn(batch_size, hidden_size)
+    logits = torch.randn(batch_size, gen_length, vocal_size)
 
     input_tensor = logits
     original_layer = TEST(mode=TEST_MODE)
@@ -85,12 +88,16 @@ if __name__ == "__main__":
     print(f"==================== Test Mode: {TEST_MODE} ====================")
     
     gen_assembly_code = "; Argmax for dLLM Generation \n"
+
+    # Set the VRAM address offsets
+    output_offset_address = 0
+    logtis_offset_address = (batch_size * vlen)
     
     # Set the addr offset for weight and bias
     gen_assembly_code += preload_addr_reg_asm(
-        addr_reg_to_set=[1,2],
-        available_registers=[1,2],
-        addr_reg_val=[int(batch_size * hidden_size * real_data_ratio), int(2*batch_size * hidden_size * real_data_ratio)]
+        addr_reg_to_set=[1],
+        available_registers=[1],
+        addr_reg_val=[int(align_addr_to_hbm_bandwidth(batch_size*gen_length*vocal_size*real_data_ratio, hbm_data_width))]
     )
 
     # Reset the registers
@@ -103,34 +110,39 @@ if __name__ == "__main__":
         vlen=vlen,
         preload_len=preload_amount,
         batch=batch_size,
-        hidden_size=hidden_size,
-        scale = batch_size*hidden_size,
+        hidden_size=gen_length*vocal_size,
+        scale = batch_size*gen_length*vocal_size,
         alive_registers=[1,2,3],  # [a_actual_register, set_stride_register, result_register]
         act_hbm_offset=0,
-        act_vram_offset=0,
+        act_vram_offset=logtis_offset_address,
         activation_offset_reg=0
     )
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3,4]
+        alive_registers=[1,2,3,4,5]
     )
     
     # Generate corresponding assembly code based on mode
     if TEST_MODE == 'argmax':
         gen_assembly_code += argmax_debug(
-            alive_registers=[1,2,3,4],                                 # [act_addr, act2_addr, scratchpad_addr]
-            input_base_address= 0,                                     # base address of input_tensor in VRAM
+            alive_registers=[1,2,3,4,5],                  # [input_addr, output_addr, len_addr, max_idx_addr, max_idx_offset_addr]
+            input_base_address= logtis_offset_address,    # base address of input_tensor in VRAM
+            output_base_address= output_offset_address,
             vlen=vlen,
             batch_size=batch_size,
+            gen_length=gen_length,
+            vocal_size=vocal_size,
         )
     elif TEST_MODE == 'stable_max':
         gen_assembly_code += stable_max_softmax_method(
-            alive_registers=[1,2,3,4],                                 # [act_addr, act2_addr, scratchpad_addr]
-            input_base_address= 0,                                     # base address of input_tensor in VRAM
-            output_base_address= 0,                                    # base address of output_tensor in VRAM
+            alive_registers=[1,2,3,4],                    # [input_addr, output_addr, len_addr]
+            input_base_address= logtis_offset_address,    # base address of input_tensor in VRAM
+            output_base_address= output_offset_address,   # base address of output_tensor in VRAM
             vlen=vlen,
             batch_size=batch_size,
+            gen_length=gen_length,
+            vocal_size=vocal_size,
         )
     else:
         raise ValueError(f"Unknown test mode: {TEST_MODE}")
