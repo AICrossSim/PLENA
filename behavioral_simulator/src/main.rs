@@ -935,12 +935,13 @@ impl VectorMachine {
         let len = len_i64 as usize;
     
         // Find max value and its index in current vector
+        // Use > to select the first occurrence when multiple elements have the same max value
         let mut max_val = f32::NEG_INFINITY;
         let mut max_idx: usize = 0;
     
         for i in 0..len {
             let v: f32 = tensor.i(i as i64).try_into().unwrap();
-            if v > max_val {
+            if  v > max_val{
                 max_val = v;
                 max_idx = i;
             }
@@ -950,9 +951,9 @@ impl VectorMachine {
         let global_idx = offset + max_idx as u32;
     
         // Compare current max with previous max
-        // If current max is greater, return global index and new max value
+        // If current max is greater or equal, return global index and new max value
         // Otherwise keep previous index and value
-        if max_val > prev_max_val {
+        if (max_val > prev_max_val) {
             (global_idx, max_val)
         } else {
             (prev_idx, prev_max_val)
@@ -2126,6 +2127,20 @@ async fn start() {
     vram_file.write_all(&vram_bytes).unwrap();
     if !is_quiet() {
         eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+    }
+
+    // Dump Int SRAM
+    let iram_dump_path = "iram_dump.bin";
+    let iram_bytes: &[u8] = unsafe {
+        std::slice::from_raw_parts(
+            accelerator.intsram.as_ptr() as *const u8,
+            accelerator.intsram.len() * std::mem::size_of::<u32>(),
+        )
+    };
+    let mut iram_file = std::fs::File::create(iram_dump_path).unwrap();
+    iram_file.write_all(iram_bytes).unwrap();
+    if !is_quiet() {
+        eprintln!("Dumped Int SRAM content to: {:?}", iram_dump_path);
     }
 
     let memory_stats = hbm.statistics();

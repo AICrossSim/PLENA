@@ -66,14 +66,14 @@ if __name__ == "__main__":
     vocal_size=64
     gen_length = 64
     vlen = 64
-    batch_size = 2
-    preload_amount=1
+    batch_size = 4
+    preload_amount=4
     hbm_data_width=64
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 0.0, 0.0]
 
     
-    torch.manual_seed(42)
+    torch.manual_seed(   42   )
     logits = torch.randn(batch_size, gen_length, vocal_size)
 
     input_tensor = logits

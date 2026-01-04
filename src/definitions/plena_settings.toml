@@ -35,7 +35,7 @@ value = 262144  # 32MB: 262144 rows * 64 VLEN * 2 bytes (FP16) = 33,554,432 byte
 value = 64
 
 [CONFIG.HBM_V_Prefetch_Amount]
-value = 1
+value = 4
 
 [CONFIG.HBM_V_Writeback_Amount]
 value = 16

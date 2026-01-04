@@ -32,6 +32,7 @@ def argmax_debug(
             input_i_address = input_base_address + (batch_idx*gen_length + i) *vlen*(vocal_size // vlen)
 
             generated_code += f"S_ADD_FP f1, f0, f0 \n"
+            generated_code += f"S_ADD_INT gp{max_idx_addr}, gp0, gp0 \n"  # Initialize max_idx to 0
             generated_code += f"S_ADDI_INT gp{input_addr}, gp0, {input_i_address} \n"
             generated_code += f"S_ADD_INT gp{max_idx_offset_addr},  gp0, gp0 \n"  # Initialize offset to 0
             for j in range(vocal_size // vlen):

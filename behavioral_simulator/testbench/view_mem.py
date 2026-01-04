@@ -191,6 +191,7 @@ def view_bin_file_by_row_fp(bin_file,
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     vram_file = os.path.join(script_dir, "behavioral_simulator", "vram_dump.bin")
+    iram_file = os.path.join(script_dir, "behavioral_simulator", "iram_dump.bin")
     mram_file = os.path.join(script_dir, "behavioral_simulator", "mram_dump.bin")
     golden_file = os.path.join(script_dir, "behavioral_simulator", "testbench", "build", "golden_result.txt")
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
@@ -198,12 +199,12 @@ if __name__ == "__main__":
     print("Viewing VRAM dump from 0 Base Address")
     view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=32)
     
-    '''
+    
     # Compare with golden output, assuming all the output are stored at the 0 in VSRAM.
     try:
-        from check_mem import compare_with_golden, print_comparison_results
+        from check_mem import compare_with_golden, print_comparison_results, compare_int_with_golden, print_int_comparison_results
         print("\n" + "="*60)
-        print("Comparing with Golden Output")
+        print("Comparing VRAM with Golden Output")
         print("="*60)
         results = compare_with_golden(
             vram_file,
@@ -213,16 +214,46 @@ if __name__ == "__main__":
             num_bytes_per_val=2,
             row_dim=64,
             start_row_idx=0,
-            num_batches = 4,
-            num_rows=8,  # Compare first 4 rows (matching golden output)
-            elements_per_batch=128
+            num_batches = 2,
+            num_rows=2,  # Compare first 4 rows (matching golden output)
+            use_stride_mode=False,
+            elements_per_batch=64
         )
         print_comparison_results(results, verbose=True)
     except ImportError:
         print("\nNote: check_mem module not available for comparison")
     except Exception as e:
-        print(f"\nError during comparison: {e}")
-    '''
+        print(f"\nError during VRAM comparison: {e}")
+    
+    # Compare Int SRAM with golden output
+    try:
+        if os.path.exists(iram_file):
+            print("\n" + "="*60)
+            print("Comparing Int SRAM with Golden Output")
+            print("="*60)
+            int_results = compare_int_with_golden(
+                iram_file,
+                golden_file,
+                row_dim=64,
+                int_width=32,
+                num_bytes_per_val=4,
+                start_row_idx=0,
+                num_rows=None,
+                tolerance=0,
+                signed=False,
+                section_name="Original Output"
+            )
+            if int_results is not None:
+                print_int_comparison_results(int_results, verbose=True)
+            else:
+                print("Note: Int SRAM golden data not found in golden file")
+        else:
+            print(f"\nNote: Int SRAM dump file not found: {iram_file}")
+    except ImportError:
+        print("\nNote: check_mem module not available for int comparison")
+    except Exception as e:
+        print(f"\nError during Int SRAM comparison: {e}")
+    
     # print("Viewing VRAM dump from 16 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)
     

@@ -202,6 +202,7 @@ def compare_with_golden(bin_file,
     """
     # Parse golden output
     golden_values = parse_golden_output(golden_file)
+    print("golden_values is:\n", golden_values)
     # Read binary file (now properly handles row-based indexing)
     simulated_values = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
@@ -264,6 +265,169 @@ def compare_with_golden(bin_file,
     }
 
 
+def read_bin_file_as_int_array(bin_file,
+                               row_dim,
+                               int_width=32,
+                               num_bytes_per_val=4,
+                               start_row_idx=0,
+                               num_rows=None,
+                               signed=False):
+    """
+    Read binary file and convert to numpy array of integers.
+
+    Args:
+        bin_file: Path to binary file
+        row_dim: Number of values per row
+        int_width: Bit width of the integer (default 32)
+        num_bytes_per_val: Number of bytes per value (default 4 for u32)
+        start_row_idx: Starting row index
+        num_rows: Number of rows to read (None = read all remaining rows)
+        signed: If True, interpret as signed integer
+
+    Returns:
+        numpy array: Flattened 1D array of integer values
+    """
+    with open(bin_file, "rb") as f:
+        data = f.read()
+
+    num_vals = len(data) // num_bytes_per_val
+    total_rows = (num_vals + row_dim - 1) // row_dim
+
+    end_row_idx = total_rows if num_rows is None else start_row_idx + num_rows
+
+    values = []
+    for row_idx in range(start_row_idx, end_row_idx):
+        for col_idx in range(row_dim):
+            val_idx = row_idx * row_dim + col_idx
+            if val_idx >= num_vals:
+                break
+            chunk = data[val_idx * num_bytes_per_val : (val_idx + 1) * num_bytes_per_val]
+            if not chunk or len(chunk) < num_bytes_per_val:
+                break
+            int_val = int.from_bytes(chunk, byteorder='little', signed=signed)
+            values.append(int_val)
+
+    return np.array(values, dtype=np.int32 if signed else np.uint32)
+
+
+def parse_golden_int_output(golden_file_path, section_name="Int SRAM Output"):
+    """
+    Parse integer values from golden_result.txt or a similar file.
+
+    Args:
+        golden_file_path: Path to the golden file
+        section_name: Section name to look for (default "Int SRAM Output")
+                      If "Original Output" is used, it will parse the Original Output section
+                      which contains argmax results as integers (stored as floats)
+
+    Returns:
+        numpy array: Flattened 1D array of integer values
+    """
+    with open(golden_file_path, 'r') as f:
+        content = f.read()
+
+    match = re.search(rf'{section_name}:\s*\[(.*?)\]', content, re.DOTALL)
+    if not match:
+        match = re.search(rf'{section_name}:\s*(.*?)(?=\n\n|\Z)', content, re.DOTALL)
+        if not match:
+            if section_name == "Int SRAM Output":
+                match = re.search(r'Original Output:\s*\[(.*?)\]', content, re.DOTALL)
+                if not match:
+                    return None
+            else:
+                return None
+
+    values_text = match.group(1) if match.lastindex >= 1 else match.group(0)
+
+    values = []
+    for line in values_text.strip().split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        for val_str in line.split():
+            try:
+                val = int(float(val_str))
+                values.append(val)
+            except ValueError:
+                continue
+
+    return np.array(values, dtype=np.int32) if len(values) > 0 else None
+
+
+def compare_int_with_golden(bin_file,
+                            golden_file,
+                            row_dim=64,
+                            int_width=32,
+                            num_bytes_per_val=4,
+                            start_row_idx=0,
+                            num_rows=None,
+                            tolerance=0,
+                            signed=False,
+                            section_name="Int SRAM Output"):
+    """
+    Compare int SRAM binary file with golden reference.
+
+    Args:
+        bin_file: Path to binary file to compare
+        golden_file: Path to golden file
+        row_dim: Row dimension
+        int_width: Bit width of integer
+        num_bytes_per_val: Bytes per value in binary file
+        start_row_idx: Starting row index to compare
+        num_rows: Number of rows to compare (None = compare all)
+        tolerance: Tolerance for comparison (0 = exact match)
+        signed: Whether to interpret as signed integer
+        section_name: Section name in golden file to parse
+
+    Returns:
+        dict: Dictionary containing comparison metrics
+    """
+    golden_values = parse_golden_int_output(golden_file, section_name)
+    if golden_values is None:
+        print(f"Warning: Could not find '{section_name}' section in golden file. Skipping comparison.")
+        return None
+
+    simulated_values = read_bin_file_as_int_array(
+        bin_file, row_dim, int_width, num_bytes_per_val, start_row_idx, num_rows, signed
+    )
+
+    min_len = min(len(golden_values), len(simulated_values))
+    golden_values = golden_values[:min_len]
+    simulated_values = simulated_values[:min_len]
+
+    if len(golden_values) == 0:
+        raise ValueError("No values to compare")
+
+    errors = np.abs(golden_values.astype(np.int64) - simulated_values.astype(np.int64))
+    mse = np.mean(errors.astype(np.float64) ** 2)
+    mae = np.mean(errors.astype(np.float64))
+    max_error = np.max(errors)
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        relative_errors = np.where(
+            np.abs(golden_values) > 0,
+            errors.astype(np.float64) / np.abs(golden_values.astype(np.float64)),
+            errors.astype(np.float64)
+        )
+    mean_relative_error = np.mean(relative_errors)
+
+    within_tolerance = errors <= tolerance
+    match_rate = np.sum(within_tolerance) / len(errors) * 100.0
+
+    return {
+        'mse': mse,
+        'mae': mae,
+        'max_error': max_error,
+        'relative_error': mean_relative_error,
+        'match_rate': match_rate,
+        'golden_shape': golden_values.shape,
+        'simulated_shape': simulated_values.shape,
+        'errors': errors,
+        'golden_values': golden_values,
+        'simulated_values': simulated_values
+    }
+
+
 def print_comparison_results(results, verbose=False):
     """
     Print comparison results in a readable format.
@@ -302,6 +466,51 @@ def print_comparison_results(results, verbose=False):
             print(f"  Index {idx:4d}: Golden={results['golden_values'][idx]:8.4f}, "
                   f"Simulated={results['simulated_values'][idx]:8.4f}, "
                   f"Error={errors[idx]:.6f}")
+
+
+def print_int_comparison_results(results, verbose=False):
+    """
+    Print integer comparison results in a readable format.
+    For int comparison, only shows match/mismatch status, not error values.
+
+    Args:
+        results: Dictionary returned by compare_int_with_golden
+        verbose: If True, print mismatched indices
+    """
+    print("=" * 60)
+    print("Int SRAM Comparison Results")
+    print("=" * 60)
+    print(f"Golden values shape:     {results['golden_shape']}")
+    print(f"Simulated values shape:  {results['simulated_shape']}")
+    print(f"Number of values:        {len(results['golden_values'])}")
+    print()
+    
+    match_rate = results['match_rate']
+    errors = results['errors']
+    mismatched_count = np.sum(errors > 0)
+    matched_count = len(errors) - mismatched_count
+    
+    print("Match Status:")
+    print(f"  Matched:                   {matched_count}/{len(errors)} ({match_rate:.2f}%)")
+    print(f"  Mismatched:                {mismatched_count}/{len(errors)} ({100-match_rate:.2f}%)")
+    
+    if match_rate == 100.0:
+        print()
+        print("✓ All values match!")
+    else:
+        print()
+        print(f"✗ {mismatched_count} value(s) do not match")
+        
+        if verbose and mismatched_count > 0:
+            print()
+            print("Mismatched Indices:")
+            mismatched_indices = np.where(errors > 0)[0]
+            for idx in mismatched_indices[:20]:
+                print(f"  Index {idx:4d}: Golden={results['golden_values'][idx]:8d}, "
+                      f"Simulated={results['simulated_values'][idx]:8d}")
+            if len(mismatched_indices) > 20:
+                print(f"  ... and {len(mismatched_indices) - 20} more mismatches")
+    print()
 
 
 if __name__ == "__main__":
