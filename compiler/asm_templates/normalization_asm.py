@@ -2,7 +2,6 @@ import os
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-
 def rms_norm_asm(
     _eps_offset: int,
     reci_hid_offset: int,
@@ -22,7 +21,7 @@ def rms_norm_asm(
     generated_code = "; RMS Norm generation \n"
     generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address} \n"
     generated_code += f"S_ADDI_INT gp{scratchpad_addr}, gp0, {scratchpad_base_address} \n"
-    
+
     # Load eps into f1
     generated_code += f"S_LD_FP f1, gp0, {_eps_offset} \n"
     # Reset f2 as accumulator for reduction.
@@ -37,7 +36,7 @@ def rms_norm_asm(
 
             # Move to next vector
             generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
-        
+
         # Taking the avg
         generated_code += f"S_MUL_FP f2, f2, f3 \n"
 
@@ -56,7 +55,79 @@ def rms_norm_asm(
 
             # Move to next vector
             generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
-        
+
         generated_code += "S_ADD_FP f2, f0, f0 \n"
         generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address + vlen * batch} \n"
+
+    return generated_code
+
+def layer_norm_asm(
+    _eps_offset: int,
+    reci_hid_offset: int,
+    alive_registers: List[int],
+    activation_base_address: int,
+    scratchpad_base_address: int,
+    vlen: int,
+    batch_size: int,
+    hidden_dim: int
+):
+    """
+    Generate assembly code for layer normalization.
+    """
+    act_addr = alive_registers[0]
+    scratchpad_addr = alive_registers[1]
+
+    generated_code = "; Layer Norm generation \n"
+    generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address} \n"
+    generated_code += f"S_ADDI_INT gp{scratchpad_addr}, gp0, {scratchpad_base_address} \n"
+
+    generated_code += f"S_LD_FP f1, gp0, {_eps_offset} \n"
+    generated_code += "S_ADD_FP f2, f0, f0 \n"
+    generated_code += "S_ADD_FP f3, f0, f0 \n"
+    generated_code += f"S_LD_FP f4, gp0, {reci_hid_offset} \n"
+    generated_code += "S_ADD_FP f5, f0, f0 \n"
+
+    for batch in range(batch_size):
+        for i in range(hidden_dim // vlen):
+            # sum(x)
+            generated_code += f"V_RED_SUM f2, gp{act_addr} \n"
+
+            # sum(x^2)
+            generated_code += f"V_MUL_VV gp{scratchpad_addr}, gp{act_addr}, gp{act_addr}, 0 \n"
+            generated_code += f"V_RED_SUM f3, gp{scratchpad_addr} \n"
+
+            # Move to next vector
+            generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
+
+        # f2 = sum(x) * (1/hidden_dim) = mean(x)
+        generated_code += f"S_MUL_FP f2, f2, f4 \n"
+
+        # f3 = sum(x^2) * (1/hidden_dim) = mean(x^2)
+        generated_code += f"S_MUL_FP f3, f3, f4 \n"
+
+        # f5 = mean(x)^2
+        generated_code += f"S_MUL_FP f5, f2, f2 \n"
+
+        # f5 = mean(x^2) - mean(x)^2 + epsilon = variance + epsilon
+        generated_code += f"S_SUB_FP f5, f3, f5 \n"
+        generated_code += f"S_ADD_FP f5, f5, f1 \n"
+
+        # f5 = sqrt(variance + epsilon) = std
+        generated_code += f"S_SQRT_FP f5, f5 \n"
+
+        # f5 = 1/std
+        generated_code += f"S_RECI_FP f5, f5 \n"
+
+        for i in range(hidden_dim // vlen):
+            # normalized = (x - mean) * (1/std) = (x - f2) * f5
+            generated_code += f"V_SUB_VF gp{act_addr}, gp{act_addr}, f2, 0, 0 \n"
+            generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f5, 0 \n"
+
+            # Move to next vector
+            generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
+
+        generated_code += "S_ADD_FP f2, f0, f0 \n"
+        generated_code += "S_ADD_FP f3, f0, f0 \n"
+        generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address + vlen * batch} \n"
+
     return generated_code
