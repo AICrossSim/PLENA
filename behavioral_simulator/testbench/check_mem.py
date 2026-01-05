@@ -279,14 +279,22 @@ def compare_with_golden(bin_file,
     }
 
 
-def print_comparison_results(results, verbose=False):
+def print_comparison_results(results, verbose=False, comparison_params=None):
     """
     Print comparison results in a readable format.
 
     Args:
         results: Dictionary returned by compare_with_golden
         verbose: If True, print detailed error statistics
+        comparison_params: Optional dict with comparison parameters to print
     """
+    if comparison_params:
+        print("\nComparison Configuration:")
+        print(f"  Start Row: {comparison_params.get('start_row_idx', 'N/A')}")
+        print(f"  Num Rows: {comparison_params.get('num_rows', 'N/A')}")
+        print(f"  Num Batches: {comparison_params.get('num_batches', 'N/A')}")
+        print(f"  Elements per Batch: {comparison_params.get('elements_per_batch', 'N/A')}\n")
+
     print("=" * 60)
     print("Comparison Results")
     print("=" * 60)
