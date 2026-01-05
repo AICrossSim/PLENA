@@ -1,19 +1,12 @@
-#!/usr/bin/env python3
-"""
-Test script for patch embedding code generation
-"""
-
 import sys
-import os
 from pathlib import Path
-import torch
-import torch.nn as nn
-import numpy as np
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-# Add compiler directory to path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "compiler"))
-from passes.code_gen import _generate_patch_embedding_code
-from assembler import AssemblyToBinary
+import torch
+from torch import nn
+from compiler.asm_templates import patch_embedding_asm, reset_reg_asm, preload_addr_reg_asm
+from create_sim_env import create_sim_env
+from sim_env_utils import create_mem_for_sim
 
 
 # Replicate SmolVLM's patch embedding for reference
@@ -128,146 +121,148 @@ class SmolVLMPatchEmbedding(nn.Module):
 
         return output
 
-def test_smolvlm_patch_embedding_equivalence():
-    """
-    Test that manual im2col+GEMM produces same results as Conv2d.
-    This verifies our understanding before implementing in assembly.
-    """
-    print("\n=== Testing SmolVLM Patch Embedding Equivalence ===")
+
+if __name__ == "__main__":
+    # SmolVLM Vision configuration
+    # Using smaller dimensions for initial testing
+    channels = 3
+    image_height = 64      # Smaller than 384 for testing
+    image_width = 64
+    patch_size = 16        # 4x4 = 16 patches
+    hidden_size = 128      # Smaller than 1152 for testing
+    batch_size = 1
+
+    num_patches_h = image_height // patch_size  # 4
+    num_patches_w = image_width // patch_size   # 4
+    num_patches = num_patches_h * num_patches_w  # 16
+    patch_elements = channels * patch_size * patch_size  # 3*16*16 = 768
+
+    real_data_ratio = (8*8 + 8) / (8 * 8)  # MXFP format overhead
+    fp_preload = [0.0, 1e-6, 1.0/hidden_size]
 
     config = {
-        "channels": 3,
-        "image_height": 384,
-        "image_width": 384,
-        "patch_size": 16,
-        "hidden_size": 1152,
+        "channels": channels,
+        "image_height": image_height,
+        "image_width": image_width,
+        "patch_size": patch_size,
+        "hidden_size": hidden_size,
     }
 
-    # Create model
+    # Create model and generate test data
+    torch.manual_seed(42)
+    pixel_values = torch.randn(batch_size, channels, image_height, image_width)
     model = SmolVLMPatchEmbedding(config)
     model.eval()
 
-    # Create random input image
-    batch_size = 1
-    pixel_values = torch.randn(batch_size, 3, 384, 384)
-
-    # Method 1: Standard Conv2d forward pass
     with torch.no_grad():
-        output_conv2d = model.forward(pixel_values)
-
-    # Method 2: Manual im2col + GEMM
-    with torch.no_grad():
-        output_im2col_gemm = model.manual_im2col_gemm(pixel_values)
+        original_output = model.forward(pixel_values)
+        manual_output = model.manual_im2col_gemm(pixel_values)
 
     # Verify equivalence
-    max_diff = torch.max(torch.abs(output_conv2d - output_im2col_gemm)).item()
-    print(f"Max difference between Conv2d and Im2col+GEMM: {max_diff:.6e}")
+    max_diff = torch.max(torch.abs(original_output - manual_output)).item()
+    print(f"Conv2d vs Im2col+GEMM max difference: {max_diff:.6e}")
 
     if max_diff < 1e-5:
         print("✅ Conv2d and Im2col+GEMM produce equivalent results!")
     else:
         print(f"❌ Outputs differ by {max_diff}")
-
-    # Print shapes for verification
-    print(f"\nShapes:")
-    print(f"  Input: {pixel_values.shape}")
-    print(f"  Output: {output_conv2d.shape}")
-    print(f"  Expected: (batch={batch_size}, num_patches={(384//16)**2}, embed_dim={config['hidden_size']})")
-
-    # Print weight matrix info
-    gemm_weight = model.get_conv_weights_as_gemm_matrix()
-    print(f"\nGEMM weight matrix shape: {gemm_weight.shape}")
-    print(f"  Expected: ({3*16*16}, {config['hidden_size']}) = (768, 1152)")
-
-    return max_diff < 1e-5
-
-
-def test_patch_embedding_code_generation():
-    """Test the patch embedding code generation function"""
-
-    # Test node with SmolVLM Vision parameters
-    test_node = {
-        "name": "patch_embedding",
-        "operation_type": "patch_embedding",
-        "dimensions": {
-            "channels": 3,           # RGB input
-            "image_height": 384,     # SmolVLM image size
-            "image_width": 384,
-            "patch_size": 16,        # 16x16 patches -> 24x24 = 576 patches
-            "hidden_size": 1152,     # SmolVLM embedding dimension
-        }
-    }
-
-    hardware_config = {
-        "mlen": 64,
-        "blen": 4,
-        "vlen": 64,
-        "alive_registers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    }
-
-    model_info = {
-        "batch_size": 1
-    }
-
-    scheduler = {
-        "activation_base_address": 0,
-        "result_base_address": 16384,  # Offset for output storage
-        "register_assignment": {
-            "hbm_addr_reg": {
-                "image_offset": 0,
-                "weight_offset": 1
-            }
-        }
-    }
-
-    # TODO: Implement _generate_patch_embedding_code in passes/code_gen.py
-    # Generate the assembly code
-    generated_code = _generate_patch_embedding_code(
-        test_node,
-        model_info=model_info,
-        hardware_config=hardware_config,
-        scheduler=scheduler
-    )
-
-    # Write out assembly
-    with open("generated_patch_embedding_assembly.asm", "w") as f:
-        f.write(generated_code)
-
-    # Write out machine code
-    config_parent_path = Path(__file__).resolve().parents[2]
-    print(f"Config parent path: {config_parent_path}")
-
-    print("✅ All tests passed! The patch embedding code generation is working correctly.")
-
-
-if __name__ == "__main__":
-    # Step 1: Verify equivalence of Conv2d and Im2col+GEMM
-    print("=" * 70)
-    print("STEP 1: Verify Conv2d = Im2col + GEMM equivalence")
-    print("=" * 70)
-    equivalence_passed = test_smolvlm_patch_embedding_equivalence()
-
-    if not equivalence_passed:
-        print("\n❌ Equivalence test failed. Fix before proceeding to assembly generation.")
         exit(1)
 
-    # Step 2: Generate assembly code
-    print("\n" + "=" * 70)
-    print("STEP 2: Generate assembly code for patch embedding")
-    print("=" * 70)
-    test_patch_embedding_code_generation()
+    print(f"\nPatch Embedding: ({batch_size}, {channels}, {image_height}, {image_width}) -> ({batch_size}, {num_patches}, {hidden_size})")
+    print("original_output shape:", original_output.shape)
 
-    # Step 3: Generate binary
-    print("\n" + "=" * 70)
-    print("STEP 3: Generate binary from assembly")
-    print("=" * 70)
-    config_path = Path(__file__).resolve().parents[2] / "src" / "definitions" / "configuration.svh"
-    isa_def_path = Path(__file__).resolve().parents[2] / "src" / "definitions" / "operation.svh"
-    assembler = AssemblyToBinary(isa_def_path, config_path)
-    # TODO: Verify the generated assembly is correct
-    assembler.generate_binary("generated_patch_embedding_assembly.asm", "generated_patch_embedding_assembly.mem")
-    print("✅ Generated binary file: generated_patch_embedding_assembly.mem")
+    # Prepare weights for assembly generation
+    gemm_weight = model.get_conv_weights_as_gemm_matrix()  # (patch_elements, hidden_size)
+    position_embeddings = model.position_embedding.weight.data  # (num_patches, hidden_size)
 
-    print("\n" + "=" * 70)
-    print("All tests completed!")
-    print("=" * 70)
+    print(f"GEMM weight shape: {gemm_weight.shape} (expected: ({patch_elements}, {hidden_size}))")
+    print(f"Position embeddings shape: {position_embeddings.shape}")
+
+    # Reshape pixel values to im2col format for input_tensor
+    # Extract patches manually to create the input tensor
+    patches = []
+    for b in range(batch_size):
+        for i in range(num_patches_h):
+            for j in range(num_patches_w):
+                patch = pixel_values[b, :, i*patch_size:(i+1)*patch_size, j*patch_size:(j+1)*patch_size]
+                patches.append(patch.reshape(-1))
+    patches_tensor = torch.stack(patches).reshape(batch_size, num_patches, patch_elements)
+
+    input_tensor = {
+        "patches": patches_tensor,  # (batch_size, num_patches, patch_elements)
+        "weights": gemm_weight,     # (patch_elements, hidden_size)
+        "position_embeddings": position_embeddings  # (num_patches, hidden_size)
+    }
+
+    golden_result = {
+        "input_tensor": input_tensor,
+        "original_output": original_output  # (batch_size, num_patches, hidden_size)
+    }
+
+    gen_assembly_code = "; Patch Embedding Test Generation\n"
+    gen_assembly_code += f"; Shape: ({batch_size}, {channels}, {image_height}, {image_width}) -> ({batch_size}, {num_patches}, {hidden_size})\n"
+
+    # Calculate HBM offsets
+    # Layout in HBM: [image_data | weights | position_embeddings]
+    image_hbm_size = int(batch_size * channels * image_height * image_width * real_data_ratio)
+    weight_hbm_offset = image_hbm_size
+    weight_hbm_size = int(patch_elements * hidden_size * real_data_ratio)
+    pos_emb_hbm_offset = weight_hbm_offset + weight_hbm_size
+    pos_emb_hbm_end = pos_emb_hbm_offset + int(num_patches * hidden_size * real_data_ratio)
+
+    # Set HBM address registers
+    gen_assembly_code += preload_addr_reg_asm(
+        addr_reg_to_set=[0, 1, 2],
+        available_registers=[1, 2, 3],
+        addr_reg_val=[0, weight_hbm_offset, pos_emb_hbm_offset]
+    )
+
+    # Reset scalar registers
+    gen_assembly_code += reset_reg_asm(
+        alive_registers=[1, 2, 3, 4, 5, 6, 7, 8]
+    )
+
+    # Generate patch embedding assembly
+    result_vram_offset = 0  # Store results at start of VRAM
+
+    gen_assembly_code += patch_embedding_asm(
+        mlen=64,
+        blen=4,
+        batch=batch_size,
+        channels=channels,
+        image_height=image_height,
+        image_width=image_width,
+        patch_size=patch_size,
+        hidden_size=hidden_size,
+        alive_registers=[1, 2, 3, 4, 5, 6, 7, 8],
+        image_hbm_offset_reg=0,
+        weight_hbm_offset_reg=1,
+        activation_base_address=0,
+        result_base_address=result_vram_offset
+    )
+
+    create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="patch_embedding", data=None,
+                       specified_data_order=["patches", "weights", "position_embeddings"])
+
+    # Save comparison parameters for view_mem.py
+    import json
+    vlen = 64
+    result_start_row = result_vram_offset // vlen
+    num_result_rows = (batch_size * num_patches * hidden_size) // vlen
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": batch_size,
+        "elements_per_batch": num_patches * hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    build_dir.mkdir(exist_ok=True)
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
+
+    print("================================================")
+    print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
+    print("================================================")
