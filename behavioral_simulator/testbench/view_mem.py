@@ -194,11 +194,8 @@ if __name__ == "__main__":
     mram_file = os.path.join(script_dir, "behavioral_simulator", "mram_dump.bin")
     golden_file = os.path.join(script_dir, "behavioral_simulator", "testbench", "build", "golden_result.txt")
     # VRAM uses BF16 format by default: sign=1, exponent=8, mantissa=7 (16 bits total = 2 bytes)
-    
-    print("Viewing VRAM dump from 0 Base Address")
-    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=16)
 
-    # Load comparison params and compare with golden output
+    # Load comparison params to know which rows to display
     import json
     from check_mem import compare_with_golden, print_comparison_results
 
@@ -206,6 +203,16 @@ if __name__ == "__main__":
     with open(params_file, "r") as f:
         params = json.load(f)
 
+    print("=" * 80)
+    print(f"Output Results (Rows {params['start_row_idx']}-{params['start_row_idx'] + params['num_rows'] - 1})")
+    print("=" * 80)
+    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2,
+                            start_row_idx=params["start_row_idx"],
+                            load_row_size=params["num_rows"])
+
+    print("\n" + "=" * 80)
+    print("Comparison with Golden Output")
+    print("=" * 80)
     results = compare_with_golden(
         vram_file, golden_file,
         exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=64,
@@ -215,7 +222,7 @@ if __name__ == "__main__":
         tolerance = 0.1,
         elements_per_batch=params["elements_per_batch"]
     )
-    print_comparison_results(results, verbose=True)
+    print_comparison_results(results, verbose=True, comparison_params=params)
     
     # print("Viewing VRAM dump from 16 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)
