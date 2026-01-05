@@ -4,11 +4,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import torch
 from torch import Tensor, nn
-# from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
-from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import layer_norm_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 
 
 # Taken from standard LayerNorm implementation
@@ -90,6 +88,9 @@ if __name__ == "__main__":
     }
 
     original_output = original_layer(act_tensor)
+    print(f"LayerNorm: ({batch_size}, {hidden_size}) -> ({batch_size}, {hidden_size})")
+    print("original_output shape:", original_output.shape)
+    print("original_output is:\n", original_output)
 
     golden_result = {
         "input_tensor": input_tensor,
@@ -97,10 +98,7 @@ if __name__ == "__main__":
     }
 
     gen_assembly_code = "; LayerNorm Test Generation \n"
-
-    # print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
-    # print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
-
+    gen_assembly_code += f"; Shape: ({batch_size}, {hidden_size}) -> ({batch_size}, {hidden_size})\n"
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
@@ -111,9 +109,9 @@ if __name__ == "__main__":
     gen_assembly_code += preload_act_asm(
         vlen=64,
         preload_len=4,
-        batch=4,
-        hidden_size=128,
-        alive_registers=[1,2,3],
+        batch=batch_size,
+        hidden_size=hidden_size,
+        alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
         stride_size=hidden_size
@@ -121,23 +119,41 @@ if __name__ == "__main__":
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1,2,3]
+        alive_registers=[1,2,3,4]
     )
 
     gen_assembly_code += layer_norm_asm(
         _eps_offset=1,
         reci_hid_offset=2,
-        alive_registers=[1,2,3,4],
-        activation_base_address = 0,
-        scratchpad_base_address = hidden_size * batch_size,
+        alive_registers=[1,2,3,4,5],
+        activation_base_address=0,
+        scratchpad_base_address=hidden_size * batch_size,
         vlen=64,
-        batch_size=4,
-        hidden_dim=128
+        batch_size=batch_size,
+        hidden_dim=hidden_size
     )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="layernorm", data=None, specified_data_order = ["act_tensor", "weights"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="layernorm", data=None, specified_data_order=["act_tensor", "weights"])
+
+    # Save comparison parameters for view_mem.py
+    import json
+    vlen = 64
+    result_vram_offset = 0  # activation_base_address
+    result_start_row = result_vram_offset // vlen  # Row where results start
+    num_result_rows = (batch_size * hidden_size) // vlen
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": batch_size,
+        "elements_per_batch": hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
     print("================================================")
