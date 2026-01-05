@@ -49,6 +49,9 @@ def rms_norm_asm(
         # Compute reciprocal
         generated_code += "S_RECI_FP f2, f2 \n"
 
+        # Reset pointer to start of current batch before normalization loop
+        generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address + vlen * batch} \n"
+
         for i in range(hidden_dim // vlen):
             # Normalize the activation vector
             generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f2, 0 \n"
@@ -118,10 +121,15 @@ def layer_norm_asm(
         # f5 = 1/std
         generated_code += f"S_RECI_FP f5, f5 \n"
 
+        # Reset pointer to start of current batch before normalization loop
+        generated_code += f"S_ADDI_INT gp{act_addr}, gp0, {activation_base_address + vlen * batch} \n"
+
         for i in range(hidden_dim // vlen):
             # normalized = (x - mean) * (1/std) = (x - f2) * f5
-            generated_code += f"V_SUB_VF gp{act_addr}, gp{act_addr}, f2, 0, 0 \n"
-            generated_code += f"V_MUL_VF gp{act_addr}, gp{act_addr}, f5, 0 \n"
+            # Store (x - mean) in scratchpad first to avoid overwriting original values
+            generated_code += f"V_SUB_VF gp{scratchpad_addr}, gp{act_addr}, f2, 0, 0 \n"
+            # Then multiply by 1/std and write back to activation
+            generated_code += f"V_MUL_VF gp{act_addr}, gp{scratchpad_addr}, f5, 0 \n"
 
             # Move to next vector
             generated_code += f"S_ADDI_INT gp{act_addr}, gp{act_addr}, {vlen * batch_size} \n"
