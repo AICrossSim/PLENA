@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 # from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
-from compiler.asm_templates import  preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm, get_transfer_index_long_debug
+from compiler.asm_templates import  preload_act_asm_scale, reset_reg_asm, preload_addr_reg_asm, get_transfer_index_performance, get_transfer_index_edge
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 import torch.nn.functional as F
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     # Running generate of fastdllm
     # ============================================================
     model_path = 'GSAI-ML/LLaDA-8B-Instruct'
-    device = 'cuda'
+    device = 'cuda:2'
     steps = 1
     gen_length = 64
     block_length = 64
@@ -454,8 +454,7 @@ if __name__ == "__main__":
     transfer_idx_offset_address = 0
     mask_offset_address = (batch_size * hidden_size)*steps
     x0_p_offset_address = (batch_size * hidden_size)*steps*2
-    temp_offset_address = (batch_size * hidden_size)*steps*3
-    logits_offset_address = temp_offset_address + vlen
+    logits_offset_address = (batch_size * hidden_size)*steps*3 + vlen
     
     gen_assembly_code = "; DLLM Test Generation \n"
 
@@ -487,12 +486,13 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4,5,6,7,8]
     )
     # Use the collected k_values from all T iterations
-    gen_assembly_code += get_transfer_index_long_debug(
+    # TODO: Currently utilizing an outdated version of the transfer index asm 
+    # Need to update to use the performance and edge versions where appropriate
+    gen_assembly_code += get_transfer_index_edge(
         alive_registers=[4,5,6,7,8,9,10,11,12,13,14,15],
         logits_base_address=logits_offset_address,
         mask_base_address=mask_offset_address,
         transfer_idx_base_address=0,
-        temp_base_address=temp_offset_address,
         x0_p_base_address=x0_p_offset_address,
         k_values=k_values_list,
         vlen=vlen,
@@ -501,7 +501,8 @@ if __name__ == "__main__":
         batch_size=batch_size,
         prompt_batch_size=prompt_batch_size,
         vocal_size_single=vocal_size_single,
-        hidden_size=hidden_size,
+        gen_length=gen_length, 
+        preload_len=preload_amount
     )
     
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload, int_preload)
