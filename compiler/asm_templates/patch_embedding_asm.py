@@ -6,6 +6,7 @@ import math
 IMM2_BOUND = 2**18
 VLEN = 64  # Vector length - addresses must be multiples of this
 PREFETCH_V_AMOUNT = 16  # Number of VLEN-sized chunks per H_PREFETCH_V
+HBM_ALIGNMENT = 64
 
 def patch_embedding_asm(
     mlen: int,
@@ -62,6 +63,7 @@ def patch_embedding_asm(
     hbm_offset_reg = alive_registers[3]
     temp_reg = alive_registers[4]
     temp_reg2 = alive_registers[5]
+    temp_vram_reg = alive_registers[6]
 
     num_k_tiles = patch_elements // mlen
     num_n_tiles = hidden_size // mlen
@@ -76,7 +78,6 @@ def patch_embedding_asm(
     generated_code += f"C_SET_STRIDE_REG gp{temp_reg} \n"
 
     # Phase 2: Im2col - Extract all patches from images and load into Vector SRAM
-    generated_code += "; Phase 2: Im2col - Extract patches from images \n"
     generated_code += f"S_ADDI_INT gp{temp_reg}, gp0, {image_batch_stride * batch} \n"
     generated_code += f"C_SET_SCALE_REG gp{temp_reg} \n"
     generated_code += f"S_ADDI_INT gp{temp_reg}, gp0, {image_width} \n"
@@ -86,32 +87,65 @@ def patch_embedding_asm(
     patch_elements_aligned = ((patch_elements + VLEN - 1) // VLEN) * VLEN
     patches_vram_offset = activation_base_address
 
+    print(f"patch_elements_aligned = {patch_elements_aligned}")
+    print(f"patches_vram_offset = {patches_vram_offset}")
+
+    # Temporary VRAM area for loading full rows (after all patches)
+    temp_vram_base = activation_base_address + batch * num_patches * patch_elements_aligned
+
     for b in range(batch):
         for ph in range(num_patches_h):
             for pw in range(num_patches_w):
-                # Load patch data into Vector SRAM at sequential locations
+                # Set destination address for this patch
                 generated_code += f"S_ADDI_INT gp{patch_addr_reg}, gp0, {patches_vram_offset} \n"
 
                 for c in range(channels):
-                    channel_patch_start = (b * image_batch_stride +
-                                          c * image_channel_stride +
-                                          ph * patch_size * image_width +
-                                          pw * patch_size)
+                    # Calculate the start of the first row for this patch in this channel
+                    # This is ALWAYS row-aligned since we're at the start of a row
+                    channel_row_base = b * image_batch_stride + c * image_channel_stride + ph * patch_size * image_width
+                    patch_col_offset = pw * patch_size  # Column offset within each row (in elements)
+
+                    # Strategy:
+                    # 1. Load full row(s) from HBM (always 64-byte aligned)
+                    # 2. If patch doesn't start at column 0, we need to extract the patch portion
+                    #    Since image_width == VLEN == 64, we load the full row and then
+                    #    would need to shift/extract, but we don't have that instruction
+                    # 3. For now: just load from row start and document the limitation
 
                     rows_to_load = patch_size
                     rows_loaded = 0
 
-                    while rows_loaded < rows_to_load:
-                        rows_this_prefetch = min(PREFETCH_V_AMOUNT, rows_to_load - rows_loaded)
-                        hbm_offset = channel_patch_start + rows_loaded * image_width
+                    if patch_col_offset == 0:
+                        # Patch starts at beginning of row - can load directly
+                        while rows_loaded < rows_to_load:
+                            rows_this_prefetch = min(PREFETCH_V_AMOUNT, rows_to_load - rows_loaded)
+                            row_hbm_offset = channel_row_base + rows_loaded * image_width
 
-                        generated_code += f"S_ADDI_INT gp{hbm_offset_reg}, gp0, {hbm_offset} \n"
-                        generated_code += f"H_PREFETCH_V gp{patch_addr_reg}, gp{hbm_offset_reg}, a{image_hbm_offset_reg}, 1, 0 \n"
+                            generated_code += f"S_ADDI_INT gp{hbm_offset_reg}, gp0, {row_hbm_offset} \n"
+                            generated_code += f"H_PREFETCH_V gp{patch_addr_reg}, gp{hbm_offset_reg}, a{image_hbm_offset_reg}, 1, 0 \n"
 
-                        vram_advance = rows_this_prefetch * VLEN
-                        generated_code += f"S_ADDI_INT gp{patch_addr_reg}, gp{patch_addr_reg}, {vram_advance} \n"
+                            vram_advance = rows_this_prefetch * VLEN
+                            generated_code += f"S_ADDI_INT gp{patch_addr_reg}, gp{patch_addr_reg}, {vram_advance} \n"
 
-                        rows_loaded += rows_this_prefetch
+                            rows_loaded += rows_this_prefetch
+                    else:
+                        # Patch starts in middle of row - need to extract
+                        # Current limitation: we don't have vector slice operations
+                        # Workaround: Load from aligned address (row start) but data will be wrong
+                        generated_code += f"; FIXME: Patch at column offset {patch_col_offset} - loading from row start instead \n"
+                        generated_code += f"; This loads wrong data - need vector slice operation \n"
+
+                        while rows_loaded < rows_to_load:
+                            rows_this_prefetch = min(PREFETCH_V_AMOUNT, rows_to_load - rows_loaded)
+                            row_hbm_offset = channel_row_base + rows_loaded * image_width
+
+                            generated_code += f"S_ADDI_INT gp{hbm_offset_reg}, gp0, {row_hbm_offset} \n"
+                            generated_code += f"H_PREFETCH_V gp{patch_addr_reg}, gp{hbm_offset_reg}, a{image_hbm_offset_reg}, 1, 0 \n"
+
+                            vram_advance = rows_this_prefetch * VLEN
+                            generated_code += f"S_ADDI_INT gp{patch_addr_reg}, gp{patch_addr_reg}, {vram_advance} \n"
+
+                            rows_loaded += rows_this_prefetch
 
                 # Move to next patch location in VRAM (aligned to VLEN)
                 patches_vram_offset += patch_elements_aligned

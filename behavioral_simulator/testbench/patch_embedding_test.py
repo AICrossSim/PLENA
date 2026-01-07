@@ -93,7 +93,7 @@ def test_im2col_assembly(model, pixel_values, config, real_data_ratio, fp_preloa
 
     # Reset scalar registers
     gen_assembly_code += reset_reg_asm(
-        alive_registers=[1, 2, 3, 4, 5, 6]
+        alive_registers=[1, 2, 3, 4, 5, 6, 7]
     )
 
     # Generate im2col assembly (patch_embedding_asm currently only has im2col)
@@ -108,7 +108,7 @@ def test_im2col_assembly(model, pixel_values, config, real_data_ratio, fp_preloa
         image_width=image_width,
         patch_size=patch_size,
         hidden_size=128,  # Unused for im2col-only, but required parameter
-        alive_registers=[1, 2, 3, 4, 5, 6],
+        alive_registers=[1, 2, 3, 4, 5, 6, 7],
         image_hbm_offset_reg=0,
         weight_hbm_offset_reg=1,  # Unused
         activation_base_address=activation_base_address,
@@ -140,7 +140,8 @@ def test_im2col_assembly(model, pixel_values, config, real_data_ratio, fp_preloa
         "num_batches": batch_size,
         "num_patches": num_patches,
         "patch_elements": patch_elements,
-        "patch_elements_aligned": patch_elements_aligned
+        "patch_elements_aligned": patch_elements_aligned,
+        "elements_per_batch": num_patches * patch_elements_aligned
     }
     build_dir = Path(__file__).parent / "build"
     build_dir.mkdir(exist_ok=True)
@@ -260,7 +261,7 @@ def test_full_assembly(model, pixel_values, config, real_data_ratio, fp_preload)
         image_width=image_width,
         patch_size=patch_size,
         hidden_size=hidden_size,
-        alive_registers=[1, 2, 3, 4, 5, 6],
+        alive_registers=[1, 2, 3, 4, 5, 6, 7],
         image_hbm_offset_reg=0,
         weight_hbm_offset_reg=1,
         activation_base_address=0,
