@@ -4,7 +4,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import torch
 from torch import nn
-from compiler.asm_templates import preload_act_asm, reset_reg_asm, silu_asm
+from compiler.asm_templates import preload_act_asm, reset_reg_asm, gelu_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 
@@ -14,8 +14,8 @@ if __name__ == "__main__":
     batch_size = 4
     vlen = 64
 
-    # FP SRAM layout: [0]=0.0, [1]=1.0 (for sigmoid computation)
-    fp_preload = [0.0, 1.0]
+    # FP SRAM layout: [0]=0.0, [1]=1.0, [2]=1.702 (for GELU sigmoid approximation)
+    fp_preload = [0.0, 1.0, 1.702]
 
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, hidden_size)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     print("Input tensor (first 8 values):", act_tensor[0, :8])
 
     # Compute golden output using PyTorch
-    original_output = nn.functional.silu(act_tensor)
+    original_output = nn.functional.gelu(act_tensor)
 
     print("Output tensor (first 8 values):", original_output[0, :8])
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
         "original_output": original_output
     }
 
-    gen_assembly_code = "; SiLU Test Generation\n"
+    gen_assembly_code = "; GELU Test Generation\n"
 
     # Reset registers
     gen_assembly_code += reset_reg_asm(
@@ -61,9 +61,10 @@ if __name__ == "__main__":
         alive_registers=[1, 2, 3, 4]
     )
 
-    # SiLU computation
-    gen_assembly_code += silu_asm(
+    # GELU computation
+    gen_assembly_code += gelu_asm(
         const_one_fp_address=1,
+        const_1702_fp_address=2,
         alive_registers=[1, 2, 3, 4, 5],
         activation_base_address=0,
         scratchpad_base_address=hidden_size * batch_size,
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    create_mem_for_sim(data_size=256, mode="behave_sim", asm="silu", data=None, specified_data_order=["act_tensor"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="gelu", data=None, specified_data_order=["act_tensor"])
 
     # Save comparison parameters for view_mem.py
     import json
@@ -91,7 +92,7 @@ if __name__ == "__main__":
         json.dump(comparison_params, f, indent=2)
 
     print("================================================")
-    print("Finished generating SiLU test assembly code")
+    print("Finished generating GELU test assembly code")
     print(f"Result location: row {result_start_row}, {num_result_rows} rows")
     print(f"Comparison params: {comparison_params}")
     print("================================================")
