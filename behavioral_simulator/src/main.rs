@@ -1921,9 +1921,16 @@ async fn start() {
         mask_unit: *HLEN,
     }; // Share same dim with VSRAM
 
+    // HBM2 configuration (8 channels, ~256 GB/s)
+    // let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
+    //     ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
+    //     memory::MemoryBacked::with_capacity(*HBM_SIZE),
+    // )));
+
+    // DDR3 configuration (1 channel, ~12.8 GB/s, 512MB capacity in timing model)
     let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
-        ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
-        memory::MemoryBacked::with_capacity(*HBM_SIZE),
+        ManuallyDrop::new(ramulator::Ramulator::ddr3_preset(1).unwrap()),
+        memory::MemoryBacked::with_capacity(512 * 1024 * 1024), // Match DDR3 512MB
     )));
 
     let mut accelerator = Accelerator {

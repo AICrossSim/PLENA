@@ -5,16 +5,16 @@ value = 1
 value = 10000
 
 [CONFIG.BLEN]
-value = 4
+value = 2
 
 [CONFIG.HLEN]
-value = 16
+value = 8
 
 [CONFIG.MLEN]
-value = 64
+value = 32
 
 [CONFIG.VLEN]
-value = 64
+value = 32
 
 [CONFIG.BROADCAST_AMOUNT]
 value = 4
@@ -26,19 +26,19 @@ value = 1073741824
 value = 512
 
 [CONFIG.MATRIX_SRAM_SIZE]
-value = 1024
+value = 256
 
 [CONFIG.VECTOR_SRAM_SIZE]
-value = 1024
+value = 512
 
 [CONFIG.HBM_M_Prefetch_Amount]
-value = 64
+value = 16
 
 [CONFIG.HBM_V_Prefetch_Amount]
 value = 4
 
 [CONFIG.HBM_V_Writeback_Amount]
-value = 4
+value = 8
 
 [PRECISION.MATRIX_SRAM_TYPE]
 format = "Plain"
