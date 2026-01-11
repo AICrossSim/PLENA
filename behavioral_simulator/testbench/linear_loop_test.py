@@ -7,7 +7,7 @@ from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-from sim_env_utils import build_sim_env
+from sim_env_utils import create_mem_for_sim
 
 
 if __name__ == "__main__":
@@ -66,18 +66,17 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4,5,6,7]
     )
 
-    # Use the loop-optimized projection assembly
+    # Use the projection assembly
     gen_assembly_code += projection_asm(
         mlen=64,
         blen=4,
         batch=4,
         hidden_size=128,
-        alive_registers=[1,2,3,4,5,6,7],  # Need 7 registers for loop version
+        alive_registers=[1,2,3,4,5,6],
         w_base_hbm_offset_reg=1,
         activation_base_address=0,
         result_base_address=hidden_size * batch_size,
-        rope_enabled=False,
-        use_loop_instructions=True  # Enable loop optimization
+        rope_enabled=False
     )
 
     # Print generated assembly for comparison
@@ -88,8 +87,24 @@ if __name__ == "__main__":
     print("=" * 60)
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
-    build_sim_env(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order = ["act_tensor", "weights"])
+    create_mem_for_sim(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order=["act_tensor", "weights"])
+
+    # Save comparison parameters for view_mem.py
+    import json
+    result_start_row = (hidden_size * batch_size) // 64  # Row where results start
+    num_result_rows = (batch_size * hidden_size) // 64
+    comparison_params = {
+        "start_row_idx": result_start_row,
+        "num_rows": num_result_rows,
+        "num_batches": batch_size,
+        "elements_per_batch": hidden_size
+    }
+    build_dir = Path(__file__).parent / "build"
+    with open(build_dir / "comparison_params.json", "w") as f:
+        json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating assembly code")
+    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Comparison params: {comparison_params}")
     print("================================================")
