@@ -1,6 +1,6 @@
 from .projection_asm import projection_asm
 from .flash_attn_asm import flash_attn_asm
-from .ffn_asm import ffn_asm
+from .ffn_asm import ffn_asm, ffn_intermediate_asm, ffn_up_silu_asm
 from .normalization_asm import rms_norm_asm, layer_norm_asm
 from .embedding_asm import embedding_asm
 from .elementwise_add_asm import elementwise_add_asm
@@ -18,6 +18,8 @@ __all__ = [
     "preload_addr_reg_asm",
     "flash_attn_asm",
     "ffn_asm",
+    "ffn_intermediate_asm",
+    "ffn_up_silu_asm",
     "rms_norm_asm",
     "layer_norm_asm",
     "elementwise_add_asm",

@@ -245,10 +245,13 @@ impl MatrixMachine {
         }
         // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
+        // Convert to float32 before matmul to match PyTorch golden reference
+        let vec_f32 = vec.to_kind(tch::Kind::Float);
+        let mat_f32 = mat.to_kind(tch::Kind::Float);
         // println!("vec = {}", vec);
         // println!("mat = {}", mat);
         // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
-        self.m_accum += vec.matmul(&mat);
+        self.m_accum += vec_f32.matmul(&mat_f32);
     }
 
     async fn bmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
@@ -298,7 +301,10 @@ impl MatrixMachine {
             // For each i, select the corresponding slice along broadcast_amount
             let vec_i = vec.i((.., .., i as i64)).squeeze_dim(-1); // [mlen, hlen]
             // mat: [hlen, mlen]
-            let mut result = vec_i.matmul(&mat); // [mlen, mlen]
+            // Convert to float32 before matmul to match PyTorch golden reference
+            let vec_i_f32 = vec_i.to_kind(tch::Kind::Float);
+            let mat_f32 = mat.to_kind(tch::Kind::Float);
+            let mut result = vec_i_f32.matmul(&mat_f32); // [mlen, mlen]
             result = &result * (bmm_scale as f64);
             result_tensors.push(result);
         }
@@ -368,7 +374,10 @@ impl MatrixMachine {
             if !is_quiet() {
                 println!("vec_i = {}", vec_i);
             }
-            let result = vec_i.matmul(&mat.transpose(-1, -2)); // [mlen, mlen]
+            // Convert to float32 before matmul to match PyTorch golden reference
+            let vec_i_f32 = vec_i.to_kind(tch::Kind::Float);
+            let mat_t_f32 = mat.transpose(-1, -2).to_kind(tch::Kind::Float);
+            let result = vec_i_f32.matmul(&mat_t_f32); // [mlen, mlen]
             let result = &result * (bmm_scale as f64);
             if !is_quiet() {
                 println!("result = {}", result);
@@ -404,8 +413,11 @@ impl MatrixMachine {
         }
         // Stack along dimension 0 to get [blen, mlen]
         let vec = tch::Tensor::stack(&tensors, 0);
+        // Convert to float32 before matmul to match PyTorch golden reference
+        let vec_f32 = vec.to_kind(tch::Kind::Float);
+        let mat_f32 = mat.to_kind(tch::Kind::Float);
         // Now vec @ mat: [blen, mlen] @ [mlen, blen] = [blen, blen]
-        self.m_accum += vec.matmul(&mat);
+        self.m_accum += vec_f32.matmul(&mat_f32);
     }
 
     async fn mm_wo(&mut self, v_addr: u32, stride_len: u32) {
@@ -463,10 +475,11 @@ impl MatrixMachine {
         let vec = self.vram.read(v_addr).await;
         cycle!(self.mlen);
         // vec @ mat: [1, mlen] @ [mlen, mlen] = [1, mlen], then squeeze
-        let result = vec
-            .as_tensor()
-            .unsqueeze(0)
-            .matmul(&mat.as_tensor().view([self.mlen as i64, self.mlen as i64]))
+        // Convert to float32 before matmul to match PyTorch golden reference
+        let vec_f32 = vec.as_tensor().unsqueeze(0).to_kind(tch::Kind::Float);
+        let mat_f32 = mat.as_tensor().view([self.mlen as i64, self.mlen as i64]).to_kind(tch::Kind::Float);
+        let result = vec_f32
+            .matmul(&mat_f32)
             .squeeze_dim(0);
         self.v_accum += result;
     }
@@ -476,14 +489,14 @@ impl MatrixMachine {
         let vec = self.vram.read(v_addr).await;
         cycle!(self.mlen);
         // vec @ transpose(mat): [1, mlen] @ [mlen, mlen] = [1, mlen], then squeeze
-        let result = vec
-            .as_tensor()
-            .unsqueeze(0)
-            .matmul(
-                &mat.as_tensor()
-                    .view([self.mlen as i64, self.mlen as i64])
-                    .transpose(-1, -2),
-            )
+        // Convert to float32 before matmul to match PyTorch golden reference
+        let vec_f32 = vec.as_tensor().unsqueeze(0).to_kind(tch::Kind::Float);
+        let mat_t_f32 = mat.as_tensor()
+            .view([self.mlen as i64, self.mlen as i64])
+            .transpose(-1, -2)
+            .to_kind(tch::Kind::Float);
+        let result = vec_f32
+            .matmul(&mat_t_f32)
             .squeeze_dim(0);
         self.v_accum += result;
     }

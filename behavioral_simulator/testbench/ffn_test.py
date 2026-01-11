@@ -105,7 +105,6 @@ if __name__ == "__main__":
     act_tensor = torch.rand(batch_size, seq_len, hidden_size)
 
     ffn = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
-    rms_norm = RMSNorm(dim=hidden_size)
 
     weight_up_layer = torch.randn(inter_dim, hidden_size)
     weight_gate_layer = torch.randn(inter_dim, hidden_size)
@@ -117,7 +116,7 @@ if __name__ == "__main__":
         ffn.w2.weight.copy_(weight_gate_layer)
         ffn.w3.weight.copy_(weight_down_layer)
 
-    original_output = rms_norm(ffn(act_tensor))
+    original_output = ffn(act_tensor)
 
     input_tensor = {
         "act_tensor": act_tensor.reshape(batch_size * seq_len, hidden_size),
@@ -192,17 +191,6 @@ if __name__ == "__main__":
             alive_registers=[1,2,3,4,5,6,7,8,9,10,11,12]
         )
 
-        gen_assembly_code += rms_norm_asm(
-            _eps_offset=1,
-            reci_hid_offset=2,
-            alive_registers=[1,2,3,4,5],
-            activation_base_address = 0,
-            scratchpad_base_address = hidden_size * batch_size,
-            vlen=64,
-            batch_size=4,
-            hidden_dim=128
-        )
-
     else:
         # Loop version needs 10 registers (gp1-gp10)
         gen_assembly_code += ffn_asm(
@@ -224,17 +212,6 @@ if __name__ == "__main__":
         # Reset the registers
         gen_assembly_code += reset_reg_asm(
             alive_registers=[1,2,3,4,5,6,7,8,9,10,11,12]
-        )
-
-        gen_assembly_code += rms_norm_asm(
-            _eps_offset=1,
-            reci_hid_offset=2,
-            alive_registers=[1,2,3,4,5],
-            activation_base_address = 0,
-            scratchpad_base_address = hidden_size * batch_size * seq_len,
-            vlen=vlen,
-            batch_size=batch_size * seq_len,
-            hidden_dim=hidden_size
         )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
