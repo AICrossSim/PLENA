@@ -189,9 +189,13 @@ def compare_with_golden(bin_file,
                         num_rows=None,
                         tolerance=0.2,
                         use_stride_mode=True,
-                        elements_per_batch=128):
+                        elements_per_batch=128,
+                        atol=0.03,
+                        rtol=0.1):
     """
     Compare binary file output with golden reference from golden_result.txt.
+
+    Uses torch.allclose-style comparison: |golden - sim| <= atol + rtol * |golden|
 
     Args:
         bin_file: Path to binary file to compare
@@ -202,8 +206,10 @@ def compare_with_golden(bin_file,
         row_dim: Row dimension (for determining which rows to compare)
         start_row_idx: Starting row index to compare
         num_rows: Number of rows to compare (None = compare all)
-        tolerance: Tolerance for comparison (used for reporting)
+        tolerance: Legacy tolerance for relative error reporting
         use_stride_mode: Whether to reorder data from stride mode to batch-wise layout
+        atol: Absolute tolerance for allclose comparison (default 0.03 for BF16)
+        rtol: Relative tolerance for allclose comparison (default 0.1 = 10%)
 
     Returns:
         dict: Dictionary containing comparison metrics:
@@ -211,7 +217,8 @@ def compare_with_golden(bin_file,
             - 'mae': Mean Absolute Error
             - 'max_error': Maximum absolute error
             - 'relative_error': Mean relative error
-            - 'match_rate': Percentage of values within tolerance
+            - 'match_rate': Percentage of values passing allclose test
+            - 'allclose_pass': Boolean indicating if all values pass
             - 'golden_shape': Shape of golden array
             - 'simulated_shape': Shape of simulated array
             - 'errors': Array of absolute errors
@@ -257,9 +264,15 @@ def compare_with_golden(bin_file,
     )
     mean_relative_error = torch.mean(relative_errors).item()
 
-    # Match rate (within tolerance) - using relative error
-    within_tolerance = relative_errors <= tolerance
-    match_rate = torch.sum(within_tolerance).item() / len(relative_errors) * 100.0
+    # Match rate using torch.allclose formula: |a - b| <= atol + rtol * |b|
+    # This is more appropriate for floating point comparison as it handles
+    # both small values (where atol dominates) and large values (where rtol dominates)
+    tolerance_threshold = atol + rtol * abs_golden
+    within_tolerance = errors <= tolerance_threshold
+    match_rate = torch.sum(within_tolerance).item() / len(errors) * 100.0
+
+    # Also compute if all values pass (like torch.allclose return value)
+    allclose_pass = torch.all(within_tolerance).item()
 
     return {
         'mse': mse,
@@ -267,9 +280,13 @@ def compare_with_golden(bin_file,
         'max_error': max_error,
         'relative_error': mean_relative_error,
         'match_rate': match_rate,
+        'allclose_pass': allclose_pass,
+        'atol': atol,
+        'rtol': rtol,
         'golden_shape': tuple(golden_values.shape),
         'simulated_shape': tuple(simulated_values.shape),
         'errors': errors,
+        'tolerance_threshold': tolerance_threshold,
         'golden_values': golden_values,
         'simulated_values': simulated_values
     }
@@ -296,8 +313,15 @@ def print_comparison_results(results, verbose=False, comparison_params=None):
     print("=" * 60)
     print("Error Metrics:")
     print(f"  Mean Squared Error (MSE):     {results['mse']:.6e}")
+    print(f"  Mean Absolute Error (MAE):    {results['mae']:.6e}")
+    print(f"  Max Absolute Error:           {results['max_error']:.6f}")
     print(f"  Mean Relative Error:          {results['relative_error']:.6f}")
-    print(f"  Match Rate:                    {results['match_rate']:.6f}%")
+    print()
+    print("Allclose Check (|err| <= atol + rtol * |golden|):")
+    print(f"  atol={results.get('atol', 'N/A')}, rtol={results.get('rtol', 'N/A')}")
+    print(f"  Match Rate:                   {results['match_rate']:.2f}%")
+    allclose_status = "PASS ✓" if results.get('allclose_pass', False) else "FAIL"
+    print(f"  All Values Pass:              {allclose_status}")
     print()
 
     if verbose:
