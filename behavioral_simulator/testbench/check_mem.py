@@ -264,12 +264,16 @@ def compare_with_golden(bin_file,
     )
     mean_relative_error = torch.mean(relative_errors).item()
 
-    # Match rate using torch.allclose formula: |a - b| <= atol + rtol * |b|
+    # Old match rate (relative error only): |err| / |golden| <= rtol
+    within_relative_tolerance = relative_errors <= rtol
+    relative_match_rate = torch.sum(within_relative_tolerance).item() / len(relative_errors) * 100.0
+
+    # New match rate using torch.allclose formula: |a - b| <= atol + rtol * |b|
     # This is more appropriate for floating point comparison as it handles
     # both small values (where atol dominates) and large values (where rtol dominates)
     tolerance_threshold = atol + rtol * abs_golden
     within_tolerance = errors <= tolerance_threshold
-    match_rate = torch.sum(within_tolerance).item() / len(errors) * 100.0
+    allclose_match_rate = torch.sum(within_tolerance).item() / len(errors) * 100.0
 
     # Also compute if all values pass (like torch.allclose return value)
     allclose_pass = torch.all(within_tolerance).item()
@@ -279,7 +283,9 @@ def compare_with_golden(bin_file,
         'mae': mae,
         'max_error': max_error,
         'relative_error': mean_relative_error,
-        'match_rate': match_rate,
+        'relative_match_rate': relative_match_rate,
+        'allclose_match_rate': allclose_match_rate,
+        'match_rate': allclose_match_rate,  # Keep for backwards compatibility
         'allclose_pass': allclose_pass,
         'atol': atol,
         'rtol': rtol,
@@ -317,10 +323,14 @@ def print_comparison_results(results, verbose=False, comparison_params=None):
     print(f"  Max Absolute Error:           {results['max_error']:.6f}")
     print(f"  Mean Relative Error:          {results['relative_error']:.6f}")
     print()
+    rtol = results.get('rtol', 0.1)
+    print(f"Relative Error Check (|err|/|golden| <= {rtol}):")
+    print(f"  Match Rate:                   {results.get('relative_match_rate', 'N/A'):.2f}%")
+    print()
     print("Allclose Check (|err| <= atol + rtol * |golden|):")
-    print(f"  atol={results.get('atol', 'N/A')}, rtol={results.get('rtol', 'N/A')}")
-    print(f"  Match Rate:                   {results['match_rate']:.2f}%")
-    allclose_status = "PASS ✓" if results.get('allclose_pass', False) else "FAIL"
+    print(f"  atol={results.get('atol', 'N/A')}, rtol={rtol}")
+    print(f"  Match Rate:                   {results['allclose_match_rate']:.2f}%")
+    allclose_status = "PASS" if results.get('allclose_pass', False) else "FAIL"
     print(f"  All Values Pass:              {allclose_status}")
     print()
 
