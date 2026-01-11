@@ -32,15 +32,15 @@ if __name__ == "__main__":
     fp_preload = [0.0, 1e-6, 1/in_features]
 
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, in_features)
-    original_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=False)
+    act_tensor = torch.randn(batch_size, in_features, dtype=torch.bfloat16)
+    original_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=False, dtype=torch.bfloat16)
     weights = original_layer.state_dict()
 
     # Quantize inputs to MXFP (E4M3) to match hardware precision
     # Hardware stores data in HBM as MXFP, then loads to VRAM as dequantized values
     # bm_x is the dequantized value that hardware computes with
-    act_mxfp = quantize_to_mxfp(act_tensor)  # (batch_size, in_features)
-    weights_mxfp = quantize_to_mxfp(weights['weight'].t())  # (in_features, out_features)
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)  # (batch_size, in_features)
+    weights_mxfp = quantize_to_mxfp(weights['weight'].t()).to(act_tensor.dtype)  # (in_features, out_features)
 
     # Compute golden with MXFP-quantized inputs (float32 accumulation like hardware)
     original_output = torch.mm(act_mxfp, weights_mxfp)

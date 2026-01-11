@@ -54,19 +54,19 @@ if __name__ == "__main__":
     vlen = 64
 
     torch.manual_seed(42)
-    act_tensor = torch.rand(batch_size, seq_len, hidden_size)
+    act_tensor = torch.randn(batch_size, seq_len, hidden_size, dtype=torch.bfloat16)
 
-    ffn = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim)
+    ffn = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim).bfloat16()
 
-    weight_up_layer = torch.randn(inter_dim, hidden_size)
-    weight_gate_layer = torch.randn(inter_dim, hidden_size)
-    weight_down_layer = torch.randn(hidden_size, inter_dim)
+    weight_up_layer = torch.randn(inter_dim, hidden_size, dtype=torch.bfloat16)
+    weight_gate_layer = torch.randn(inter_dim, hidden_size, dtype=torch.bfloat16)
+    weight_down_layer = torch.randn(hidden_size, inter_dim, dtype=torch.bfloat16)
 
     # Quantize all inputs to MXFP to match hardware precision
-    act_mxfp = quantize_to_mxfp(act_tensor)
-    weight_up_mxfp = quantize_to_mxfp(weight_up_layer)
-    weight_gate_mxfp = quantize_to_mxfp(weight_gate_layer)
-    weight_down_mxfp = quantize_to_mxfp(weight_down_layer)
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)
+    weight_up_mxfp = quantize_to_mxfp(weight_up_layer).to(act_tensor.dtype)
+    weight_gate_mxfp = quantize_to_mxfp(weight_gate_layer).to(act_tensor.dtype)
+    weight_down_mxfp = quantize_to_mxfp(weight_down_layer).to(act_tensor.dtype)
 
     # Set quantized weights
     with torch.no_grad():

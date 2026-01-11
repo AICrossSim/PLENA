@@ -32,13 +32,13 @@ if __name__ == "__main__":
     fp_preload = [0.0, 1.0, 1.702]
 
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, hidden_size)
+    act_tensor = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16)
 
     print("Input tensor shape:", act_tensor.shape)
     print("Input tensor (first 8 values):", act_tensor[0, :8])
 
     # Quantize input to MXFP to match hardware precision
-    act_mxfp = quantize_to_mxfp(act_tensor)
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)
 
     # Compute golden output using PyTorch with quantized input
     original_output = nn.functional.gelu(act_mxfp)
