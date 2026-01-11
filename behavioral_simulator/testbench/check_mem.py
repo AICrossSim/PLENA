@@ -1,6 +1,7 @@
 import numpy as np
 import re
 import os
+import torch
 
 
 def parse_golden_output(golden_file_path):
@@ -215,55 +216,50 @@ def compare_with_golden(bin_file,
             - 'simulated_shape': Shape of simulated array
             - 'errors': Array of absolute errors
     """
-    # Parse golden output
-    golden_values = parse_golden_output(golden_file)
+    # Parse golden output and quantize to bfloat16 for fair comparison with hardware
+    # PLENA uses bfloat16 (8 exp, 7 mantissa), not IEEE float16 (5 exp, 10 mantissa)
+    golden_np = parse_golden_output(golden_file)
+    golden_values = torch.from_numpy(golden_np).bfloat16()
+
     # Read binary file (now properly handles row-based indexing)
-    simulated_values = read_bin_file_as_array(
+    simulated_np = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
     )
 
     # Reorder stride-mode data to match batch-wise golden layout
     if use_stride_mode:
-        # print("Reordering stride-mode data to batch-wise layout...")  # Muted for cleaner output
-        simulated_values = reorder_stride_mode(simulated_values, num_batches, elements_per_batch)
+        simulated_np = reorder_stride_mode(simulated_np, num_batches, elements_per_batch)
+
+    simulated_values = torch.from_numpy(simulated_np).bfloat16()
 
     # Ensure dimensions match by truncating to the smaller size
     min_len = min(len(golden_values), len(simulated_values))
     golden_values = golden_values[:min_len]
     simulated_values = simulated_values[:min_len]
 
-    # Debug prints muted for cleaner output
-    # import numpy as np
-    # np.set_printoptions(threshold=np.inf, linewidth=200, edgeitems=20, suppress=True)
-    # print("golden_values is:\n", golden_values)
-    # print("golden_values shape is:\n", golden_values.shape)
-    # print("simulated_values is:\n", simulated_values)
-    # print("simulated_values shape is:\n", simulated_values.shape)
-
     if len(golden_values) == 0:
         raise ValueError("No values to compare")
 
-    # Compute errors
-    errors = np.abs(golden_values - simulated_values)
+    # Compute errors in bfloat16
+    errors = torch.abs(golden_values - simulated_values)
 
     # Compute metrics
-    mse = np.mean((golden_values - simulated_values) ** 2)
-    mae = np.mean(errors)
-    max_error = np.max(errors)
+    mse = torch.mean((golden_values - simulated_values) ** 2).item()
+    mae = torch.mean(errors).item()
+    max_error = torch.max(errors).item()
 
     # Relative error (avoid division by zero)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        relative_errors = np.where(
-            np.abs(golden_values) > 1e-10,
-            errors / np.abs(golden_values),
-            errors
-        )
-    # print("relative_errors is:\n", relative_errors)
-    mean_relative_error = np.mean(relative_errors)
+    abs_golden = torch.abs(golden_values)
+    relative_errors = torch.where(
+        abs_golden > 1e-10,
+        errors / abs_golden,
+        errors
+    )
+    mean_relative_error = torch.mean(relative_errors).item()
 
     # Match rate (within tolerance) - using relative error
     within_tolerance = relative_errors <= tolerance
-    match_rate = np.sum(within_tolerance) / len(relative_errors) * 100.0
+    match_rate = torch.sum(within_tolerance).item() / len(relative_errors) * 100.0
 
     return {
         'mse': mse,
@@ -271,8 +267,8 @@ def compare_with_golden(bin_file,
         'max_error': max_error,
         'relative_error': mean_relative_error,
         'match_rate': match_rate,
-        'golden_shape': golden_values.shape,
-        'simulated_shape': simulated_values.shape,
+        'golden_shape': tuple(golden_values.shape),
+        'simulated_shape': tuple(simulated_values.shape),
         'errors': errors,
         'golden_values': golden_values,
         'simulated_values': simulated_values
@@ -307,18 +303,18 @@ def print_comparison_results(results, verbose=False, comparison_params=None):
     if verbose:
         errors = results['errors']
         print("Error Statistics:")
-        print(f"  Min error:                  {np.min(errors):.6f}")
-        print(f"  Max error:                  {np.max(errors):.6f}")
-        print(f"  Median error:               {np.median(errors):.6f}")
-        print(f"  Std deviation:             {np.std(errors):.6f}")
+        print(f"  Min error:                  {torch.min(errors).item():.6f}")
+        print(f"  Max error:                  {torch.max(errors).item():.6f}")
+        print(f"  Median error:               {torch.median(errors).item():.6f}")
+        print(f"  Std deviation:             {torch.std(errors).item():.6f}")
         print()
 
-        top_5_indices = np.argsort(errors)[-5:][::-1]
+        top_5_indices = torch.argsort(errors, descending=True)[:5]
         print("Top 5 Largest Errors:")
         for idx in top_5_indices:
-            print(f"  Index {idx:4d}: Golden={results['golden_values'][idx]:8.4f}, "
-                  f"Simulated={results['simulated_values'][idx]:8.4f}, "
-                  f"Error={errors[idx]:.6f}")
+            print(f"  Index {idx.item():4d}: Golden={results['golden_values'][idx].item():8.4f}, "
+                  f"Simulated={results['simulated_values'][idx].item():8.4f}, "
+                  f"Error={errors[idx].item():.6f}")
         print()
 
 if __name__ == "__main__":
