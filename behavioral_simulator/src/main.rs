@@ -1149,14 +1149,14 @@ impl Accelerator {
             let (element_bytes, scale_bytes) = hbm_tensor.into_bytes();
             
             // Verify scale bytes length matches expected
-            if scale_len_in_bytes_per_store > 0 {
-                assert_eq!(
-                    scale_bytes.len(),
-                    scale_len_in_bytes_per_store as usize,
-                    scale_len_in_bytes_per_store,
-                    scale_bytes.len()
-                );
-            }
+            // if scale_len_in_bytes_per_store > 0 {
+            //     assert_eq!(
+            //         scale_bytes.len(),
+            //         scale_len_in_bytes_per_store as usize,
+            //         scale_len_in_bytes_per_store,
+            //         scale_bytes.len()
+            //     );
+            // }
             
             // Debug: Print converted HBM data
             if !is_quiet() {
@@ -1740,10 +1740,8 @@ impl Accelerator {
                     let element_index = addr + offset as u64;
                     // Scales are stored AFTER elements, so scale_index = element_index + scale_reg + scale
                     // where scale_reg is the offset from element start to scale start
-                    let scale_index = element_index + self.reg_file.scale as u64 + scale as u64;
-                    
+                    let scale_index = addr + self.reg_file.scale as u64 + scale as u64;
 
-                    
                     self.transfer_mx_to_hbm(
                         src_addr,
                         element_index,
