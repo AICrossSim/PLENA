@@ -1407,130 +1407,98 @@ impl Accelerator {
 
                 op::Opcode::V_ADD_VV { rd, rs1, rs2, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .add(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                self.reg_file.gp_reg[*rs2 as usize] + offset,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .add(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.gp_reg[*rs2 as usize],
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
                 op::Opcode::V_ADD_VF { rd, rs1, rs2, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .add_scalar(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                self.reg_file.fp_reg[*rs2 as usize].into(),
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .add_scalar(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.fp_reg[*rs2 as usize].into(),
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
                 op::Opcode::V_SUB_VV { rd, rs1, rs2, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .sub(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                self.reg_file.gp_reg[*rs2 as usize] + offset,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .sub(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.gp_reg[*rs2 as usize],
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
                 op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask, rorder} => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .sub_scalar(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                self.reg_file.fp_reg[*rs2 as usize].into(),
-                                *rmask,
-                                mask,
-                                *rorder,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .sub_scalar(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.fp_reg[*rs2 as usize].into(),
+                            *rmask,
+                            mask,
+                            *rorder,
+                        )
+                        .await;
                 }
                 op::Opcode::V_MUL_VV { rd, rs1, rs2, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .mul(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                self.reg_file.gp_reg[*rs2 as usize] + offset,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .mul(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.gp_reg[*rs2 as usize],
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
                 op::Opcode::V_MUL_VF { rd, rs1, rs2, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .mul_scalar(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                self.reg_file.fp_reg[*rs2 as usize].into(),
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .mul_scalar(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.fp_reg[*rs2 as usize].into(),
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
                 op::Opcode::V_EXP_V { rd, rs1, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .exp(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .exp(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
                 op::Opcode::V_RECI_V { rd, rs1, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        self.v_machine
-                            .reciprocal(
-                                self.reg_file.gp_reg[*rd as usize] + offset,
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
+                    self.v_machine
+                        .reciprocal(
+                            self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            *rmask,
+                            mask,
+                        )
+                        .await;
                 }
 
                 // Write to fp0 is a no-op.
@@ -1538,39 +1506,29 @@ impl Accelerator {
 
                 op::Opcode::V_RED_SUM { rd, rs1, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    let mut accumulator = self.reg_file.fp_reg[*rd as usize].into();
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        accumulator = self
-                            .v_machine
-                            .reduce_sum(
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                accumulator,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
-                    self.reg_file.fp_reg[*rd as usize] = f16::from_f32(accumulator);
+                    let result = self
+                        .v_machine
+                        .reduce_sum(
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.fp_reg[*rd as usize].into(),
+                            *rmask,
+                            mask,
+                        )
+                        .await;
+                    self.reg_file.fp_reg[*rd as usize] = f16::from_f32(result);
                 }
                 op::Opcode::V_RED_MAX { rd, rs1, rmask } => {
                     let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
-                    let factor = std::cmp::max(1, 64 / *VLEN);
-                    let mut accumulator = self.reg_file.fp_reg[*rd as usize].into();
-                    for i in 0..factor {
-                        let offset = i * *VLEN;
-                        accumulator = self
-                            .v_machine
-                            .reduce_max(
-                                self.reg_file.gp_reg[*rs1 as usize] + offset,
-                                accumulator,
-                                *rmask,
-                                mask,
-                            )
-                            .await;
-                    }
-                    self.reg_file.fp_reg[*rd as usize] = f16::from_f32(accumulator);
+                    let result = self
+                        .v_machine
+                        .reduce_max(
+                            self.reg_file.gp_reg[*rs1 as usize],
+                            self.reg_file.fp_reg[*rd as usize].into(),
+                            *rmask,
+                            mask,
+                        )
+                        .await;
+                    self.reg_file.fp_reg[*rd as usize] = f16::from_f32(result);
                 }
 
                 // Write to fp0 is a no-op.
@@ -1739,28 +1697,21 @@ impl Accelerator {
                                 / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
                         }
                     };
-                    let element_bits = dtype.element_type().size_in_bits();
-                    // We enforce a logical block size of 64 elements to match the test generator's assumption
-                    // AND to satisfy the 64-byte alignment assertion (for 8-bit types).
-                    let required_dim = 64;
-                    let load_dim = std::cmp::max(*VLEN, required_dim);
-                    let factor = load_dim / *VLEN;
-
                     let xfer = self.transfer_mx_from_hbm(
                         addr + offset as u64,
                         addr + self.reg_file.scale as u64 + scale as u64,
                         dtype,
                         self.v_machine.vram.ty(),
                         *rstride,
-                        load_dim,
-                        *PREFETCH_V_AMOUNT * factor,
+                        *VLEN,
+                        *PREFETCH_V_AMOUNT,
                         1,
                     );
 
                     let dest = self.reg_file.gp_reg[*rd as usize];
                     self.v_machine
                         .vram
-                        .continous_write_delayed(dest, *PREFETCH_V_AMOUNT * factor, xfer)
+                        .continous_write_delayed(dest, *PREFETCH_V_AMOUNT, xfer)
                         .await;
                 }
                 op::Opcode::H_STORE_V {
