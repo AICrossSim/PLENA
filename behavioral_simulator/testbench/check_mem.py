@@ -351,6 +351,174 @@ def print_comparison_results(results, verbose=False, comparison_params=None):
                   f"Error={errors[idx].item():.6f}")
         print()
 
+def read_hbm_bin_file_as_array(bin_file,
+                                exp_width,
+                                man_width,
+                                start_byte_offset=0,
+                                num_bytes=None,
+                                element_bytes=1):
+    """
+    Read HBM binary file and convert to numpy array.
+    
+    Args:
+        bin_file: Path to HBM binary file
+        exp_width: Exponent width for mx data type
+        man_width: Mantissa width for mx data type
+        start_byte_offset: Starting byte offset in HBM
+        num_bytes: Number of bytes to read (None = read all remaining)
+        element_bytes: Bytes per element (for mx data type)
+    
+    Returns:
+        numpy array: Flattened 1D array of values
+    """
+    sign_width = 1
+    total_width = sign_width + exp_width + man_width
+    if total_width > element_bytes * 8:
+        raise ValueError("element_bytes is too small for given bit widths.")
+
+    def raw_to_fp(bits_val):
+        """Convert raw bits to floating point value."""
+        sign = (bits_val >> (exp_width + man_width)) & 0x1
+        exponent = (bits_val >> man_width) & ((1 << exp_width) - 1)
+        mantissa = bits_val & ((1 << man_width) - 1)
+        bias = (1 << (exp_width - 1)) - 1 if exp_width > 0 else 0
+
+        if exp_width == 0:
+            base = float(mantissa)
+        else:
+            if exponent == 0:
+                if mantissa == 0:
+                    return 0.0 if sign == 0 else -0.0
+                base = mantissa / (2 ** man_width)
+                exp_val = 1 - bias
+                return ((-1) ** sign) * base * (2 ** exp_val)
+            elif exponent == (1 << exp_width) - 1:
+                if mantissa == 0:
+                    return float('-inf') if sign else float('inf')
+                else:
+                    return float('nan')
+            else:
+                base = 1 + mantissa / (2 ** man_width)
+                exp_val = exponent - bias
+                return ((-1) ** sign) * base * (2 ** exp_val)
+        return ((-1) ** sign) * base
+
+    with open(bin_file, "rb") as f:
+        f.seek(start_byte_offset)
+        if num_bytes is None:
+            data = f.read()
+        else:
+            data = f.read(num_bytes)
+
+    num_elements = len(data) // element_bytes
+    values = []
+    for i in range(num_elements):
+        chunk = data[i * element_bytes : (i + 1) * element_bytes]
+        if len(chunk) < element_bytes:
+            break
+        bits_val = int.from_bytes(chunk, byteorder='little')
+        float_val = raw_to_fp(bits_val)
+        values.append(float_val)
+
+    return np.array(values, dtype=np.float32)
+
+
+def compare_hbm_with_golden(hbm_file,
+                            golden_file,
+                            exp_width=4,
+                            man_width=3,
+                            element_bytes=1,
+                            start_byte_offset=0,
+                            num_bytes=None,
+                            num_batches=4,
+                            elements_per_batch=128,
+                            tolerance=0.2,
+                            atol=0.03,
+                            rtol=0.1):
+    """
+    Compare HBM binary file output with golden reference.
+    
+    Args:
+        hbm_file: Path to HBM dump binary file
+        golden_file: Path to golden_result.txt file
+        exp_width: Exponent width for mx data type
+        man_width: Mantissa width for mx data type
+        element_bytes: Bytes per element
+        start_byte_offset: Starting byte offset in HBM
+        num_bytes: Number of bytes to compare (None = compare all)
+        num_batches: Number of batches
+        elements_per_batch: Elements per batch
+        tolerance: Legacy tolerance
+        atol: Absolute tolerance
+        rtol: Relative tolerance
+    
+    Returns:
+        dict: Comparison results
+    """
+    # Parse golden output
+    golden_np = parse_golden_output(golden_file)
+    golden_values = torch.from_numpy(golden_np).bfloat16()
+
+    # Read HBM binary file
+    simulated_np = read_hbm_bin_file_as_array(
+        hbm_file, exp_width, man_width, start_byte_offset, num_bytes, element_bytes
+    )
+
+    # Reshape to match expected layout (considering mx format with blocks)
+    # For mx format: elements are stored with scales, need to account for block structure
+    # For simplicity, compare flattened arrays
+    simulated_values = torch.from_numpy(simulated_np).bfloat16()
+
+    # Ensure dimensions match
+    min_len = min(len(golden_values), len(simulated_values))
+    golden_values = golden_values[:min_len]
+    simulated_values = simulated_values[:min_len]
+
+    if len(golden_values) == 0:
+        raise ValueError("No values to compare")
+
+    # Compute errors
+    errors = torch.abs(golden_values - simulated_values)
+
+    # Compute metrics
+    mse = torch.mean((golden_values - simulated_values) ** 2).item()
+    mae = torch.mean(errors).item()
+    max_error = torch.max(errors).item()
+
+    # Relative error
+    abs_golden = torch.abs(golden_values)
+    relative_errors = torch.where(
+        abs_golden > 1e-10,
+        errors / abs_golden,
+        errors
+    )
+    mean_relative_error = torch.mean(relative_errors).item()
+
+    # Match rate using torch.allclose formula
+    tolerance_threshold = atol + rtol * abs_golden
+    within_tolerance = errors <= tolerance_threshold
+    allclose_match_rate = torch.sum(within_tolerance).item() / len(errors) * 100.0
+    allclose_pass = torch.all(within_tolerance).item()
+
+    return {
+        'mse': mse,
+        'mae': mae,
+        'max_error': max_error,
+        'relative_error': mean_relative_error,
+        'allclose_match_rate': allclose_match_rate,
+        'match_rate': allclose_match_rate,
+        'allclose_pass': allclose_pass,
+        'atol': atol,
+        'rtol': rtol,
+        'golden_shape': tuple(golden_values.shape),
+        'simulated_shape': tuple(simulated_values.shape),
+        'errors': errors,
+        'tolerance_threshold': tolerance_threshold,
+        'golden_values': golden_values,
+        'simulated_values': simulated_values
+    }
+
+
 if __name__ == "__main__":
     # Example usage
     script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

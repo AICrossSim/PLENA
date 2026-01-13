@@ -62,6 +62,7 @@ static VECTOR_ACTIVATION_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_ac
 static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type());
 static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount());
 static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
+static STORE_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_writeback_amount());
 
 /// Address handling utilities.
 ///
@@ -1052,6 +1053,122 @@ impl Accelerator {
         receiver
     }
 
+    /// Transfer a vector from SRAM to HBM.
+    /// Transfer data from SRAM to HBM with strided writing pattern.
+    /// Parameters:
+    /// - src_addr: Starting address in Vector SRAM
+    /// - index: Starting address for element data in HBM
+    /// - scale_index: Starting address for scale data in HBM (for MXFP/MXINT types)
+    /// - sram_type: Source data type format in SRAM
+    /// - hbm_type: Target data type format for HBM
+    /// - rstride: Stride mode selector
+    /// - store_dim: Number of elements to store per iteration (VLEN)
+    /// - store_amount: Number of strided stores to perform
+    async fn transfer_mx_to_hbm(
+        &mut self,
+        src_addr: u32,
+        index: u64,
+        scale_index: u64,
+        sram_type: MxDataType,
+        hbm_type: MxDataType,
+        rstride: u8,
+        store_dim: u32,
+        store_amount: u32,
+    ) {
+        let hbm_clone = self.hbm.clone();
+        let stride = if rstride == 1 {
+            self.reg_file.stride
+        } else {
+            store_dim
+        };
+
+        let element_ty = hbm_type.element_type();
+        let element_bits = element_ty.size_in_bits();
+
+        // Extract scale bits and block size if Mx type
+        let (scale_bits, blocksize) = match hbm_type {
+            MxDataType::Mx {
+                elem: _,
+                scale,
+                block,
+            } => (scale.size_in_bits(), block),
+            _ => (element_bits, 1),
+        };
+
+        let element_scale_ratio = (element_bits * blocksize as u8) / scale_bits;
+        let stride_scale = stride as f32 / element_scale_ratio as f32;
+        assert!(element_bits.is_power_of_two());
+
+        let len_in_bits_per_store = element_bits as u32 * store_dim;
+        assert!(len_in_bits_per_store.is_multiple_of(8 * 64));
+        let len_in_bytes_per_store = len_in_bits_per_store / 8;
+
+        // Calculate scale bytes per store iteration (for Mx types)
+        let (scale_len_in_bytes_per_store, block) = if let MxDataType::Mx {
+            elem: _,
+            scale,
+            block,
+        } = hbm_type
+        {
+            let scale_bits = scale.size_in_bits();
+            assert!(scale_bits.is_power_of_two());
+            let scale_len_in_bits_per_store = scale_bits as u32 * (store_dim / block);
+            assert!(scale_len_in_bits_per_store.is_multiple_of(8));
+            (scale_len_in_bits_per_store / 8, block as usize)
+        } else {
+            (0, usize::MAX)
+        };
+
+        // Read data from VRAM and convert to HBM format
+        for store_iter in 0..store_amount {
+            // Read from VRAM
+            let src_vram_addr = src_addr + store_iter * store_dim;
+            let sram_tensor = self.v_machine.vram.read(src_vram_addr).await;
+            
+            // Convert from SRAM type to HBM type
+            let mut hbm_tensor = QuantTensor::quantize(sram_tensor.as_tensor(), hbm_type);
+            
+            // Convert to bytes (element bytes + scale bytes)
+            let (element_bytes, scale_bytes) = hbm_tensor.into_bytes();
+            
+            // Calculate HBM addresses
+            let element_addr = index + (store_iter * stride) as u64;
+            let scale_addr = scale_index + (store_iter as f32 * stride_scale) as u64;
+            
+            // Write element bytes to HBM (64-byte aligned chunks)
+            for i in 0..(len_in_bytes_per_store as usize + 63) / 64 {
+                let chunk_offset = i * 64;
+                let chunk_size = std::cmp::min(64, len_in_bytes_per_store as usize - chunk_offset);
+                let addr = element_addr + (i * 64) as u64;
+                assert!(addr.is_multiple_of(64));
+                
+                let mut chunk = [0u8; 64];
+                if chunk_offset < element_bytes.len() {
+                    let copy_len = std::cmp::min(chunk_size, element_bytes.len() - chunk_offset);
+                    chunk[..copy_len].copy_from_slice(&element_bytes[chunk_offset..chunk_offset + copy_len]);
+                }
+                hbm_clone.write(addr, chunk).await;
+            }
+            
+            // Write scale bytes to HBM (if Mx type)
+            if scale_len_in_bytes_per_store > 0 {
+                let aligned_scale_addr = (scale_addr / 64) * 64;
+                let within_chunk_offset = (scale_addr % 64) as usize;
+                
+                // Read existing chunk, modify, and write back
+                let mut existing_chunk = hbm_clone.read(aligned_scale_addr).await;
+                let copy_len = std::cmp::min(
+                    scale_len_in_bytes_per_store as usize,
+                    64 - within_chunk_offset,
+                );
+                if copy_len > 0 && copy_len <= scale_bytes.len() {
+                    existing_chunk[within_chunk_offset..within_chunk_offset + copy_len]
+                        .copy_from_slice(&scale_bytes[..copy_len]);
+                }
+                hbm_clone.write(aligned_scale_addr, existing_chunk).await;
+            }
+        }
+    }
 
     async fn do_ops(&mut self, ops: &[op::Opcode]) {
         let mut pc: usize = 0; // Program counter
@@ -1477,8 +1594,36 @@ impl Accelerator {
                     rs1,
                     rs2,
                     rstride,
-                    precision: _,
-                } => todo!(),
+                    precision,
+                } => {
+                    let src_addr = self.reg_file.gp_reg[*rd as usize];
+                    let offset = self.reg_file.gp_reg[*rs1 as usize];
+                    let addr = self.reg_file.hbm_addr_reg[*rs2 as usize];
+                    let dtype = match precision {
+                        op::VectorPrecision::Activation => *VECTOR_ACTIVATION_TYPE,
+                        op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE
+                    };
+
+                    let scale = match dtype {
+                        MxDataType::Plain(_) => 0,
+                        MxDataType::Mx { elem, scale, block } => {
+                            offset
+                                / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
+                        }
+                    };
+                    
+                    self.transfer_mx_to_hbm(
+                        src_addr,
+                        addr + offset as u64,
+                        addr + self.reg_file.scale as u64 + scale as u64,
+                        self.v_machine.vram.ty(),
+                        dtype,
+                        *rstride,
+                        *VLEN,
+                        *STORE_V_AMOUNT,
+                    )
+                    .await;
+                }
                 op::Opcode::C_SET_ADDR_REG { rd, rs1, rs2 } => {
                     let imm = ((self.reg_file.gp_reg[*rs1 as usize] as u64) << 32)
                         | (self.reg_file.gp_reg[*rs2 as usize] as u64);
@@ -1755,6 +1900,20 @@ async fn start() {
     vram_file.write_all(&vram_bytes).unwrap();
     if !is_quiet() {
         eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+    }
+
+    // Dump HBM
+    let hbm_dump_path = "hbm_dump.bin";
+    let hbm_size = *HBM_SIZE;
+    let mut hbm_bytes = vec![0u8; hbm_size];
+    hbm.model().data().with_data(|f| {
+        let len = std::cmp::min(hbm_size, f.len());
+        hbm_bytes[..len].copy_from_slice(&f[..len]);
+    });
+    let mut hbm_file = std::fs::File::create(hbm_dump_path).unwrap();
+    hbm_file.write_all(&hbm_bytes).unwrap();
+    if !is_quiet() {
+        eprintln!("Dumped HBM content to: {:?}", hbm_dump_path);
     }
 
     let memory_stats = hbm.statistics();
