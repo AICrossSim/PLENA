@@ -7,6 +7,20 @@ from torch import nn
 from compiler.asm_templates import preload_act_asm, reset_reg_asm, gelu_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
+from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+
+
+def quantize_to_mxfp(tensor):
+    """
+    Quantize tensor to MXFP format matching hardware (E4M3 with 8-bit scale per block of 8).
+    Uses the same quantizer as the behavioral simulator's memory loader.
+    Returns the dequantized tensor (what hardware sees after HBM->VRAM load).
+    """
+    orig_shape = tensor.shape
+    bm_x, _, _, _ = _mx_fp_quantize_hardware(
+        tensor, width=8, exponent_width=4, exponent_bias_width=8, block_size=[8]
+    )
+    return bm_x.reshape(orig_shape)
 
 
 if __name__ == "__main__":
@@ -18,13 +32,16 @@ if __name__ == "__main__":
     fp_preload = [0.0, 1.0, 1.702]
 
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, hidden_size)
+    act_tensor = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16)
 
     print("Input tensor shape:", act_tensor.shape)
     print("Input tensor (first 8 values):", act_tensor[0, :8])
 
-    # Compute golden output using PyTorch
-    original_output = nn.functional.gelu(act_tensor)
+    # Quantize input to MXFP to match hardware precision
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)
+
+    # Compute golden output using PyTorch with quantized input
+    original_output = nn.functional.gelu(act_mxfp)
 
     print("Output tensor (first 8 values):", original_output[0, :8])
 

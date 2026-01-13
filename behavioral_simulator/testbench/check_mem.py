@@ -190,8 +190,8 @@ def compare_with_golden(bin_file,
                         tolerance=0.2,
                         use_stride_mode=True,
                         elements_per_batch=128,
-                        atol=0.03,
-                        rtol=0.1):
+                        atol=0.01,
+                        rtol=0.01):
     """
     Compare binary file output with golden reference from golden_result.txt.
 
@@ -208,8 +208,8 @@ def compare_with_golden(bin_file,
         num_rows: Number of rows to compare (None = compare all)
         tolerance: Legacy tolerance for relative error reporting
         use_stride_mode: Whether to reorder data from stride mode to batch-wise layout
-        atol: Absolute tolerance for allclose comparison (default 0.03 for BF16)
-        rtol: Relative tolerance for allclose comparison (default 0.1 = 10%)
+        atol: Absolute tolerance for allclose comparison (default 0.01 for BF16)
+        rtol: Relative tolerance for allclose comparison (default 0.01 = 1%)
 
     Returns:
         dict: Dictionary containing comparison metrics:
