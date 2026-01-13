@@ -38,7 +38,7 @@ value = 64
 value = 4
 
 [CONFIG.HBM_V_Writeback_Amount]
-value = 16
+value = 4
 
 [PRECISION.MATRIX_SRAM_TYPE]
 format = "Plain"

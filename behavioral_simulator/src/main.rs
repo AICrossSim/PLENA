@@ -1119,8 +1119,6 @@ impl Accelerator {
             (0, usize::MAX)
         };
 
-
-
         // Read data from VRAM and convert to HBM format
         for store_iter in 0..store_amount {
             // Read from VRAM
@@ -1155,7 +1153,6 @@ impl Accelerator {
                 assert_eq!(
                     scale_bytes.len(),
                     scale_len_in_bytes_per_store as usize,
-                    "Scale bytes length mismatch: expected {}, got {}",
                     scale_len_in_bytes_per_store,
                     scale_bytes.len()
                 );
@@ -1179,19 +1176,6 @@ impl Accelerator {
             let element_addr = index + (store_iter * stride) as u64;
             let scale_addr = scale_index + (store_iter as f32 * stride_scale) as u64;
             
-            // Debug: Print HBM addresses
-            if !is_quiet() {
-                eprintln!("  Writing to HBM:");
-                eprintln!("    Element addr: 0x{:x} (offset: {})", element_addr, store_iter * stride);
-                if scale_len_in_bytes_per_store > 0 {
-                    eprintln!("    Scale addr: 0x{:x} (offset: {:.2}, stride_scale: {:.2})", 
-                        scale_addr, store_iter as f32 * stride_scale, stride_scale);
-                    eprintln!("    Scale bytes to write: {} (scale_len_in_bytes_per_store)", 
-                        scale_len_in_bytes_per_store);
-                    eprintln!("    Actual scale_bytes length: {}", scale_bytes.len());
-                }
-            }
-            
             // Write element bytes to HBM (64-byte aligned chunks)
             for i in 0..(len_in_bytes_per_store as usize + 63) / 64 {
                 let chunk_offset = i * 64;
@@ -1203,14 +1187,6 @@ impl Accelerator {
                 if chunk_offset < element_bytes.len() {
                     let copy_len = std::cmp::min(chunk_size, element_bytes.len() - chunk_offset);
                     chunk[..copy_len].copy_from_slice(&element_bytes[chunk_offset..chunk_offset + copy_len]);
-                    
-                    // Debug: Print what's being written
-                    if !is_quiet() && i == 0 {
-                        eprintln!("    Writing element chunk {}: {} bytes to HBM[0x{:x}]", 
-                            i, copy_len, addr);
-                        eprintln!("      Chunk data (first 16 bytes): {:02x?}", 
-                            &chunk[..copy_len.min(16)]);
-                    }
                 }
                 hbm_clone.write(addr, chunk).await;
             }
@@ -1296,14 +1272,14 @@ impl Accelerator {
         }
         
         // Final verification: Read back all scales that were written
+        // Read from self.hbm (not clone) to verify writes are visible
         if !is_quiet() && scale_len_in_bytes_per_store > 0 {
-            eprintln!("[H_STORE_V] Final scale verification:");
-            let hbm_clone = self.hbm.clone();
+            eprintln!("[H_STORE_V] Final scale verification (reading from self.hbm):");
             for store_iter in 0..store_amount {
                 let scale_addr = scale_index + (store_iter as f32 * stride_scale) as u64;
                 let aligned_scale_addr = (scale_addr / 64) * 64;
                 let within_chunk_offset = (scale_addr % 64) as usize;
-                let verify_chunk = hbm_clone.read(aligned_scale_addr).await;
+                let verify_chunk = self.hbm.read(aligned_scale_addr).await;
                 let verify_len = std::cmp::min(
                     scale_len_in_bytes_per_store as usize,
                     64 - within_chunk_offset
@@ -1766,17 +1742,7 @@ impl Accelerator {
                     // where scale_reg is the offset from element start to scale start
                     let scale_index = element_index + self.reg_file.scale as u64 + scale as u64;
                     
-                    if !is_quiet() {
-                        eprintln!("[H_STORE_V] Address calculation:");
-                        eprintln!("  addr (from reg): 0x{:x}", addr);
-                        eprintln!("  offset: {}", offset);
-                        eprintln!("  scale_reg: {}", self.reg_file.scale);
-                        eprintln!("  scale (block index): {}", scale);
-                        eprintln!("  element_index: 0x{:x} (addr + offset)", element_index);
-                        eprintln!("  scale_index: 0x{:x} (element_index + scale_reg + scale)", scale_index);
-                        eprintln!("  Verification: element_index + scale_reg = 0x{:x}", 
-                            element_index + self.reg_file.scale as u64);
-                    }
+
                     
                     self.transfer_mx_to_hbm(
                         src_addr,
@@ -2078,19 +2044,6 @@ async fn start() {
     });
     let mut hbm_file = std::fs::File::create(hbm_dump_path).unwrap();
     hbm_file.write_all(&hbm_bytes).unwrap();
-    if !is_quiet() {
-        eprintln!("Dumped HBM content to: {:?} ({} bytes)", hbm_dump_path, hbm_bytes.len());
-        // Verify dump: Check addresses where elements and scales were written
-        eprintln!("HBM dump verification:");
-        eprintln!("  HBM[0x480] (element area start, store iter 0): {:02x?}", 
-            &hbm_bytes[0x480..(0x480 + 16).min(hbm_bytes.len())]);
-        eprintln!("  HBM[0x500] (element area, store iter 1): {:02x?}", 
-            &hbm_bytes[0x500..(0x500 + 16).min(hbm_bytes.len())]);
-        eprintln!("  HBM[0x880] (scale area start, store iter 0): {:02x?}", 
-            &hbm_bytes[0x880..(0x880 + 16).min(hbm_bytes.len())]);
-        eprintln!("  HBM[0x890] (scale area, store iter 1): {:02x?}", 
-            &hbm_bytes[0x890..(0x890 + 16).min(hbm_bytes.len())]);
-    }
 
     let memory_stats = hbm.statistics();
     let utilization = (memory_stats.total_bytes_read + memory_stats.total_bytes_written) as f64

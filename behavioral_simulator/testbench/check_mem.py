@@ -401,6 +401,15 @@ def read_hbm_bin_file_as_array(bin_file,
     print(f"  scale_width: {scale_width}")
     print(f"  block_size: {block_size}")
     print(f"  scale_offset: {scale_offset}")
+    # Print out the bin file contents (raw bytes) as hex for debugging
+    with open(bin_file, "rb") as f:
+        contents = f.read()
+        print(f"\n========== Hexdump of {bin_file} ==========")
+        for i in range(0, 2000, 16):
+            hex_chunk = " ".join(f"{b:02x}" for b in contents[i:i+16])
+            ascii_chunk = "".join(chr(b) if 32 <= b <= 126 else '.' for b in contents[i:i+16])
+            print(f"{i:08x}: {hex_chunk:<47}  {ascii_chunk}")
+        print("========== End of hexdump ==========\n")
 
     def raw_to_fp(bits_val, exp_w, man_w):
         """Convert raw bits to floating point value."""
@@ -447,8 +456,6 @@ def read_hbm_bin_file_as_array(bin_file,
         scale_bytes_per_scale = (scale_width + 7) // 8  # Round up to bytes
         num_blocks = (num_elements + block_size - 1) // block_size  # Round up
         
-
-        
         # Calculate block index from offset (assuming offset = 0 for now)
         # TODO: If offset != 0, we need to know the base address to calculate offset
         element_offset = 0  # Assume offset = 0 (as in h_store_test.py)
@@ -485,7 +492,6 @@ def read_hbm_bin_file_as_array(bin_file,
             scale_man_width = 0  # Scale mantissa width for activation mx
             scale_fp = raw_to_fp(scale_bits, scale_exp_width, scale_man_width)
             scales.append(scale_fp)
-        print(f"scales: {scales}")
         # Convert elements to FP32 and apply scales
         values = []
         for i in range(num_elements):
@@ -494,7 +500,6 @@ def read_hbm_bin_file_as_array(bin_file,
                 break
             bits_val = int.from_bytes(chunk, byteorder='little')
             element_fp = raw_to_fp(bits_val, exp_width, man_width)
-            print(f"element_fp: {element_fp}")
             # Apply scale from the block this element belongs to
             block_idx = i // block_size
             if block_idx < len(scales):
