@@ -116,10 +116,10 @@ impl FpType {
                 let bias_diff = (exponent - new_exponent_mask) >> 1;
                 if exponent <= bias_diff {
                     // Underflow: saturate to zero (subnormal)
-                    0
+                    (0, 0)
                 } else if exponent - bias_diff >= new_exponent_mask {
                     // Overflow: saturate to infinity
-                    new_exponent_mask
+                    (new_exponent_mask, 0)
                 } else {
                     (exponent - bias_diff, 0)
                 }
