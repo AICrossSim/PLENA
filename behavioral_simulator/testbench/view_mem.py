@@ -203,26 +203,59 @@ if __name__ == "__main__":
     with open(params_file, "r") as f:
         params = json.load(f)
 
-    print("=" * 80)
-    print(f"Output Results (Rows {params['start_row_idx']}-{params['start_row_idx'] + params['num_rows'] - 1})")
-    print("=" * 80)
-    view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2,
-                            start_row_idx=params["start_row_idx"],
-                            load_row_size=params["num_rows"])
+    # Check if this is an HBM test
+    check_hbm = params.get("check_hbm", False)
+    
+    if check_hbm:
+        # HBM checking mode
+        hbm_file = os.path.join(script_dir, "behavioral_simulator", "hbm_dump.bin")
+        from check_mem import compare_hbm_with_golden, print_comparison_results
+        
+        print("=" * 80)
+        print("HBM Store Test Results")
+        print(f"HBM location: byte {params.get('result_hbm_start_byte', 0)}, size {params.get('result_hbm_size_bytes', 0)} bytes")
+        print("=" * 80)
+        
+        if os.path.exists(hbm_file):
+            # For mx data type, we need to read element bytes
+            # Activation mx format: exp_width=4, man_width=3, element_bytes=1
+            results = compare_hbm_with_golden(
+                hbm_file, golden_file,
+                exp_width=4, man_width=3, element_bytes=1,
+                start_byte_offset=params.get("result_hbm_start_byte", 0),
+                num_bytes=params.get("result_hbm_size_bytes", None),
+                num_batches=params.get("num_batches", 8),
+                elements_per_batch=params.get("elements_per_batch", 256),
+                tolerance=0.1,
+                atol=0.03,
+                rtol=0.1
+            )
+            print_comparison_results(results, verbose=True, comparison_params=params)
+        else:
+            print(f"HBM dump file not found: {hbm_file}")
+            print("Note: HBM content is stored but dump file is missing.")
+    else:
+        # Standard VRAM checking mode
+        print("=" * 80)
+        print(f"Output Results (Rows {params['start_row_idx']}-{params['start_row_idx'] + params['num_rows'] - 1})")
+        print("=" * 80)
+        view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2,
+                                start_row_idx=params["start_row_idx"],
+                                load_row_size=params["num_rows"])
 
-    print("\n" + "=" * 80)
-    print("Comparison with Golden Output")
-    print("=" * 80)
-    results = compare_with_golden(
-        vram_file, golden_file,
-        exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=64,
-        start_row_idx=params["start_row_idx"],
-        num_batches=params["num_batches"],
-        num_rows=params["num_rows"],
-        tolerance = 0.1,
-        elements_per_batch=params["elements_per_batch"]
-    )
-    print_comparison_results(results, verbose=True, comparison_params=params)
+        print("\n" + "=" * 80)
+        print("Comparison with Golden Output")
+        print("=" * 80)
+        results = compare_with_golden(
+            vram_file, golden_file,
+            exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=64,
+            start_row_idx=params["start_row_idx"],
+            num_batches=params["num_batches"],
+            num_rows=params["num_rows"],
+            tolerance = 0.1,
+            elements_per_batch=params["elements_per_batch"]
+        )
+        print_comparison_results(results, verbose=True, comparison_params=params)
     
     # print("Viewing VRAM dump from 16 Base Address")
     # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)

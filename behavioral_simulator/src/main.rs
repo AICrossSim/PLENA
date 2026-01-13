@@ -1126,7 +1126,8 @@ impl Accelerator {
             let sram_tensor = self.v_machine.vram.read(src_vram_addr).await;
             
             // Convert from SRAM type to HBM type
-            let mut hbm_tensor = QuantTensor::quantize(sram_tensor.as_tensor(), hbm_type);
+            let mut hbm_tensor =
+                QuantTensor::quantize(sram_tensor.as_tensor().shallow_clone(), hbm_type);
             
             // Convert to bytes (element bytes + scale bytes)
             let (element_bytes, scale_bytes) = hbm_tensor.into_bytes();

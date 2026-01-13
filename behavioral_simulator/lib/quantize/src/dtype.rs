@@ -66,14 +66,14 @@ impl FpType {
                 exponent + ((new_exponent_mask - exponent_mask) >> 1)
             }
             _ => {
-                // In this case, the conversion is lossy, we need to check the bias diff first.
+                // TODO: Needs to reimplment the underflow and overflow treatment.
                 let bias_diff = (exponent - new_exponent_mask) >> 1;
                 if exponent <= bias_diff {
-                    // Underflow
-                    todo!();
+                    // Underflow: saturate to zero (subnormal)
+                    0
                 } else if exponent - bias_diff >= new_exponent_mask {
-                    // Overflow
-                    todo!();
+                    // Overflow: saturate to infinity
+                    new_exponent_mask
                 } else {
                     exponent - bias_diff
                 }

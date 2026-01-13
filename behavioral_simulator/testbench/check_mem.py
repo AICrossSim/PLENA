@@ -325,11 +325,23 @@ def print_comparison_results(results, verbose=False, comparison_params=None):
     print()
     rtol = results.get('rtol', 0.1)
     print(f"Relative Error Check (|err|/|golden| <= {rtol}):")
-    print(f"  Match Rate:                   {results.get('relative_match_rate', 'N/A'):.2f}%")
+    relative_match_rate = results.get('relative_match_rate')
+    if relative_match_rate is not None:
+        print(f"  Match Rate:                   {relative_match_rate:.2f}%")
+    else:
+        print(f"  Match Rate:                   N/A")
     print()
     print("Allclose Check (|err| <= atol + rtol * |golden|):")
-    print(f"  atol={results.get('atol', 'N/A')}, rtol={rtol}")
-    print(f"  Match Rate:                   {results['allclose_match_rate']:.2f}%")
+    atol = results.get('atol')
+    if atol is not None:
+        print(f"  atol={atol}, rtol={rtol}")
+    else:
+        print(f"  atol=N/A, rtol={rtol}")
+    allclose_match_rate = results.get('allclose_match_rate')
+    if allclose_match_rate is not None:
+        print(f"  Match Rate:                   {allclose_match_rate:.2f}%")
+    else:
+        print(f"  Match Rate:                   N/A")
     allclose_status = "PASS" if results.get('allclose_pass', False) else "FAIL"
     print(f"  All Values Pass:              {allclose_status}")
     print()
@@ -500,11 +512,16 @@ def compare_hbm_with_golden(hbm_file,
     allclose_match_rate = torch.sum(within_tolerance).item() / len(errors) * 100.0
     allclose_pass = torch.all(within_tolerance).item()
 
+    # Relative error match rate (legacy)
+    within_relative_tolerance = relative_errors <= rtol
+    relative_match_rate = torch.sum(within_relative_tolerance).item() / len(relative_errors) * 100.0
+
     return {
         'mse': mse,
         'mae': mae,
         'max_error': max_error,
         'relative_error': mean_relative_error,
+        'relative_match_rate': relative_match_rate,
         'allclose_match_rate': allclose_match_rate,
         'match_rate': allclose_match_rate,
         'allclose_pass': allclose_pass,
