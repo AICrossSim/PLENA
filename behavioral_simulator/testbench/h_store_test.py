@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     # Set scale register (required for mx data type)
     # Scale offset = batch * hidden_size for activations
-    scale_offset = int(batch_size * in_features * real_data_ratio)
+    scale_offset = int(batch_size * in_features)
     gen_assembly_code += f"S_ADDI_INT gp8, gp0, {scale_offset}\n"
     gen_assembly_code += f"C_SET_SCALE_REG gp8\n"
 
@@ -103,12 +103,12 @@ if __name__ == "__main__":
     num_store_calls = (total_elements + store_v_amount * vlen - 1) // (store_v_amount * vlen)
     
     # Store activations in chunks
-    for i in range(num_store_calls):
-        vram_addr = i * store_v_amount * vlen
-        hbm_offset = i * store_v_amount * vlen
-        gen_assembly_code += f"S_ADDI_INT gp9, gp0, {vram_addr}\n"  # VRAM source
-        gen_assembly_code += f"S_ADDI_INT gp10, gp0, {hbm_offset}\n"  # HBM offset
-        gen_assembly_code += f"H_STORE_V gp9, gp10, a1, 1, 0\n"  # Store with stride
+    # for i in range(num_store_calls):
+    #     vram_addr = i * store_v_amount * vlen
+    #     hbm_offset = i * store_v_amount * vlen
+    #     gen_assembly_code += f"S_ADDI_INT gp9, gp0, {vram_addr}\n"  # VRAM source
+    #     gen_assembly_code += f"S_ADDI_INT gp10, gp0, {hbm_offset}\n"  # HBM offset
+    #     gen_assembly_code += f"H_STORE_V gp9, gp10, a1, 1, 0\n"  # Store with stride
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="h_store", data=None, specified_data_order=["act_tensor"])
@@ -118,16 +118,23 @@ if __name__ == "__main__":
     stored_copy_hbm_start_byte = stored_copy_hbm_offset
     stored_copy_hbm_size_bytes = int(batch_size * in_features * real_data_ratio)
     
+    # Calculate VRAM row indices for compatibility with view_mem.py
+    # Activations are stored in VRAM starting at offset 0
+    vram_start_row = 0
+    vram_num_rows = (batch_size * in_features + vlen - 1) // vlen  # Round up
+    
     comparison_params = {
-        # Standard parameters
+        # Standard VRAM viewing parameters (for compatibility with view_mem.py)
+        "start_row_idx": vram_start_row,
+        "num_rows": vram_num_rows,
         "num_batches": batch_size,
         "elements_per_batch": in_features,
         
         # HBM-specific parameters
-        "result_hbm_start_byte": stored_copy_hbm_start_byte,
+        "result_hbm_start_byte": 0,
         "result_hbm_size_bytes": stored_copy_hbm_size_bytes,
+        "scale_offset": scale_offset,  # Distance from elements to scales in HBM
         "vlen": vlen,
-        "store_v_amount": store_v_amount,
         "check_hbm": True,  # Flag to indicate this test checks HBM
     }
     build_dir = Path(__file__).parent / "build"

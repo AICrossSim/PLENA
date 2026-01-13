@@ -217,18 +217,30 @@ if __name__ == "__main__":
         print("=" * 80)
         
         if os.path.exists(hbm_file):
-            # For mx data type, we need to read element bytes
-            # Activation mx format: exp_width=4, man_width=3, element_bytes=1
+            # For mx data type, we need to read element bytes and scales
+            # Activation mx format: exp_width=4, man_width=3, element_bytes=1, block_size=8, scale_width=8
+            # Scale offset = batch * hidden_size (distance from elements to scales)
+            scale_offset = params.get("scale_offset", None)
+            if scale_offset is None:
+                # Calculate scale offset: typically batch * hidden_size for activations
+                scale_offset = params.get("num_batches", 8) * params.get("elements_per_batch", 128)
+            
+            # Calculate number of elements to compare
+            num_elements = params.get("num_batches", 8) * params.get("elements_per_batch", 128)
+            
             results = compare_hbm_with_golden(
                 hbm_file, golden_file,
                 exp_width=4, man_width=3, element_bytes=1,
                 start_byte_offset=params.get("result_hbm_start_byte", 0),
-                num_bytes=params.get("result_hbm_size_bytes", None),
+                num_elements=num_elements,
                 num_batches=params.get("num_batches", 8),
-                elements_per_batch=params.get("elements_per_batch", 256),
+                elements_per_batch=params.get("elements_per_batch", 128),
                 tolerance=0.1,
                 atol=0.03,
-                rtol=0.1
+                rtol=0.1,
+                scale_width=8,  # MX_SCALE_WIDTH
+                block_size=8,   # BLOCK_DIM
+                scale_offset=scale_offset
             )
             print_comparison_results(results, verbose=True, comparison_params=params)
         else:

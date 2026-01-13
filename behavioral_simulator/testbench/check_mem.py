@@ -367,70 +367,130 @@ def read_hbm_bin_file_as_array(bin_file,
                                 exp_width,
                                 man_width,
                                 start_byte_offset=0,
-                                num_bytes=None,
-                                element_bytes=1):
+                                num_elements=None,
+                                element_bytes=1,
+                                scale_width=None,
+                                block_size=None,
+                                scale_offset=None):
     """
-    Read HBM binary file and convert to numpy array.
+    Read HBM binary file and convert mx data type to numpy array.
     
     Args:
         bin_file: Path to HBM binary file
-        exp_width: Exponent width for mx data type
-        man_width: Mantissa width for mx data type
-        start_byte_offset: Starting byte offset in HBM
-        num_bytes: Number of bytes to read (None = read all remaining)
+        exp_width: Exponent width for mx element data type
+        man_width: Mantissa width for mx element data type
+        start_byte_offset: Starting byte offset in HBM for elements
+        num_elements: Number of elements to read (None = read all remaining)
         element_bytes: Bytes per element (for mx data type)
+        scale_width: Bits per scale (required for mx data type)
+        block_size: Number of elements per block (required for mx data type)
+        scale_offset: Byte offset from element start to scale start (required for mx data type)
     
     Returns:
-        numpy array: Flattened 1D array of values
+        numpy array: Flattened 1D array of FP32 values
     """
     sign_width = 1
     total_width = sign_width + exp_width + man_width
     if total_width > element_bytes * 8:
         raise ValueError("element_bytes is too small for given bit widths.")
+    print(f"read settings:")
+    print(f"  bin_file: {bin_file}")
+    print(f"  start_byte_offset: {start_byte_offset}")
+    print(f"  num_elements: {num_elements}")
+    print(f"  element_bytes: {element_bytes}")
+    print(f"  scale_width: {scale_width}")
+    print(f"  block_size: {block_size}")
+    print(f"  scale_offset: {scale_offset}")
 
-    def raw_to_fp(bits_val):
+    def raw_to_fp(bits_val, exp_w, man_w):
         """Convert raw bits to floating point value."""
-        sign = (bits_val >> (exp_width + man_width)) & 0x1
-        exponent = (bits_val >> man_width) & ((1 << exp_width) - 1)
-        mantissa = bits_val & ((1 << man_width) - 1)
-        bias = (1 << (exp_width - 1)) - 1 if exp_width > 0 else 0
+        sign = (bits_val >> (exp_w + man_w)) & 0x1
+        exponent = (bits_val >> man_w) & ((1 << exp_w) - 1)
+        mantissa = bits_val & ((1 << man_w) - 1)
+        bias = (1 << (exp_w - 1)) - 1 if exp_w > 0 else 0
 
-        if exp_width == 0:
+        if exp_w == 0:
             base = float(mantissa)
         else:
             if exponent == 0:
                 if mantissa == 0:
                     return 0.0 if sign == 0 else -0.0
-                base = mantissa / (2 ** man_width)
+                base = mantissa / (2 ** man_w)
                 exp_val = 1 - bias
                 return ((-1) ** sign) * base * (2 ** exp_val)
-            elif exponent == (1 << exp_width) - 1:
+            elif exponent == (1 << exp_w) - 1:
                 if mantissa == 0:
                     return float('-inf') if sign else float('inf')
                 else:
                     return float('nan')
             else:
-                base = 1 + mantissa / (2 ** man_width)
+                base = 1 + mantissa / (2 ** man_w)
                 exp_val = exponent - bias
                 return ((-1) ** sign) * base * (2 ** exp_val)
         return ((-1) ** sign) * base
 
+    # Read element bytes - load num_elements elements
     with open(bin_file, "rb") as f:
         f.seek(start_byte_offset)
-        if num_bytes is None:
-            data = f.read()
+        if num_elements is None:
+            # Read all remaining data
+            element_data = f.read()
+            num_elements = len(element_data) // element_bytes
         else:
-            data = f.read(num_bytes)
-
-    num_elements = len(data) // element_bytes
-    values = []
-    for i in range(num_elements):
-        chunk = data[i * element_bytes : (i + 1) * element_bytes]
-        if len(chunk) < element_bytes:
-            break
-        bits_val = int.from_bytes(chunk, byteorder='little')
-        float_val = raw_to_fp(bits_val)
-        values.append(float_val)
+            # Read exactly num_elements elements
+            element_bytes_to_read = num_elements * element_bytes
+            element_data = f.read(element_bytes_to_read)
+    
+    # Check if this is mx data type
+    if scale_width is not None and block_size is not None and scale_offset is not None:
+        # MX data type: need to read scales and apply them
+        scale_bytes_per_scale = (scale_width + 7) // 8  # Round up to bytes
+        num_blocks = (num_elements + block_size - 1) // block_size  # Round up
+        
+        # Read scale bytes
+        scale_start_offset = start_byte_offset + scale_offset
+        with open(bin_file, "rb") as f:
+            f.seek(scale_start_offset)
+            scale_data = f.read(num_blocks * scale_bytes_per_scale)
+        
+        # Convert scales to FP32
+        scales = []
+        for i in range(num_blocks):
+            scale_bytes = scale_data[i * scale_bytes_per_scale : (i + 1) * scale_bytes_per_scale]
+            if len(scale_bytes) < scale_bytes_per_scale:
+                scale_bytes = scale_bytes + b'\x00' * (scale_bytes_per_scale - len(scale_bytes))
+            scale_bits = int.from_bytes(scale_bytes, byteorder='little')
+            # Scale format for activation mx: exp_width=8, man_width=0 (just exponent)
+            # Scale is stored as a minifloat: scale_value = 2^(scale_exp - bias)
+            # For scale_width=8: exp_width=8, man_width=0
+            scale_exp_width = 8  # Scale exponent width for activation mx
+            scale_man_width = 0  # Scale mantissa width for activation mx
+            scale_fp = raw_to_fp(scale_bits, scale_exp_width, scale_man_width)
+            scales.append(scale_fp)
+        # Convert elements to FP32 and apply scales
+        values = []
+        for i in range(num_elements):
+            chunk = element_data[i * element_bytes : (i + 1) * element_bytes]
+            if len(chunk) < element_bytes:
+                break
+            bits_val = int.from_bytes(chunk, byteorder='little')
+            element_fp = raw_to_fp(bits_val, exp_width, man_width)
+            # Apply scale from the block this element belongs to
+            block_idx = i // block_size
+            if block_idx < len(scales):
+                element_fp *= scales[block_idx]
+            
+            values.append(element_fp)
+    else:
+        # Plain FP data type: no scales
+        values = []
+        for i in range(num_elements):
+            chunk = element_data[i * element_bytes : (i + 1) * element_bytes]
+            if len(chunk) < element_bytes:
+                break
+            bits_val = int.from_bytes(chunk, byteorder='little')
+            float_val = raw_to_fp(bits_val, exp_width, man_width)
+            values.append(float_val)
 
     return np.array(values, dtype=np.float32)
 
@@ -441,28 +501,34 @@ def compare_hbm_with_golden(hbm_file,
                             man_width=3,
                             element_bytes=1,
                             start_byte_offset=0,
-                            num_bytes=None,
+                            num_elements=None,
                             num_batches=4,
                             elements_per_batch=128,
                             tolerance=0.2,
                             atol=0.03,
-                            rtol=0.1):
+                            rtol=0.1,
+                            scale_width=8,
+                            block_size=8,
+                            scale_offset=None):
     """
     Compare HBM binary file output with golden reference.
     
     Args:
         hbm_file: Path to HBM dump binary file
         golden_file: Path to golden_result.txt file
-        exp_width: Exponent width for mx data type
-        man_width: Mantissa width for mx data type
+        exp_width: Exponent width for mx element data type
+        man_width: Mantissa width for mx element data type
         element_bytes: Bytes per element
-        start_byte_offset: Starting byte offset in HBM
-        num_bytes: Number of bytes to compare (None = compare all)
+        start_byte_offset: Starting byte offset in HBM for elements
+        num_elements: Number of elements to compare (None = use golden output length)
         num_batches: Number of batches
         elements_per_batch: Elements per batch
         tolerance: Legacy tolerance
         atol: Absolute tolerance
         rtol: Relative tolerance
+        scale_width: Bits per scale (required for mx data type)
+        block_size: Number of elements per block (required for mx data type)
+        scale_offset: Byte offset from element start to scale start (required for mx data type)
     
     Returns:
         dict: Comparison results
@@ -471,10 +537,16 @@ def compare_hbm_with_golden(hbm_file,
     golden_np = parse_golden_output(golden_file)
     golden_values = torch.from_numpy(golden_np).bfloat16()
 
-    # Read HBM binary file
+    # If num_elements not specified, use the number from golden output
+    if num_elements is None:
+        num_elements = len(golden_np)
+
+    # Read HBM binary file with mx data type conversion
     simulated_np = read_hbm_bin_file_as_array(
-        hbm_file, exp_width, man_width, start_byte_offset, num_bytes, element_bytes
+        hbm_file, exp_width, man_width, start_byte_offset, num_elements, element_bytes,
+        scale_width=scale_width, block_size=block_size, scale_offset=scale_offset
     )
+
 
     # Reshape to match expected layout (considering mx format with blocks)
     # For mx format: elements are stored with scales, need to account for block structure
