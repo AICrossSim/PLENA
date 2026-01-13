@@ -246,6 +246,14 @@ if __name__ == "__main__":
         else:
             print(f"HBM dump file not found: {hbm_file}")
             print("Note: HBM content is stored but dump file is missing.")
+        print("=" * 80)
+        print(f"Output Results (Rows {params['start_row_idx']}-{params['start_row_idx'] + params['num_rows'] - 1})")
+        print("=" * 80)
+        view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2,
+                                start_row_idx=params["start_row_idx"],
+                                load_row_size=params["num_rows"])
+
+        print("\n" + "=" * 80)
     else:
         # Standard VRAM checking mode
         print("=" * 80)

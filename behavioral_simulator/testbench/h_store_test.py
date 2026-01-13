@@ -103,12 +103,12 @@ if __name__ == "__main__":
     num_store_calls = (total_elements + store_v_amount * vlen - 1) // (store_v_amount * vlen)
     
     # Store activations in chunks
-    # for i in range(num_store_calls):
-    #     vram_addr = i * store_v_amount * vlen
-    #     hbm_offset = i * store_v_amount * vlen
-    #     gen_assembly_code += f"S_ADDI_INT gp9, gp0, {vram_addr}\n"  # VRAM source
-    #     gen_assembly_code += f"S_ADDI_INT gp10, gp0, {hbm_offset}\n"  # HBM offset
-    #     gen_assembly_code += f"H_STORE_V gp9, gp10, a1, 1, 0\n"  # Store with stride
+    for i in range(num_store_calls):
+        vram_addr = i * store_v_amount * vlen
+        hbm_offset = i * store_v_amount * vlen
+        gen_assembly_code += f"S_ADDI_INT gp9, gp0, {vram_addr}\n"  # VRAM source
+        gen_assembly_code += f"S_ADDI_INT gp10, gp0, {hbm_offset}\n"  # HBM offset
+        gen_assembly_code += f"H_STORE_V gp9, gp10, a1, 1, 0\n"  # Store with stride
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="h_store", data=None, specified_data_order=["act_tensor"])
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         "elements_per_batch": in_features,
         
         # HBM-specific parameters
-        "result_hbm_start_byte": 0,
+        "result_hbm_start_byte": stored_copy_hbm_start_byte,
         "result_hbm_size_bytes": stored_copy_hbm_size_bytes,
         "scale_offset": scale_offset,  # Distance from elements to scales in HBM
         "vlen": vlen,

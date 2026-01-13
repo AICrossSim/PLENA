@@ -447,8 +447,26 @@ def read_hbm_bin_file_as_array(bin_file,
         scale_bytes_per_scale = (scale_width + 7) // 8  # Round up to bytes
         num_blocks = (num_elements + block_size - 1) // block_size  # Round up
         
+
+        
+        # Calculate block index from offset (assuming offset = 0 for now)
+        # TODO: If offset != 0, we need to know the base address to calculate offset
+        element_offset = 0  # Assume offset = 0 (as in h_store_test.py)
+        block_index = element_offset // (element_bytes * block_size)
+        
+        # Scale start address = start_byte_offset + scale_reg + block_index
+        # scale_reg is in bytes (from SCALE_REG, which is batch * hidden_size in elements = bytes for element_bytes=1)
+        scale_start_offset = start_byte_offset + scale_offset + block_index * scale_bytes_per_scale
+        
+        print(f"  Scale calculation:")
+        print(f"    start_byte_offset: {start_byte_offset} (element start address)")
+        print(f"    scale_offset: {scale_offset} (scale_reg value, relative to element base)")
+        print(f"    element_offset: {element_offset} (assumed 0, as in test)")
+        print(f"    block_index: {block_index} (element_offset / (element_bytes={element_bytes} * block_size={block_size}))")
+        print(f"    scale_start_offset: {scale_start_offset} (start_byte_offset + scale_offset + block_index * scale_bytes_per_scale)")
+        print(f"    num_blocks: {num_blocks}, scale_bytes_per_scale: {scale_bytes_per_scale}")
+        
         # Read scale bytes
-        scale_start_offset = start_byte_offset + scale_offset
         with open(bin_file, "rb") as f:
             f.seek(scale_start_offset)
             scale_data = f.read(num_blocks * scale_bytes_per_scale)
@@ -467,6 +485,7 @@ def read_hbm_bin_file_as_array(bin_file,
             scale_man_width = 0  # Scale mantissa width for activation mx
             scale_fp = raw_to_fp(scale_bits, scale_exp_width, scale_man_width)
             scales.append(scale_fp)
+        print(f"scales: {scales}")
         # Convert elements to FP32 and apply scales
         values = []
         for i in range(num_elements):
@@ -475,6 +494,7 @@ def read_hbm_bin_file_as_array(bin_file,
                 break
             bits_val = int.from_bytes(chunk, byteorder='little')
             element_fp = raw_to_fp(bits_val, exp_width, man_width)
+            print(f"element_fp: {element_fp}")
             # Apply scale from the block this element belongs to
             block_idx = i // block_size
             if block_idx < len(scales):
@@ -547,6 +567,7 @@ def compare_hbm_with_golden(hbm_file,
         scale_width=scale_width, block_size=block_size, scale_offset=scale_offset
     )
 
+    print("simulated_np: ", simulated_np)
 
     # Reshape to match expected layout (considering mx format with blocks)
     # For mx format: elements are stored with scales, need to account for block structure
