@@ -249,7 +249,7 @@ if __name__ == "__main__":
         print("=" * 80)
         print(f"Output Results (Rows {params['start_row_idx']}-{params['start_row_idx'] + params['num_rows'] - 1})")
         print("=" * 80)
-        view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2,
+        view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=128, num_bytes_per_val=2,
                                 start_row_idx=params["start_row_idx"],
                                 load_row_size=params["num_rows"])
 
@@ -259,7 +259,7 @@ if __name__ == "__main__":
         print("=" * 80)
         print(f"Output Results (Rows {params['start_row_idx']}-{params['start_row_idx'] + params['num_rows'] - 1})")
         print("=" * 80)
-        view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2,
+        view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=128, num_bytes_per_val=2,
                                 start_row_idx=params["start_row_idx"],
                                 load_row_size=params["num_rows"])
 
@@ -268,12 +268,13 @@ if __name__ == "__main__":
         print("=" * 80)
         results = compare_with_golden(
             vram_file, golden_file,
-            exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=64,
+            exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=128,
             start_row_idx=params["start_row_idx"],
             num_batches=params["num_batches"],
             num_rows=params["num_rows"],
             tolerance = 0.1,
-            elements_per_batch=params["elements_per_batch"]
+            elements_per_batch=params["elements_per_batch"],
+            use_stride_mode=False
         )
         print_comparison_results(results, verbose=True, comparison_params=params)
     

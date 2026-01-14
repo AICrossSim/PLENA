@@ -55,7 +55,7 @@ class RMSNorm(torch.nn.Module):
         print("x", x)
         print("x.pow(2)", x.pow(2))
         print("x.pow(2).mean(-1, keepdim=True)", x.pow(2).mean(-1, keepdim=True))
-        
+
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x):
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
-    
+
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16)
     # Print input_tensor split in half along columns, as two (4, 64) tensors
@@ -112,16 +112,16 @@ if __name__ == "__main__":
 
     # print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
     # print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
-    
+
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3]
     )
-    
+
     # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
-        vlen=64,
+        vlen=128,
         preload_len=4,
         batch=4,
         hidden_size=128,
@@ -142,7 +142,7 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4,5],
         activation_base_address = 0,
         scratchpad_base_address = hidden_size * batch_size,
-        vlen=64,
+        vlen=128,
         batch_size=4,
         hidden_dim=128
     )
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     # Save comparison parameters for view_mem.py
     # RMS stores result at activation_base_address (overwrites input in-place)
     import json
-    vlen = 64
+    vlen = 128
     result_vram_offset = 0  # activation_base_address
     result_start_row = result_vram_offset // vlen
     num_result_rows = (batch_size * hidden_size) // vlen
