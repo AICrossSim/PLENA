@@ -161,7 +161,9 @@ if __name__ == "__main__":
         "start_row_idx": result_start_row,
         "num_rows": num_result_rows,
         "num_batches": batch_size,
-        "elements_per_batch": hidden_size
+        "elements_per_batch": hidden_size,
+        "row_dim": vlen,
+        "use_stride_mode": False
     }
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
