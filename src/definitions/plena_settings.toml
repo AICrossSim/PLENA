@@ -11,10 +11,10 @@ value = 4
 value = 16
 
 [CONFIG.MLEN]
-value = 128
+value = 64
 
 [CONFIG.VLEN]
-value = 128
+value = 64
 
 [CONFIG.BROADCAST_AMOUNT]
 value = 4
