@@ -1157,7 +1157,7 @@ impl Accelerator {
             //         scale_bytes.len()
             //     );
             // }
-            
+
             // Debug: Print converted HBM data
             if !is_quiet() {
                 eprintln!("  Converted to HBM format:");
