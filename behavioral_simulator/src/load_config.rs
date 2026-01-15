@@ -16,6 +16,11 @@ pub struct ConfigValueUsize {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigValueString {
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LatencyValue {
     pub dc_lib_en: u32,
     pub dc_lib_dis: u32,
@@ -101,6 +106,8 @@ pub struct ConfigSection {
     pub dc_en: ConfigValue,
     #[serde(rename = "MAX_LOOP_INSTRUCTIONS")]
     pub max_loop_instructions: ConfigValueUsize,
+    #[serde(rename = "OFF_CHIP_MEMORY_TYPE")]
+    pub off_chip_memory_type: ConfigValueString,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -174,6 +181,7 @@ impl Default for AcceleratorConfig {
                 hbm_v_writeback_amount: ConfigValue { value: 16 },
                 dc_en: ConfigValue { value: 1 },
                 max_loop_instructions: ConfigValueUsize { value: 10000 },
+                off_chip_memory_type: ConfigValueString { value: "HBM".to_string() },
             },
             precision: PrecisionSection {
                 matrix_sram_type: MxDataTypeConfig {
@@ -560,4 +568,8 @@ pub fn scalar_int_basic_cycles() -> u32 {
 
 pub fn max_loop_instructions() -> usize {
     CONFIG.config.max_loop_instructions.value
+}
+
+pub fn off_chip_memory_type() -> String {
+    CONFIG.config.off_chip_memory_type.value.clone()
 }

@@ -11,6 +11,7 @@ def update_plena_config(
     vlen: Optional[int] = None,
     mlen: Optional[int] = None,
     blen: Optional[int] = None,
+    memory_type: Optional[str] = None,
     verbose: bool = True
 ) -> None:
     """
@@ -20,6 +21,7 @@ def update_plena_config(
         vlen: Vector length. If None, keeps current value.
         mlen: Matrix tile length. If None, keeps current value.
         blen: Batch tile length. If None, keeps current value.
+        memory_type: Off-chip memory type ("HBM" or "DDR3"). If None, keeps current value.
         verbose: If True, print the updated configuration.
 
     Example:
@@ -28,6 +30,9 @@ def update_plena_config(
 
         # Update only vlen
         update_plena_config(vlen=64)
+
+        # Switch to DDR3
+        update_plena_config(memory_type="DDR3")
     """
     plena_settings_path = Path(__file__).parent.parent.parent / "src" / "definitions" / "plena_settings.toml"
 
@@ -44,6 +49,11 @@ def update_plena_config(
     if blen is not None:
         config['CONFIG']['BLEN']['value'] = blen
         updated.append(f"BLEN={blen}")
+    if memory_type is not None:
+        if memory_type not in ["HBM", "DDR3"]:
+            raise ValueError(f"Invalid memory_type: {memory_type}. Must be 'HBM' or 'DDR3'")
+        config['CONFIG']['OFF_CHIP_MEMORY_TYPE']['value'] = memory_type
+        updated.append(f"OFF_CHIP_MEMORY_TYPE={memory_type}")
 
     with open(plena_settings_path, 'w') as f:
         tomlkit.dump(config, f)

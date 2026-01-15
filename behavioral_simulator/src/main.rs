@@ -1921,12 +1921,18 @@ async fn start() {
         mask_unit: *HLEN,
     }; // Share same dim with VSRAM
 
+    // Create memory based on configuration
+    let memory_type = off_chip_memory_type();
     let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
-        ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
-        // To use DDR3, use `ddr3_preset(1)` instead of `hbm2_preset(8)`
+        ManuallyDrop::new(match memory_type.as_str() {
+            "DDR3" => ramulator::Ramulator::ddr3_preset(1).unwrap(),
+            "HBM" => ramulator::Ramulator::hbm2_preset(8).unwrap(),
+            _ => {
+                eprintln!("Unknown memory type '{}', defaulting to HBM", memory_type);
+                ramulator::Ramulator::hbm2_preset(8).unwrap()
+            }
+        }),
         memory::MemoryBacked::with_capacity(*HBM_SIZE),
-        // To use DDR3:
-        // memory::MemoryBacked::with_capacity(512 * 1024 * 1024), // Match DDR3 512MB
     )));
 
     let mut accelerator = Accelerator {
