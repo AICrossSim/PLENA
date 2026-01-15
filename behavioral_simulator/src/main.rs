@@ -1923,10 +1923,7 @@ async fn start() {
 
     let hbm = Arc::new(memory::WithStats::new(memory::WithTiming::new(
         ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(8).unwrap()),
-        // To use DDR3, use `ddr3_preset(1)` instead of `hbm2_preset(8)`
         memory::MemoryBacked::with_capacity(*HBM_SIZE),
-        // To use DDR3:
-        // memory::MemoryBacked::with_capacity(512 * 1024 * 1024), // Match DDR3 512MB
     )));
 
     let mut accelerator = Accelerator {
