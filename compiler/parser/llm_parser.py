@@ -1,8 +1,7 @@
 from typing import Dict, Any, Optional, List
 import torch
 import torch.fx as fx
-from transformers import AutoModel, AutoConfig
-
+from transformers import AutoModel, AutoConfig, Qwen3VLForConditionalGeneration, Qwen3VLConfig
 
 class LLMModelParser:
     def __init__(self, model_name_or_path: str):
@@ -12,14 +11,33 @@ class LLMModelParser:
         self.symbolic_graph = None
 
     def load_model(self):
-        """Load the model and configuration from HuggingFace"""
         try:
-            self.config = AutoConfig.from_pretrained(self.model_name_or_path)
-            self.model = AutoModel.from_pretrained(self.model_name_or_path, torch_dtype=torch.float32)
-            self.model.eval()
-        except Exception as e:
-            raise ValueError(f"Failed to load model {self.model_name_or_path}: {e}")
+            name = self.model_name_or_path.lower()
+            # ---------- Qwen3-VL ----------
+            # This is required due to the method of loading QWen3 model are unique
+            if "qwen3" in name:
+                self.config = Qwen3VLConfig.from_pretrained(
+                    self.model_name_or_path,
+                    trust_remote_code=True,
+                )
+                self.model = Qwen3VLForConditionalGeneration.from_pretrained(
+                    self.model_name_or_path,
+                    config=self.config,
+                    torch_dtype=torch.float32,
+                    trust_remote_code=True,
+                )
 
+            # ---------- fallback ----------
+            else:
+                self.config = AutoConfig.from_pretrained(self.model_name_or_path)
+                self.model = AutoModel.from_pretrained(self.model_name_or_path, torch_dtype=torch.float32)
+                self.model.eval()
+
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load model {self.model_name_or_path}: {e}"
+            )
+            
     def extract_critical_dimensions(self) -> Dict[str, Any]:
         """Extract dimensions for attention, RMSNorm, FFN operations"""
         if self.config is None:
@@ -363,3 +381,7 @@ class LLMModelParser:
                     print(f"     Add: shape={dims.get('shape')}")
 
             print()
+
+if __name__ == "__main__":
+    parser = LLMModelParser("Qwen/Qwen3-VL-2B-Instruct")
+    parser.load_model()
