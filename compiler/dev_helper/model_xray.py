@@ -1,5 +1,6 @@
 import inspect
 import torch
+from transformers import Qwen3VLModel, AutoProcessor
 
 def model_xray(model, max_modules=80, max_params=80):
     print("=== TYPE ===")
@@ -65,3 +66,20 @@ def model_xray(model, max_modules=80, max_params=80):
         print("config class:", type(model.config))
         print("config keys (sample):", list(d.keys())[:80])
 
+if __name__ == "__main__":
+    MODEL_NAME = "Qwen/Qwen3-VL-2B-Instruct"
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+
+    if device == "cuda":
+        torch.backends.cudnn.benchmark = True
+
+    print("Loading processor & model...")
+    processor = AutoProcessor.from_pretrained(MODEL_NAME)
+    model = Qwen3VLModel.from_pretrained(
+        MODEL_NAME,
+        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+        device_map=None,
+    ).to(device)
+    model_xray(model)
