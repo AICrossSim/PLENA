@@ -1,10 +1,13 @@
+mod frfcfs;
 mod naive;
+mod simple;
 pub mod testutils;
 
 use std::mem::ManuallyDrop;
 use std::sync::Mutex;
 
 pub use naive::NaiveTiming;
+pub use simple::SimpleTiming;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
