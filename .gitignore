@@ -68,6 +68,8 @@ ckpts_*
 co_design/interface/config.toml
 target/
 
+*.report
+
 # behavioral simulator
 behavioral_simulator/target
 behavioral_simulator/result

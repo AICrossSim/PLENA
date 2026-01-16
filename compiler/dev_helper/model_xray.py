@@ -1,8 +1,10 @@
+import argparse
 import inspect
+import contextlib
 import torch
 from transformers import Qwen3VLModel, AutoProcessor
 
-def model_xray(model, max_modules=80, max_params=80):
+def _print_model_xray(model, max_modules=80, max_params=80):
     print("=== TYPE ===")
     print(type(model))
     print("module:", model.__class__.__module__)
@@ -28,7 +30,7 @@ def model_xray(model, max_modules=80, max_params=80):
             continue
         print(f"{name:60s} {type(mod).__name__}")
         i += 1
-        if i >= max_modules:
+        if max_modules is not None and i >= max_modules:
             print("... truncated ...")
             break
     print()
@@ -38,7 +40,7 @@ def model_xray(model, max_modules=80, max_params=80):
     for name, p in model.named_parameters():
         print(f"{name:70s} shape={tuple(p.shape)} dtype={p.dtype} req_grad={p.requires_grad}")
         i += 1
-        if i >= max_params:
+        if max_params is not None and i >= max_params:
             print("... truncated ...")
             break
     print()
@@ -66,8 +68,31 @@ def model_xray(model, max_modules=80, max_params=80):
         print("config class:", type(model.config))
         print("config keys (sample):", list(d.keys())[:80])
 
+
+def model_xray(model, max_modules=80, max_params=80, report_path=None):
+    if report_path:
+        with open(report_path, "w", encoding="utf-8") as f:
+            with contextlib.redirect_stdout(f):
+                _print_model_xray(model, max_modules=max_modules, max_params=max_params)
+        return
+    _print_model_xray(model, max_modules=max_modules, max_params=max_params)
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(description="Inspect a HF model and print a report.")
+    parser.add_argument("--model", default="Qwen/Qwen3-VL-2B-Instruct",
+                        help="HuggingFace model name or path.")
+    parser.add_argument("--report-path", default="model_xray_report.txt",
+                        help="Write report to this file instead of stdout.")
+    parser.add_argument("--max-modules", type=int, default=None,
+                        help="Limit number of named_modules printed; omit for no limit.")
+    parser.add_argument("--max-params", type=int, default=None,
+                        help="Limit number of named_parameters printed; omit for no limit.")
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    MODEL_NAME = "Qwen/Qwen3-VL-2B-Instruct"
+    args = _parse_args()
+    MODEL_NAME = args.model
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
@@ -76,10 +101,13 @@ if __name__ == "__main__":
         torch.backends.cudnn.benchmark = True
 
     print("Loading processor & model...")
-    processor = AutoProcessor.from_pretrained(MODEL_NAME)
+
     model = Qwen3VLModel.from_pretrained(
         MODEL_NAME,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         device_map=None,
     ).to(device)
-    model_xray(model)
+    model_xray(model, max_modules=args.max_modules, max_params=args.max_params,
+               report_path=args.report_path)
+    if args.report_path:
+        print(f"Report saved to: {args.report_path}")
