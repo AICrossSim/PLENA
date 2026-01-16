@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 async-trait = "0.1.88"
+trait-variant = "0.1.2"
 zerocopy = "0.8"

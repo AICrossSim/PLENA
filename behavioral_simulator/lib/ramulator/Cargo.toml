@@ -12,7 +12,6 @@ serde_yaml_ng = "0.10.0"
 anyhow = "1"
 tokio = { version = "1", features = ["sync"] }
 futures = "0.3"
-async-trait = "0.1.88"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["sync", "macros", "rt", "rt-multi-thread"] }

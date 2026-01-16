@@ -7,7 +7,7 @@ pub struct Statistics {
     pub total_bytes_written: u64,
 }
 
-#[async_trait::async_trait]
+#[trait_variant::make(Send)]
 pub trait MemoryTimingModel: Send + Sync {
     /// Read 64-bytes of memory.
     ///
@@ -18,7 +18,6 @@ pub trait MemoryTimingModel: Send + Sync {
     async fn write(&self, addr: u64);
 }
 
-#[async_trait::async_trait]
 impl<T: MemoryTimingModel> MemoryTimingModel for ManuallyDrop<T> {
     async fn read(&self, addr: u64) {
         T::read(self, addr).await
@@ -29,7 +28,7 @@ impl<T: MemoryTimingModel> MemoryTimingModel for ManuallyDrop<T> {
     }
 }
 
-#[async_trait::async_trait]
+#[trait_variant::make(Send)]
 pub trait MemoryModel: Send + Sync {
     /// Read 64-bytes of memory.
     async fn read(&self, addr: u64) -> [u8; 64];
@@ -38,12 +37,38 @@ pub trait MemoryModel: Send + Sync {
     async fn write(&self, addr: u64, bytes: [u8; 64]);
 }
 
+#[async_trait::async_trait]
+pub trait ErasedMemoryModel: Send + Sync {
+    async fn box_read(&self, addr: u64) -> [u8; 64];
+    async fn box_write(&self, addr: u64, bytes: [u8; 64]);
+}
+
+#[async_trait::async_trait]
+impl<T: MemoryModel> ErasedMemoryModel for T {
+    async fn box_read(&self, addr: u64) -> [u8; 64] {
+        self.read(addr).await
+    }
+
+    async fn box_write(&self, addr: u64, bytes: [u8; 64]) {
+        self.write(addr, bytes).await
+    }
+}
+
+impl MemoryModel for dyn ErasedMemoryModel {
+    async fn read(&self, addr: u64) -> [u8; 64] {
+        self.box_read(addr).await
+    }
+
+    async fn write(&self, addr: u64, bytes: [u8; 64]) {
+        self.box_write(addr, bytes).await
+    }
+}
+
 /// A memory that discards all written data.
 ///
 /// This is useful to just test the timing without caring the actual data.
 pub struct NoData;
 
-#[async_trait::async_trait]
 impl MemoryModel for NoData {
     /// Read 64-bytes of memory.
     async fn read(&self, _addr: u64) -> [u8; 64] {
@@ -77,7 +102,6 @@ impl MemoryBacked {
     }
 }
 
-#[async_trait::async_trait]
 impl MemoryModel for MemoryBacked {
     /// Read 64-bytes of memory.
     async fn read(&self, addr: u64) -> [u8; 64] {
@@ -106,7 +130,6 @@ impl<T, M> WithTiming<T, M> {
     }
 }
 
-#[async_trait::async_trait]
 impl<T: MemoryTimingModel, M: MemoryModel> MemoryModel for WithTiming<T, M> {
     /// Read 64-bytes of memory.
     async fn read(&self, addr: u64) -> [u8; 64] {
@@ -148,7 +171,6 @@ impl<T> WithStats<T> {
     }
 }
 
-#[async_trait::async_trait]
 impl<T: MemoryModel> MemoryModel for WithStats<T> {
     async fn read(&self, addr: u64) -> [u8; 64] {
         {

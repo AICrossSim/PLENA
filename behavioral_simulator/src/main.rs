@@ -15,7 +15,7 @@ use clap::Parser;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use half::f16;
-use memory::MemoryModel;
+use memory::{MemoryModel, ErasedMemoryModel};
 use quantize::{MxDataType, QuantTensor};
 use runtime::{Duration, Executor, Instant};
 use tch::{IndexOp, Tensor};
@@ -812,7 +812,7 @@ struct LoopInfo {
 struct Accelerator {
     m_machine: MatrixMachine,
     v_machine: VectorMachine,
-    hbm: Arc<dyn MemoryModel>,
+    hbm: Arc<dyn ErasedMemoryModel>,
     reg_file: AcceeleratorRegFile,
     intsram: Vec<u32>,
     fpsram: Vec<f16>,
