@@ -1,7 +1,10 @@
+mod naive;
 pub mod testutils;
 
 use std::mem::ManuallyDrop;
 use std::sync::Mutex;
+
+pub use naive::NaiveTiming;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
