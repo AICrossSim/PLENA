@@ -1,3 +1,5 @@
+pub mod testutils;
+
 use std::mem::ManuallyDrop;
 use std::sync::Mutex;
 

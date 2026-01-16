@@ -1,26 +1,20 @@
 use std::mem::ManuallyDrop;
-use std::sync::Arc;
-
-use anyhow::Result;
-use memory::MemoryTimingModel;
-use runtime::{Executor, Instant};
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let executor = Executor::new();
+async fn main() {
+    let new_1c = || ManuallyDrop::new(ramulator::Ramulator::ddr4_preset(1).unwrap());
 
-    let model = Arc::new(ManuallyDrop::new(ramulator::Ramulator::hbm2_preset(1)?));
-    executor.spawn(async move {
-        for offset in (0..1024 * 1024).step_by(64) {
-            let model_clone = model.clone();
-            Executor::current().spawn(async move {
-                model_clone.read(offset).await;
-                println!("{offset} {:?}", Executor::current().now());
-            });
-        }
-    });
+    let new_2c = || ManuallyDrop::new(ramulator::Ramulator::ddr4_preset(2).unwrap());
 
-    executor.enter(Instant::ETERNITY).await;
-    eprintln!("Simulation completed. Last instance {:?}", executor.now());
-    Ok(())
+    println!("DDR4 Single-Channel Sequential");
+    memory::testutils::sequential_1m(new_1c()).await;
+
+    println!("DDR4 Dual-Channel Sequential");
+    memory::testutils::sequential_1m(new_2c()).await;
+
+    println!("DDR4 Single-Channel Random");
+    memory::testutils::random_1m(new_1c()).await;
+
+    println!("DDR4 Dual-Channel Random");
+    memory::testutils::random_1m(new_2c()).await;
 }
