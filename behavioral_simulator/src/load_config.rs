@@ -1,6 +1,6 @@
 // load_config.rs
 use serde::{Deserialize, Serialize};
-use std::{fs, sync::LazyLock, env};
+use std::{env, fs, sync::LazyLock};
 
 // Import the types from your main module
 use quantize::{DataType, FpType, IntType, MxDataType};
@@ -263,9 +263,7 @@ impl Default for AcceleratorConfig {
                 hbm_v_int_type: MxDataTypeConfig {
                     format: "Plain".to_string(),
                     data: MxDataTypeData::Plain {
-                        data_type: DataTypeConfig::Int(IntTypeConfig {
-                            width: 32,
-                        }),
+                        data_type: DataTypeConfig::Int(IntTypeConfig { width: 32 }),
                     },
                 },
                 scalar_fp: DataTypeConfig::Fp(FpTypeConfig {
@@ -391,8 +389,12 @@ pub static CONFIG: LazyLock<AcceleratorConfig> = LazyLock::new(|| {
 
 // Configuration loading functions
 pub fn load_config() -> Result<AcceleratorConfig, Box<dyn std::error::Error>> {
-    let config_path = env::current_dir().unwrap().parent().unwrap().join("src/definitions/plena_settings.toml");
-    
+    let config_path = env::current_dir()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("src/definitions/plena_settings.toml");
+
     let config_path = config_path.to_str().unwrap();
     if let Ok(config) = load_config_from_file(config_path) {
         return Ok(config);
@@ -536,7 +538,6 @@ pub fn vector_exp_cycles() -> u32 {
 pub fn vector_reci_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.vector_reci_cycles)
 }
-
 
 pub fn scalar_fp_basic_cycles() -> u32 {
     get_dc_lib_value(&CONFIG.latency.scalar_fp_basic_cycles)

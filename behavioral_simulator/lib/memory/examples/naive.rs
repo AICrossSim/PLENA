@@ -1,10 +1,16 @@
-use std::mem::ManuallyDrop;
+use memory::NaiveTiming;
 
 #[tokio::main]
 async fn main() {
-    let new_1c = || ManuallyDrop::new(ramulator::Ramulator::ddr4_preset(1).unwrap());
+    let new_1c = || {
+        let naive = NaiveTiming::preset_ddr4_2400p(1);
+        naive
+    };
 
-    let new_2c = || ManuallyDrop::new(ramulator::Ramulator::ddr4_preset(2).unwrap());
+    let new_2c = || {
+        let naive = NaiveTiming::preset_ddr4_2400p(2);
+        naive
+    };
 
     println!("DDR4 Single-Channel Sequential");
     memory::testutils::sequential_1m(new_1c()).await;

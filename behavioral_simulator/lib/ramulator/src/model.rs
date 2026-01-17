@@ -160,7 +160,6 @@ impl Ramulator {
     }
 }
 
-#[async_trait::async_trait]
 impl memory::MemoryTimingModel for Ramulator {
     async fn read(&self, addr: u64) {
         futures::future::join_all(
