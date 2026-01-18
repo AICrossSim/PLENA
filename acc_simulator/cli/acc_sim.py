@@ -27,7 +27,7 @@ import logging
 import torch
 import transformers
 
-from ..eval.ar_model.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model, move_to_gpu, load_gptq, save_gptq
+from ..eval.eval_utils import validate_and_sanitize_quant_args, create_experiment_log_dir, save_args, save_results, quantize_model, setup_model, move_to_gpu, load_gptq, save_gptq
 from ..eval.ar_model import evaluate_with_lm_eval, evaluate_perplexity
 from ..utils import setup_args_linear_nonlinear
 from ..rotation import rotate_llama, fuse_rms_norms, replace_rms_norms

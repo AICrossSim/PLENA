@@ -32,7 +32,8 @@ logger = get_logger(__name__)
 
 def create_experiment_log_dir(base_dir: str = "logs") -> Path:
     # Always store logs inside acc_simulator/logs regardless of current working directory
-    root_dir = Path(__file__).resolve().parent.parent 
+    # __file__ = eval/eval_utils.py -> .parent.parent = acc_simulator/
+    root_dir = Path(__file__).resolve().parent.parent
     log_root = root_dir / base_dir 
     timestamp = datetime.now(ZoneInfo("Europe/London")).strftime("%Y%m%d-%H%M%S")
     log_dir = log_root / f"run-{timestamp}"
