@@ -20,13 +20,13 @@ from accelerate import dispatch_model
 
 from safetensors.torch import save_file, load_file
 
-from ..quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
-from ..models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
-from ..quantize.quantizer.mxfp import MXFPMeta
-from ..quantize.quantizer.minifloat import MinifloatMeta
-from ..quantize.quantizer.mxint import MXIntMeta
-from ..utils import replace_modules, create_device_map
-from ..utils.logger import get_logger, set_logging_verbosity
+from acc_simulator.quantize.quantized_layers import MXFPLinearPTQ, MXFPEmbeddingPTQ, FPRMSNormPTQ
+from acc_simulator.models.llama_quantized import LlamaAttentionMXFP, LlamaMLPActFP
+from acc_simulator.quantize.quantizer.mxfp import MXFPMeta
+from acc_simulator.quantize.quantizer.minifloat import MinifloatMeta
+from acc_simulator.quantize.quantizer.mxint import MXIntMeta
+from acc_simulator.utils import replace_modules, create_device_map
+from acc_simulator.utils.logger import get_logger, set_logging_verbosity
 
 logger = get_logger(__name__)
 
