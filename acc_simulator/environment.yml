@@ -15,7 +15,7 @@ dependencies:
       - torchaudio
       - jsonargparse[all]
       - lm-eval==0.4.8
-      - transformers==4.52.4
+      - transformers==4.57.6
       - datasets
       - evaluate
       - accelerate
@@ -25,6 +25,7 @@ dependencies:
       - tqdm
       - sentencepiece
       - protobuf
+      - einops
       # dse related, temporary placement for now
       - botorch==0.9.5
       - optuna-integration==4.4.0
@@ -32,4 +33,3 @@ dependencies:
       - plotly==6.2.0
       # add mase-triton with current tag 0.0.5
       - mase-triton==0.0.5
-      - mamba-ssm
