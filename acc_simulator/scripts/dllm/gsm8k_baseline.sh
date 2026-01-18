@@ -15,7 +15,8 @@ echo "=========================================="
 echo "Fast-dLLM v2 GSM8K - Baseline (BF16)"
 echo "=========================================="
 
-python -m acc_simulator.cli.dllm_sim \
+python -m acc_simulator.cli.acc_sim \
+    --model_type dllm \
     --model_name "${MODEL}" \
     --tasks gsm8k \
     --device_id "${DEVICE}" \

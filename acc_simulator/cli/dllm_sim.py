@@ -3,18 +3,6 @@ Fast-dLLM evaluation with optional MXInt quantization.
 
 Usage:
     python -m acc_simulator.cli.dllm_sim --help
-
-Example (baseline):
-    python -m acc_simulator.cli.dllm_sim \
-        --model_name Efficient-Large-Model/Fast_dLLM_v2_1.5B \
-        --tasks gsm8k
-
-Example (with quantization):
-    python -m acc_simulator.cli.dllm_sim \
-        --model_name Efficient-Large-Model/Fast_dLLM_v2_1.5B \
-        --tasks gsm8k \
-        --preset XWqB \
-        --preset_W MXINT_4_B32_S8
 """
 
 import time
@@ -31,37 +19,26 @@ from datasets import Dataset
 import torch.nn.functional as F
 
 from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
-from acc_simulator.utils.set_quant_args import setup_linear_args
+from acc_simulator.utils import setup_args_linear_nonlinear
+from acc_simulator.eval.eval_utils import validate_and_sanitize_quant_args
 from acc_simulator.eval.dllm import generation_functions
 
 
 def quantize_linear_layers(
     model: nn.Module,
-    preset: str,
-    preset_W: str,
+    quant_args: dict,
     skip_lm_head: bool = True,
+    clip_search: bool = False,
 ):
     """
-    Replace nn.Linear layers with MXFPLinearPTQ based on preset.
-
-    Args:
-        model: The model to quantize
-        preset: Layer type pattern (e.g., "XWqB" for weight-only quantization)
-        preset_W: Weight quantization format (e.g., "MXINT_4_B32_S8")
-        skip_lm_head: Whether to skip the lm_head layer
+    Replace nn.Linear layers with MXFPLinearPTQ.
+    Uses the same quant_args format as acc_sim.py.
     """
-    fc_kwargs = setup_linear_args(
-        preset=preset,
-        preset_x=preset_W,
-        preset_w=preset_W,
-        preset_NL=None,
-        online_rotate=False,
-        clip_search_y=False
-    )
+    fc_kwargs = quant_args.get("fc_kwargs", {})
+    fc_kwargs["clip_search"] = clip_search
 
     linear_count = sum(1 for _, m in model.named_modules() if isinstance(m, nn.Linear))
     print(f"Found {linear_count} nn.Linear layers")
-    print(f"Preset: {preset}, Format: {preset_W}")
 
     replaced = 0
     for name, module in list(model.named_modules()):
@@ -290,6 +267,7 @@ class FastDLLMEvalHarness(LM):
 
 
 def dllm_eval(
+    # Model
     model_name: str = "Efficient-Large-Model/Fast_dLLM_v2_1.5B",
     tasks: Union[str, list[str]] = "gsm8k",
     device_id: str = "cuda:0",
@@ -302,12 +280,18 @@ def dllm_eval(
     small_block_size: int = 8,
     threshold: float = 1.0,
     show_speed: bool = True,
-    # Quantization (optional)
     preset: Union[str, None] = None,
+    preset_X: Union[str, None] = None,
     preset_W: Union[str, None] = None,
+    preset_Kv: Union[str, None] = None,
+    preset_NL: Union[str, None] = None,
+    clip_search: bool = False,
+    clip_search_y: bool = False,
+    online_rotate: bool = False,
 ):
     """
     Evaluate Fast-dLLM v2 model with optional quantization.
+    Uses the same quantization parameters as acc_sim.py.
 
     Args:
         model_name: HuggingFace model path
@@ -321,16 +305,40 @@ def dllm_eval(
         small_block_size: Sub-block size
         threshold: Unmasking threshold
         show_speed: Show throughput metrics
-        preset: Quantization layer type (e.g., "XWqB")
-        preset_W: Quantization format (e.g., "MXINT_4_B32_S8")
+        preset: Quantization preset (e.g., "XWqBKVNL")
+        preset_X: Activation quantization format
+        preset_W: Weight quantization format (e.g., "MXINT_4_B32_S8")
+        preset_Kv: KV cache quantization format
+        preset_NL: Non-linear ops quantization format
+        clip_search: Enable clip search for quantization
+        clip_search_y: Use output-based clip search
+        online_rotate: Enable online rotation
     """
     print("=" * 60)
     print("Fast-dLLM Evaluation")
     print("=" * 60)
     print(f"Model: {model_name}")
     print(f"Tasks: {tasks}")
-    print(f"Quantization: {preset} / {preset_W}" if preset else "None (BF16)")
+    if preset and preset != "original":
+        print(f"Quantization: {preset}")
+        print(f"  preset_X: {preset_X}, preset_W: {preset_W}")
+        print(f"  preset_Kv: {preset_Kv}, preset_NL: {preset_NL}")
+        print(f"  clip_search: {clip_search}, clip_search_y: {clip_search_y}")
+    else:
+        print("Quantization: None (BF16)")
     print("=" * 60)
+
+    # Validate and sanitize quant args (same as acc_sim.py)
+    if preset and preset != "original":
+        preset_X, preset_W, preset_Kv, preset_NL = validate_and_sanitize_quant_args(
+            preset, preset_X, preset_W, preset_Kv, preset_NL
+        )
+        quant_args = setup_args_linear_nonlinear(
+            preset, preset_X, preset_W, preset_Kv, preset_NL,
+            online_rotate, clip_search_y
+        )
+    else:
+        quant_args = None
 
     # Load model
     print(f"\nLoading model from {model_name}...")
@@ -345,10 +353,9 @@ def dllm_eval(
     device = torch.device(device_id)
     model = model.to(device)
 
-    # Apply quantization if specified (must be after moving to device)
-    if preset is not None and preset_W is not None:
-        print(f"\nApplying quantization: {preset} with {preset_W}")
-        model = quantize_linear_layers(model, preset, preset_W)
+    if quant_args is not None:
+        print(f"\nApplying quantization...")
+        model = quantize_linear_layers(model, quant_args, clip_search=clip_search)
 
     # Add dLLM generation method
     model.mdm_sample = types.MethodType(
