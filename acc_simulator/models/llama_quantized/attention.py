@@ -1,13 +1,20 @@
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional, Tuple, Any
 import torch
 from torch import Tensor, nn, LongTensor
 from transformers.models.llama.modeling_llama import (
     Cache,
-    FlashAttentionKwargs,
     LlamaAttention,
-    Unpack,
     repeat_kv,
 )
+
+# Handle optional imports for newer transformers versions
+_HAS_FLASH_ATTENTION_KWARGS = False
+try:
+    from transformers.models.llama.modeling_llama import FlashAttentionKwargs
+    from typing import Unpack
+    _HAS_FLASH_ATTENTION_KWARGS = True
+except ImportError:
+    pass
 
 from ...quantize.quantizer.mxfp import MXFPMeta
 from ...quantize.quantized_functions import matmul_mxfp, rope_minifloat, softmax_minifloat, kv_cache_mxfp
@@ -56,7 +63,7 @@ class LlamaAttentionMXFP(LlamaAttention):
         attention_mask: Optional[Tensor],
         past_key_value: Optional[Cache] = None,
         cache_position: Optional[LongTensor] = None,
-        **kwargs: Unpack[FlashAttentionKwargs],
+        **kwargs,
     ) -> Tuple[Tensor, Optional[Tensor], Optional[Tuple[Tensor]]]:
         # [batch_size, seq_length]
         input_shape = hidden_states.shape[:-1]
