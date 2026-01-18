@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
@@ -76,11 +77,21 @@ class RMSNorm(torch.nn.Module):
 
 if __name__ == "__main__":
     # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    hidden_size = 128
-    batch_size = 4
+    parser = argparse.ArgumentParser(description="RMSNorm testbench configuration")
+    parser.add_argument("--hidden-size", type=int, default=128, help="Hidden size (model dim)")
+    parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
+    parser.add_argument("--vlen", type=int, default=64, help="Vector length")
+    parser.add_argument("--mlen", type=int, default=64, help="Matrix tile length (defaults to vlen)")
+    parser.add_argument("--eps", type=float, default=1e-6, help="RMSNorm epsilon")
+    args = parser.parse_args()
+
+    hidden_size = args.hidden_size
+    batch_size = args.batch_size
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    fp_preload = [0.0, 1e-6, 1/hidden_size]
-    vlen = 64
+    fp_preload = [0.0, args.eps, 1/hidden_size]
+    vlen = args.vlen
+    mlen = args.mlen
+    hbm_m_prefetch_amount = mlen
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
@@ -91,7 +102,7 @@ if __name__ == "__main__":
     print("act_tensor lhs (4, 64):\n", act_tensor[:, :64])
     print("act_tensor rhs (4, 64):\n", act_tensor[:, 64:])
 
-    original_layer = RMSNorm(dim=hidden_size)
+    original_layer = RMSNorm(dim=hidden_size, eps=args.eps)
     weights = original_layer.state_dict()
 
     # Quantize input to MXFP to match hardware precision
@@ -150,7 +161,7 @@ if __name__ == "__main__":
     )
 
     # Update plena_settings.toml with test-specific vlen/mlen
-    update_plena_config(vlen=vlen, mlen=vlen)
+    update_plena_config(vlen=vlen, mlen=mlen, hbm_m_prefetch_amount=hbm_m_prefetch_amount)
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["act_tensor", "weights"])

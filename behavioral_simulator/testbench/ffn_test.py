@@ -2,12 +2,14 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import Tensor, nn
 from compiler.asm_templates import ffn_asm, preload_addr_reg_asm, reset_reg_asm, preload_act_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+from config_utils import update_plena_config, get_comparison_params
 
 
 def quantize_to_mxfp(tensor):
@@ -43,15 +45,26 @@ class LlamaFeedForward(nn.Module):
 
 
 if __name__ == "__main__":
-    hidden_size = 128
-    inter_dim = 256
-    batch_size = 4
-    seq_len = 2
+    parser = argparse.ArgumentParser(description="FFN testbench configuration")
+    parser.add_argument("--hidden-size", type=int, default=128, help="Hidden size (model dim)")
+    parser.add_argument("--inter-dim", type=int, default=256, help="Intermediate FFN dimension")
+    parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
+    parser.add_argument("--seq-len", type=int, default=2, help="Sequence length")
+    parser.add_argument("--vlen", type=int, default=64, help="Vector length")
+    parser.add_argument("--mlen", type=int, default=64, help="Matrix tile length")
+    parser.add_argument("--blen", type=int, default=4, help="Batch tile length")
+    args = parser.parse_args()
+
+    hidden_size = args.hidden_size
+    inter_dim = args.inter_dim
+    batch_size = args.batch_size
+    seq_len = args.seq_len
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1.0]  # [0]=0.0, [1]=1.0 for SiLU
-    mlen = 64
-    blen = 4
-    vlen = 64
+    mlen = args.mlen
+    blen = args.blen
+    vlen = args.vlen
+    hbm_m_prefetch_amount = mlen
 
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, seq_len, hidden_size, dtype=torch.bfloat16)
@@ -135,28 +148,34 @@ if __name__ == "__main__":
         use_loop_instructions=True
     )
 
+    # Update plena_settings.toml with test-specific vlen/mlen/blen and prefetch amount
+    update_plena_config(
+        vlen=vlen,
+        mlen=mlen,
+        blen=blen,
+        hbm_m_prefetch_amount=hbm_m_prefetch_amount
+    )
+
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None,
                        specified_data_order=["act_tensor", "weight_up_layer", "weight_gate_layer", "weight_down_layer"])
 
     # Save comparison parameters for view_mem.py
     import json
-    result_vram_offset = 0
     effective_batch = batch_size * seq_len
-    result_start_row = result_vram_offset // vlen
-    num_result_rows = (effective_batch * hidden_size) // vlen
-    comparison_params = {
-        "start_row_idx": result_start_row,
-        "num_rows": num_result_rows,
-        "num_batches": effective_batch,
-        "elements_per_batch": hidden_size
-    }
+    result_vram_offset = 0
+    comparison_params = get_comparison_params(
+        vlen=vlen,
+        batch_size=effective_batch,
+        hidden_size=hidden_size,
+        result_vram_offset=result_vram_offset
+    )
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating FFN test assembly code")
-    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Result location: row {comparison_params['start_row_idx']}, {comparison_params['num_rows']} rows")
     print(f"Comparison params: {comparison_params}")
     print("================================================")

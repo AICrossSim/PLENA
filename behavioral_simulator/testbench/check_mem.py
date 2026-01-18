@@ -125,7 +125,7 @@ def read_bin_file_as_array(bin_file,
     return np.array(values, dtype=np.float32)
 
 
-def reorder_stride_mode(data, num_batches=4, elements_per_batch=128, stride=64):
+def reorder_stride_mode(data, num_batches=4, elements_per_batch=128, stride=None):
     """
     Reorder stride-mode data to batch-wise layout.
 
@@ -147,11 +147,13 @@ def reorder_stride_mode(data, num_batches=4, elements_per_batch=128, stride=64):
         data: 1D numpy array in stride mode
         num_batches: Number of batches (default 4)
         elements_per_batch: Elements per batch (default 128)
-        stride: Stride size in stride mode (default 64, typically mlen)
+        stride: Stride size in stride mode (typically mlen)
 
     Returns:
         Reordered 1D numpy array in batch-wise layout
     """
+    if stride is None or stride <= 0:
+        raise ValueError("stride must be a positive integer, typically equal to mlen")
     chunk_size = stride  # Stride mode uses chunks of 'stride' elements (typically mlen=64)
     chunks_per_batch = elements_per_batch // stride
     total_chunks = len(data) // chunk_size
@@ -183,7 +185,7 @@ def compare_with_golden(bin_file,
                         exp_width=8,
                         man_width=7,
                         num_bytes_per_val=2,
-                        row_dim=64,
+                        row_dim=None,
                         start_row_idx=0,
                         num_batches=4,
                         num_rows=None,
@@ -228,6 +230,9 @@ def compare_with_golden(bin_file,
     golden_np = parse_golden_output(golden_file)
     golden_values = torch.from_numpy(golden_np).bfloat16()
 
+    if row_dim is None or row_dim <= 0:
+        raise ValueError("row_dim must be a positive integer")
+
     # Read binary file (now properly handles row-based indexing)
     simulated_np = read_bin_file_as_array(
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
@@ -235,7 +240,7 @@ def compare_with_golden(bin_file,
 
     # Reorder stride-mode data to match batch-wise golden layout
     if use_stride_mode:
-        simulated_np = reorder_stride_mode(simulated_np, num_batches, elements_per_batch)
+        simulated_np = reorder_stride_mode(simulated_np, num_batches, elements_per_batch, stride=row_dim)
 
     simulated_values = torch.from_numpy(simulated_np).bfloat16()
 
