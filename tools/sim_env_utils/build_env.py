@@ -62,16 +62,19 @@ class MemoryDataManager:
                 }
         return result
 
-def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None):
-    
+def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, specified_data_order = None, build_path = None):
+
     plena_toml_path = str(SRC_PATH / "definitions" / "plena_settings.toml")
     config_settings = load_toml_config(plena_toml_path, "CONFIG")
     precision_settings = load_toml_config(plena_toml_path, "PRECISION")
     if mode == "behave_sim":
-        asm_file = Path(PROJECT_PATH / "behavioral_simulator" / "testbench" / "build" / "generated_asm_code.asm")
+        if build_path is not None:
+            asm_file = Path(build_path) / "generated_asm_code.asm"
+        else:
+            asm_file = Path(PROJECT_PATH / "behavioral_simulator" / "testbench" / "build" / "generated_asm_code.asm")
     else:
         asm_file = Path(PROJECT_PATH / "test" / "Instr_Level_Benchmark" / f"{asm}.asm")
-    
+
     init_mem(Path(asm_file.parent))
 
     data_config = {
@@ -106,7 +109,10 @@ def create_mem_for_sim(data_size=256, mode="behave_sim", asm="attn", data=None, 
     else:
         # The provided path (args.data) is a directory. Enumerate all .pt and .pth files within,
         # then load and quantize all of them. Collect the results in a MemoryDataManager.
-        target_dir = PROJECT_PATH / "behavioral_simulator" / "testbench" / "build"
+        if build_path is not None:
+            target_dir = Path(build_path)
+        else:
+            target_dir = PROJECT_PATH / "behavioral_simulator" / "testbench" / "build"
         if specified_data_order is not None:
             pt_files = [target_dir / f"{data}.pt" for data in specified_data_order]
         else:

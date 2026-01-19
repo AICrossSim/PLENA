@@ -46,7 +46,7 @@ if __name__ == "__main__":
     print("Output tensor (first 8 values):", original_output[0, :8])
 
     input_tensor = {
-        "act_tensor": act_tensor,
+        "act_tensor": act_mxfp,  # Use MXFP-quantized to match simulator
     }
 
     golden_result = {

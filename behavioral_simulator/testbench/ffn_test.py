@@ -13,11 +13,9 @@ from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
 def quantize_to_mxfp(tensor):
     """
     Quantize tensor to MXFP format matching hardware (E4M3 with 8-bit scale per block of 8).
-    Uses the same quantizer as the behavioral simulator's memory loader.
     Returns the dequantized tensor (what hardware sees after HBM->VRAM load).
     """
     orig_shape = tensor.shape
-    # Hardware quantizer expects 2D input, flatten all but last dim
     tensor_2d = tensor.reshape(-1, tensor.shape[-1])
     bm_x, _, _, _ = _mx_fp_quantize_hardware(
         tensor_2d, width=8, exponent_width=4, exponent_bias_width=8, block_size=[8]
@@ -41,6 +39,24 @@ class LlamaFeedForward(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.w3(self.act(self.w1(x)) * self.w2(x))
 
+    def forward_with_bf16_intermediates(self, x: Tensor) -> Tensor:
+        """
+        Forward pass matching hardware: float32 accumulation, BF16 intermediate storage.
+        Each stage writes to VRAM (BF16), causing precision loss that accumulates.
+        """
+        x_f32 = x.float()
+        w1_f32, w2_f32, w3_f32 = self.w1.weight.float(), self.w2.weight.float(), self.w3.weight.float()
+
+        # Stage 1 & 2: up/gate projections (parallel in hardware)
+        up = torch.nn.functional.linear(x_f32, w1_f32).to(torch.bfloat16)
+        gate = torch.nn.functional.linear(x_f32, w2_f32).to(torch.bfloat16)
+
+        # Stage 3: SiLU(up) * gate
+        silu_gate = (self.act(up.float()) * gate.float()).to(torch.bfloat16)
+
+        # Stage 4: down projection
+        return torch.nn.functional.linear(silu_gate.float(), w3_f32).to(torch.bfloat16)
+
 
 if __name__ == "__main__":
     hidden_size = 128
@@ -58,9 +74,13 @@ if __name__ == "__main__":
 
     ffn = LlamaFeedForward(dim=hidden_size, inter_dim=inter_dim).bfloat16()
 
-    weight_up_layer = torch.randn(inter_dim, hidden_size, dtype=torch.bfloat16)
-    weight_gate_layer = torch.randn(inter_dim, hidden_size, dtype=torch.bfloat16)
-    weight_down_layer = torch.randn(hidden_size, inter_dim, dtype=torch.bfloat16)
+    # Use proper weight initialization (Xavier/Glorot) to keep values in reasonable range
+    # This mimics real neural network initialization where weights are scaled by 1/sqrt(fan_in)
+    scale_up = 1.0 / (hidden_size ** 0.5)
+    scale_down = 1.0 / (inter_dim ** 0.5)
+    weight_up_layer = torch.randn(inter_dim, hidden_size, dtype=torch.bfloat16) * scale_up
+    weight_gate_layer = torch.randn(inter_dim, hidden_size, dtype=torch.bfloat16) * scale_up
+    weight_down_layer = torch.randn(hidden_size, inter_dim, dtype=torch.bfloat16) * scale_down
 
     # Quantize all inputs to MXFP to match hardware precision
     act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)
@@ -74,14 +94,15 @@ if __name__ == "__main__":
         ffn.w2.weight.copy_(weight_gate_mxfp)
         ffn.w3.weight.copy_(weight_down_mxfp)
 
-    # Compute golden with MXFP-quantized inputs
-    original_output = ffn(act_mxfp)
+    # Compute golden with MXFP-quantized inputs and BF16 intermediates
+    # This matches hardware behavior where VRAM stores BF16 after each stage
+    original_output = ffn.forward_with_bf16_intermediates(act_mxfp)
 
     input_tensor = {
-        "act_tensor": act_tensor.reshape(batch_size * seq_len, hidden_size),
-        "weight_up_layer": weight_up_layer.t(),
-        "weight_gate_layer": weight_gate_layer.t(),
-        "weight_down_layer": weight_down_layer.t(),
+        "act_tensor": act_mxfp.reshape(batch_size * seq_len, hidden_size),
+        "weight_up_layer": weight_up_mxfp.t(),
+        "weight_gate_layer": weight_gate_mxfp.t(),
+        "weight_down_layer": weight_down_mxfp.t(),
     }
 
     golden_result = {

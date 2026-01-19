@@ -53,8 +53,8 @@ if __name__ == "__main__":
     # Our layout: (in_features, out_features) for matmul: act @ weight
     # Store original (non-quantized) tensors - they will be quantized when loaded to HBM
     input_tensor = {
-        "act_tensor": act_tensor,
-        "weights": weights['weight'].t(),  # (in_features, out_features)
+        "act_tensor": act_mxfp,  # Use MXFP-quantized to match simulator
+        "weights": weights_mxfp,  # Use MXFP-quantized to match simulator
     }
 
     golden_result = {
