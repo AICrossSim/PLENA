@@ -157,7 +157,7 @@ module fp_cp_asym_mult #(
         .data_out_valid(p1_mult_valid),
         .data_out_ready(p1_mult_ready)
     );
-    
+
     register_slice #(
         .DATA_WIDTH(MULT_OUT_EXP_WIDTH + MULT_OUT_FIXED_WIDTH)
     ) buffer_mult (

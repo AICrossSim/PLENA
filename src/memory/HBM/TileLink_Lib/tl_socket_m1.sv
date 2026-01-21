@@ -1,6 +1,6 @@
 `include "tl_util.svh"
 `include "tl_pkg.svh"
-`include "prim_util_pkg.svh"
+// `include "prim_util_pkg.svh"
 
 module tl_socket_m1 import tl_pkg::*; import prim_util_pkg::*; #(
   parameter  int unsigned SourceWidth   = 1,

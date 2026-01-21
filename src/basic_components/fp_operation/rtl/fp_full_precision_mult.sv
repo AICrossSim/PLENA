@@ -11,7 +11,7 @@ Description : Multiply two FP numbers with different exponents and signs.
               Extended_Exp = 0Ea + 0Eb - (1 << (Extended_Exp_WIDTH - 1)) - 1
 */
 
-module fp_mult #(
+module fp_full_precision_mult #(
     parameter   MANT_WIDTH = 4,
     parameter   EXP_WIDTH = 3,
     localparam  EXT_MANT_WIDTH = MANT_WIDTH + 1,                            // account for implicit 1
@@ -62,7 +62,7 @@ module fp_mult #(
     // Normalisation logic
     always_comb begin
         if (mant_product_full[2*EXT_MANT_WIDTH-1] == 1'b0) begin
-            // 
+            //
             mant_product_norm = {mant_product_full[2*EXT_MANT_WIDTH - 3 -: (RESULT_MAN_WIDTH - 1)], 1'b0};
             exp_product = exp_product_raw;
         end else begin

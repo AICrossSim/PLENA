@@ -20,15 +20,15 @@ typedef struct {
 } MEM_WREQ_INFO;
 
 typedef enum logic [3:0] {
-    MV_IC           = 3'h1,
-    MV_BIC          = 3'h2,
-    MV_WO           = 3'h3,
-    BMV_WO          = 3'h4,
-    MM_IC           = 3'h5,
-    MM_BIC          = 3'h6,
-    MM_WO           = 3'h7,
-    BMM_WO          = 3'h8,
-    STALL_M         = 3'h0
+    MV_IC           = 4'h1,
+    MV_BIC          = 4'h2,
+    MV_WO           = 4'h3,
+    BMV_WO          = 4'h4,
+    MM_IC           = 4'h5,
+    MM_BIC          = 4'h6,
+    MM_WO           = 4'h7,
+    BMM_WO          = 4'h8,
+    STALL_M         = 4'h0
 } M_OP;
 
 typedef enum logic [3:0] {

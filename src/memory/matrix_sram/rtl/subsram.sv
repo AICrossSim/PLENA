@@ -56,7 +56,7 @@ logic transpose_rawdata;
 // Memory
 // -----
 logic [AdrWidth-1:0]                translated_raddr;
-logic [ElementWidth-1:0]            mem [SRAM_DEPTH];
+(* ram_style = "block", DONT_TOUCH = "TRUE" *) logic [ElementWidth-1:0] mem [SRAM_DEPTH];
 logic signed [Parallel_Rd_Index_Width-1:0]    sram_index, addr_offset;
 
 initial begin

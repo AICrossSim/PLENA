@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
 `include "tl_pkg.svh"
-`include "prim_util_pkg.svh"
+// `include "prim_util_pkg.svh"
 // This module terminates a TL-C link and converts it to a TL-UH link.
 // It will deny all cache line permission transfers and only allow uncached memory
 // accesses through.

@@ -43,21 +43,21 @@ typedef enum logic [2:0] {
   ReleaseAck    = 3'h6
 } tl_d_op_e;
 
-parameter logic [2:0]  toT = 0;
-parameter logic [2:0]  toB = 1;
-parameter logic [2:0]  toN = 2;
+localparam logic [2:0]  toT = 0;
+localparam logic [2:0]  toB = 1;
+localparam logic [2:0]  toN = 2;
 
-parameter logic [2:0] NtoB = 0;
-parameter logic [2:0] NtoT = 1;
-parameter logic [2:0] BtoT = 2;
+localparam logic [2:0] NtoB = 0;
+localparam logic [2:0] NtoT = 1;
+localparam logic [2:0] BtoT = 2;
 
-parameter logic [2:0] TtoB = 0;
-parameter logic [2:0] TtoN = 1;
-parameter logic [2:0] BtoN = 2;
+localparam logic [2:0] TtoB = 0;
+localparam logic [2:0] TtoN = 1;
+localparam logic [2:0] BtoN = 2;
 
-parameter logic [2:0] TtoT = 3;
-parameter logic [2:0] BtoB = 4;
-parameter logic [2:0] NtoN = 5;
+localparam logic [2:0] TtoT = 3;
+localparam logic [2:0] BtoB = 4;
+localparam logic [2:0] NtoN = 5;
 
 endpackage
 `endif

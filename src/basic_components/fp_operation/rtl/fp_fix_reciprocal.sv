@@ -32,7 +32,7 @@ module fp_fix_reciprocal #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
     ) dc_lib_fp_fix_reciprocal (
-        .clk(clk),  
+        .clk(clk),
         .rst(rst),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
@@ -43,16 +43,20 @@ module fp_fix_reciprocal #(
     );
 `else
     fp_cp_reciprocal #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
+        .IN_EXP_WIDTH(EXP_WIDTH),
+        .IN_MANT_WIDTH(MANT_WIDTH),
+        .OUT_EXP_WIDTH(EXP_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH)
     ) fp_cp_reciprocal_inst (
-        .clk(clk),  
+        .clk(clk),
         .rst(rst),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
         .data_in(data_in),
         .data_out(data_out),
         .data_out_valid(data_out_valid),
+        .data_out_ready(data_out_ready)
+    );
 `endif // DC_LIB_EN
 
 endmodule

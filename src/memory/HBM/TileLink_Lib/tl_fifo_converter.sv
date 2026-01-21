@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
 `include "tl_pkg.svh"
-`include "prim_util_pkg.svh"
+// `include "prim_util_pkg.svh"
 
 // An adpater that makes sure responses to requests are in FIFO order.
 module tl_fifo_converter import tl_pkg::*; #(

@@ -13,7 +13,7 @@ Status      : Passed Simple Tests
 
 module fix_accumulator #(
     parameter int WIDTH = 16,
-    parameter int EXPAND_WIDTH = 0,
+    parameter int EXPAND_WIDTH = 0
 )(
     input  logic clk,
     input  logic rst,

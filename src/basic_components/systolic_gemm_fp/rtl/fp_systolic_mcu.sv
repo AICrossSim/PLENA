@@ -6,7 +6,7 @@ Timing      : Sequential
 Description : It supports both for GEMM and GEMV operations.
             : (M, K) x (K, N) = (M, N)
             : (M, K) x (K, 1) = (M, 1)
-            :  where M and N is the Batch_Size , K is the MLEN 
+            :  where M and N is the Batch_Size , K is the MLEN
             : Every CLK, it will receive (K) vector as multiplicand and (K) vector as multiplier.
             : During the write process, output single row per clk.
 Status      : Under Development
@@ -19,7 +19,7 @@ module fp_systolic_mcu #(
     parameter ACC_FP_EXP_WIDTH    = 8,
     parameter ACC_FP_MANT_WIDTH   = 7,
     parameter PROD_EXT_EXP_WIDTH  = 0,
-    parameter PROD_EXT_MANT_WIDTH = 0, 
+    parameter PROD_EXT_MANT_WIDTH = 0,
     parameter SYSTOLIC_PROCESSING_OVERHEAD = 4,
     // Dimension
     parameter   M                     = 4,
@@ -49,7 +49,7 @@ module fp_systolic_mcu #(
     input   logic v_result_ready,
     output  logic load_in_progress
 );
-    
+
     initial begin
         if (M != N) begin
             $error("Systolic MCU only supports M == N, but got M = %0d, N = %0d", M, N);
@@ -82,7 +82,7 @@ module fp_systolic_mcu #(
 
     logic [SYS_ARRAY_AMOUNT - 1 : 0][COMPUTE_DIM- 1: 0][ACC_FP_MANT_WIDTH + ACC_FP_EXP_WIDTH : 0] gemv_result;
     logic [SYS_ARRAY_AMOUNT - 1 : 0] gemv_result_valid, gemv_result_w_ready;
-    
+
     // -----------------------------
     // Control and Status Tracking
     // -----------------------------
@@ -100,7 +100,7 @@ module fp_systolic_mcu #(
     logic [COUNTER_BIT_WIDTH : 0] feed_counter;
     logic complete_v1_load, complete_v2_load;
 
-    
+
     always_ff @(posedge clk) begin
         if (rst) begin
             v1_load_counter     <= '0;
@@ -134,7 +134,7 @@ module fp_systolic_mcu #(
                 complete_v2_load <= 1'b0;
             end
             // Output Reset
-            output_reset <= ((control_in_exe == MV_WO) || (control_in_exe == MM_PS)) & (gemm_result_valid || gemv_result_valid);
+            output_reset <= ((control_in_exe == MV_WO) || (control_in_exe == MM_WO)) & (gemm_result_valid || gemv_result_valid);
         end
     end
 
@@ -148,7 +148,7 @@ module fp_systolic_mcu #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            control_in_exe   <= STALL_M; 
+            control_in_exe   <= STALL_M;
             load_in_progress     <= 1'b0;
         end else begin
             if ((control_in_exe == STALL_M) & (control != STALL_M)) begin
@@ -163,7 +163,7 @@ module fp_systolic_mcu #(
         end
     end
 
-    
+
     always_comb begin
         if (control_in_exe == MV_IC || control_in_exe == MV_WO) begin
             v2_in_ready = v2_for_mv_in_ready;
@@ -186,7 +186,7 @@ module fp_systolic_mcu #(
             gemm_result_valid       <= 'b0;
             ready_to_load_output    <= 1'b0;
         end else begin
-            if (complete_loading & control_in_exe == MM_PS) begin
+            if (complete_loading & control_in_exe == MM_WO) begin
                 feed_counter        <= '0;
                 start_feed_count    <= 1'b1;
             end else if (start_feed_count) begin
@@ -203,7 +203,7 @@ module fp_systolic_mcu #(
                 ready_to_load_output <= 1'b0;
             end
             gemv_result_valid <= (gemv_result_w_ready & (control_in_exe == MV_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
-            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_PS) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
+            gemm_result_valid <= (gemm_result_w_ready & (control_in_exe == MM_WO) & ready_to_load_output) ? {SYS_ARRAY_AMOUNT{1'b1}} : 'b0;
         end
     end
 

@@ -21,10 +21,10 @@ module fp_cp_sqrt #(
     // end
     logic sign_bit;
     assign sign_bit = data_in[EXP_WIDTH + MANT_WIDTH];
-    
+
     // Runtime check for positive input
     // TODO Hide here due to multiple drive for data_out.
-    
+
     logic [EXP_WIDTH + MANT_WIDTH : 0] computed_out;
 
     // always_comb begin
@@ -58,7 +58,7 @@ module fp_cp_sqrt #(
     // For sqrt, exponent is divided by 2
     // If exponent is odd, we need to adjust the mantissa
     localparam K = 8'd127; // The value of 2^(0.5)
-    
+
     always_comb begin
         if (!sign_bit) begin
             new_exp = (signed_exp[0] == 0) ? signed_exp >> 1 : (signed_exp - 1) >> 1;
@@ -70,7 +70,7 @@ module fp_cp_sqrt #(
     end
 
     // TODO
-    logic [MANT_WIDTH : 0] round_new_mant;
+    logic [SIGN_MANT_WIDTH - 1 : 0] round_new_mant;
 
     fixed_round #(
         .IN_WIDTH(SIGN_MANT_WIDTH + 8),
@@ -86,12 +86,15 @@ module fp_cp_sqrt #(
         .MANT_WIDTH(UNSIGNED_MANT_WIDTH)
     ) sqrt_lut_inst (
         .mantissa(round_new_mant[UNSIGNED_MANT_WIDTH-1:0]),
-        .sqrt_mantissa(signed_sqrt_mantissa)
+        .sqrt_mantissa(signed_sqrt_mantissa[UNSIGNED_MANT_WIDTH-1:0])
     );
+    assign signed_sqrt_mantissa[SIGN_MANT_WIDTH-1:UNSIGNED_MANT_WIDTH] = '0;
 
     fp_ieee_normalize #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH)
+        .IN_FIXED_WIDTH(SIGN_MANT_WIDTH),
+        .IN_FIXED_FRAC_WIDTH(MANT_WIDTH),
+        .IN_EXP_WIDTH(EXP_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH)
     ) fp_ieee_normalize_inst (
         .signed_mant(signed_sqrt_mantissa),
         .signed_exp(new_exp),

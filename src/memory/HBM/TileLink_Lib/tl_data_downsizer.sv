@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "tl_util.svh"
-`include "prim_util_pkg.svh"
+// `include "prim_util_pkg.svh"
 // An adpater that shrinks DataWidth.
 module tl_data_downsizer import tl_pkg::*; import prim_util_pkg::*; #(
   parameter  int unsigned HostDataWidth   = 64,

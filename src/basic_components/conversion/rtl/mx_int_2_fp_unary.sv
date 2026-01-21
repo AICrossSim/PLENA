@@ -3,7 +3,7 @@
 /*
 Module      : Unary Convertion from MX-FP to FP
 Timing      : Combinatorial Logic
-Description : 
+Description :
 Status      : Passed Simple Tests
 */
 
@@ -12,7 +12,7 @@ module mx_int_2_fp_unary #(
     parameter MXINT_WIDTH = 16,
     parameter MXINT_FRAC_WIDTH = 16,
     parameter FP_EXP_WIDTH = 4,
-    parameter FP_MANT_WIDTH = 3,
+    parameter FP_MANT_WIDTH = 3
 )(
     input   logic clk,
     input   logic rst,
@@ -34,7 +34,7 @@ module mx_int_2_fp_unary #(
     localparam NORMALIZE_OUT_EXP_WIDTH = MXINT_SCALE_WIDTH + 1;
     logic [NORMALIZE_OUT_EXP_WIDTH + FP_MANT_WIDTH:0] normalized_data;
     logic [FP_EXP_WIDTH + FP_MANT_WIDTH : 0] reg_fp_out;
-    
+
     fp_ieee_normalize #(
         .IN_FIXED_WIDTH         (MXINT_WIDTH),
         .IN_FIXED_FRAC_WIDTH    (MXINT_FRAC_WIDTH),

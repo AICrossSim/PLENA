@@ -26,11 +26,12 @@ module fp_fix_sqrt #(
     input  logic data_out_ready
 );
 
+`ifdef DC_LIB_EN
     DW_fp_sqrt_inst #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
     ) dc_lib_fp_fix_sqrt (
-        .clk(clk),  
+        .clk(clk),
         .rst(rst),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
@@ -39,19 +40,18 @@ module fp_fix_sqrt #(
         .data_out_valid(data_out_valid),
         .data_out_ready(data_out_ready)
     );
-//     fp_cp_sqrt #(
-//         .EXP_WIDTH(EXP_WIDTH),
-//         .MANT_WIDTH(MANT_WIDTH),
-//     ) fp_cp_sqrt_inst (
-//         .clk(clk),  
-//         .rst(rst),
-//         .data_in_valid(data_in_valid),
-//         .data_in_ready(data_in_ready),
-//         .data_in(data_in),
-//         .data_out(data_out),
-//         .data_out_valid(data_out_valid),
-//         .data_out_ready(data_out_ready)
-//     );
-// `endif // DC_LIB_EN
+`else
+    fp_cp_sqrt #(
+        .EXP_WIDTH(EXP_WIDTH),
+        .MANT_WIDTH(MANT_WIDTH)
+    ) fp_cp_sqrt_inst (
+        .data_in(data_in),
+        .data_out(data_out)
+    );
+
+    assign data_in_ready = data_out_ready;
+    assign data_out_valid = data_in_valid;
+
+`endif // DC_LIB_EN
 
 endmodule

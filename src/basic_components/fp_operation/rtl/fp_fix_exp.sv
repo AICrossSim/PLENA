@@ -31,7 +31,7 @@ module fp_fix_exp #(
         .EXP_WIDTH(EXP_WIDTH),
         .MANT_WIDTH(MANT_WIDTH)
     ) dc_lib_fp_fix_exp (
-        .clk(clk),  
+        .clk(clk),
         .rst(rst),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),
@@ -42,10 +42,12 @@ module fp_fix_exp #(
     );
 `else
     fp_cp_exp #(
-        .EXP_WIDTH(EXP_WIDTH),
-        .MANT_WIDTH(MANT_WIDTH),
+        .IN_EXP_WIDTH(EXP_WIDTH),
+        .IN_MANT_WIDTH(MANT_WIDTH),
+        .OUT_EXP_WIDTH(EXP_WIDTH),
+        .OUT_MANT_WIDTH(MANT_WIDTH)
     ) fp_cp_exp_inst (
-        .clk(clk),  
+        .clk(clk),
         .rst(rst),
         .data_in_valid(data_in_valid),
         .data_in_ready(data_in_ready),

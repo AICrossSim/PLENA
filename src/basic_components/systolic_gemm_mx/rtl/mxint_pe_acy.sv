@@ -33,7 +33,7 @@ module mxint_default_pe #(
 );
 
     localparam int PROD_INT_WIDTH = MX_T_INT_WIDTH + MX_L_INT_WIDTH;
-    localparam int ACC_INT_WIDTH  = 32; 
+    localparam int ACC_INT_WIDTH  = 32;
 
     wire signed [MX_T_INT_WIDTH-1:0]    top_int_s  = in_top_element;
     wire signed [MX_L_INT_WIDTH-1:0]    left_int_s = in_left_element;
@@ -55,7 +55,7 @@ module mxint_default_pe #(
         end
     end
 
-    wire signed [PROD_INT_WIDTH-1:0] prod_int = top_int_s * left_int_s;
+    (* use_dsp = "yes" *) wire signed [PROD_INT_WIDTH-1:0] prod_int = top_int_s * left_int_s;
     wire signed [MXINT_SCALE_WIDTH:0] merged_exp = top_exp_s + left_exp_s;
 
     function automatic signed [ACC_INT_WIDTH-1:0] shift_with_signed_exp;

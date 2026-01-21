@@ -47,7 +47,7 @@ module fp_prefix_scan_syn#(
             logic [VLEN-1:0][EXP_WIDTH + MANT_WIDTH:0] temp_vect;
             for (i = 0; i < VLEN; i++) begin : adder_gen
                 if (i >= (1 << s)) begin: addition_node
-                    DW_fp_add_inst #(
+                    fp_fix_adder #(
                         .EXP_WIDTH(EXP_WIDTH),
                         .MANT_WIDTH(MANT_WIDTH),
                         .IEEE_COMPLIANCE(0)
@@ -66,7 +66,7 @@ module fp_prefix_scan_syn#(
                     assign temp_vect[i] = pipe_vect[s][i];
                 end
             end
-            
+
             // Logic for stage valid check (combinational)
          always_ff @(posedge clk) begin
                 if (rst) begin
@@ -86,5 +86,5 @@ module fp_prefix_scan_syn#(
 
     assign vout = pipe_vect[LOGN];
     assign out_valid = valid_pipe[LOGN];
-    
+
 endmodule

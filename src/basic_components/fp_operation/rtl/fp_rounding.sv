@@ -4,14 +4,17 @@ module fp_rounding #(
     parameter LAYER_DIM = 3,
     parameter EXP_WIDTH = 3,
     parameter IN_MANT_WIDTH = 8,
-    parameter OUT_MANT_WIDTH = 3
+    parameter OUT_MANT_WIDTH = 3,
+    localparam IN_WIDTH = EXP_WIDTH + IN_MANT_WIDTH + 1,
+    localparam OUT_WIDTH = EXP_WIDTH + OUT_MANT_WIDTH + 1
 ) (
     input  [ IN_WIDTH - 1:0] data_in [LAYER_DIM - 1:0],
     output [OUT_WIDTH - 1:0] data_out[LAYER_DIM - 1:0]
 );
   for (genvar i = 0; i < LAYER_DIM; i++) begin : parallel_round
     fp_round #(
-        .EXP_WIDTH(EXP_WIDTH),
+        .IN_EXP_WIDTH(EXP_WIDTH),
+        .OUT_EXP_WIDTH(EXP_WIDTH),
         .IN_MANT_WIDTH(IN_MANT_WIDTH),
         .OUT_MANT_WIDTH(OUT_MANT_WIDTH)
     ) fr_inst (
