@@ -1,0 +1,30 @@
+{
+  "memory_type": "GDDR6",
+  "source": "User-provided memory stack power/cost tables",
+  "dynamic_power": {
+    "read_pj_per_bit": 7.0,
+    "notes": "Approximate dynamic read energy per bit."
+  },
+  "leakage_power": {
+    "modes": [
+      {
+        "mode": "GDDR6 precharge standby",
+        "idle_power_density": {
+          "value_range": "50-60",
+          "units": "mW/GB"
+        }
+      },
+      {
+        "mode": "GDDR6 self-refresh",
+        "idle_power_density": {
+          "value_range": "40-50",
+          "units": "mW/GB"
+        }
+      }
+    ]
+  },
+  "cost": {
+    "standard_size": "2GB module",
+    "price_per_gb_usd": 4
+  }
+}

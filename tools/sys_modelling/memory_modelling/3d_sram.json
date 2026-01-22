@@ -1,0 +1,24 @@
+{
+  "memory_type": "3D SRAM",
+  "source": "User-provided memory stack power/cost tables",
+  "dynamic_power": {
+    "read_pj_per_bit": 0.1,
+    "notes": "Approximate dynamic read energy per bit; uses SRAM figure."
+  },
+  "leakage_power": {
+    "modes": [
+      {
+        "mode": "SRAM, nominal Vdd, large cache",
+        "idle_power_density": {
+          "value_range": "10-50",
+          "units": "W/GB",
+          "alternate_units": "10-50 mW/MB"
+        }
+      }
+    ]
+  },
+  "cost": {
+    "standard_size": "1GB chiplet",
+    "price_per_gb_usd": 100
+  }
+}

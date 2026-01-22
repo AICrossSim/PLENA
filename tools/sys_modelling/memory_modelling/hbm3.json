@@ -1,0 +1,31 @@
+{
+  "memory_type": "HBM3",
+  "source": "User-provided memory stack power/cost tables",
+  "dynamic_power": {
+    "read_pj_per_bit": 3.0,
+    "notes": "Approximate dynamic read energy per bit."
+  },
+  "leakage_power": {
+    "modes": [
+      {
+        "mode": "HBM2E/3 normal idle",
+        "idle_power_density": {
+          "value_range": "50-100",
+          "units": "mW/GB",
+          "notes": "Stack-level"
+        }
+      },
+      {
+        "mode": "HBM2E/3 self-refresh",
+        "idle_power_density": {
+          "value_range": "20-50",
+          "units": "mW/GB"
+        }
+      }
+    ]
+  },
+  "cost": {
+    "standard_size": "24GB stack",
+    "price_per_gb_usd": 15
+  }
+}

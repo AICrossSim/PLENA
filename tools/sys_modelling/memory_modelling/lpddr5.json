@@ -1,0 +1,30 @@
+{
+  "memory_type": "LPDDR5",
+  "source": "User-provided memory stack power/cost tables",
+  "dynamic_power": {
+    "read_pj_per_bit": 1.0,
+    "notes": "Approximate dynamic read energy per bit."
+  },
+  "leakage_power": {
+    "modes": [
+      {
+        "mode": "LPDDR4X/5 normal idle",
+        "idle_power_density": {
+          "value_range": "3-10",
+          "units": "mW/GB"
+        }
+      },
+      {
+        "mode": "LPDDR4X/5 deep self-refresh",
+        "idle_power_density": {
+          "value_range": "0.3-2",
+          "units": "mW/GB"
+        }
+      }
+    ]
+  },
+  "cost": {
+    "standard_size": "64GB module",
+    "price_per_gb_usd": 5
+  }
+}
