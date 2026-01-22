@@ -1,3 +1,10 @@
+"""
+Latency model for PLENA design-space exploration.
+
+- sys_latency.py: instruction-level latency estimation driven by hardware/memory choices.
+- system_level_modelling.py: roofline/performance exploration with fixed configs and plots.
+"""
+
 import json
 import math
 import numpy as np
@@ -5,6 +12,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import math
 import re
+
+DEFAULT_SRAM_LATENCY_NS = 3
+DEFAULT_HBM_LATENCY_NS = 100
 
 class sys_latency_config:
     def __init__(self, model_param_path, hardware_config, sys_config, batch_size = 1, seq_len = 2048, output_token = 128, device_num = 1):
@@ -264,6 +274,160 @@ class sys_latency_config:
         ttft = (self.compute_prefill_time() + self.compute_decode_time(1)) / self.device_num
         tps = (self.device_num * (self.batch_size * self.output_token)) / self.compute_decode_time(self.output_token // self.device_num)
         return ttft, tps
+
+
+def build_hardware_config(blen: int, mlen: int, vlen: int) -> dict:
+    """Build hardware_config dict compatible with sys_latency_config."""
+    return {
+        "BLEN": {"value": blen},
+        "MLEN": {"value": mlen},
+        "VLEN": {"value": vlen},
+    }
+
+
+def build_sys_config(
+    sram_capacity_gb: float,
+    sram_bandwidth_gb_s: float,
+    hbm_capacity_gb: float,
+    hbm_bandwidth_gb_s: float,
+    sram_latency_ns: float = DEFAULT_SRAM_LATENCY_NS,
+    hbm_latency_ns: float = DEFAULT_HBM_LATENCY_NS,
+) -> dict:
+    """Build sys_config dict compatible with sys_latency_config."""
+    return {
+        "SRAM_Latency": sram_latency_ns,
+        "SRAM_Bandwidth": sram_bandwidth_gb_s,
+        "SRAM_Capacity": sram_capacity_gb,
+        "HBM_Bandwidth": hbm_bandwidth_gb_s,
+        "HBM_Latency": hbm_latency_ns,
+        "HBM_Capacity": hbm_capacity_gb,
+    }
+
+
+def compute_ttft_tps(
+    model_param_path: str,
+    hardware_config: dict,
+    prefill_sys_config: dict,
+    decode_sys_config: dict,
+    batch_size: int,
+    seq_len: int,
+    output_token: int,
+    device_num: int = 1,
+    prefill_exec_factor: float = 1.0,
+    decode_exec_factor: float = 1.0,
+) -> tuple:
+    """Compute TTFT and TPS with possibly different prefill/decode memory configs."""
+    prefill_model = sys_latency_config(
+        model_param_path,
+        hardware_config,
+        prefill_sys_config,
+        batch_size=batch_size,
+        seq_len=seq_len,
+        output_token=output_token,
+        device_num=device_num,
+    )
+    decode_model_for_1 = sys_latency_config(
+        model_param_path,
+        hardware_config,
+        decode_sys_config,
+        batch_size=batch_size,
+        seq_len=seq_len,
+        output_token=output_token,
+        device_num=device_num,
+    )
+    decode_model_full = sys_latency_config(
+        model_param_path,
+        hardware_config,
+        decode_sys_config,
+        batch_size=batch_size,
+        seq_len=seq_len,
+        output_token=output_token,
+        device_num=device_num,
+    )
+
+    prefill_time = prefill_model.compute_prefill_time() * prefill_exec_factor
+    decode_time_1 = decode_model_for_1.compute_decode_time(1) * decode_exec_factor
+    decode_time_full = decode_model_full.compute_decode_time(max(1, output_token // device_num)) * decode_exec_factor
+
+    ttft = (prefill_time + decode_time_1) / device_num
+    tps = (device_num * (batch_size * output_token)) / decode_time_full
+    return ttft, tps
+def build_hardware_config(blen: int, mlen: int, vlen: int) -> dict:
+    """Build hardware_config dict compatible with sys_latency_config."""
+    return {
+        "BLEN": {"value": blen},
+        "MLEN": {"value": mlen},
+        "VLEN": {"value": vlen},
+    }
+
+
+def build_sys_config(
+    sram_capacity_gb: float,
+    sram_bandwidth_gb_s: float,
+    hbm_capacity_gb: float,
+    hbm_bandwidth_gb_s: float,
+    sram_latency_ns: float = DEFAULT_SRAM_LATENCY_NS,
+    hbm_latency_ns: float = DEFAULT_HBM_LATENCY_NS,
+) -> dict:
+    """Build sys_config dict compatible with sys_latency_config."""
+    return {
+        "SRAM_Latency": sram_latency_ns,
+        "SRAM_Bandwidth": sram_bandwidth_gb_s,
+        "SRAM_Capacity": sram_capacity_gb,
+        "HBM_Bandwidth": hbm_bandwidth_gb_s,
+        "HBM_Latency": hbm_latency_ns,
+        "HBM_Capacity": hbm_capacity_gb,
+    }
+
+
+def compute_ttft_tps(
+    model_param_path: str,
+    hardware_config: dict,
+    prefill_sys_config: dict,
+    decode_sys_config: dict,
+    batch_size: int,
+    seq_len: int,
+    output_token: int,
+    device_num: int = 1,
+    prefill_exec_factor: float = 1.0,
+    decode_exec_factor: float = 1.0,
+) -> tuple:
+    """Compute TTFT and TPS with possibly different prefill/decode memory configs."""
+    prefill_model = sys_latency_config(
+        model_param_path,
+        hardware_config,
+        prefill_sys_config,
+        batch_size=batch_size,
+        seq_len=seq_len,
+        output_token=output_token,
+        device_num=device_num,
+    )
+    decode_model_for_1 = sys_latency_config(
+        model_param_path,
+        hardware_config,
+        decode_sys_config,
+        batch_size=batch_size,
+        seq_len=seq_len,
+        output_token=output_token,
+        device_num=device_num,
+    )
+    decode_model_full = sys_latency_config(
+        model_param_path,
+        hardware_config,
+        decode_sys_config,
+        batch_size=batch_size,
+        seq_len=seq_len,
+        output_token=output_token,
+        device_num=device_num,
+    )
+
+    prefill_time = prefill_model.compute_prefill_time() * prefill_exec_factor
+    decode_time_1 = decode_model_for_1.compute_decode_time(1) * decode_exec_factor
+    decode_time_full = decode_model_full.compute_decode_time(max(1, output_token // device_num)) * decode_exec_factor
+
+    ttft = (prefill_time + decode_time_1) / device_num
+    tps = (device_num * (batch_size * output_token)) / decode_time_full
+    return ttft, tps
 
 
 
