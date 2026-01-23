@@ -199,7 +199,7 @@ def compare_with_golden(bin_file,
 
     Args:
         bin_file: Path to binary file to compare
-        golden_file: Path to golden_result.txt file
+        golden_file: Path to golden_result.txt file (or directory containing golden_output.pt)
         exp_width: Exponent width for binary file parsing
         man_width: Mantissa width for binary file parsing
         num_bytes_per_val: Bytes per value in binary file
@@ -223,10 +223,19 @@ def compare_with_golden(bin_file,
             - 'simulated_shape': Shape of simulated array
             - 'errors': Array of absolute errors
     """
-    # Parse golden output and quantize to bfloat16 for fair comparison with hardware
-    # PLENA uses bfloat16 (8 exp, 7 mantissa), not IEEE float16 (5 exp, 10 mantissa)
-    golden_np = parse_golden_output(golden_file)
-    golden_values = torch.from_numpy(golden_np).bfloat16()
+    # Try to load golden output from .pt file first (more accurate than text parsing)
+    # golden_file can be golden_result.txt or directory path
+    golden_dir = os.path.dirname(golden_file) if golden_file.endswith('.txt') else golden_file
+    golden_pt_file = os.path.join(golden_dir, "golden_output.pt")
+
+    if os.path.exists(golden_pt_file):
+        # Load from .pt file (accurate - no truncation)
+        golden_tensor = torch.load(golden_pt_file, weights_only=True)
+        golden_values = golden_tensor.flatten().bfloat16()
+    else:
+        # Fall back to parsing text file (may be truncated for large tensors)
+        golden_np = parse_golden_output(golden_file)
+        golden_values = torch.from_numpy(golden_np).bfloat16()
 
     # Read binary file (now properly handles row-based indexing)
     simulated_np = read_bin_file_as_array(

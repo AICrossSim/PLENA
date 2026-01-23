@@ -58,3 +58,8 @@ def create_sim_env(input_tensor, generated_code, golden_result, fp_preload = Non
         # Convert BFloat16 to float32 before converting to numpy
         output_np = golden_result["original_output"].detach().cpu().float().numpy()
         f.write(np_array_to_str_2f(output_np))
+
+    # Also save golden output as .pt file for accurate comparison (text can be truncated for large tensors)
+    golden_output = golden_result["original_output"]
+    with open(os.path.join(build_dir, "golden_output.pt"), "wb") as f:
+        torch.save(golden_output, f)
