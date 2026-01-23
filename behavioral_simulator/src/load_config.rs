@@ -74,6 +74,11 @@ pub struct AcceleratorConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigValueString {
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigSection {
     #[serde(rename = "BLEN")]
     pub blen: ConfigValue,
@@ -101,6 +106,18 @@ pub struct ConfigSection {
     pub dc_en: ConfigValue,
     #[serde(rename = "MAX_LOOP_INSTRUCTIONS")]
     pub max_loop_instructions: ConfigValueUsize,
+    #[serde(rename = "SYSTOLIC_DATAFLOW", default = "default_dataflow")]
+    pub systolic_dataflow: ConfigValueString,
+    #[serde(rename = "SYSTOLIC_DETAILED_SIM", default = "default_detailed_sim")]
+    pub systolic_detailed_sim: ConfigValue,
+}
+
+fn default_dataflow() -> ConfigValueString {
+    ConfigValueString { value: "WS".to_string() }
+}
+
+fn default_detailed_sim() -> ConfigValue {
+    ConfigValue { value: 0 }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -174,6 +191,8 @@ impl Default for AcceleratorConfig {
                 hbm_v_writeback_amount: ConfigValue { value: 16 },
                 dc_en: ConfigValue { value: 1 },
                 max_loop_instructions: ConfigValueUsize { value: 10000 },
+                systolic_dataflow: ConfigValueString { value: "WS".to_string() },
+                systolic_detailed_sim: ConfigValue { value: 0 },
             },
             precision: PrecisionSection {
                 matrix_sram_type: MxDataTypeConfig {
@@ -561,4 +580,12 @@ pub fn scalar_int_basic_cycles() -> u32 {
 
 pub fn max_loop_instructions() -> usize {
     CONFIG.config.max_loop_instructions.value
+}
+
+pub fn systolic_dataflow() -> String {
+    CONFIG.config.systolic_dataflow.value.clone()
+}
+
+pub fn systolic_detailed_sim() -> bool {
+    CONFIG.config.systolic_detailed_sim.value != 0
 }

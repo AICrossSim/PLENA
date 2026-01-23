@@ -20,6 +20,7 @@ use quantize::{MxDataType, QuantTensor};
 use runtime::{Duration, Executor, Instant};
 use tch::{IndexOp, Tensor};
 use vector_sram::VectorSram;
+use systolic_array::{SystolicArray, Dataflow, SystolicStats};
 
 use tokio::sync::Mutex;
 use tokio::sync::oneshot::{self, Receiver};
@@ -63,6 +64,10 @@ static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type())
 static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount());
 static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
 static STORE_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_writeback_amount());
+static SYSTOLIC_DATAFLOW: LazyLock<Dataflow> = LazyLock::new(|| {
+    systolic_dataflow().parse().unwrap_or(Dataflow::WeightStationary)
+});
+static SYSTOLIC_DETAILED_SIM: LazyLock<bool> = LazyLock::new(|| systolic_detailed_sim());
 
 /// Address handling utilities.
 ///
@@ -213,10 +218,127 @@ struct MatrixMachine {
     hlen: u32,
     blen: u32,
     broadcast_amount: u32,
+    /// Systolic array for detailed simulation
+    systolic: Option<SystolicArray>,
+    /// Whether to use detailed systolic array simulation
+    use_detailed_sim: bool,
 }
 
 impl MatrixMachine {
+    /// Create a new MatrixMachine with optional detailed systolic array simulation
+    fn new(
+        mram: Arc<MatrixSram>,
+        vram: Arc<VectorSram>,
+        mlen: u32,
+        hlen: u32,
+        blen: u32,
+        broadcast_amount: u32,
+        use_detailed_sim: bool,
+        dataflow: Dataflow,
+    ) -> Self {
+        let systolic = if use_detailed_sim {
+            Some(SystolicArray::with_size(mlen as usize, mlen as usize, dataflow))
+        } else {
+            None
+        };
+
+        Self {
+            mram,
+            vram,
+            m_accum: Tensor::zeros([blen as i64, blen as i64], (tch::Kind::Float, tch::Device::Cpu)),
+            h_accum: Tensor::zeros(
+                [broadcast_amount as i64, mlen as i64, mlen as i64],
+                (tch::Kind::Float, tch::Device::Cpu),
+            ),
+            v_accum: Tensor::zeros([mlen as i64], (tch::Kind::Float, tch::Device::Cpu)),
+            mlen,
+            hlen,
+            blen,
+            broadcast_amount,
+            systolic,
+            use_detailed_sim,
+        }
+    }
+
+    /// Get the systolic array statistics if detailed simulation is enabled
+    fn systolic_stats(&self) -> Option<&SystolicStats> {
+        self.systolic.as_ref().map(|s| s.stats())
+    }
+
+    /// Print systolic array statistics
+    fn print_systolic_stats(&self) {
+        if let Some(stats) = self.systolic_stats() {
+            stats.print_summary();
+        }
+    }
+
+    /// Set the systolic array dataflow
+    fn set_dataflow(&mut self, dataflow: Dataflow) {
+        if let Some(ref mut systolic) = self.systolic {
+            systolic.set_dataflow(dataflow);
+        }
+    }
+
+    /// Perform matrix multiplication using the systolic array (detailed simulation)
+    async fn mm_systolic(&mut self, m_addr: u32, v_addr: u32) {
+        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
+        assert!(mat_offset.is_multiple_of(self.blen));
+        assert!(mat_offset < self.mlen);
+
+        let mat_row_offset = mat_offset as i64;
+        let full_mat = self.mram.read(mat_base).await;
+        
+        // Slice to get the weight matrix [mlen, blen]
+        let mat = full_mat
+            .as_tensor()
+            .view([self.mlen as i64, self.mlen as i64])
+            .i((.., mat_row_offset..(mat_row_offset + self.blen as i64)));
+
+        // Load activation vectors
+        let mut tensors = Vec::with_capacity(self.blen as usize);
+        for i in 0..self.blen {
+            tensors.push(
+                self.vram
+                    .read(v_addr + i * self.mlen)
+                    .await
+                    .as_tensor()
+                    .shallow_clone(),
+            );
+        }
+        let vec = tch::Tensor::stack(&tensors, 0);
+        let vec_f32 = vec.to_kind(tch::Kind::Float);
+        let mat_f32 = mat.to_kind(tch::Kind::Float);
+
+        if let Some(ref mut systolic) = self.systolic {
+            // Use the systolic array for detailed simulation
+            let (result, cycles) = systolic.matmul(&vec_f32, &mat_f32);
+            
+            if !is_quiet() {
+                println!(
+                    "Systolic MM: dataflow={}, cycles={}",
+                    systolic.dataflow().name(),
+                    cycles
+                );
+            }
+
+            // Use the systolic-computed result
+            self.m_accum += result;
+
+            // Simulate the cycles (instead of the simple overhead + mlen)
+            cycle!(cycles as u32);
+        } else {
+            // Fallback to simple matmul if systolic not available
+            cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
+            self.m_accum += vec_f32.matmul(&mat_f32);
+        }
+    }
+
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
+        // Use detailed systolic simulation if enabled
+        if self.use_detailed_sim {
+            return self.mm_systolic(m_addr, v_addr).await;
+        }
+
         println!("======================== M_MM ==========================");
         println!("m_addr = {:?}", m_addr);
         println!("v_addr = {:?}", v_addr);
@@ -2045,23 +2167,24 @@ async fn start() {
         *VECTOR_SRAM_TYPE,
     )); // Vector SRAM
 
-    let m_machine = MatrixMachine {
+    let m_machine = MatrixMachine::new(
         mram,
-        vram: vram.clone(),
-        mlen: *MLEN,
-        hlen: *HLEN,
-        blen: *BLEN,
-        m_accum: Tensor::zeros(
-            [*BLEN as i64, *BLEN as i64],
-            (tch::Kind::Float, tch::Device::Cpu),
-        ),
-        h_accum: Tensor::zeros(
-            [*BROADCAST_AMOUNT as i64, *MLEN as i64, *MLEN as i64],
-            (tch::Kind::Float, tch::Device::Cpu),
-        ),
-        v_accum: Tensor::zeros([*MLEN as i64], (tch::Kind::Float, tch::Device::Cpu)),
-        broadcast_amount: *BROADCAST_AMOUNT,
-    };
+        vram.clone(),
+        *MLEN,
+        *HLEN,
+        *BLEN,
+        *BROADCAST_AMOUNT,
+        *SYSTOLIC_DETAILED_SIM,
+        *SYSTOLIC_DATAFLOW,
+    );
+    
+    if !is_quiet() {
+        eprintln!(
+            "Systolic Array: dataflow={}, detailed_sim={}",
+            SYSTOLIC_DATAFLOW.name(),
+            *SYSTOLIC_DETAILED_SIM
+        );
+    }
 
     let v_machine = VectorMachine {
         vram,
@@ -2197,6 +2320,11 @@ async fn start() {
         "HBM Statistics - Bytes read: {:?} | Bytes written: {:?} | Utilization: {:.2e} bytes/sec",
         memory_stats.total_bytes_read, memory_stats.total_bytes_written, utilization
     );
+
+    // Print systolic array statistics if detailed simulation was enabled
+    if *SYSTOLIC_DETAILED_SIM {
+        accelerator.m_machine.print_systolic_stats();
+    }
 }
 
 #[tokio::main]
