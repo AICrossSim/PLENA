@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import Tensor, nn
 from test_data_gen import get_weights_path, generate_and_save_random_weights
@@ -75,9 +76,38 @@ class RMSNorm(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    hidden_size = 128
-    batch_size = 4
+    parser = argparse.ArgumentParser(description="RMSNorm test for behavioral simulator")
+    parser.add_argument("--n", type=int, default=None, help="Total elements (batch * hidden)")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden size")
+    parser.add_argument("--config", type=str, default="C1",
+                        choices=["C1", "C2", "C3", "C4", "C5"],
+                        help="PLENA workload config")
+    args = parser.parse_args()
+
+    # RMSNorm workload configurations: (n, hidden_size)
+    # n = total elements = batch_size * hidden_size
+    RMS_CONFIGS = {
+        "C1": (256, 64),      # batch=4
+        "C2": (512, 128),     # batch=4
+        "C3": (1024, 256),    # batch=4
+        "C4": (2048, 512),    # batch=4
+        "C5": (4096, 1024),   # batch=4
+    }
+
+    # Use explicit args if provided, otherwise use config preset
+    if args.n is not None and args.hidden is not None:
+        n_total = args.n
+        hidden_size = args.hidden
+        print(f"Using custom config: n={n_total}, hidden={hidden_size}")
+    else:
+        n_total, hidden_size = RMS_CONFIGS[args.config]
+        print(f"Using PLENA config {args.config}: n={n_total}, hidden={hidden_size}")
+
+    # Derive batch_size from n and hidden_size
+    batch_size = n_total // hidden_size
+    assert batch_size * hidden_size == n_total, f"n={n_total} must be divisible by hidden={hidden_size}"
+    assert batch_size >= 1, "batch_size must be at least 1"
+
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
     vlen = 64
@@ -125,8 +155,8 @@ if __name__ == "__main__":
     gen_assembly_code += preload_act_asm(
         vlen=vlen,
         preload_len=4,
-        batch=4,
-        hidden_size=128,
+        batch=batch_size,
+        hidden_size=hidden_size,
         alive_registers=[1,2,3,4,5],
         act_vram_offset=0,
         activation_offset_reg=0,
@@ -145,8 +175,8 @@ if __name__ == "__main__":
         activation_base_address = 0,
         scratchpad_base_address = hidden_size * batch_size,
         vlen=vlen,
-        batch_size=4,
-        hidden_dim=128
+        batch_size=batch_size,
+        hidden_dim=hidden_size
     )
 
     # Update plena_settings.toml with test-specific vlen/mlen

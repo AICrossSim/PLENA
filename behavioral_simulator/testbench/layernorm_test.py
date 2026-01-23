@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import Tensor, nn
 from compiler.asm_templates import layer_norm_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
@@ -77,12 +78,41 @@ class LayerNorm(torch.nn.Module):
         return output * self.weight
 
 if __name__ == "__main__":
-    # Testing the operation (hidden_size, hidden_size) @ (hidden_size, batch_size)
-    hidden_size = 128
-    batch_size = 4
+    parser = argparse.ArgumentParser(description="LayerNorm test for behavioral simulator")
+    parser.add_argument("--n", type=int, default=None, help="Total elements (batch * hidden)")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden size")
+    parser.add_argument("--config", type=str, default="C1",
+                        choices=["C1", "C2", "C3", "C4", "C5"],
+                        help="PLENA workload config")
+    args = parser.parse_args()
+
+    # LayerNorm workload configurations: (n, hidden_size)
+    # n = total elements = batch_size * hidden_size
+    LAYERNORM_CONFIGS = {
+        "C1": (256, 64),      # batch=4
+        "C2": (512, 128),     # batch=4
+        "C3": (1024, 256),    # batch=4
+        "C4": (2048, 512),    # batch=4
+        "C5": (4096, 1024),   # batch=4
+    }
+
+    # Use explicit args if provided, otherwise use config preset
+    if args.n is not None and args.hidden is not None:
+        n_total = args.n
+        hidden_size = args.hidden
+        print(f"Using custom config: n={n_total}, hidden={hidden_size}")
+    else:
+        n_total, hidden_size = LAYERNORM_CONFIGS[args.config]
+        print(f"Using PLENA config {args.config}: n={n_total}, hidden={hidden_size}")
+
+    # Derive batch_size from n and hidden_size
+    batch_size = n_total // hidden_size
+    assert batch_size * hidden_size == n_total, f"n={n_total} must be divisible by hidden={hidden_size}"
+    assert batch_size >= 1, "batch_size must be at least 1"
+
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
-    vlen = 128
+    vlen = 64
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))

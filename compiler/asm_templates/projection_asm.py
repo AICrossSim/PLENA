@@ -1,6 +1,57 @@
 from typing import List, Optional
 
-IMM2_BOUND = 2**18
+IMM2_BOUND = 2**18  # 262144 - max immediate value for S_ADDI_INT
+LUI_SHIFT = 12      # S_LUI_INT shifts immediate by 12 bits
+
+
+def _load_large_immediate(reg: int, value: int, temp_reg: int = None) -> List[str]:
+    """
+    Generate assembly to load a potentially large immediate value into a register.
+
+    For values < IMM2_BOUND: uses single S_ADDI_INT
+    For larger values: uses S_LUI_INT + S_ADDI_INT or S_MUL_INT
+
+    Args:
+        reg: Target register number
+        value: Value to load
+        temp_reg: Optional temp register for multiplication approach
+
+    Returns:
+        List of assembly instruction strings
+    """
+    lines = []
+    if value < IMM2_BOUND:
+        # Simple case: fits in immediate
+        lines.append(f"S_ADDI_INT gp{reg}, gp0, {value}")
+    else:
+        # Use S_LUI_INT (load upper immediate) + S_ADDI_INT
+        # S_LUI_INT rd, imm -> gp_reg = imm << 12
+        upper = value >> LUI_SHIFT
+        lower = value & ((1 << LUI_SHIFT) - 1)  # 0xFFF = 4095
+
+        if upper < IMM2_BOUND:
+            lines.append(f"S_LUI_INT gp{reg}, {upper}")
+            if lower > 0:
+                lines.append(f"S_ADDI_INT gp{reg}, gp{reg}, {lower}")
+        elif temp_reg is not None:
+            # For very large values, use multiplication
+            # Find factors that fit in immediate
+            # Try to factor value = a * b where both a, b < IMM2_BOUND
+            import math
+            sqrt_val = int(math.sqrt(value))
+            for a in range(sqrt_val, 0, -1):
+                if value % a == 0:
+                    b = value // a
+                    if a < IMM2_BOUND and b < IMM2_BOUND:
+                        lines.append(f"S_ADDI_INT gp{reg}, gp0, {a}")
+                        lines.append(f"S_ADDI_INT gp{temp_reg}, gp0, {b}")
+                        lines.append(f"S_MUL_INT gp{reg}, gp{reg}, gp{temp_reg}")
+                        return lines
+            # Fallback: shouldn't reach here for reasonable values
+            raise ValueError(f"Cannot load value {value} - too large")
+        else:
+            raise ValueError(f"Value {value} too large, need temp_reg for multiplication")
+    return lines
 
 
 def projection_asm(
@@ -22,7 +73,8 @@ def projection_asm(
     (Batch, in_features) @ (in_features, out_features) -> (Batch, out_features)
 
     Supports both square matrices (hidden_size x hidden_size) and rectangular
-    matrices when out_features is specified.
+    matrices when out_features is specified. Now supports larger weight matrices
+    beyond IMM2_BOUND using S_LUI_INT or S_MUL_INT instructions.
 
     Args:
         mlen: Matrix tile size (rows)
@@ -73,10 +125,10 @@ def projection_asm(
 
     # Setup scale and stride registers (use act_reg as temp)
     # Scale = total weight matrix size, Stride = output dimension
-    assert in_features * out_features < IMM2_BOUND, f"Weight size {in_features}x{out_features} exceeds IMM2_BOUND"
-    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {in_features * out_features}")
+    scale_value = in_features * out_features
+    lines.extend(_load_large_immediate(act_reg, scale_value, temp_reg=w_temp_register))
     lines.append(f"C_SET_SCALE_REG gp{act_reg}")
-    lines.append(f"S_ADDI_INT gp{act_reg}, gp0, {out_features}")
+    lines.extend(_load_large_immediate(act_reg, out_features))
     lines.append(f"C_SET_STRIDE_REG gp{act_reg}")
 
     # Initialize activation register

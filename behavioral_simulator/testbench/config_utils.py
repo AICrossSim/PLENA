@@ -2,7 +2,7 @@
 Utility functions for managing hardware configuration across tests.
 """
 
-import tomlkit
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -15,38 +15,42 @@ def update_plena_config(
 ) -> None:
     """
     Update plena_settings.toml with test-specific hardware parameters.
-
-    Args:
-        vlen: Vector length. If None, keeps current value.
-        mlen: Matrix tile length. If None, keeps current value.
-        blen: Batch tile length. If None, keeps current value.
-        verbose: If True, print the updated configuration.
-
-    Example:
-        # Update both vlen and mlen
-        update_plena_config(vlen=128, mlen=128)
-
-        # Update only vlen
-        update_plena_config(vlen=64)
+    Uses simple string replacement to avoid tomlkit dependency.
     """
     plena_settings_path = Path(__file__).parent.parent.parent / "src" / "definitions" / "plena_settings.toml"
 
     with open(plena_settings_path, 'r') as f:
-        config = tomlkit.load(f)
+        content = f.read()
 
     updated = []
+
     if vlen is not None:
-        config['CONFIG']['VLEN']['value'] = vlen
+        # Match [CONFIG.VLEN] section and update value
+        content = re.sub(
+            r'(\[CONFIG\.VLEN\]\s*\nvalue\s*=\s*)\d+',
+            f'\\g<1>{vlen}',
+            content
+        )
         updated.append(f"VLEN={vlen}")
+
     if mlen is not None:
-        config['CONFIG']['MLEN']['value'] = mlen
+        content = re.sub(
+            r'(\[CONFIG\.MLEN\]\s*\nvalue\s*=\s*)\d+',
+            f'\\g<1>{mlen}',
+            content
+        )
         updated.append(f"MLEN={mlen}")
+
     if blen is not None:
-        config['CONFIG']['BLEN']['value'] = blen
+        content = re.sub(
+            r'(\[CONFIG\.BLEN\]\s*\nvalue\s*=\s*)\d+',
+            f'\\g<1>{blen}',
+            content
+        )
         updated.append(f"BLEN={blen}")
 
     with open(plena_settings_path, 'w') as f:
-        tomlkit.dump(config, f)
+        f.write(content)
 
     if verbose and updated:
         print(f"Updated plena_settings.toml: {', '.join(updated)}")
@@ -61,21 +65,6 @@ def get_comparison_params(
 ) -> dict:
     """
     Generate comparison parameters for view_mem.py based on test configuration.
-
-    Args:
-        vlen: Vector length used in the test
-        batch_size: Number of batches
-        hidden_size: Hidden dimension size (elements per batch)
-        result_vram_offset: Starting address in VRAM where results are stored
-        use_stride_mode: If None, automatically determined based on vlen vs hidden_size.
-                        If True/False, uses that value explicitly.
-
-    Returns:
-        Dictionary of comparison parameters for view_mem.py
-
-    Note:
-        Stride mode is used when vlen < hidden_size (multiple vectors per batch).
-        Batch-wise mode is used when vlen >= hidden_size (one vector per batch).
     """
     result_start_row = result_vram_offset // vlen
     num_result_rows = (batch_size * hidden_size) // vlen

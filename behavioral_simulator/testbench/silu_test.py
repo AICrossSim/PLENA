@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import nn
 from compiler.asm_templates import preload_act_asm, reset_reg_asm, silu_asm
@@ -24,8 +25,33 @@ def quantize_to_mxfp(tensor):
 
 
 if __name__ == "__main__":
-    hidden_size = 128
-    batch_size = 4
+    parser = argparse.ArgumentParser(description="SiLU test for behavioral simulator")
+    parser.add_argument("--n", type=int, default=None, help="Total elements (batch * hidden)")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden size")
+    parser.add_argument("--config", type=str, default="C1",
+                        choices=["C1", "C2", "C3", "C4", "C5"],
+                        help="PLENA workload config")
+    args = parser.parse_args()
+
+    # SiLU workload configurations: (n, hidden_size)
+    SILU_CONFIGS = {
+        "C1": (256, 64),
+        "C2": (512, 128),
+        "C3": (1024, 256),
+        "C4": (2048, 512),
+        "C5": (4096, 1024),
+    }
+
+    if args.n is not None and args.hidden is not None:
+        n_total = args.n
+        hidden_size = args.hidden
+        print(f"Using custom config: n={n_total}, hidden={hidden_size}")
+    else:
+        n_total, hidden_size = SILU_CONFIGS[args.config]
+        print(f"Using PLENA config {args.config}: n={n_total}, hidden={hidden_size}")
+
+    batch_size = n_total // hidden_size
+    assert batch_size * hidden_size == n_total
     vlen = 64
 
     # FP SRAM layout: [0]=0.0, [1]=1.0 (for sigmoid computation)

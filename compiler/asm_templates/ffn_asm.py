@@ -3,6 +3,54 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 import math
 IMM2_BOUND = 2**18
+LUI_SHIFT = 12      # S_LUI_INT shifts immediate by 12 bits
+
+
+def _load_large_immediate(reg: int, value: int, temp_reg: int = None) -> List[str]:
+    """
+    Generate assembly to load a potentially large immediate value into a register.
+
+    For values < IMM2_BOUND: uses single S_ADDI_INT
+    For larger values: uses S_LUI_INT + S_ADDI_INT or S_MUL_INT
+
+    Args:
+        reg: Target register number
+        value: Value to load
+        temp_reg: Optional temp register for multiplication approach
+
+    Returns:
+        List of assembly instruction strings
+    """
+    lines = []
+    if value < IMM2_BOUND:
+        # Simple case: fits in immediate
+        lines.append(f"S_ADDI_INT gp{reg}, gp0, {value}")
+    else:
+        # Use S_LUI_INT (load upper immediate) + S_ADDI_INT
+        # S_LUI_INT rd, imm -> gp_reg = imm << 12
+        upper = value >> LUI_SHIFT
+        lower = value & ((1 << LUI_SHIFT) - 1)  # 0xFFF = 4095
+
+        if upper < IMM2_BOUND:
+            lines.append(f"S_LUI_INT gp{reg}, {upper}")
+            if lower > 0:
+                lines.append(f"S_ADDI_INT gp{reg}, gp{reg}, {lower}")
+        elif temp_reg is not None:
+            # For very large values, use multiplication
+            sqrt_val = int(math.sqrt(value))
+            for a in range(sqrt_val, 0, -1):
+                if value % a == 0:
+                    b = value // a
+                    if a < IMM2_BOUND and b < IMM2_BOUND:
+                        lines.append(f"S_ADDI_INT gp{reg}, gp0, {a}")
+                        lines.append(f"S_ADDI_INT gp{temp_reg}, gp0, {b}")
+                        lines.append(f"S_MUL_INT gp{reg}, gp{reg}, gp{temp_reg}")
+                        return lines
+            raise ValueError(f"Cannot load value {value} - too large")
+        else:
+            raise ValueError(f"Value {value} too large, need temp_reg for multiplication")
+    return lines
+
 
 def ffn_asm(
     mlen: int,
@@ -667,17 +715,24 @@ def _ffn_asm_with_loops(
     generated_code = "; FFN Generation (Loop-Optimized)\n"
 
     # === SETUP PHASE ===
-    assert hidden_size * intermediate_size < IMM2_BOUND
-    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size * intermediate_size}\n"
+    # Use _load_large_immediate for scale value (hidden_size * intermediate_size)
+    scale_value = hidden_size * intermediate_size
+    for line in _load_large_immediate(w_actual_register, scale_value, temp_reg=w_temp_register):
+        generated_code += line + "\n"
     generated_code += f"C_SET_SCALE_REG gp{w_actual_register}\n"
-    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {intermediate_size}\n"
+    for line in _load_large_immediate(w_actual_register, intermediate_size):
+        generated_code += line + "\n"
     generated_code += f"C_SET_STRIDE_REG gp{w_actual_register}\n"
     generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
 
     # Set base addresses for results
-    assert hidden_size * batch * seq_len < IMM2_BOUND
-    generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
-    generated_code += f"S_ADDI_INT gp{gate_result_register}, gp{up_result_register}, {intermediate_size * batch * seq_len}\n"
+    up_result_offset = batch * seq_len * hidden_size
+    for line in _load_large_immediate(up_result_register, up_result_offset, temp_reg=w_temp_register):
+        generated_code += line + "\n"
+    gate_result_offset = intermediate_size * batch * seq_len
+    for line in _load_large_immediate(gate_result_register, gate_result_offset, temp_reg=w_temp_register):
+        generated_code += line + "\n"
+    generated_code += f"S_ADD_INT gp{gate_result_register}, gp{gate_result_register}, gp{up_result_register}\n"
 
     # === UPSIZE LINEAR (loop version) ===
     generated_code += "; FFN Upsize Linear Generation (Loop)\n"
@@ -854,16 +909,21 @@ def _ffn_asm_with_loops(
     generated_code += "; FFN Downsize Linear Generation (Loop)\n"
 
     # Setup scale and stride for downsize
-    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size * intermediate_size}\n"
+    down_scale_value = hidden_size * intermediate_size
+    for line in _load_large_immediate(w_actual_register, down_scale_value, temp_reg=w_temp_register):
+        generated_code += line + "\n"
     generated_code += f"C_SET_SCALE_REG gp{w_actual_register}\n"
-    generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, {hidden_size}\n"
+    for line in _load_large_immediate(w_actual_register, hidden_size):
+        generated_code += line + "\n"
     generated_code += f"C_SET_STRIDE_REG gp{w_actual_register}\n"
     generated_code += f"S_ADDI_INT gp{w_actual_register}, gp0, 0\n"
 
     # Result goes to activation base region
     act_result_register = gate_result_register
     generated_code += f"S_ADDI_INT gp{act_result_register}, gp0, {activation_base_address}\n"
-    generated_code += f"S_ADDI_INT gp{up_result_register}, gp0, {batch * seq_len * hidden_size}\n"
+    down_act_offset = batch * seq_len * hidden_size
+    for line in _load_large_immediate(up_result_register, down_act_offset, temp_reg=w_temp_register):
+        generated_code += line + "\n"
 
     # Downsize: (b*s, intermediate_size) @ (intermediate_size, hidden_size) -> (b*s, hidden_size)
     num_down_mlen_blocks = hidden_size // mlen

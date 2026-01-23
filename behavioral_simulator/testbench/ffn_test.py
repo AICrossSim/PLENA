@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import Tensor, nn
 from compiler.asm_templates import ffn_asm, preload_addr_reg_asm, reset_reg_asm, preload_act_asm
@@ -59,15 +60,49 @@ class LlamaFeedForward(nn.Module):
 
 
 if __name__ == "__main__":
-    hidden_size = 128
-    inter_dim = 256
-    batch_size = 4
-    seq_len = 2
+    parser = argparse.ArgumentParser(description="FFN layer test for behavioral simulator")
+    parser.add_argument("--n", type=int, default=None, help="Total tokens (batch * seq_len)")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden size (h)")
+    parser.add_argument("--inter", type=int, default=None, help="Intermediate size (h_i)")
+    parser.add_argument("--config", type=str, default="C1",
+                        choices=["C1", "C2", "C3", "C4", "C5"],
+                        help="PLENA workload config")
+    args = parser.parse_args()
+
+    # FFN workload configurations: (n, h, h_i)
+    # n = total tokens, h = hidden_size, h_i = intermediate_size
+    FFN_CONFIGS = {
+        "C1": (8, 64, 128),
+        "C2": (16, 128, 256),
+        "C3": (32, 256, 512),
+        "C4": (64, 256, 512),
+        "C5": (128, 512, 1024),
+    }
+
+    # Use explicit args if provided, otherwise use config preset
+    if args.n is not None and args.hidden is not None and args.inter is not None:
+        n_tokens, hidden_size, inter_dim = args.n, args.hidden, args.inter
+        print(f"Using custom config: n={n_tokens}, h={hidden_size}, h_i={inter_dim}")
+    else:
+        n_tokens, hidden_size, inter_dim = FFN_CONFIGS[args.config]
+        print(f"Using PLENA config {args.config}: n={n_tokens}, h={hidden_size}, h_i={inter_dim}")
+
+    # Decompose n_tokens into batch_size and seq_len (both must be >= 1)
+    # Try to keep batch_size as power of 2 and seq_len small
+    if n_tokens % 4 == 0:
+        batch_size = n_tokens // 2
+        seq_len = 2
+    else:
+        batch_size = n_tokens
+        seq_len = 1
+
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1.0]  # [0]=0.0, [1]=1.0 for SiLU
     mlen = 64
     blen = 4
     vlen = 64
+
+    print(f"FFN: n={n_tokens} (batch={batch_size}, seq={seq_len}), h={hidden_size}, h_i={inter_dim}")
 
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, seq_len, hidden_size, dtype=torch.bfloat16)

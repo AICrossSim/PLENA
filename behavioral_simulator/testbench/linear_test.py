@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import argparse
 import torch
 from torch import nn
 from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
@@ -24,10 +25,38 @@ def quantize_to_mxfp(tensor):
 
 
 if __name__ == "__main__":
-    # Testing rectangular linear: (batch, in_features) @ (in_features, out_features) -> (batch, out_features)
-    in_features = 128
-    out_features = 256  # Rectangular matrix test
-    batch_size = 8
+    parser = argparse.ArgumentParser(description="Linear layer test for behavioral simulator")
+    parser.add_argument("--batch", type=int, default=None, help="Batch size (n)")
+    parser.add_argument("--in_f", type=int, default=None, help="Input features (h_in)")
+    parser.add_argument("--out_f", type=int, default=None, help="Output features (h_out)")
+    parser.add_argument("--config", type=str, default="C1",
+                        choices=["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"],
+                        help="PLENA workload config")
+    args = parser.parse_args()
+
+    # PLENA workload configurations for Linear layer (n, h_in, h_out)
+    # Extended configs to test larger hidden sizes
+    LINEAR_CONFIGS = {
+        # Original PLENA configs
+        "C1": (16, 64, 64),
+        "C2": (32, 64, 128),
+        "C3": (64, 128, 128),
+        "C4": (64, 128, 256),
+        "C5": (128, 256, 256),
+        # Extended configs for larger hidden sizes
+        "C6": (64, 256, 512),      # 256x512 = 131072 < 262144
+        "C7": (32, 512, 512),      # 512x512 = 262144 (at boundary)
+        "C8": (16, 512, 1024),     # 512x1024 = 524288 (exceeds IMM2_BOUND, uses S_LUI_INT)
+    }
+
+    # Use explicit args if provided, otherwise use config preset
+    if args.batch is not None and args.in_f is not None and args.out_f is not None:
+        batch_size, in_features, out_features = args.batch, args.in_f, args.out_f
+        print(f"Using custom config: n={batch_size}, h_in={in_features}, h_out={out_features}")
+    else:
+        batch_size, in_features, out_features = LINEAR_CONFIGS[args.config]
+        print(f"Using PLENA config {args.config}: n={batch_size}, h_in={in_features}, h_out={out_features}")
+
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/in_features]
 
