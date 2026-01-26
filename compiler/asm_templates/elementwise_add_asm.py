@@ -35,7 +35,7 @@ def elementwise_add_asm(
 
     for i in range(batch * loop_iteration):
         generated_code += f"H_PREFETCH_V gp{previous_act_on_chip_addr}, gp{previous_act_offset}, a{previous_act_on_chip_addr_reg_index}, 0, 0 \n" 
-        generated_code += f"V_ADD_VV gp{load_v_on_chip_addr}, gp{previous_act_on_chip_addr}, {load_v_on_chip_addr} \n"
+        generated_code += f"V_ADD_VV gp{load_v_on_chip_addr}, gp{previous_act_on_chip_addr}, gp{load_v_on_chip_addr}, 0 \n"
         generated_code += f"S_ADDI_INT gp{previous_act_offset}, gp{previous_act_offset}, {per_tile_offset} \n"
         generated_code += f"S_ADDI_INT gp{previous_act_on_chip_addr}, gp{previous_act_on_chip_addr}, {per_tile_offset} \n"
 
