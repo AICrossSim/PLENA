@@ -177,6 +177,15 @@ def map_mx_data_to_hbm_for_behave_sim(blocks, element_width, block_width, bias, 
             padding_needed = hbm_row_bias_num - len(row_buffer)
             row_buffer.extend(b'\x00' * padding_needed)
             f.write(row_buffer)
+
+        # Pad to 64-element alignment for next tensor
+        # MXFP E4M3 uses 1 byte per element, so 64 elements = 64 bytes
+        ALIGN_BYTES = 64  # 64 elements * 1 byte/element (MXFP E4M3)
+        current_pos = f.tell()
+        remainder = current_pos % ALIGN_BYTES
+        if remainder != 0:
+            padding = ALIGN_BYTES - remainder
+            f.write(b'\x00' * padding)
     # print_outputfile_contents(output_file)  # Muted for cleaner output
     
 

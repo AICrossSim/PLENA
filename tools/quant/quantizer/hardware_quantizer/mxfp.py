@@ -66,7 +66,7 @@ def _mx_fp_quantize_hardware(
 
     per_block_bm_x = per_block_bm_x * 2**per_block_exponent_bias
 
-    bm_x = per_block_bm_x.reshape(-1, px_shape[0]//block_size[0], px_shape[1]//block_size[1], block_size[0], block_size[1])
+    bm_x = per_block_bm_x.reshape(-1, px_shape[-2]//block_size[0], px_shape[-1]//block_size[1], block_size[0], block_size[1])
     bm_x = bm_x.permute(0, 1, 3, 2, 4)
     bm_x = bm_x.reshape(-1, px_shape[-2], px_shape[-1])
     bm_x = bm_x[:, :x_shape[-2], :x_shape[-1]]
