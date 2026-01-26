@@ -7,14 +7,12 @@ import torch
 
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from torch import Tensor, nn
-from kernels import get_kernel
-from test_data_gen import get_weights_path, generate_and_save_random_weights
+import argparse
 from compiler.asm_templates import flash_attn_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
-from transformers.modeling_flash_attention_utils import _flash_attention_forward as _flash_attention_forward_ref
 from aria_lm_ops.models.llama import flash_attn2_gemv
 from sim_env_utils import create_mem_for_sim
+from config_utils import update_plena_config, get_comparison_params
 
 
 # Reshape q, k, v so that each batch's data stays together and rows are of length mem_row_size
@@ -32,16 +30,33 @@ from sim_env_utils import create_mem_for_sim
 
 if __name__ == "__main__":
     # Currently single batch test
-    batch_size = 1
-    s_q =64
-    s_kv = 64
-    num_q_heads = 16
-    num_kv_heads = 4
-    h_qkv = 16
+    parser = argparse.ArgumentParser(description="FlashAttn testbench configuration")
+    parser.add_argument("--batch-size", type=int, default=1, help="Batch size")
+    parser.add_argument("--s-q", type=int, default=64, help="Query sequence length")
+    parser.add_argument("--s-kv", type=int, default=64, help="Key/value sequence length")
+    parser.add_argument("--num-q-heads", type=int, default=16, help="Number of query heads")
+    parser.add_argument("--num-kv-heads", type=int, default=4, help="Number of key/value heads")
+    parser.add_argument("--head-dim", type=int, default=16, help="Per-head dimension")
+    parser.add_argument("--mlen", type=int, default=64, help="Matrix tile length")
+    parser.add_argument("--vlen", type=int, default=64, help="Vector length")
+    parser.add_argument("--blen", type=int, default=4, help="Batch tile length")
+    args = parser.parse_args()
+
+    batch_size = args.batch_size
+    s_q = args.s_q
+    s_kv = args.s_kv
+    num_q_heads = args.num_q_heads
+    num_kv_heads = args.num_kv_heads
+    h_qkv = args.head_dim
     hidden_size = h_qkv * num_q_heads
-    mlen = 64
-    vlen = 64
-    blen = 4
+    # Configure mlen carefully, since Bc and Br should match sequence lengths. Also, in main.rs (line:2092) fpsram is hardcoded to 1024
+    # so fp_sram_start_address + 3*mlen*(hq/hkv) should not exceed that or an index out of bound error will be triggered. (64 is fine here)
+    # To support longer sequences, increase fpsram size in main.rs like 2048, but at the same time please size up the vsram size and 
+    # pay attention to the broadcast amount or HLEN
+    mlen = args.mlen
+    vlen = args.vlen
+    blen = args.blen
+    hbm_m_prefetch_amount = mlen
     qk_scale = 1.0 / math.sqrt(h_qkv)
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, qk_scale, -float("inf")]
@@ -137,6 +152,13 @@ if __name__ == "__main__":
         v_base_hbm_offset_reg=2
     )
 
+    # Update plena_settings.toml with test-specific vlen/mlen/blen and prefetch amount
+    update_plena_config(
+        vlen=vlen,
+        mlen=mlen,
+        blen=blen,
+        hbm_m_prefetch_amount=hbm_m_prefetch_amount
+    )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None, specified_data_order = ["q", "k", "v"])
@@ -144,20 +166,18 @@ if __name__ == "__main__":
     import json
     result_vram_offset = 0  # activation_base_address
     effective_batch = batch_size * s_q
-    result_start_row = result_vram_offset // vlen
-    num_result_rows = (effective_batch * hidden_size) // vlen
-    comparison_params = {
-        "start_row_idx": result_start_row,
-        "num_rows": num_result_rows,
-        "num_batches": effective_batch,
-        "elements_per_batch": hidden_size
-    }
+    comparison_params = get_comparison_params(
+        vlen=vlen,
+        batch_size=effective_batch,
+        hidden_size=hidden_size,
+        result_vram_offset=result_vram_offset
+    )
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating assembly code")
-    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Result location: row {comparison_params['start_row_idx']}, {comparison_params['num_rows']} rows")
     print(f"Comparison params: {comparison_params}")
     print("================================================")

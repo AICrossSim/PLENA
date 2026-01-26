@@ -9,6 +9,7 @@ from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_as
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+from config_utils import update_plena_config, get_comparison_params
 
 
 def quantize_to_mxfp(tensor):
@@ -32,6 +33,9 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="C1",
                         choices=["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"],
                         help="PLENA workload config")
+    parser.add_argument("--vlen", type=int, default=None, help="Vector length")
+    parser.add_argument("--mlen", type=int, default=None, help="Matrix tile length")
+    parser.add_argument("--blen", type=int, default=None, help="Batch tile length")
     args = parser.parse_args()
 
     # PLENA workload configurations for Linear layer (n, h_in, h_out)
@@ -59,6 +63,10 @@ if __name__ == "__main__":
 
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/in_features]
+    vlen = args.vlen if args.vlen is not None else 64
+    mlen = args.mlen if args.mlen is not None else 64
+    blen = args.blen if args.blen is not None else 4
+    hbm_m_prefetch_amount = mlen
 
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, in_features, dtype=torch.bfloat16)
@@ -114,7 +122,7 @@ if __name__ == "__main__":
 
     # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
-        vlen=64,
+        vlen=vlen,
         preload_len=4,
         batch=batch_size,
         hidden_size=in_features,
@@ -133,8 +141,8 @@ if __name__ == "__main__":
     result_vram_offset = in_features * batch_size
 
     gen_assembly_code += projection_asm(
-        mlen=64,
-        blen=4,
+        mlen=mlen,
+        blen=blen,
         batch=batch_size,
         hidden_size=in_features,      # in_features (input dimension)
         out_features=out_features,     # out_features (output dimension) - rectangular support!
@@ -145,25 +153,30 @@ if __name__ == "__main__":
         rope_enabled=False
     )
 
+    update_plena_config(
+        vlen=vlen,
+        mlen=mlen,
+        blen=blen,
+        hbm_m_prefetch_amount=hbm_m_prefetch_amount
+    )
+
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="linear", data=None, specified_data_order=["act_tensor", "weights"])
 
     # Save comparison parameters for view_mem.py
     import json
-    result_start_row = result_vram_offset // 64  # Row where results start
-    num_result_rows = (batch_size * out_features) // 64
-    comparison_params = {
-        "start_row_idx": result_start_row,
-        "num_rows": num_result_rows,
-        "num_batches": batch_size,
-        "elements_per_batch": out_features
-    }
+    comparison_params = get_comparison_params(
+        vlen=vlen,
+        batch_size=batch_size,
+        hidden_size=out_features,
+        result_vram_offset=result_vram_offset
+    )
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating assembly code")
-    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Result location: row {comparison_params['start_row_idx']}, {comparison_params['num_rows']} rows")
     print(f"Comparison params: {comparison_params}")
     print("================================================")

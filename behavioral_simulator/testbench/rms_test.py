@@ -82,6 +82,9 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="C1",
                         choices=["C1", "C2", "C3", "C4", "C5"],
                         help="PLENA workload config")
+    parser.add_argument("--vlen", type=int, default=None, help="Vector length")
+    parser.add_argument("--mlen", type=int, default=None, help="Matrix tile length (defaults to vlen)")
+    parser.add_argument("--eps", type=float, default=1e-6, help="RMSNorm epsilon")
     args = parser.parse_args()
 
     # RMSNorm workload configurations: (n, hidden_size)
@@ -109,8 +112,10 @@ if __name__ == "__main__":
     assert batch_size >= 1, "batch_size must be at least 1"
 
     real_data_ratio = (8*8 + 8) / (8 * 8)
-    fp_preload = [0.0, 1e-6, 1/hidden_size]
-    vlen = 64
+    fp_preload = [0.0, args.eps, 1/hidden_size]
+    vlen = args.vlen if args.vlen is not None else 64
+    mlen = args.mlen if args.mlen is not None else vlen
+    hbm_m_prefetch_amount = mlen
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
@@ -121,7 +126,7 @@ if __name__ == "__main__":
     print("act_tensor lhs (4, 64):\n", act_tensor[:, :64])
     print("act_tensor rhs (4, 64):\n", act_tensor[:, 64:])
 
-    original_layer = RMSNorm(dim=hidden_size)
+    original_layer = RMSNorm(dim=hidden_size, eps=args.eps)
     weights = original_layer.state_dict()
 
     # Quantize input to MXFP to match hardware precision
@@ -180,7 +185,11 @@ if __name__ == "__main__":
     )
 
     # Update plena_settings.toml with test-specific vlen/mlen
-    update_plena_config(vlen=vlen, mlen=vlen)
+    update_plena_config(
+        vlen=vlen,
+        mlen=mlen,
+        hbm_m_prefetch_amount=hbm_m_prefetch_amount
+    )
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["act_tensor", "weights"])

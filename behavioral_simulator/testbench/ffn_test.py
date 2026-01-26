@@ -22,6 +22,7 @@ from compiler.asm_templates.silu_asm import silu_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
 from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+from config_utils import update_plena_config, get_comparison_params
 
 
 def quantize_to_mxfp(tensor):
@@ -78,6 +79,9 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="default",
                         choices=["default", "C1", "C2", "C3"],
                         help="Configuration preset")
+    parser.add_argument("--vlen", type=int, default=None, help="Vector length")
+    parser.add_argument("--mlen", type=int, default=None, help="Matrix tile length")
+    parser.add_argument("--blen", type=int, default=None, help="Batch tile length")
     args = parser.parse_args()
 
     # FFN configurations matching KernelCraft
@@ -100,9 +104,10 @@ if __name__ == "__main__":
     # Hardware parameters
     real_data_ratio = (8*8 + 8) / (8 * 8)  # 1.125 for MXFP overhead
     fp_preload = [0.0, 1.0]  # [0]=0.0, [1]=1.0 for SiLU
-    mlen = 64
-    blen = 4
-    vlen = 64
+    mlen = args.mlen if args.mlen is not None else 64
+    blen = args.blen if args.blen is not None else 4
+    vlen = args.vlen if args.vlen is not None else 64
+    hbm_m_prefetch_amount = mlen
 
     torch.manual_seed(42)
     act_tensor = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16)
@@ -224,19 +229,24 @@ if __name__ == "__main__":
         out_features=hidden_size,
     )
 
+    update_plena_config(
+        vlen=vlen,
+        mlen=mlen,
+        blen=blen,
+        hbm_m_prefetch_amount=hbm_m_prefetch_amount,
+    )
+
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm=None, data=None,
                        specified_data_order=["act_tensor", "weight_up", "weight_down"])
 
     # Save comparison parameters
-    result_start_row = output_vram // vlen
-    num_result_rows = (batch_size * hidden_size) // vlen
-    comparison_params = {
-        "start_row_idx": result_start_row,
-        "num_rows": num_result_rows,
-        "num_batches": batch_size,
-        "elements_per_batch": hidden_size
-    }
+    comparison_params = get_comparison_params(
+        vlen=vlen,
+        batch_size=batch_size,
+        hidden_size=hidden_size,
+        result_vram_offset=output_vram
+    )
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
@@ -244,5 +254,5 @@ if __name__ == "__main__":
     print("================================================")
     print("FFN test generated")
     print(f"Config: batch={batch_size}, hidden={hidden_size}, intermediate={intermediate_size}")
-    print(f"Result: row {result_start_row}, {num_result_rows} rows")
+    print(f"Result: row {comparison_params['start_row_idx']}, {comparison_params['num_rows']} rows")
     print("================================================")
