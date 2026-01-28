@@ -9,9 +9,9 @@ package configuration_pkg;
     // Compute Unit Related
     localparam   BLEN = 8; // 4
     localparam   HLEN = 8;
-    localparam   MLEN = 64; // 16
+    localparam   MLEN = 40; // 16
     localparam   Matrix_Parallel_Rd_Dim = 1;
-    localparam   VLEN = 64; // 16
+    localparam   VLEN = 40; // 16
     localparam   INST_BUFF_DEPTH = 16;
     localparam   ON_CHIP_ADDR_WIDTH = precision_pkg::INT_DATA_WIDTH;
     localparam   SourceWidth = 5;  // Increased for wider HBM data width (1792 bits)
