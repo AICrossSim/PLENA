@@ -84,6 +84,11 @@ module mx_systolic_array #(
     logic mult_valid, mult_ready;
     logic p1_mult_valid, p1_mult_ready;
 
+    // Declare valid signals that were previously undeclared
+    logic out_result_valid;
+    logic m_out_valid;
+    logic v_out_valid;
+
     logic system_right_shift_valid, system_down_shift_valid;
     logic [BLOCK_NUM- 1: 0] [BLOCK_NUM - 1: 0] pe_compute_ready;
     logic determined_left_valid, determined_left_ready;
@@ -203,8 +208,11 @@ module mx_systolic_array #(
         end
     endgenerate
 
+    // result_valid is always 1 since outputs are unconditionally registered
+    assign result_valid     = '1;
     assign out_result_valid = & result_valid;
-    assign result_ready     = (out_result_ready) ? {(COMPUTE_DIM * COMPUTE_DIM){1'b1}} : result_ready;
+    // Fixed: removed self-referential assignment that created combinational loop
+    assign result_ready     = '1;
     assign m_out_valid      = out_result_valid;
     assign v_out_valid      = out_result_valid;
     assign v_out_fp         = m_out_fp[0];
@@ -216,7 +224,8 @@ module mx_systolic_array #(
         end else begin
             for (int i = 0; i < COMPUTE_DIM; i++) begin
                 for (int j = 0; j < BLOCK_NUM; j++) begin
-                 m_out_fp[i][j * BLOCK_DIM +: BLOCK_DIM] <= result_values[i % BLOCK_DIM][j][i];
+                 // Fixed: use i / BLOCK_DIM for block index, i % BLOCK_DIM for PE index within block
+                 m_out_fp[i][j * BLOCK_DIM +: BLOCK_DIM] <= result_values[i / BLOCK_DIM][j][i % BLOCK_DIM];
                 end
             end
         end

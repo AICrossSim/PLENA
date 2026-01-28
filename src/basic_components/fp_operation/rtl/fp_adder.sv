@@ -54,7 +54,8 @@ module fp_adder #(
         end
     end
 
-    assign  mant_out = mant_a_shifted + mant_b_shifted;
+    // Use DSP for wide mantissa addition in accumulator/adder tree
+    (* use_dsp = "yes" *) assign  mant_out = mant_a_shifted + mant_b_shifted;
 
 
 endmodule

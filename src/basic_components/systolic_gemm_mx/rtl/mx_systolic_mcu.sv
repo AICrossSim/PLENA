@@ -409,7 +409,8 @@ module mx_systolic_mcu #(
                 .BLOCK_DIM            (BLOCK_DIM / DUPLICATE_BLOCK_NUM),
                 .ACC_FP_EXP_WIDTH     (ACC_FP_EXP_WIDTH),
                 .ACC_FP_MANT_WIDTH    (ACC_FP_MANT_WIDTH),
-                .COMPUTE_DIM          (COMPUTE_DIM)
+                .COMPUTE_DIM          (COMPUTE_DIM),
+                .L_MX_INT_EN          (L_MX_INT_EN)
             ) systolic_array_inst (
                 .clk(clk),
                 .rst                (rst),

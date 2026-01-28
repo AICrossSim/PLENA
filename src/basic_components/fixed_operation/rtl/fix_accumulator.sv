@@ -38,7 +38,8 @@ module fix_accumulator #(
     if (rst || clear_accumulator) data_out <= '0;
     else if (data_in_valid && data_in_ready) data_out <= partial_sum;
 
-    assign partial_sum = $signed(data_in) + $signed(data_out);
+    // Use DSP for accumulation - DSP48E1 has efficient built-in accumulator
+    (* use_dsp = "yes" *) assign partial_sum = $signed(data_in) + $signed(data_out);
 
 
 endmodule

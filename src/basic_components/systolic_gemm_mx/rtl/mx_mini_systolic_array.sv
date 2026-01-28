@@ -98,7 +98,7 @@ endgenerate
 generate;
     for (genvar i = 0; i < BLOCK_DIM; i = i+1)begin : row_inx
         for (genvar j = 0; j < BLOCK_DIM; j = j + 1) begin : col_idx
-            mxfp_default_pe #(
+            mx_default_pe #(
                 .MX_T_EXP_WIDTH   (MX_T_EXP_WIDTH),
                 .MX_T_MANT_WIDTH  (MX_T_MANT_WIDTH),
                 .MX_L_EXP_WIDTH   (MX_L_EXP_WIDTH),

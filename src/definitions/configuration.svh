@@ -7,14 +7,14 @@ import precision_pkg::*;
 
 package configuration_pkg;
     // Compute Unit Related
-    localparam   BLEN = 4; // 4
+    localparam   BLEN = 8; // 4
     localparam   HLEN = 8;
     localparam   MLEN = 64; // 16
     localparam   Matrix_Parallel_Rd_Dim = 1;
     localparam   VLEN = 64; // 16
     localparam   INST_BUFF_DEPTH = 16;
     localparam   ON_CHIP_ADDR_WIDTH = precision_pkg::INT_DATA_WIDTH;
-    localparam   SourceWidth = 1;
+    localparam   SourceWidth = 5;  // Increased for wider HBM data width (1792 bits)
     localparam   SinkWidth = 1;
     // Memory Related
     localparam   MATRIX_SRAM_WIDTH = (precision_pkg::WT_MX_MANT_WIDTH + precision_pkg::WT_MX_EXP_WIDTH + 1 + precision_pkg::MX_SCALE_WIDTH) * MLEN;
@@ -28,13 +28,13 @@ package configuration_pkg;
     localparam   FP_SRAM_DEPTH       = 512;
     localparam   HBM_ADDR_WIDTH      = 128;
 
-    // HBM Related
+    // HBM Related (adjusted for 14-bit element precision for DSP experiment)
     localparam   HBM_M_Prefetch_Amount   = 16;
     localparam   HBM_V_Prefetch_Amount   = 16;
     localparam   HBM_V_Writeback_Amount  = 4;
-    localparam   HBM_ELE_WIDTH           = 512;
-    localparam   HBM_SCALE_WIDTH         = 512;
-    localparam   HBM_WIDTH               = 512;
+    localparam   HBM_ELE_WIDTH           = 1792;  // 14-bit precision * 64 = 896 bits, 2x = 1792 for power-of-2 ratio
+    localparam   HBM_SCALE_WIDTH         = 512;   // Scale width stays same (8-bit scales)
+    localparam   HBM_WIDTH               = 1792;  // Match HBM_ELE_WIDTH
 endpackage
 
 package instruction_pkg;

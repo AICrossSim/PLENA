@@ -43,10 +43,9 @@ module fp_asym_mult #(
 
     logic signed [INTERMEDIATE_FIX_WIDTH - 1:0] intermediate_mant;
 
-    always_comb begin
-        exp_out = exp_a + exp_b;
-        intermediate_mant = mant_a * mant_b;
-        mant_out = intermediate_mant[INTERMEDIATE_FIX_WIDTH - 1 : INTERMEDIATE_FIX_WIDTH - OUT_FIX_WIDTH];
-    end
+    assign exp_out = exp_a + exp_b;
+    // Disable DSP for multiplication - prefer DSP usage in accumulators/adders
+    (* use_dsp = "no" *) assign intermediate_mant = mant_a * mant_b;
+    assign mant_out = intermediate_mant[INTERMEDIATE_FIX_WIDTH - 1 : INTERMEDIATE_FIX_WIDTH - OUT_FIX_WIDTH];
 
 endmodule
