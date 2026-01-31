@@ -36,13 +36,13 @@ def qkt_multiply(
     s_base_register = q_base_register
     generated_code = "; QKT Per KV Head Multiplication \n"
 
-    # Prefetch K from HBM
+    # Prefetch K from HBM to MRAM address 0 (must be tile-aligned)
     generated_code += f"S_ADDI_INT gp{q_base_register}, gp0, {q_base_address + q_head_index * d} \n"
     generated_code += f"S_ADDI_INT gp{k_base_register}, gp0, {k_head_index * d} \n"
-    generated_code += f"H_PREFETCH_M gp{k_base_register}, gp{k_base_register}, a{k_base_hbm_offset_reg}, 1, 1 \n"
+    generated_code += f"H_PREFETCH_M gp0, gp{k_base_register}, a{k_base_hbm_offset_reg}, 1, 1 \n"
 
-    # QKT multiply
-    generated_code += f"M_BTMM 0, gp{q_base_register}, gp{k_base_register} \n"
+    # QKT multiply (K is at MRAM address 0)
+    generated_code += f"M_BTMM 0, gp{q_base_register}, gp0 \n"
     generated_code += f"S_ADDI_INT gp{s_base_register}, gp0, {s_base_address + q_head_index * mlen * mlen} \n"
     generated_code += f"M_BMM_WO gp{s_base_register}, 0 \n"
 
@@ -185,7 +185,8 @@ def _computing_pv_code(
     # Address Settings
     generated_code += f"S_ADDI_INT gp{p_base_register}, gp0, {p_base_address + q_head_index * mlen * mlen} \n"
 
-    generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, {v_head_index * head_dim} \n"
+    # V is prefetched to MRAM address 0, so start from 0
+    generated_code += f"S_ADDI_INT gp{v_base_register}, gp0, 0 \n"
     generated_code += f"S_ADDI_INT gp{pv_base_register}, gp0, {pv_base_address + q_head_index * mlen * mlen} \n"
     # generated_code += f"S_ADDI_INT gp{mm_wo_stride_register}, gp0, {((q_head_num * head_dim) // mlen)} \n"
 
@@ -234,7 +235,7 @@ def _computing_o_code(
 
     m_res_fp_register = alive_registers_fp[0]
     generated_code = "; Computing O Code \n"
-    assert head_dim < mlen, "head_dim must be less than mlen"
+    assert head_dim <= mlen, "head_dim must be less than or equal to mlen"
     # break diag(MLEN) * (MLEN * Head_dim) into diag(MLEN) * [(MLEN * MLEN) ... (MLEN * MLEN)]
 
     # load o_old base address
@@ -437,6 +438,9 @@ def flash_attn_asm(
     for kv_head_index in range(hkv):
         # loop over per kv head kv_len // MLEN
         for i in range(k_seq_iteration_number):
+            # Reset m_fp_sram_start_address for each iteration
+            m_fp_sram_start_address = fp_sram_start_address
+
             # Reset m old for every q_index_2_kv_index_ratio q heads with -inf
             generated_code += _reset_fpsram_code(
                 reset_start_address =   m_fp_sram_start_address,
@@ -527,10 +531,6 @@ def flash_attn_asm(
                         q_head_num=hq,
                     )
                     stored_m_fp_res_address += 3 * mlen
-                    break
-                break
-            break
-        break
 
         # update q base address
         q_base_address += q_index_2_kv_index_ratio * q_len * d
