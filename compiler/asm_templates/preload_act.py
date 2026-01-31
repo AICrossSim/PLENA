@@ -37,10 +37,13 @@ def preload_act_asm(
     load_amount_per_hidden = math.ceil(hidden_size / vlen)
     
     if batch == 1:
-        for i in range(math.ceil(hidden_size / (vlen * preload_len))):
+        # Each H_PREFETCH_V loads preload_len rows (vlen * preload_len elements)
+        # HBM offset should increment by the same amount as VSRAM offset
+        elements_per_prefetch = vlen * preload_len
+        for i in range(math.ceil(hidden_size / elements_per_prefetch)):
             generated_code += f"H_PREFETCH_V gp{result_register}, gp{a_actual_register}, a{activation_offset_reg}, 0, 0, 0 \n"
-            generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {vlen * preload_len} \n"
-            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {load_amount_per_hidden} \n"
+            generated_code += f"S_ADDI_INT gp{result_register}, gp{result_register}, {elements_per_prefetch} \n"
+            generated_code += f"S_ADDI_INT gp{a_actual_register}, gp{a_actual_register}, {elements_per_prefetch} \n"
     else:
         generated_code += f"S_ADDI_INT gp{set_stride_register}, gp0, {stride_len} \n"
         generated_code += f"C_SET_STRIDE_REG gp{set_stride_register} \n"

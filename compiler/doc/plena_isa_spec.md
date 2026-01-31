@@ -342,13 +342,18 @@ S_ADD_FP f3, f3, f4        ; Redundant and incorrect
 
 ### V_RED_MAX
 
-**Format:** `V_RED_MAX rd, rs1`
+**Format:** `V_RED_MAX rd, rs1, imm`
 
 **Operation:** `fp_reg<rd> = max(max(Vector[gp_reg<rs1>]), fp_reg<rd>)`
 
 **Description:**
 
-Similar to `V_RED_SUM` but finds the maximum value. Accumulates the max across multiple calls.
+Similar to `V_RED_SUM` but finds the maximum value. Accumulates the max across multiple calls. The `imm` operand is reserved for future use (typically set to 0).
+
+**Example:**
+```asm
+V_RED_MAX f1, gp2, 0   ; f1 = max(f1, max(Vector[gp2]))
+```
 
 ---
 

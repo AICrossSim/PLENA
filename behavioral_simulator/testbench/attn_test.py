@@ -15,14 +15,14 @@ from sim_env_utils import create_mem_for_sim
 
 if __name__ == "__main__":
     # Currently single batch test
-    # NOTE: h_qkv must be 64 (= MLEN) to ensure HBM 64-byte alignment
+    # NOTE: h_qkv must be 64 (= HLEN) to ensure HBM 64-byte alignment
     # With h_qkv=64, k_head_index * h_qkv = 0, 64, 128, ... are all 64-aligned
     batch_size = 1
     s_q = 64
     s_kv = 64
     num_q_heads = 4   # Reduced to keep test size manageable with h_qkv=64
     num_kv_heads = 1  # Single KV head for simplicity
-    h_qkv = 64        # Must equal MLEN for HBM alignment
+    h_qkv = 16        # Must equal HLEN for HBM alignment
     hidden_size = h_qkv * num_q_heads  # 64 * 4 = 256
     mlen = 64
     vlen = 64
