@@ -146,36 +146,45 @@ if __name__ == "__main__":
     gen_assembly_code += f"; === KV head {test_kv_head} (Q heads {q_head_start}-{q_head_end}) ===\n"
 
     # Q base for this KV head group
-    # After permutation, Q layout is [num_kv_heads, s_q, q_per_kv, h_qkv] = [4, 64, 4, 16]
-    # Each KV head group has s_q * q_per_kv * h_qkv = 64 * 4 * 16 = 4096 elements
-    # M_BTMM reads [64, 4, 16] Q tensor and [64, 64] K tensor, computes batched Q @ K^T
-    q_elements_per_kv_group = s_q * q_index_2_kv_index_ratio * h_qkv  # 64 * 4 * 16 = 4096
-    q_base_for_kv_head = q_base_address + test_kv_head * q_elements_per_kv_group
-    s_base_for_kv_head = s_base_address  # Store at base since only testing 1 KV head
+    # Q layout is [s_q, num_q_heads, h_qkv] = [64, 16, 16]
+    # qkt_multiply internally computes: q_base + kv_head * q_per_kv * d + q_head_index * d
+    q_base_for_kv_head = q_base_address + test_kv_head * q_index_2_kv_index_ratio * h_qkv
+
+    # Q row stride = (num_q_heads * h_qkv) / mlen = total elements per token / mlen
+    q_row_stride = (num_q_heads * h_qkv) // mlen
 
     gen_assembly_code += qkt_multiply(
         d=h_qkv,
         mlen=mlen,
         alive_registers=[1, 2],
-        q_base_address=q_base_for_kv_head,  # Q base for heads 0-3
+        q_base_address=q_base_for_kv_head,  # Q base for this KV head group
         k_base_hbm_offset_reg=1,
-        q_head_index=0,  # Not used for addressing
+        q_head_index=0,  # Inner Q head index (function adds q_head_index * d)
         k_head_index=test_kv_head,
-        s_base_address=s_base_for_kv_head,  # Result goes here
+        s_base_address=s_base_address,  # Result goes here
+        q_row_stride=q_row_stride,  # Stride for Q row access in M_BTMM
     )
 
     gen_assembly_code += reset_reg_asm(alive_registers=[1, 2])
 
     # Golden result - only first 4 Q heads (KV head 0) for this test
-    # M_BTMM output shape: [4, 64, 64] = 4 Q heads x 64 tokens x 64 KV tokens
+    # M_BMM_WO writes in [heads, seq_q, seq_k] layout (confirmed from behavioral_simulator/src/main.rs):
+    #   for j in 0..broadcast_amount (heads):
+    #     for i in 0..mlen (seq_q):
+    #       write tensor at vec_base + (j * mlen + i) * mlen
+    # This means head 0 rows 0-63 come first, then head 1 rows 0-63, etc.
+    # golden_qkt_all has shape [heads, seq_q, seq_k] = [16, 64, 64] - this MATCHES M_BMM_WO layout!
     num_test_heads = q_index_2_kv_index_ratio  # 4 heads
-    golden_qkt_test = golden_qkt_all[:num_test_heads]  # First 4 QKT results
+    golden_qkt_test = golden_qkt_all[:num_test_heads]  # [4, 64, 64] = [heads, seq_q, seq_k]
+
+    # No transposition needed - golden layout matches M_BMM_WO output layout
     golden_result = {
         "input_tensor": input_tensor,
         "original_output": golden_qkt_test.reshape(-1).unsqueeze(0)  # (1, 4*64*64)
     }
 
     print(f"\nGolden QKT test shape: {golden_qkt_test.shape}")
+    print(f"Golden layout: [heads, seq_q, seq_k] = [4, 64, 64] (matches M_BMM_WO output)")
     print(f"Golden output flattened shape: {golden_qkt_test.reshape(-1).shape}")
 
     fp_preload = [0.0, 1.0, -float("inf")]
