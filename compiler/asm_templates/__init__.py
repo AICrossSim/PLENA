@@ -5,7 +5,7 @@ from .normalization_asm import rms_norm_asm, layer_norm_asm
 from .embedding_asm import embedding_asm
 from .elementwise_add_asm import elementwise_add_asm
 from .preload_act import preload_act_asm
-from .reset_reg_asm import reset_reg_asm
+from .reset_reg_asm import reset_reg_asm, reset_fpreg_asm
 from .preload_addr_reg import preload_addr_reg_asm
 from .batched_matmul_asm import batched_matmul_asm
 from .silu_asm import silu_asm
@@ -15,6 +15,7 @@ __all__ = [
     "projection_asm",
     "preload_act_asm",
     "reset_reg_asm",
+    "reset_fpreg_asm",
     "preload_addr_reg_asm",
     "flash_attn_asm",
     "ffn_asm",
