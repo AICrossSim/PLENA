@@ -272,29 +272,11 @@ if __name__ == "__main__":
             start_row_idx=params["start_row_idx"],
             num_batches=params["num_batches"],
             num_rows=params["num_rows"],
-            tolerance = 0.1,
             elements_per_batch=params["elements_per_batch"],
             use_stride_mode=params.get("use_stride_mode", True)
         )
         print_comparison_results(results, verbose=True, comparison_params=params)
 
-    # print("Viewing VRAM dump from 16 Base Address")
-    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=32)
-
-    # print("Viewing VRAM dump from 48 Base Address")
-    # view_bin_file_by_row(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=48, load_row_size=32)
-
-    # print("Viewing VRAM dump from 16 Base Address")
-    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=16, load_row_size=16)
-
-    # print("\nViewing VRAM dump from S Base Address")
-    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=64, load_row_size=16)
-
-    # print("\nViewing VRAM dump from PV Base Address")
-    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=320, load_row_size=16)
-
-    # print("\nViewing VRAM dump from O_Old Base Address")
-    # view_bin_file_by_row_fp(vram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=576, load_row_size=16)
 
     print("Viewing MRAM dump 0 to 63 rows (BF16 format)")
     view_bin_file_by_row_fp(mram_file, exp_width=8, man_width=7, row_dim=64, num_bytes_per_val=2, start_row_idx=0, load_row_size=6)

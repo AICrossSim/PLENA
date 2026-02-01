@@ -217,7 +217,7 @@ if __name__ == "__main__":
         "start_row_idx": result_start_row,
         "num_rows": num_result_rows,
         "num_batches": 1,
-        "elements_per_batch": num_test_heads * mlen * mlen,
+        "elements_per_batch": mlen * mlen,
         "row_dim": vlen,
         "use_stride_mode": False
     }
