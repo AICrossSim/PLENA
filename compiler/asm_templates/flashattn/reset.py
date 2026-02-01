@@ -90,13 +90,21 @@ def reset_kv_prefetch(
     d: int,
     kv_len: int,
     batch: int,
+    mlen: int,
     alive_registers_int: List[int],
 ) -> str:
     generated_code = f"; Reset KV Prefetch Code \n"
     assert hkv * d * kv_len * batch < IMM2_BOUND, f"hkv * d * kv_len * batch must be less than {IMM2_BOUND}"
     assert hkv * d * kv_len * batch < IMM2_BOUND, f"hkv * d * kv_len * batch must be less than {IMM2_BOUND}"
-    generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {hkv *d * kv_len * batch} \n"
-    generated_code += f"C_SET_SCALE_REG gp{alive_registers_int[0]} \n"
-    generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {hkv * d * batch} \n"
-    generated_code += f"C_SET_STRIDE_REG gp{alive_registers_int[0]} \n"
+
+    if hkv * d < mlen:
+        generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {mlen * kv_len * batch} \n"
+        generated_code += f"C_SET_SCALE_REG gp{alive_registers_int[0]} \n"
+        generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {mlen} \n"
+        generated_code += f"C_SET_STRIDE_REG gp{alive_registers_int[0]} \n"
+    else:
+        generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {hkv * d * kv_len * batch} \n"
+        generated_code += f"C_SET_SCALE_REG gp{alive_registers_int[0]} \n"
+        generated_code += f"S_ADDI_INT gp{alive_registers_int[0]}, gp0, {hkv * d * batch} \n"
+        generated_code += f"C_SET_STRIDE_REG gp{alive_registers_int[0]} \n"
     return generated_code

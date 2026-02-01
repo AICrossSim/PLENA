@@ -107,7 +107,7 @@ struct MatrixSram {
 impl MatrixSram {
     /// Creata a matrix SRAM with given tile size and depth.
     fn new(tile_size: u32, depth: usize, ty: MxDataType) -> Self {
-        let tiles = (0..depth)
+        let tiles = (0..(depth / tile_size as usize))
             .map(|_| Mutex::new(Ok(QuantTensor::zeros((tile_size * tile_size) as usize, ty))))
             .collect();
         Self {
@@ -258,7 +258,7 @@ impl MatrixMachine {
         self.m_accum += vec_f32.matmul(&mat_f32);
     }
 
-    async fn bmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
+    async fn bmm(&mut self, m_addr: u32, v_addr: u32, bmm_scale: f32) {
         // println!("m_addr = {:?}", m_addr);
         // println!("v_addr = {:?}", v_addr);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
@@ -285,7 +285,7 @@ impl MatrixMachine {
         for i in 0..self.mlen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.mlen * stride_len)
+                    .read(v_addr + i * self.mlen )
                     .await
                     .as_tensor()
                     .shallow_clone(),
@@ -320,10 +320,14 @@ impl MatrixMachine {
         }
     }
 
-    async fn btmm(&mut self, m_addr: u32, v_addr: u32, stride_len: u32, bmm_scale: f32) {
+    async fn btmm(&mut self, m_addr: u32, v_addr: u32, bmm_scale: f32) {
+        println!("======================== BTMM ==========================");
+        println!("m_addr = {:?}", m_addr);
+        println!("v_addr = {:?}", v_addr);
+        println!("bmm_scale = {:?}", bmm_scale);
         assert!(self.broadcast_amount * self.hlen == self.mlen);
         // Load matrix from matrix SRAM.
-        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.blen);
+        let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
         let (mat_offset, head_offset) = mat_offset.multiple_and_offset(self.mlen);
 
         assert!(mat_offset.is_multiple_of(self.blen));
@@ -342,14 +346,11 @@ impl MatrixMachine {
 
         let mut tensors = Vec::with_capacity(self.mlen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
-        if !is_quiet() {
-            println!("stride_len = {:?}", stride_len);
-        }
         // B, S, H, D
         for i in 0..self.mlen {
             tensors.push(
                 self.vram
-                    .read(v_addr + i * self.mlen * stride_len)
+                    .read(v_addr + i * self.mlen )
                     .await
                     .as_tensor()
                     .shallow_clone(),
@@ -845,7 +846,6 @@ struct AcceeleratorRegFile {
     hbm_addr_reg: [u64; 8],
     scale: u32,
     stride: u32,
-    mm_load_stride: u32,
     bmm_scale: f32, // Scale factor during the BMM operation, apply to every element in the matrix operation.
     v_mask: u32,    // HLEN Head Mask for VLEN Vector
 }
@@ -1418,7 +1418,6 @@ impl Accelerator {
                             self.reg_file.gp_reg[*rs1 as usize]
                                 + self.reg_file.gp_reg[*rd as usize],
                             self.reg_file.gp_reg[*rs2 as usize],
-                            self.reg_file.mm_load_stride,
                             self.reg_file.bmm_scale,
                         )
                         .await;
@@ -1429,7 +1428,6 @@ impl Accelerator {
                             self.reg_file.gp_reg[*rs1 as usize]
                                 + self.reg_file.gp_reg[*rd as usize],
                             self.reg_file.gp_reg[*rs2 as usize],
-                            self.reg_file.mm_load_stride,
                             self.reg_file.bmm_scale,
                         )
                         .await;
@@ -2084,8 +2082,7 @@ async fn start() {
             hbm_addr_reg: [0; 8],
             scale: 0,
             stride: 1,
-            mm_load_stride: 4,
-            bmm_scale: 0.25,
+            bmm_scale: 1.0,
             v_mask: 0,
         },
         intsram: vec![0; 1024],
@@ -2154,10 +2151,11 @@ async fn start() {
         accelerator.v_machine.vram.read(0x0000).await.as_tensor()
     );
 
-    // println!(
-    //     "Matrix SRAM Contents: \n {}",
-    //     accelerator.m_machine.mram.read(0x0000).await.as_tensor()
-    // );
+    println!(
+        "Matrix SRAM Contents: \n {}",
+        accelerator.m_machine.mram.read(0x0000).await.as_tensor()
+    );
+
     println!("INT SRAM Contents: \n {:?}", accelerator.intsram);
     println!("FP SRAM Contents: \n {:?}", accelerator.fpsram);
 

@@ -29,8 +29,8 @@ if __name__ == "__main__":
     batch_size = 1
     s_q = 64
     s_kv = 64
-    num_q_heads = 16       # 16 Q heads total
-    num_kv_heads = 4       # 4 KV heads (stride = 4 * 16 = 64, aligned)
+    num_q_heads = 4       # 16 Q heads total
+    num_kv_heads = 1       # 4 KV heads (stride = 4 * 16 = 64, aligned)
     h_qkv = 16             # Must equal hardware HLEN = 16
     mlen = 64
     vlen = 64
@@ -56,24 +56,44 @@ if __name__ == "__main__":
     print(f"\nTensor shapes (standard torch layout, no permutation):")
     print(f"  Q: {q.shape}")
     print(f"  K: {k.shape}")
+    
+    if num_kv_heads < num_q_heads:
+        k_reshaped = torch.zeros(batch_size, s_kv, num_q_heads, h_qkv, dtype=k.dtype, device=k.device)
+        k_reshaped[:, :, :num_kv_heads, :] = k
+        # The remaining extra heads are left as zeros
+    elif num_kv_heads == num_q_heads:
+        k_reshaped = k
+    else:
+        raise ValueError("num_kv_heads > num_q_heads not supported for zero padding logic.")
 
+    print(f"K reshaped to {k_reshaped.shape}")
     input_tensor = {
         "q": q.reshape(batch_size, -1),
-        "k": k.reshape(batch_size, -1),
+        "k": k_reshaped.reshape(batch_size, -1),
     }
 
     # Compute golden QKT output for all head combinations
     # For each KV head, compute QKT for q_index_2_kv_index_ratio Q heads
     # Output shape: (num_kv_heads, q_index_2_kv_index_ratio, s_q, s_kv) = (4, 4, 64, 64)
+
     golden_qkt_list = []
     for kv_head in range(num_kv_heads):
         for q_head_offset in range(q_index_2_kv_index_ratio):
             q_head = kv_head * q_index_2_kv_index_ratio + q_head_offset
             q_2d = q[0, :, q_head, :]  # (s_q, h_qkv) = (64, 16)
             k_2d = k[0, :, kv_head, :]  # (s_kv, h_qkv) = (64, 16)
+            print("q2d:")
+            print(q_2d)
+            print("=" * 60)
+            print("k2d:")
+            print(k_2d)
+            print("=" * 60)
             qkt = torch.matmul(q_2d, k_2d.T)  # (s_q, s_kv) = (64, 64)
             golden_qkt_list.append(qkt)
             print(f"  Q head {q_head} x K head {kv_head} -> QKT shape: {qkt.shape}")
+            print("QK result:")
+            print(qkt)
+            print("=" * 60)
 
     # Stack all QKT results
     golden_qkt_all = torch.stack(golden_qkt_list, dim=0)  # (16, 64, 64)
@@ -118,8 +138,8 @@ if __name__ == "__main__":
     gen_assembly_code += preload_act_asm(
         vlen=mlen,
         preload_len=4,
-        batch=batch_size,
-        hidden_size=h_qkv * num_q_heads * s_q,
+        batch=batch_size * s_q,
+        hidden_size=h_qkv * num_q_heads,
         alive_registers=[1, 2, 3, 4, 5],
         act_vram_offset=0,
         activation_offset_reg=0
@@ -131,6 +151,7 @@ if __name__ == "__main__":
     gen_assembly_code += _reset_kv_prefetch(
         hkv=num_kv_heads,
         d=h_qkv,
+        mlen=mlen,
         kv_len=s_kv,
         batch=batch_size,
         alive_registers_int=[1],
@@ -150,22 +171,18 @@ if __name__ == "__main__":
     # qkt_multiply internally computes: q_base + kv_head * q_per_kv * d + q_head_index * d
     q_base_for_kv_head = q_base_address + test_kv_head * q_index_2_kv_index_ratio * h_qkv
 
-    # Q row stride = (num_q_heads * h_qkv) / mlen = total elements per token / mlen
-    q_row_stride = (num_q_heads * h_qkv) // mlen
-
-    gen_assembly_code += qkt_multiply(
-        d=h_qkv,
-        mlen=mlen,
-        alive_registers=[1, 2],
-        q_base_address=q_base_for_kv_head,  # Q base for this KV head group
-        k_base_hbm_offset_reg=1,
-        q_head_index=0,  # Inner Q head index (function adds q_head_index * d)
-        k_head_index=test_kv_head,
-        s_base_address=s_base_address,  # Result goes here
-        q_row_stride=q_row_stride,  # Stride for Q row access in M_BTMM
-    )
-
-    gen_assembly_code += reset_reg_asm(alive_registers=[1, 2])
+    for kv_head_index in range(num_kv_heads):
+        gen_assembly_code += qkt_multiply(
+            d=h_qkv,
+            mlen=mlen,
+            alive_registers=[1, 2],
+            q_base_address=q_base_address + kv_head_index * q_index_2_kv_index_ratio * h_qkv,
+            k_base_hbm_offset_reg=1,
+            q_head_index=kv_head_index * q_index_2_kv_index_ratio,
+            k_head_index=kv_head_index,
+            s_base_address=s_base_address + kv_head_index * mlen * mlen
+        )
+        gen_assembly_code += reset_reg_asm(alive_registers=[1, 2])
 
     # Golden result - only first 4 Q heads (KV head 0) for this test
     # M_BMM_WO writes in [heads, seq_q, seq_k] layout (confirmed from behavioral_simulator/src/main.rs):
