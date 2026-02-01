@@ -80,26 +80,50 @@ if __name__ == "__main__":
         "k": k_reshaped.reshape(batch_size, -1),
     }
 
-    # Compute golden output: P = softmax(QK^T * scale) before l normalization
-    # For online softmax, we compute exp(S - max(S)) and track running stats
+    # Compute golden output using real online softmax algorithm
+    # Online softmax iteratively computes:
+    # - m_new = max(m_old, rowmax(S_j))
+    # - P = exp(S_j - m_new)
+    # - l = exp(m_old - m_new) * l + rowsum(P)
+    Br = s_q  # Block row size
+    Bc = s_kv  # Block column size (single tile for this test)
+    Tc = s_kv // mlen  # Number of K tiles
+
     golden_p_list = []
     for kv_head in range(num_kv_heads):
         for q_head_offset in range(q_index_2_kv_index_ratio):
             q_head = kv_head * q_index_2_kv_index_ratio + q_head_offset
-            q_2d = q[0, :, q_head, :]  # (s_q, h_qkv) = (64, 16)
-            k_2d = k[0, :, kv_head, :]  # (s_kv, h_qkv) = (64, 16)
-            qkt = torch.matmul(q_2d, k_2d.T)  # (s_q, s_kv) = (64, 64)
+            q_i = q[0, :, q_head, :]  # [Br, h_qkv] = [64, 16]
 
-            # Scale
-            s_scaled = qkt * qk_scale
-            # Row-wise softmax (before final 1/l normalization, so just exp(S - max))
-            s_max = s_scaled.max(dim=-1, keepdim=True)[0]
-            p = torch.exp(s_scaled - s_max)
+            # Initialize online softmax state
+            m = torch.full((Br,), float("-inf"), device=q.device)
+            l = torch.zeros((Br,), device=q.device)
+
+            # Iterate over K tiles (Tc=1 for this test, but general structure)
+            for j in range(Tc):
+                k_j = k[0, j * Bc : (j + 1) * Bc, kv_head, :]  # [Bc, h_qkv]
+                s_j = q_i @ k_j.transpose(0, 1) * qk_scale  # Q @ Kj^T, [Br, Bc]
+
+                rowmax_s_j = s_j.max(dim=1).values  # [Br]
+                m_new = torch.maximum(m, rowmax_s_j)  # [Br]
+                print(f"m_new: {m_new}")
+                # Subtract m_new from each row of s_j
+                s_j_shifted = s_j - m_new.unsqueeze(1)  # [Br, Bc]
+                p = torch.exp(s_j_shifted)  # exp(Sj - m_new), [Br, Bc]
+                p = p.to(torch.bfloat16)
+
+                m_res = m - m_new  # [Br]
+                m = m_new
+                l_scale = torch.exp(m_res)  # [Br]
+                print(f"l_scale: {l_scale}")
+                p_row_sum = p.sum(dim=1)  # [Br]
+                l = l_scale * l + p_row_sum  # [Br]
+
             golden_p_list.append(p)
             print(f"  Q head {q_head} x K head {kv_head} -> P shape: {p.shape}")
 
     # Stack all P results
-    golden_p_all = torch.stack(golden_p_list, dim=0)  # (16, 64, 64)
+    golden_p_all = torch.stack(golden_p_list, dim=0)  # (4, 64, 64)
     print(f"\nGolden P all heads shape: {golden_p_all.shape}")
     print(f"Golden P sample (head 0, first 4x4):\n{golden_p_all[0, :4, :4]}")
 
@@ -190,29 +214,29 @@ if __name__ == "__main__":
     # qkt_multiply internally computes: q_base + kv_head * q_per_kv * d + q_head_index * d
     q_base_for_kv_head = q_base_address + test_kv_head * q_index_2_kv_index_ratio * h_qkv
 
-    # for kv_head_index in range(num_kv_heads):
-    #     gen_assembly_code += qkt_multiply(
-    #         d=h_qkv,
-    #         mlen=mlen,
-    #         alive_registers=[1, 2],
-    #         q_base_address=q_base_address + kv_head_index * q_index_2_kv_index_ratio * h_qkv,
-    #         k_base_hbm_offset_reg=1,
-    #         q_head_index=kv_head_index * q_index_2_kv_index_ratio,
-    #         k_head_index=kv_head_index,
-    #         s_base_address=s_base_address + kv_head_index * mlen * mlen
-    #     )
-    #     gen_assembly_code += reset_reg_asm(alive_registers=[1, 2])
+    for kv_head_index in range(num_kv_heads):
+        gen_assembly_code += qkt_multiply(
+            d=h_qkv,
+            mlen=mlen,
+            alive_registers=[1, 2],
+            q_base_address=q_base_address + kv_head_index * q_index_2_kv_index_ratio * h_qkv,
+            k_base_hbm_offset_reg=1,
+            q_head_index=kv_head_index * q_index_2_kv_index_ratio,
+            k_head_index=kv_head_index,
+            s_base_address=s_base_address + kv_head_index * mlen * mlen
+        )
+        gen_assembly_code += reset_reg_asm(alive_registers=[1, 2])
 
-    #     # Apply online softmax for this head
-    #     gen_assembly_code += online_softmax_code(
-    #         mlen=mlen,
-    #         alive_registers_int=[1, 2, 3, 4, 5],
-    #         alive_registers_fp=[1, 2, 3, 4, 5],
-    #         s_address=s_base_address + kv_head_index * mlen * mlen,
-    #         m_start_address=fp_sram_start,
-    #         qk_scale_address=1,
-    #     )
-    #     gen_assembly_code += reset_reg_asm(alive_registers=[1, 2, 3, 4, 5])
+        # Apply online softmax for this head
+        gen_assembly_code += online_softmax_code(
+            mlen=mlen,
+            alive_registers_int=[1, 2, 3, 4, 5],
+            alive_registers_fp=[1, 2, 3, 4, 5],
+            s_address=s_base_address + kv_head_index * mlen * mlen,
+            m_start_address=fp_sram_start,
+            qk_scale_address=1,
+        )
+        gen_assembly_code += reset_reg_asm(alive_registers=[1, 2, 3, 4, 5])
 
     # Golden result - only first 4 Q heads (KV head 0) for this test
     # M_BMM_WO writes in [heads, seq_q, seq_k] layout (confirmed from behavioral_simulator/src/main.rs):
@@ -240,7 +264,7 @@ if __name__ == "__main__":
 
     # Result is at s_base_address, shape (4, mlen, mlen) = (4, 64, 64) for 4 Q heads
     result_start_row = s_base_address // vlen
-    num_result_rows = (num_test_heads * mlen * mlen) // vlen
+    num_result_rows = (mlen * mlen) // vlen
 
     comparison_params = {
         "start_row_idx": result_start_row,

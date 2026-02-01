@@ -4,6 +4,14 @@ from typing import List
 
 IMM2_BOUND = 2**18 - 1
 
+"""
+Memory Layout in FP SRAM:
+- m_last (MLEN)
+- m_res (MLEN)
+- l_old (MLEN)
+"""
+
+
 
 def online_softmax_code(
     mlen: int,
@@ -63,52 +71,52 @@ def online_softmax_code(
     # # copy m_last to a tmp fp register
     generated_code += f"S_ADD_FP f{tmp_fp_register}, f{m_last_register}, f0 \n"
 
-    # # m_curr = max(S_scaled[row], m_last) and store at m_curr
-    # m_curr_register = m_last_register
-    # generated_code += f"V_RED_MAX f{m_curr_register}, gp{s_address_register}, 0 \n"
+    # m_curr = max(S_scaled[row], m_last) and store at m_curr
+    m_curr_register = m_last_register
+    generated_code += f"V_RED_MAX f{m_curr_register}, gp{s_address_register}, 0 \n"
 
-    # # m_res = m_last - m_curr
-    # m_res_register = tmp_fp_register
-    # generated_code += f"S_SUB_FP f{m_res_register}, f{tmp_fp_register}, f{m_curr_register} \n"
+    # m_res = m_last - m_curr
+    m_res_register = tmp_fp_register
+    generated_code += f"S_SUB_FP f{m_res_register}, f{tmp_fp_register}, f{m_curr_register} \n"
 
     # # exp(m_res)
-    # generated_code += f"S_EXP_FP f{m_res_register}, f{m_res_register} \n"
+    generated_code += f"S_EXP_FP f{m_res_register}, f{m_res_register} \n"
 
     # # store m_res (using indirect addressing with offset 0)
-    # generated_code += f"S_ST_FP f{tmp_fp_register}, gp{m_res_address_register}, 0 \n"
+    generated_code += f"S_ST_FP f{tmp_fp_register}, gp{m_res_address_register}, 0 \n"
 
-    # # store m_curr (using indirect addressing with offset 0)
-    # generated_code += f"S_ST_FP f{m_curr_register}, gp{m_last_address_register}, 0 \n"
+    # store m_curr (using indirect addressing with offset 0)
+    generated_code += f"S_ST_FP f{m_curr_register}, gp{m_last_address_register}, 0 \n"
 
-    # # # S' = S - m_curr
-    # generated_code += f"V_SUB_VF gp{s_address_register}, gp{s_address_register}, f{m_curr_register}, 0, 0 \n"
+    # # S' = S - m_curr
+    generated_code += f"V_SUB_VF gp{s_address_register}, gp{s_address_register}, f{m_curr_register}, 0, 0 \n"
 
-    # # P = exp(S')
-    # generated_code += f"V_EXP_V gp{s_address_register}, gp{s_address_register}, 0 \n"
+    # P = exp(S')
+    generated_code += f"V_EXP_V gp{s_address_register}, gp{s_address_register}, 0 \n"
 
-    # # load l_old (using indirect addressing with offset 0)
-    # generated_code += f"S_LD_FP f{l_old_register}, gp{l_old_address_register}, 0 \n"
+    # load l_old (using indirect addressing with offset 0)
+    generated_code += f"S_LD_FP f{l_old_register}, gp{l_old_address_register}, 0 \n"
 
-    # # P = sum(P)
-    # generated_code += f"S_ADD_FP  f{sum_p_register}, f0, f0 \n"
-    # generated_code += f"V_RED_SUM f{sum_p_register}, gp{s_address_register} \n"
+    # P = sum(P)
+    generated_code += f"S_ADD_FP  f{sum_p_register}, f0, f0 \n"
+    generated_code += f"V_RED_SUM f{sum_p_register}, gp{s_address_register} \n"
 
-    # # l_s = l_old * exp(m_res)
-    # generated_code += f"S_MUL_FP f{l_old_register}, f{l_old_register}, f{tmp_fp_register} \n"
-    # l_s_register = l_old_register
+    # l_s = l_old * exp(m_res)
+    generated_code += f"S_MUL_FP f{l_old_register}, f{l_old_register}, f{tmp_fp_register} \n"
+    l_s_register = l_old_register
 
-    # # l_s = l_old * exp(m_res) + sum(P)
-    # generated_code += f"S_ADD_FP f{l_s_register}, f{sum_p_register}, f{l_old_register} \n"
+    # l_s = l_old * exp(m_res) + sum(P)
+    generated_code += f"S_ADD_FP f{l_s_register}, f{sum_p_register}, f{l_old_register} \n"
 
-    # # store l_s (using indirect addressing with offset 0)
-    # generated_code += f"S_ST_FP f{l_s_register}, gp{l_old_address_register}, 0 \n"
+    # store l_s (using indirect addressing with offset 0)
+    generated_code += f"S_ST_FP f{l_s_register}, gp{l_old_address_register}, 0 \n"
 
     # # next row of S
     generated_code += f"S_ADDI_INT gp{s_address_register}, gp{s_address_register}, {mlen} \n"
     # # increment m_last, m_res, l_old addresses
-    # generated_code += f"S_ADDI_INT gp{m_last_address_register}, gp{m_last_address_register}, 1 \n"
-    # generated_code += f"S_ADDI_INT gp{m_res_address_register}, gp{m_res_address_register}, 1 \n"
-    # generated_code += f"S_ADDI_INT gp{l_old_address_register}, gp{l_old_address_register}, 1 \n"
+    generated_code += f"S_ADDI_INT gp{m_last_address_register}, gp{m_last_address_register}, 1 \n"
+    generated_code += f"S_ADDI_INT gp{m_res_address_register}, gp{m_res_address_register}, 1 \n"
+    generated_code += f"S_ADDI_INT gp{l_old_address_register}, gp{l_old_address_register}, 1 \n"
 
     generated_code += f"C_LOOP_END gp{loop_register} \n"
 
