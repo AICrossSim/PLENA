@@ -273,7 +273,9 @@ if __name__ == "__main__":
             num_batches=params["num_batches"],
             num_rows=params["num_rows"],
             elements_per_batch=params["elements_per_batch"],
-            use_stride_mode=params.get("use_stride_mode", True)
+            use_stride_mode=params.get("use_stride_mode", True),
+            use_slice_mode=params.get("use_slice_mode", False),
+            slice_per_row=params.get("slice_per_row", None)
         )
         print_comparison_results(results, verbose=True, comparison_params=params)
 

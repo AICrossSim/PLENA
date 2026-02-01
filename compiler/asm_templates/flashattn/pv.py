@@ -7,7 +7,6 @@ IMM2_BOUND = 2**18 - 1
 
 def computing_pv_code(
     head_dim: int,
-    q_head_num: int,  # noqa: ARG001 - kept for API compatibility
     blen: int,
     mlen: int,
     vlen: int,
@@ -23,15 +22,7 @@ def computing_pv_code(
     """
     Compute PV = P @ V and write directly to packed output format.
 
-    For multi-head attention with VLEN > head_dim, this writes each head's
-    output to the correct offset within each output row.
-
-    Output layout: each row is VLEN elements with heads packed:
-    [head0: head_dim][head1: head_dim][...][headN: head_dim]
-
-    Note: V is ALWAYS prefetched from HBM because K prefetch in qkt_multiply
-    overwrites MSRAM. Even though multiple Q heads may share the same KV head,
-    we must re-prefetch V after each K prefetch.
+    Single Head PV Multiplication. (MLEN, MLEN) @ (MLEN, H_QKV) -> (MLEN, H_QKV)
 
     Args:
         head_dim: dimension per head

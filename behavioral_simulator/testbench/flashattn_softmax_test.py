@@ -192,7 +192,7 @@ if __name__ == "__main__":
         alive_registers_fp=[1],
         reset_start_address=2,
         per_stride_dim=mlen,
-        stride_dist = 2 * mlen,
+        stride_dist = 3 * mlen,
         reset_amount = q_index_2_kv_index_ratio,
         reset_val_address=2,
     )

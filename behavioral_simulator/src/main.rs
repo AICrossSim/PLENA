@@ -217,12 +217,12 @@ struct MatrixMachine {
 
 impl MatrixMachine {
     async fn mm(&mut self, m_addr: u32, v_addr: u32) {
-        println!("======================== M_MM ==========================");
-        println!("m_addr = {:?}", m_addr);
-        println!("v_addr = {:?}", v_addr);
+        // println!("======================== M_MM ==========================");
+        // println!("m_addr = {:?}", m_addr);
+        // println!("v_addr = {:?}", v_addr);
         let (mat_base, mat_offset) = m_addr.multiple_and_offset(self.mlen * self.mlen);
-        println!("mat_base = {:?}", mat_base);
-        println!("mat_offset = {:?}", mat_offset);
+        // println!("mat_base = {:?}", mat_base);
+        // println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(mat_offset < self.mlen);
 

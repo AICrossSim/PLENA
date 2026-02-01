@@ -162,6 +162,7 @@ def reorder_stride_mode(data, num_batches=4, elements_per_batch=128, stride=64):
 
     # Reshape into chunks: [chunk0, chunk1, ..., chunk_n]
     chunks = data.reshape(total_chunks, chunk_size)
+    print(f"chunks: {chunks}")
 
     # Reorder: group all chunks for each batch together
     # For 4 batches with 4 chunks each (256 elements):
@@ -170,12 +171,39 @@ def reorder_stride_mode(data, num_batches=4, elements_per_batch=128, stride=64):
     #   batch2: chunks 2, 6, 10, 14
     #   batch3: chunks 3, 7, 11, 15
     reordered_chunks = []
+    print("chunks shape: {chunks.shape}")
+    print(f"num_batches: {num_batches}")
+    print(f"chunks_per_batch: {chunks_per_batch}")
     for batch_idx in range(num_batches):
         for chunk_group in range(chunks_per_batch):
             chunk_idx = chunk_group * num_batches + batch_idx
             reordered_chunks.append(chunks[chunk_idx])
 
     return np.concatenate(reordered_chunks)
+
+
+def slice_rows(data, row_dim, slice_per_row, num_rows):
+    """
+    Extract the first slice_per_row elements from each row.
+
+    Args:
+        data: 1D numpy array with num_rows * row_dim elements
+        row_dim: Number of elements per row (e.g., 64)
+        slice_per_row: Number of elements to extract from each row (e.g., 16)
+        num_rows: Number of rows
+
+    Returns:
+        1D numpy array with num_rows * slice_per_row elements
+    """
+    if len(data) < num_rows * row_dim:
+        raise ValueError(f"Data length {len(data)} < expected {num_rows * row_dim}")
+
+    # Reshape to (num_rows, row_dim)
+    data_2d = data[:num_rows * row_dim].reshape(num_rows, row_dim)
+    # Slice first slice_per_row elements from each row
+    sliced = data_2d[:, :slice_per_row]
+    # Flatten back to 1D
+    return sliced.flatten()
 
 
 def compare_with_golden(bin_file,
@@ -190,7 +218,9 @@ def compare_with_golden(bin_file,
                         use_stride_mode=True,
                         elements_per_batch=128,
                         atol=0.2,
-                        rtol=0.2):
+                        rtol=0.2,
+                        use_slice_mode=False,
+                        slice_per_row=None):
     """
     Compare binary file output with golden reference from golden_result.txt.
 
@@ -209,6 +239,8 @@ def compare_with_golden(bin_file,
         use_stride_mode: Whether to reorder data from stride mode to batch-wise layout
         atol: Absolute tolerance for allclose comparison (default 0.01 for BF16)
         rtol: Relative tolerance for allclose comparison (default 0.01 = 1%)
+        use_slice_mode: Whether to extract first slice_per_row elements from each row (default False)
+        slice_per_row: Number of elements to extract per row when use_slice_mode=True
 
     Returns:
         dict: Dictionary containing comparison metrics:
@@ -232,7 +264,17 @@ def compare_with_golden(bin_file,
         bin_file, exp_width, man_width, row_dim, num_bytes_per_val, start_row_idx, num_rows
     )
 
+    # Apply slice mode: extract first slice_per_row elements from each row
+    print(f"use_slice_mode: {use_slice_mode}")
+    print(f"slice_per_row: {slice_per_row}")
+    if use_slice_mode and slice_per_row is not None:
+        simulated_np = slice_rows(simulated_np, row_dim, slice_per_row, num_rows)
+        print(f"After slicing: {len(simulated_np)} elements")
+
     # Reorder stride-mode data to match batch-wise golden layout
+    print(f"use_stride_mode: {use_stride_mode}")
+    print(f"num_batches: {num_batches}")
+    print(f"elements_per_batch: {elements_per_batch}")
     if use_stride_mode:
         simulated_np = reorder_stride_mode(simulated_np, num_batches, elements_per_batch)
 
