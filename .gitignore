@@ -11,13 +11,10 @@ build/
 
 .vscode
 
-boom-riscv/
-
 *.gtkw
 
 *.str
 *.jou
-boom-riscv/
 
 doc/figure_gen/*
 

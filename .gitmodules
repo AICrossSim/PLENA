@@ -1,3 +1,6 @@
-[submodule "acc_simulator/third_party/fast-hadamard-transform"]
-	path = acc_simulator/third_party/fast-hadamard-transform
-	url = git@github.com:Dao-AILab/fast-hadamard-transform.git
+[submodule "PLENA_Simulator"]
+	path = PLENA_Simulator
+	url = git@github.com:AICrossSim/PLENA_Simulator.git
+[submodule "PLENA_RTL"]
+	path = PLENA_RTL
+	url = git@github.com:AICrossSim/PLENA_RTL.git
