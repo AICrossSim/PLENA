@@ -143,7 +143,7 @@ def flash_attn_asm(
 
                 # Now the S is in expected to stored in (blen, mlen, mlen) in vsram
 
-                for inner_q_head_index in range(q_index_2_kv_index_ratio // blen):
+                for inner_q_head_index in range(q_index_2_kv_index_ratio):
                     # Per Q head level online softmax
                     generated_code += online_softmax_code(
                         mlen=mlen,
@@ -190,7 +190,6 @@ def flash_attn_asm(
                         q_head_num=hq,
                     )
                     stored_m_fp_res_address += 3 * mlen
-                    break
 
                 # After processing all Q heads for this tile, apply 1/l scaling for each head
                 # With packed output format, each row has all heads: [h0:d][h1:d][h2:d][h3:d]
@@ -216,9 +215,4 @@ def flash_attn_asm(
                         o_row_stride=hq * d,  # Row stride is total width of all heads
                         use_mask=True,
                     )
-                    break
-
-        # Note: q_base_address offset for each KV head is computed inline in qkt_multiply call
-        # as: q_base_address + kv_head_index * q_index_2_kv_index_ratio * d
-
     return generated_code
