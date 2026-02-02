@@ -165,8 +165,10 @@ def flash_attn2_head_gemv(q, k, v, qk_scale, s_q, s_kv, h_qkv, Bc, Tc, Br, Tr, d
                     print("o_old", o_old)
                     print("o_i (accumulated)", o_i)
 
-            # Final scaling by 1/l
-            o_final = torch.matmul(torch.diag(1.0 / l), o_i)
+            # Final scaling by 1/l (row-wise: O[r][k] = O_acc[r][k] * (1/l[r]))
+            inv_l = 1.0 / l  # [Br]
+            o_final = o_i * inv_l.unsqueeze(1)  # [Br, h_qkv] * [Br, 1] -> [Br, h_qkv]
+            print("o_final", o_final)
             o[b_i, i * Br : (i + 1) * Br, :] = o_final
 
             # Store final output info

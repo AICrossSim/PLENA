@@ -186,6 +186,42 @@ def view_bin_file_by_row_fp(bin_file,
                 print("       ", end=" ")
         print()
 
+def view_fpsram_bin_file(bin_file,
+                         start_idx=0,
+                         num_elements=64,
+                         row_dim=16):
+    """
+    Reads an FPSRAM binary file (f16/half-precision format) and prints values.
+
+    - bin_file:       Path to the fpsram_dump.bin file
+    - start_idx:      Starting element index (each element is 2 bytes for f16)
+    - num_elements:   Number of elements to read
+    - row_dim:        Number of values per row to group/print
+    """
+    import numpy as np
+
+    with open(bin_file, "rb") as f:
+        data = f.read()
+
+    # FPSRAM is stored as f16 (half-precision float, 2 bytes per value)
+    total_elements = len(data) // 2
+    all_values = np.frombuffer(data, dtype=np.float16)
+
+    end_idx = min(start_idx + num_elements, total_elements)
+    values = all_values[start_idx:end_idx]
+
+    print(f"FPSRAM values from index {start_idx} to {end_idx - 1} ({len(values)} elements):")
+    for row_idx in range((len(values) + row_dim - 1) // row_dim):
+        row_start = row_idx * row_dim
+        row_end = min(row_start + row_dim, len(values))
+        row_vals = values[row_start:row_end]
+        abs_idx = start_idx + row_start
+        print(f"  [{abs_idx:4d}]: ", end="")
+        for v in row_vals:
+            print(f"{float(v):10.4f}", end=" ")
+        print()
+
+
 # Example usage:
 # view_bin_as_fp("hbm_for_behave_sim.bin", exp_width=4, man_width=3, num_bytes_per_val=1)
 if __name__ == "__main__":
@@ -286,13 +322,29 @@ if __name__ == "__main__":
 
             if os.path.exists(fpsram_file) and os.path.exists(golden_fpsram_file):
                 golden_fpsram = torch.load(golden_fpsram_file)
+                fpsram_num_elements = params.get("fpsram_num_elements", 64)
+                fpsram_l_start = params.get("fpsram_l_start", golden_fpsram.get("fpsram_l_start", 0))
+
+                # Print raw FPSRAM l values
+                print("\n" + "=" * 80)
+                print(f"FPSRAM l values (fpsram_l_start={fpsram_l_start})")
+                print("=" * 80)
+                view_fpsram_bin_file(fpsram_file, start_idx=fpsram_l_start, num_elements=fpsram_num_elements, row_dim=16)
+
+                # Print golden l values for comparison
+                print("\nGolden l_new values:")
+                golden_l = golden_fpsram["golden_l_new"]
+                for i in range(0, len(golden_l), 16):
+                    print(f"  [{i:4d}]: ", end="")
+                    for j in range(min(16, len(golden_l) - i)):
+                        print(f"{golden_l[i + j].item():10.4f}", end=" ")
+                    print()
 
                 # Compare exp_m_res
                 print("\n" + "=" * 80)
                 print("Comparison with Golden Output (FPSRAM - exp_m_res)")
                 print("=" * 80)
                 fpsram_m_res_start = params.get("fpsram_m_res_start", golden_fpsram.get("fpsram_m_res_start", 0))
-                fpsram_num_elements = params.get("fpsram_num_elements", 64)
                 results_exp_m_res = compare_fpsram_with_golden(
                     fpsram_file,
                     golden_fpsram["golden_exp_m_res"],
@@ -307,7 +359,6 @@ if __name__ == "__main__":
                 print("\n" + "=" * 80)
                 print("Comparison with Golden Output (FPSRAM - l_new)")
                 print("=" * 80)
-                fpsram_l_start = params.get("fpsram_l_start", golden_fpsram.get("fpsram_l_start", 0))
                 results_l_new = compare_fpsram_with_golden(
                     fpsram_file,
                     golden_fpsram["golden_l_new"],

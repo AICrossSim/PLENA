@@ -607,10 +607,10 @@ impl VectorMachine {
             cycle!(*VECTOR_MUL_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            // println!("======================== V_ADD_VF ==========================");
-            // println!("add: mask = {:?}", mask);
-            // println!("a = {}", a.as_tensor());
-            // println!("f = {}", f);
+            println!("======================== V_MUL_VF ==========================");
+            println!("add: mask = {:?}", mask);
+            println!("a = {}", a.as_tensor());
+            println!("f = {}", f);
             let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
@@ -1698,6 +1698,8 @@ impl Accelerator {
                 op::Opcode::S_RECI_FP { rd, rs1 } => {
                     self.reg_file.fp_reg[*rd as usize] =
                         f16::ONE / self.reg_file.fp_reg[*rs1 as usize];
+                    println!("======================== S_RECI_FP ==========================");
+                    println!("original value = {}", self.reg_file.fp_reg[*rs1 as usize]);
                     cycle!(*SCALAR_FP_RECI_CYCLES);
                 }
                 op::Opcode::S_SQRT_FP { rd, rs1 } => {

@@ -269,7 +269,11 @@ def compare_vram_with_golden(bin_file,
     print(f"slice_per_row: {slice_per_row}")
     if use_slice_mode and slice_per_row is not None:
         simulated_np = slice_rows(simulated_np, row_dim, slice_per_row, num_rows)
-        print(f"After slicing: {len(simulated_np)} elements")
+        # Also slice golden values to match: golden is organized as [num_rows, row_dim]
+        # but we only want [num_rows, slice_per_row]
+        golden_np = slice_rows(golden_np, row_dim, slice_per_row, num_rows)
+        golden_values = torch.from_numpy(golden_np).bfloat16()
+        print(f"After slicing: simulated={len(simulated_np)} elements, golden={len(golden_np)} elements")
 
     # Reorder stride-mode data to match batch-wise golden layout
     print(f"use_stride_mode: {use_stride_mode}")
@@ -284,6 +288,8 @@ def compare_vram_with_golden(bin_file,
     min_len = min(len(golden_values), len(simulated_values))
     golden_values = golden_values[:min_len]
     simulated_values = simulated_values[:min_len]
+    print(f"golden_values: {golden_values}")
+    print(f"simulated_values: {simulated_values}")
 
     if len(golden_values) == 0:
         raise ValueError("No values to compare")
