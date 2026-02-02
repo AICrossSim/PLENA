@@ -638,10 +638,10 @@ impl VectorMachine {
             cycle!(*VECTOR_ADD_CYCLES);
             self.vram.write(vd, c).await;
         } else {
-            // println!("======================== V_ADD ==========================");
-            // println!("add: mask = {:?}", mask);
-            // println!("a = {}", a.as_tensor());
-            // println!("b = {}", b.as_tensor());
+            println!("======================== V_ADD ==========================");
+            println!("add: mask = {:?}", mask);
+            println!("a = {}", a.as_tensor());
+            println!("b = {}", b.as_tensor());
             let result = a.as_tensor().shallow_clone();
             let total_heads = self.tile_size / self.mask_unit;
             for head in 0..total_heads {
@@ -2175,6 +2175,19 @@ async fn start() {
     vram_file.write_all(&vram_bytes).unwrap();
     if !is_quiet() {
         eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
+    }
+
+    // Dump FPSRAM
+    let fpsram_dump_path = "fpsram_dump.bin";
+    let fpsram_bytes: Vec<u8> = accelerator
+        .fpsram
+        .iter()
+        .flat_map(|f| f.to_le_bytes())
+        .collect();
+    let mut fpsram_file = std::fs::File::create(fpsram_dump_path).unwrap();
+    fpsram_file.write_all(&fpsram_bytes).unwrap();
+    if !is_quiet() {
+        eprintln!("Dumped FPSRAM content to: {:?}", fpsram_dump_path);
     }
 
     // Dump HBM

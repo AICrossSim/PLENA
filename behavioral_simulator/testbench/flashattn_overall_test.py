@@ -75,9 +75,9 @@ if __name__ == "__main__":
     print(f"  k: {k.shape} -> reshaped: {k.reshape(batch_size, -1).shape}")
     print(f"  v: {v.shape} -> reshaped: {v.reshape(batch_size, -1).shape}")
 
-    # Compute golden output using reference implementation
-    print("\nComputing golden output...")
-    original_output = flash_attn2_gemv(
+    # Compute golden output using reference implementation with intermediates
+    print("\nComputing golden output with intermediate values...")
+    original_output, all_intermediates = flash_attn2_gemv(
         q,
         k,
         v,
@@ -88,7 +88,9 @@ if __name__ == "__main__":
         num_q_heads=num_q_heads,
         num_kv_heads=num_kv_heads,
         Bc=mlen,
-        Br=mlen
+        Br=mlen,
+        debug=True,
+        return_intermediates=True
     )
 
     # Reshape output for golden comparison
@@ -96,9 +98,15 @@ if __name__ == "__main__":
     print(f"  original_output shape: {original_output.shape}")
     print(f"  original_output_flat shape: {original_output_flat.shape}")
 
+    # Extract PV value for head 0, tile (batch=0, q_tile=0, kv_tile=0)
+    # golden_pv_head0 = all_intermediates[0]["intermediates"][(0, 0, 0)]["pv"]
+    # print(f"\nGolden PV for head 0 shape: {golden_pv_head0.shape}")
+    # print(f"Golden PV for head 0:\n{golden_pv_head0}")
+
+
     golden_result = {
         "input_tensor": input_tensor,
-        "original_output": original_output_flat
+        "original_output": original_output
     }
 
     # Generate assembly
@@ -173,19 +181,47 @@ if __name__ == "__main__":
     result_start_row = result_vram_offset // vlen
     num_result_rows = (effective_batch * hidden_size) // vlen
 
+    # Extract golden FPSRAM values for head 0
+    golden_l_new = all_intermediates[0]["intermediates"][(0, 0, 0)]["l_new"]  # [mlen]
+    golden_exp_m_res = all_intermediates[0]["intermediates"][(0, 0, 0)]["exp_m_res"]  # [mlen]
+
+    print(f"\nGolden FPSRAM values for head 0:")
+    print(f"  l_new shape: {golden_l_new.shape}, values: {golden_l_new[:8]}")
+    print(f"  exp_m_res shape: {golden_exp_m_res.shape}, values: {golden_exp_m_res[:8]}")
+
+    # FPSRAM layout: fp_sram_start_address=3
+    # head 0: m_old at 3, m_res at 3+mlen, l_old at 3+2*mlen
+    fp_sram_start = 3
+    fpsram_m_res_start = fp_sram_start + mlen  # m_res (stores exp(m_old - m_new))
+    fpsram_l_start = fp_sram_start + 2 * mlen  # l_old/l_new location
+
     comparison_params = {
+        # VRAM comparison params (default)
         "start_row_idx": result_start_row,
-        "num_rows": num_result_rows,
+        "num_rows": mlen,
         "num_batches": 1,
         "elements_per_batch": mlen * h_qkv,
         "row_dim": vlen,
         "use_stride_mode": False,
-        "use_slice_mode": True,  # Extract first h_qkv elements from each vlen-wide row
-        "slice_per_row": h_qkv
+        "use_slice_mode": True,
+        "slice_per_row": h_qkv,
+        # FPSRAM comparison flag and params
+        "compare_fpsram": True,
+        "fpsram_m_res_start": fpsram_m_res_start,
+        "fpsram_l_start": fpsram_l_start,
+        "fpsram_num_elements": mlen,
     }
 
-
+    # Save golden FPSRAM values to file
     build_dir = Path(__file__).parent / "build"
+    torch.save({
+        "golden_l_new": golden_l_new,
+        "golden_exp_m_res": golden_exp_m_res,
+        "fpsram_m_res_start": fpsram_m_res_start,
+        "fpsram_l_start": fpsram_l_start,
+    }, build_dir / "golden_fpsram.pt")
+    print(f"Saved golden FPSRAM values to: {build_dir / 'golden_fpsram.pt'}")
+
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
 

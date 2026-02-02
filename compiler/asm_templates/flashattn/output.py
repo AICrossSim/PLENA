@@ -57,13 +57,13 @@ def computing_o_code(
     generated_code += f"S_LD_FP f{m_res_fp_register}, gp{m_res_vector_address_register}, 0 \n"
     # boardcast m_res to multiply with a row of a block of O_old and write to o_old
     generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{m_res_fp_register}, 1 \n"
-    # add pv row to o_old
+    # # add pv row to o_old
     generated_code += f"V_ADD_VV gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, gp{pv_vector_address_register}, 1 \n"
-    # update o_old base address
+    # # update o_old base address
     generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {q_head_num * head_dim} \n"
-    # update pv base address
+    # # update pv base address
     generated_code += f"S_ADDI_INT gp{pv_vector_address_register}, gp{pv_vector_address_register}, {mlen} \n"
-    # update m_res address
+    # # update m_res address
     generated_code += f"S_ADDI_INT gp{m_res_vector_address_register}, gp{m_res_vector_address_register}, 1 \n"
     generated_code += f"C_LOOP_END gp{loop_register} \n"
     # now o_old should contain the result of the current o, diag(exp(m_res)) * O_old + PV

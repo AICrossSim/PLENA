@@ -197,7 +197,7 @@ if __name__ == "__main__":
 
     # Load comparison params to know which rows to display
     import json
-    from check_mem import compare_with_golden, print_comparison_results
+    from check_mem import compare_vram_with_golden, compare_fpsram_with_golden, print_comparison_results
 
     params_file = os.path.join(script_dir, "behavioral_simulator", "testbench", "build", "comparison_params.json")
     with open(params_file, "r") as f:
@@ -264,9 +264,9 @@ if __name__ == "__main__":
                                 load_row_size=params["num_rows"])
 
         print("\n" + "=" * 80)
-        print("Comparison with Golden Output")
+        print("Comparison with Golden Output (VRAM)")
         print("=" * 80)
-        results = compare_with_golden(
+        results = compare_vram_with_golden(
             vram_file, golden_file,
             exp_width=8, man_width=7, num_bytes_per_val=2, row_dim=params.get("row_dim", 64),
             start_row_idx=params["start_row_idx"],
@@ -278,6 +278,50 @@ if __name__ == "__main__":
             slice_per_row=params.get("slice_per_row", None)
         )
         print_comparison_results(results, verbose=True, comparison_params=params)
+
+        # FPSRAM comparison if enabled
+        if params.get("compare_fpsram", False):
+            fpsram_file = os.path.join(script_dir, "behavioral_simulator", "fpsram_dump.bin")
+            golden_fpsram_file = os.path.join(script_dir, "behavioral_simulator", "testbench", "build", "golden_fpsram.pt")
+
+            if os.path.exists(fpsram_file) and os.path.exists(golden_fpsram_file):
+                golden_fpsram = torch.load(golden_fpsram_file)
+
+                # Compare exp_m_res
+                print("\n" + "=" * 80)
+                print("Comparison with Golden Output (FPSRAM - exp_m_res)")
+                print("=" * 80)
+                fpsram_m_res_start = params.get("fpsram_m_res_start", golden_fpsram.get("fpsram_m_res_start", 0))
+                fpsram_num_elements = params.get("fpsram_num_elements", 64)
+                results_exp_m_res = compare_fpsram_with_golden(
+                    fpsram_file,
+                    golden_fpsram["golden_exp_m_res"],
+                    start_idx=fpsram_m_res_start,
+                    num_elements=fpsram_num_elements,
+                    atol=0.2,
+                    rtol=0.2
+                )
+                print_comparison_results(results_exp_m_res, verbose=True)
+
+                # Compare l_new
+                print("\n" + "=" * 80)
+                print("Comparison with Golden Output (FPSRAM - l_new)")
+                print("=" * 80)
+                fpsram_l_start = params.get("fpsram_l_start", golden_fpsram.get("fpsram_l_start", 0))
+                results_l_new = compare_fpsram_with_golden(
+                    fpsram_file,
+                    golden_fpsram["golden_l_new"],
+                    start_idx=fpsram_l_start,
+                    num_elements=fpsram_num_elements,
+                    atol=0.2,
+                    rtol=0.2
+                )
+                print_comparison_results(results_l_new, verbose=True)
+            else:
+                if not os.path.exists(fpsram_file):
+                    print(f"\nFPSRAM dump file not found: {fpsram_file}")
+                if not os.path.exists(golden_fpsram_file):
+                    print(f"\nGolden FPSRAM file not found: {golden_fpsram_file}")
 
 
     print("Viewing MRAM dump 0 to 63 rows (BF16 format)")

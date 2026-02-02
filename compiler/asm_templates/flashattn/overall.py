@@ -214,6 +214,7 @@ def flash_attn_asm(
                         o_old_base_address=o_old_base_address,
                         l_old_base_address=l_old_base_address,
                         o_row_stride=hq * d,  # Row stride is total width of all heads
+                        use_mask=True,
                     )
                     break
 
