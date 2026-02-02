@@ -52,11 +52,22 @@ if __name__ == "__main__":
     v = torch.randn(batch_size, s_kv, num_kv_heads, h_qkv, dtype=torch.bfloat16, device=device)
 
     torch.set_printoptions(edgeitems=20, threshold=20000, linewidth=200)
+    if num_kv_heads < (mlen // h_qkv):
+        k_reshaped = torch.zeros(batch_size, s_kv, (mlen // h_qkv), h_qkv, dtype=k.dtype, device=k.device)
+        v_reshaped = torch.zeros(batch_size, s_kv, (mlen // h_qkv), h_qkv, dtype=v.dtype, device=v.device)
+        k_reshaped[:, :, :num_kv_heads, :] = k
+        v_reshaped[:, :, :num_kv_heads, :] = v
+        # The remaining extra heads are left as zeros
+    elif num_kv_heads == (mlen // h_qkv):
+        k_reshaped = k
+        v_reshaped = v
+    else:
+        raise ValueError("num_kv_heads > num_q_heads not supported for zero padding logic.")
 
     input_tensor = {
         "q": q.reshape(batch_size, -1),
-        "k": k.reshape(batch_size, -1),
-        "v": v.reshape(batch_size, -1)
+        "k": k_reshaped.reshape(batch_size, -1),
+        "v": v_reshaped.reshape(batch_size, -1)
     }
 
     print(f"\nTensor shapes:")
@@ -96,7 +107,7 @@ if __name__ == "__main__":
 
     # Calculate HBM offsets for K and V
     q_hbm_size = int(s_q * num_q_heads * h_qkv * batch_size * real_data_ratio)
-    k_hbm_size = int(s_kv * num_kv_heads * h_qkv * batch_size * real_data_ratio)
+    k_hbm_size = int(s_kv * (mlen // h_qkv) * h_qkv * batch_size * real_data_ratio)
     k_hbm_offset = q_hbm_size
     v_hbm_offset = q_hbm_size + k_hbm_size
 
@@ -165,11 +176,15 @@ if __name__ == "__main__":
     comparison_params = {
         "start_row_idx": result_start_row,
         "num_rows": num_result_rows,
-        "num_batches": effective_batch,
-        "elements_per_batch": hidden_size,
+        "num_batches": 1,
+        "elements_per_batch": mlen * h_qkv,
         "row_dim": vlen,
-        "use_stride_mode": False
+        "use_stride_mode": False,
+        "use_slice_mode": True,  # Extract first h_qkv elements from each vlen-wide row
+        "slice_per_row": h_qkv
     }
+
+
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)

@@ -56,9 +56,9 @@ def computing_o_code(
     # load m_res (using indirect addressing)
     generated_code += f"S_LD_FP f{m_res_fp_register}, gp{m_res_vector_address_register}, 0 \n"
     # boardcast m_res to multiply with a row of a block of O_old and write to o_old
-    generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{m_res_fp_register}, 0 \n"
+    generated_code += f"V_MUL_VF gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, f{m_res_fp_register}, 1 \n"
     # add pv row to o_old
-    generated_code += f"V_ADD_VV gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, gp{pv_vector_address_register}, 0 \n"
+    generated_code += f"V_ADD_VV gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, gp{pv_vector_address_register}, 1 \n"
     # update o_old base address
     generated_code += f"S_ADDI_INT gp{o_old_vector_address_register}, gp{o_old_vector_address_register}, {q_head_num * head_dim} \n"
     # update pv base address
