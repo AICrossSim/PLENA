@@ -42,23 +42,27 @@ def flash_attn_asm(
     k_seq_iteration_number = (kv_len + mlen - 1) // mlen
     q_index_2_kv_index_ratio = hq // hkv
 
+    # Assemptions
+    # In current Version (Not Complete)
+    assert blen == q_index_2_kv_index_ratio, "Blen must be equal to q_index_2_kv_index_ratio in current version"
+
     # Memory Layout:
     # -- FP SRAM --
     # Defalt 0 - zero
     # 1 - infinity
     # fp_sram_start_address - 1 - qk_scale
     # per head dimension * q_index_2_kv_index_ratio level {
-    m_fp_sram_start_address = fp_sram_start_address
     # - m old (MLEN) - 0
     # - m res (MLEN) - 1
     # - l old (MLEN) - 2
     # }
+
     print("=" * 5, "VSRAM Memory Layout", "=" * 5)
     # -- Vector SRAM --
     # Q  (q_len, hq, d) - Q is stored with shape [seq_len, num_q_heads, head_dim]
     q_base_address = vector_sram_base_address
     print(f"Q Base Address: {q_base_address}")
-    # tmp S (MLEN, MLEN, hq // hkv) and also tmp P.
+    # tmp S (MLEN, MLEN, blen) and also tmp P.
     s_base_address = q_base_address + q_len * hq * d  # Q size = seq_len * num_q_heads * head_dim
     print(f"S Base Address: {s_base_address}")
     # PV (q_index_2_kv_index_ratio, mlen, mlen)
@@ -67,10 +71,12 @@ def flash_attn_asm(
     # O_Old (q_len, HEAD_DIM * Hq * batch)
     o_old_base_address = pv_base_address + mlen * mlen * q_index_2_kv_index_ratio
     print(f"O_Old Base Address: {o_old_base_address}")
+
     generated_code = "; Flash Attention Generation \n"
     generated_code += reset_kv_prefetch(
         hkv=hkv,
         d=d,
+        mlen=mlen,
         kv_len=kv_len,
         batch=batch,
         alive_registers_int=alive_registers_int[0:1],
@@ -80,6 +86,8 @@ def flash_attn_asm(
     for kv_head_index in range(hkv):
         # loop over per kv head kv_len // MLEN
         for _ in range(k_seq_iteration_number):
+            print(f" Computing {q_index_2_kv_index_ratio } Q heads for KV head {kv_head_index} in GQA mode")
+
             # Reset m_fp_sram_start_address for each iteration
             m_fp_sram_start_address = fp_sram_start_address
 
@@ -87,7 +95,7 @@ def flash_attn_asm(
             generated_code += reset_fpsram_code(
                 reset_start_address =   m_fp_sram_start_address,
                 per_stride_dim      =   mlen,
-                reset_stride        =   3 * mlen,
+                stride_dist         =   3 * mlen,
                 reset_amount        =   q_index_2_kv_index_ratio,
                 reset_val_address   =   2,
                 alive_registers_fp  =   alive_registers_fp[0:1],
@@ -117,27 +125,27 @@ def flash_attn_asm(
 
             # # loop over per q_index_2_kv_index_ratio q heads (q_len // MLEN), compute q_index_2_kv_index_ratio heads in parallel.
             for _ in range(q_seq_iteration_number):
+                # Compute S = QKT result for this Q head
+                # Q layout: (batch, s_q, num_q_heads, h_qkv) -> qkt_multiply adds q_head_index * d internally
+                # Q row stride = (hq * d) / mlen = total elements per token / mlen
                 stored_m_fp_res_address = m_fp_sram_start_address + mlen
+                q_row_stride = (hq * d) // mlen
+                generated_code += qkt_multiply(
+                    d=d,
+                    mlen=mlen,
+                    alive_registers         =   alive_registers_int[0:2],
+                    q_base_address          =   q_base_address + kv_head_index * q_index_2_kv_index_ratio * d,
+                    k_base_hbm_offset_reg   =   k_base_hbm_offset_reg,
+                    q_head_index            =   inner_q_head_index,
+                    k_head_index            =   kv_head_index,
+                    s_base_address          =   s_base_address,
+                    q_row_stride            =   q_row_stride,
+                )
 
-                for inner_q_head_index in range(hq // hkv):
-                    # Compute S = QKT result for this Q head
-                    # Q layout: (batch, s_q, num_q_heads, h_qkv) -> qkt_multiply adds q_head_index * d internally
-                    # Q row stride = (hq * d) / mlen = total elements per token / mlen
-                    q_row_stride = (hq * d) // mlen
-                    generated_code += qkt_multiply(
-                        d=d,
-                        mlen=mlen,
-                        alive_registers         =   alive_registers_int[0:2],
-                        q_base_address          =   q_base_address + kv_head_index * q_index_2_kv_index_ratio * d,
-                        k_base_hbm_offset_reg   =   k_base_hbm_offset_reg,
-                        q_head_index            =   inner_q_head_index,
-                        k_head_index            =   kv_head_index,
-                        s_base_address          =   s_base_address,
-                        q_row_stride            =   q_row_stride,
-                    )
+                # Now the S is in expected to stored in (blen, mlen, mlen) in vsram
 
-                    generated_code += reset_reg_asm(alive_registers_int[0:2])
-
+                generated_code += reset_reg_asm(alive_registers_int[0:2])
+                for inner_q_head_index in range(q_index_2_kv_index_ratio // blen):
                     # Per Q head level online softmax
                     generated_code += online_softmax_code(
                         mlen=mlen,
@@ -147,7 +155,8 @@ def flash_attn_asm(
                         m_start_address=m_fp_sram_start_address,
                         qk_scale_address=1,  # qk_scale preloaded at FP SRAM address 1
                     )
-
+                    # P is stored in s_base_address + inner_q_head_index * mlen * mlen, taking (blen, mlen, mlen) as a block
+                    
                     m_fp_sram_start_address += mlen * 3
                     generated_code += reset_fpreg_asm(alive_registers_fp[0:6])
                     generated_code += reset_reg_asm(alive_registers_int[0:6])
@@ -166,28 +175,23 @@ def flash_attn_asm(
                         v_base_hbm_offset_reg=v_base_hbm_offset_reg,
                         q_head_index=inner_q_head_index,
                         v_head_index=kv_head_index,
-                        output_base_address=o_old_base_address,
+                        output_base_address=pv_base_address,
                         head_offset=inner_q_head_index * d,  # This head's position within the row
                     )
 
                     generated_code += reset_reg_asm(alive_registers_int[0:6])
-
-                    # For multiple KV tiles, we need to accumulate: O = m_res * O_old + PV
-                    # For single KV tile (i==0 and only one iteration), O_old is 0, so O = PV
-                    # We still call computing_o_code for proper accumulation in multi-tile case
-                    if k_seq_iteration_number > 1:
-                        generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
-                        # Use VLEN-aligned address - V_MASK selects the correct head slot
-                        generated_code += computing_o_code(
-                            mlen=mlen,
-                            alive_registers_int=alive_registers_int[0:4],
-                            alive_registers_fp=alive_registers_fp[0:1],
-                            m_res_base_address=stored_m_fp_res_address,
-                            pv_base_address=pv_base_address + inner_q_head_index * mlen * mlen,
-                            o_old_base_address=o_old_base_address,
-                            head_dim=d,
-                            q_head_num=hq,
-                        )
+                    generated_code += reset_vmask_asm(alive_registers_int[0], 1 << inner_q_head_index)
+                    # Use VLEN-aligned address - V_MASK selects the correct head slot
+                    generated_code += computing_o_code(
+                        mlen=mlen,
+                        alive_registers_int=alive_registers_int[0:4],
+                        alive_registers_fp=alive_registers_fp[0:1],
+                        m_res_base_address=stored_m_fp_res_address,
+                        pv_base_address=pv_base_address + inner_q_head_index * mlen * mlen,
+                        o_old_base_address=o_old_base_address,
+                        head_dim=d,
+                        q_head_num=hq,
+                    )
                     stored_m_fp_res_address += 3 * mlen
 
                 # After processing all Q heads for this tile, apply 1/l scaling for each head
