@@ -8,6 +8,20 @@ from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
+from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+
+
+def quantize_to_mxfp(tensor):
+    """
+    Quantize tensor to MXFP format matching hardware (E4M3 with 8-bit scale per block of 8).
+    Uses the same quantizer as the behavioral simulator's memory loader.
+    Returns the dequantized tensor (what hardware sees after HBM->VRAM load).
+    """
+    orig_shape = tensor.shape
+    bm_x, _, _, _ = _mx_fp_quantize_hardware(
+        tensor, width=8, exponent_width=4, exponent_bias_width=8, block_size=[8]
+    )
+    return bm_x.reshape(orig_shape)
 
 
 if __name__ == "__main__":
@@ -18,11 +32,16 @@ if __name__ == "__main__":
     fp_preload = [0.0, 1e-6, 1/hidden_size]
 
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, hidden_size)
-    original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size, bias=False)
+    act_tensor = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16)
+    original_layer = nn.Linear(in_features=hidden_size, out_features=hidden_size, bias=False, dtype=torch.bfloat16)
     weights = original_layer.state_dict()
 
-    original_output = original_layer(act_tensor)
+    # Quantize inputs to MXFP to match hardware precision
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)
+    weights_mxfp = quantize_to_mxfp(weights['weight'].t()).to(act_tensor.dtype)
+
+    # Compute golden with MXFP-quantized inputs
+    original_output = torch.mm(act_mxfp, weights_mxfp)
     print("original_output is:\n", original_output)
 
     input_tensor = {

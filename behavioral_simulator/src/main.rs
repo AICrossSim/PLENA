@@ -15,7 +15,7 @@ use clap::Parser;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use half::f16;
-use memory::MemoryModel;
+use memory::{ErasedMemoryModel, MemoryModel};
 use quantize::{MxDataType, QuantTensor};
 use runtime::{Duration, Executor, Instant};
 use tch::{IndexOp, Tensor};
@@ -62,6 +62,7 @@ static VECTOR_ACTIVATION_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_ac
 static VECTOR_KV_TYPE: LazyLock<MxDataType> = LazyLock::new(|| vector_kv_type());
 static PREFETCH_M_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_m_prefetch_amount());
 static PREFETCH_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_prefetch_amount());
+static STORE_V_AMOUNT: LazyLock<u32> = LazyLock::new(|| hbm_v_writeback_amount());
 
 /// Address handling utilities.
 ///
@@ -224,14 +225,17 @@ impl MatrixMachine {
         println!("mat_offset = {:?}", mat_offset);
         assert!(mat_offset.is_multiple_of(self.blen));
         assert!(mat_offset < self.mlen);
-        
+
         let mat_row_offset = mat_offset as i64;
         let full_mat = self.mram.read(mat_base).await;
         // Slice columns instead of rows: [mlen, blen]
         let mat = full_mat
             .as_tensor()
             .view([self.mlen as i64, self.mlen as i64])
-            .i((.., mat_row_offset as i64..(mat_row_offset + self.blen as i64)));
+            .i((
+                ..,
+                mat_row_offset as i64..(mat_row_offset + self.blen as i64),
+            ));
         let mut tensors = Vec::with_capacity(self.blen as usize);
         cycle!(*SYSTOLIC_PROCESSING_OVERHEAD + self.mlen);
         for i in 0..self.blen {
@@ -369,7 +373,7 @@ impl MatrixMachine {
         for i in 0..self.broadcast_amount {
             // vec: [mlen, hlen, broadcast_amount]
             // For each i, select the corresponding slice along broadcast_amount
-            let vec_i = vec.i((.., i as i64, .., )).squeeze_dim(1); // [mlen, hlen]
+            let vec_i = vec.i((.., i as i64, ..)).squeeze_dim(1); // [mlen, hlen]
             // mat: [hlen, mlen]
             if !is_quiet() {
                 println!("vec_i = {}", vec_i);
@@ -457,7 +461,12 @@ impl MatrixMachine {
         for j in 0..self.broadcast_amount {
             for i in 0..self.mlen {
                 let tensor = self.h_accum.i((j as i64, i as i64, ..));
-                self.vram.write(vec_base + (j * self.mlen + i) * self.mlen, QuantTensor::quantize(tensor, self.vram.ty())).await;
+                self.vram
+                    .write(
+                        vec_base + (j * self.mlen + i) * self.mlen,
+                        QuantTensor::quantize(tensor, self.vram.ty()),
+                    )
+                    .await;
             }
         }
         self.h_accum = Tensor::zeros(
@@ -477,10 +486,11 @@ impl MatrixMachine {
         // vec @ mat: [1, mlen] @ [mlen, mlen] = [1, mlen], then squeeze
         // Convert to float32 before matmul to match PyTorch golden reference
         let vec_f32 = vec.as_tensor().unsqueeze(0).to_kind(tch::Kind::Float);
-        let mat_f32 = mat.as_tensor().view([self.mlen as i64, self.mlen as i64]).to_kind(tch::Kind::Float);
-        let result = vec_f32
-            .matmul(&mat_f32)
-            .squeeze_dim(0);
+        let mat_f32 = mat
+            .as_tensor()
+            .view([self.mlen as i64, self.mlen as i64])
+            .to_kind(tch::Kind::Float);
+        let result = vec_f32.matmul(&mat_f32).squeeze_dim(0);
         self.v_accum += result;
     }
 
@@ -491,13 +501,12 @@ impl MatrixMachine {
         // vec @ transpose(mat): [1, mlen] @ [mlen, mlen] = [1, mlen], then squeeze
         // Convert to float32 before matmul to match PyTorch golden reference
         let vec_f32 = vec.as_tensor().unsqueeze(0).to_kind(tch::Kind::Float);
-        let mat_t_f32 = mat.as_tensor()
+        let mat_t_f32 = mat
+            .as_tensor()
             .view([self.mlen as i64, self.mlen as i64])
             .transpose(-1, -2)
             .to_kind(tch::Kind::Float);
-        let result = vec_f32
-            .matmul(&mat_t_f32)
-            .squeeze_dim(0);
+        let result = vec_f32.matmul(&mat_t_f32).squeeze_dim(0);
         self.v_accum += result;
     }
 
@@ -544,7 +553,15 @@ impl VectorMachine {
         }
     }
 
-    async fn sub_scalar(&mut self, vd: u32, vs1: u32, f: f32, rmask: u8, mask: u32, rorder: op::VectorOrder) {
+    async fn sub_scalar(
+        &mut self,
+        vd: u32,
+        vs1: u32,
+        f: f32,
+        rmask: u8,
+        mask: u32,
+        rorder: op::VectorOrder,
+    ) {
         let a = self.vram.read(vs1).await;
         if rmask == 0 {
             if matches!(rorder, op::VectorOrder::Normal) {
@@ -632,7 +649,7 @@ impl VectorMachine {
                     let end = ((head + 1) * self.mask_unit) as i64;
                     let sliced = result.narrow(0, start, end - start);
                     let updated = &sliced + b.as_tensor().narrow(0, start, end - start);
-                result.narrow(0, start, end - start).copy_(&updated);
+                    result.narrow(0, start, end - start).copy_(&updated);
                 }
             }
             if !is_quiet() {
@@ -741,7 +758,11 @@ impl VectorMachine {
     }
 
     async fn vector_transfer_fp(&mut self, vd: u32, f: &[f16]) {
-        assert_eq!(f.len(), self.vram.tile_size() as usize, "Input vector length must match tile_size");
+        assert_eq!(
+            f.len(),
+            self.vram.tile_size() as usize,
+            "Input vector length must match tile_size"
+        );
         // Convert f16 slice to f32 vector
         let f32_vec: Vec<f32> = f.iter().map(|x| f32::from(*x)).collect();
         // Create tensor from f32 vector
@@ -801,17 +822,17 @@ impl VectorMachine {
 
 /// Information about an active loop
 struct LoopInfo {
-    start_pc: usize,           // Program counter of C_LOOP_START
-    iteration_count: u32,      // Total number of iterations (from imm)
-    current_iteration: u32,     // Current iteration (starts at iteration_count, decrements)
-    instruction_count: usize,   // Number of instructions executed in current iteration
-    loop_reg: u8,               // Register used for loop counter (rd from C_LOOP_START)
+    start_pc: usize,          // Program counter of C_LOOP_START
+    iteration_count: u32,     // Total number of iterations (from imm)
+    current_iteration: u32,   // Current iteration (starts at iteration_count, decrements)
+    instruction_count: usize, // Number of instructions executed in current iteration
+    loop_reg: u8,             // Register used for loop counter (rd from C_LOOP_START)
 }
 
 struct Accelerator {
     m_machine: MatrixMachine,
     v_machine: VectorMachine,
-    hbm: Arc<dyn MemoryModel>,
+    hbm: Arc<dyn ErasedMemoryModel>,
     reg_file: AcceeleratorRegFile,
     intsram: Vec<u32>,
     fpsram: Vec<f16>,
@@ -822,11 +843,11 @@ struct AcceeleratorRegFile {
     gp_reg: [u32; 16],
     fp_reg: [f16; 8],
     hbm_addr_reg: [u64; 8],
-    scale:  u32,
+    scale: u32,
     stride: u32,
     mm_load_stride: u32,
-    bmm_scale: f32,     // Scale factor during the BMM operation, apply to every element in the matrix operation.
-    v_mask: u32,        // HLEN Head Mask for VLEN Vector
+    bmm_scale: f32, // Scale factor during the BMM operation, apply to every element in the matrix operation.
+    v_mask: u32,    // HLEN Head Mask for VLEN Vector
 }
 
 impl Accelerator {
@@ -948,7 +969,6 @@ impl Accelerator {
                         }));
                     }
 
-
                     // Scale chunks (if Mx type)
                     if scale_len_in_bytes_per_load > 0 {
                         // Always align to 64-byte chunk boundary for loading
@@ -1052,13 +1072,292 @@ impl Accelerator {
         receiver
     }
 
+    /// Transfer a vector from SRAM to HBM.
+    /// Transfer data from SRAM to HBM with strided writing pattern.
+    /// Parameters:
+    /// - src_addr: Starting address in Vector SRAM
+    /// - index: Starting address for element data in HBM
+    /// - scale_index: Starting address for scale data in HBM (for MXFP/MXINT types)
+    /// - sram_type: Source data type format in SRAM
+    /// - hbm_type: Target data type format for HBM
+    /// - rstride: Stride mode selector
+    /// - store_dim: Number of elements to store per iteration (VLEN)
+    /// - store_amount: Number of strided stores to perform
+    async fn transfer_mx_to_hbm(
+        &mut self,
+        src_addr: u32,
+        index: u64,
+        scale_index: u64,
+        sram_type: MxDataType,
+        hbm_type: MxDataType,
+        rstride: u8,
+        store_dim: u32,
+        store_amount: u32,
+    ) {
+        let hbm_clone = self.hbm.clone();
+        let stride = if rstride == 1 {
+            self.reg_file.stride
+        } else {
+            store_dim
+        };
+
+        let element_ty = hbm_type.element_type();
+        let element_bits = element_ty.size_in_bits();
+
+        // Extract scale bits and block size if Mx type
+        let (scale_bits, blocksize) = match hbm_type {
+            MxDataType::Mx {
+                elem: _,
+                scale,
+                block,
+            } => (scale.size_in_bits(), block),
+            _ => (element_bits, 1),
+        };
+
+        let element_scale_ratio = (element_bits * blocksize as u8) / scale_bits;
+        let stride_scale = stride as f32 / element_scale_ratio as f32;
+        assert!(element_bits.is_power_of_two());
+
+        let len_in_bits_per_store = element_bits as u32 * store_dim;
+        assert!(len_in_bits_per_store.is_multiple_of(8 * 64));
+        let len_in_bytes_per_store = len_in_bits_per_store / 8;
+
+        // Calculate scale bytes per store iteration (for Mx types)
+        let (scale_len_in_bytes_per_store, block) = if let MxDataType::Mx {
+            elem: _,
+            scale,
+            block,
+        } = hbm_type
+        {
+            let scale_bits = scale.size_in_bits();
+            assert!(scale_bits.is_power_of_two());
+            let scale_len_in_bits_per_store = scale_bits as u32 * (store_dim / block);
+            assert!(scale_len_in_bits_per_store.is_multiple_of(8));
+            (scale_len_in_bits_per_store / 8, block as usize)
+        } else {
+            (0, usize::MAX)
+        };
+
+        // Read data from VRAM and convert to HBM format
+        for store_iter in 0..store_amount {
+            // Read from VRAM
+            let src_vram_addr = src_addr + store_iter * store_dim;
+            let sram_tensor = self.v_machine.vram.read(src_vram_addr).await;
+
+            // Debug: Print VRAM data read
+            if !is_quiet() {
+                let vram_data = sram_tensor.as_tensor();
+                let vram_size = vram_data.size1().unwrap() as usize;
+                let vram_slice = unsafe {
+                    core::slice::from_raw_parts(
+                        vram_data.data_ptr() as *const f32,
+                        vram_size.min(store_dim as usize),
+                    )
+                };
+                eprintln!(
+                    "[H_STORE_V] Store iter {}: VRAM[{}] -> {} FP32 values",
+                    store_iter,
+                    src_vram_addr,
+                    vram_slice.len()
+                );
+                eprintln!(
+                    "  VRAM data (first 8): {:?}",
+                    &vram_slice[..vram_slice.len().min(8)]
+                );
+            }
+
+            // Convert from SRAM type to HBM type
+            let mut hbm_tensor =
+                QuantTensor::quantize(sram_tensor.as_tensor().shallow_clone(), hbm_type);
+
+            // Convert to bytes (element bytes + scale bytes)
+            let (element_bytes, scale_bytes) = hbm_tensor.into_bytes();
+
+            // Verify scale bytes length matches expected
+            // if scale_len_in_bytes_per_store > 0 {
+            //     assert_eq!(
+            //         scale_bytes.len(),
+            //         scale_len_in_bytes_per_store as usize,
+            //         scale_len_in_bytes_per_store,
+            //         scale_bytes.len()
+            //     );
+            // }
+
+            // Debug: Print converted HBM data
+            if !is_quiet() {
+                eprintln!("  Converted to HBM format:");
+                eprintln!(
+                    "    Element bytes: {} bytes (first 16): {:?}",
+                    element_bytes.len(),
+                    &element_bytes[..element_bytes.len().min(16)]
+                );
+                if !scale_bytes.is_empty() {
+                    eprintln!(
+                        "    Scale bytes: {} bytes (expected {}): {:?}",
+                        scale_bytes.len(),
+                        scale_len_in_bytes_per_store,
+                        &scale_bytes[..scale_bytes.len().min(8)]
+                    );
+                }
+            }
+
+            // Calculate HBM addresses
+            let element_addr = index + (store_iter * stride) as u64;
+            let scale_addr = scale_index + (store_iter as f32 * stride_scale) as u64;
+
+            // Write element bytes to HBM (64-byte aligned chunks)
+            for i in 0..(len_in_bytes_per_store as usize + 63) / 64 {
+                let chunk_offset = i * 64;
+                let chunk_size = std::cmp::min(64, len_in_bytes_per_store as usize - chunk_offset);
+                let addr = element_addr + (i * 64) as u64;
+                assert!(addr.is_multiple_of(64));
+
+                let mut chunk = [0u8; 64];
+                if chunk_offset < element_bytes.len() {
+                    let copy_len = std::cmp::min(chunk_size, element_bytes.len() - chunk_offset);
+                    chunk[..copy_len]
+                        .copy_from_slice(&element_bytes[chunk_offset..chunk_offset + copy_len]);
+                }
+                hbm_clone.write(addr, chunk).await;
+            }
+
+            // Write scale bytes to HBM (if Mx type)
+            // Handle scales that may span multiple 64-byte chunks
+            if scale_len_in_bytes_per_store > 0 {
+                let mut scale_bytes_written = 0;
+                let total_scale_bytes = scale_len_in_bytes_per_store as usize;
+
+                // Write scales in 64-byte chunks, handling unaligned addresses
+                while scale_bytes_written < total_scale_bytes {
+                    let current_scale_addr = scale_addr + scale_bytes_written as u64;
+                    let aligned_scale_addr = (current_scale_addr / 64) * 64;
+                    let within_chunk_offset = (current_scale_addr % 64) as usize;
+
+                    // Read existing chunk
+                    let mut existing_chunk = hbm_clone.read(aligned_scale_addr).await;
+
+                    // Calculate how many bytes we can write in this chunk
+                    let bytes_remaining = total_scale_bytes - scale_bytes_written;
+                    let bytes_in_chunk = std::cmp::min(64 - within_chunk_offset, bytes_remaining);
+                    let bytes_to_copy =
+                        std::cmp::min(bytes_in_chunk, scale_bytes.len() - scale_bytes_written);
+
+                    if bytes_to_copy > 0 {
+                        // Debug: Print scale write info
+                        if !is_quiet() && scale_bytes_written == 0 {
+                            eprintln!(
+                                "    Writing scale: {} total bytes starting at HBM[0x{:x}]",
+                                total_scale_bytes, scale_addr
+                            );
+                            eprintln!(
+                                "      First chunk: {} bytes at HBM[0x{:x}] (offset within chunk: {})",
+                                bytes_to_copy, aligned_scale_addr, within_chunk_offset
+                            );
+                            eprintln!(
+                                "      Scale data (hex): {:02x?}",
+                                &scale_bytes[scale_bytes_written
+                                    ..(scale_bytes_written + bytes_to_copy)
+                                        .min(scale_bytes_written + 8)]
+                            );
+                        }
+
+                        // Copy scale bytes into the chunk
+                        existing_chunk[within_chunk_offset..within_chunk_offset + bytes_to_copy]
+                            .copy_from_slice(
+                                &scale_bytes
+                                    [scale_bytes_written..scale_bytes_written + bytes_to_copy],
+                            );
+
+                        // Write the modified chunk back
+                        hbm_clone.write(aligned_scale_addr, existing_chunk).await;
+
+                        // Verify: Read back from both hbm_clone and self.hbm to check consistency
+                        if !is_quiet() && scale_bytes_written == 0 {
+                            let verify_chunk_clone = hbm_clone.read(aligned_scale_addr).await;
+                            let verify_chunk_self = self.hbm.read(aligned_scale_addr).await;
+                            let verify_slice_clone = &verify_chunk_clone
+                                [within_chunk_offset..within_chunk_offset + bytes_to_copy];
+                            let verify_slice_self = &verify_chunk_self
+                                [within_chunk_offset..within_chunk_offset + bytes_to_copy];
+                            let expected_slice = &scale_bytes
+                                [scale_bytes_written..scale_bytes_written + bytes_to_copy];
+
+                            if verify_slice_clone != expected_slice {
+                                eprintln!(
+                                    "    WARNING: Scale write verification failed (hbm_clone)!"
+                                );
+                                eprintln!("      Expected: {:02x?}", expected_slice);
+                                eprintln!("      Got:      {:02x?}", verify_slice_clone);
+                            } else if verify_slice_self != expected_slice {
+                                eprintln!(
+                                    "    WARNING: Scale write to hbm_clone succeeded, but self.hbm doesn't match!"
+                                );
+                                eprintln!("      Expected: {:02x?}", expected_slice);
+                                eprintln!("      hbm_clone: {:02x?}", verify_slice_clone);
+                                eprintln!("      self.hbm:  {:02x?}", verify_slice_self);
+                            } else {
+                                eprintln!(
+                                    "    Scale write verified successfully (both hbm_clone and self.hbm)"
+                                );
+                            }
+                        }
+
+                        scale_bytes_written += bytes_to_copy;
+                    } else {
+                        break;
+                    }
+                }
+
+                if !is_quiet() {
+                    eprintln!(
+                        "    Wrote {} scale bytes total (expected {})",
+                        scale_bytes_written, total_scale_bytes
+                    );
+                    if scale_bytes_written != total_scale_bytes {
+                        eprintln!("    ERROR: Scale bytes written mismatch!");
+                    }
+                }
+            }
+
+            if !is_quiet() {
+                eprintln!("[H_STORE_V] Store iter {} completed\n", store_iter);
+            }
+        }
+
+        // Final verification: Read back all scales that were written
+        // Read from self.hbm (not clone) to verify writes are visible
+        if !is_quiet() && scale_len_in_bytes_per_store > 0 {
+            eprintln!("[H_STORE_V] Final scale verification (reading from self.hbm):");
+            for store_iter in 0..store_amount {
+                let scale_addr = scale_index + (store_iter as f32 * stride_scale) as u64;
+                let aligned_scale_addr = (scale_addr / 64) * 64;
+                let within_chunk_offset = (scale_addr % 64) as usize;
+                let verify_chunk = self.hbm.read(aligned_scale_addr).await;
+                let verify_len = std::cmp::min(
+                    scale_len_in_bytes_per_store as usize,
+                    64 - within_chunk_offset,
+                );
+                if verify_len > 0 {
+                    let verify_slice =
+                        &verify_chunk[within_chunk_offset..within_chunk_offset + verify_len];
+                    eprintln!(
+                        "  Store iter {}: Scale at HBM[0x{:x}]: {:02x?} (first {} bytes)",
+                        store_iter,
+                        scale_addr,
+                        &verify_slice[..verify_len.min(8)],
+                        verify_len
+                    );
+                }
+            }
+        }
+    }
 
     async fn do_ops(&mut self, ops: &[op::Opcode]) {
         let mut pc: usize = 0; // Program counter
-        
+
         while pc < ops.len() {
             let op = &ops[pc];
-            
+
             // Update instruction count for active loops
             for loop_info in &mut self.loop_stack {
                 loop_info.instruction_count += 1;
@@ -1073,13 +1372,13 @@ impl Accelerator {
                     );
                 }
             }
-            
+
             if !is_quiet() {
                 println!("execute op[{pc}] = {:?}", op);
             }
-            
+
             let mut jump_pc: Option<usize> = None;
-            
+
             match op {
                 op::Opcode::Invalid => todo!(),
 
@@ -1116,7 +1415,8 @@ impl Accelerator {
                 op::Opcode::M_BMM { rs1, rs2, rd } => {
                     self.m_machine
                         .bmm(
-                            self.reg_file.gp_reg[*rs1 as usize] + self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize]
+                                + self.reg_file.gp_reg[*rd as usize],
                             self.reg_file.gp_reg[*rs2 as usize],
                             self.reg_file.mm_load_stride,
                             self.reg_file.bmm_scale,
@@ -1126,7 +1426,8 @@ impl Accelerator {
                 op::Opcode::M_BTMM { rs1, rs2, rd } => {
                     self.m_machine
                         .btmm(
-                            self.reg_file.gp_reg[*rs1 as usize] + self.reg_file.gp_reg[*rd as usize],
+                            self.reg_file.gp_reg[*rs1 as usize]
+                                + self.reg_file.gp_reg[*rd as usize],
                             self.reg_file.gp_reg[*rs2 as usize],
                             self.reg_file.mm_load_stride,
                             self.reg_file.bmm_scale,
@@ -1163,8 +1464,17 @@ impl Accelerator {
                 }
                 op::Opcode::M_BMV_WO { rd, imm } => todo!(),
 
-                op::Opcode::V_ADD_VV { rd, rs1, rs2, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                op::Opcode::V_ADD_VV {
+                    rd,
+                    rs1,
+                    rs2,
+                    rmask,
+                } => {
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .add(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1175,8 +1485,17 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_ADD_VF { rd, rs1, rs2, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                op::Opcode::V_ADD_VF {
+                    rd,
+                    rs1,
+                    rs2,
+                    rmask,
+                } => {
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .add_scalar(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1187,8 +1506,17 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_SUB_VV { rd, rs1, rs2, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                op::Opcode::V_SUB_VV {
+                    rd,
+                    rs1,
+                    rs2,
+                    rmask,
+                } => {
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .sub(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1199,8 +1527,18 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_SUB_VF { rd, rs1, rs2, rmask, rorder} => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                op::Opcode::V_SUB_VF {
+                    rd,
+                    rs1,
+                    rs2,
+                    rmask,
+                    rorder,
+                } => {
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .sub_scalar(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1212,8 +1550,17 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_MUL_VV { rd, rs1, rs2, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                op::Opcode::V_MUL_VV {
+                    rd,
+                    rs1,
+                    rs2,
+                    rmask,
+                } => {
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .mul(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1224,8 +1571,17 @@ impl Accelerator {
                         )
                         .await;
                 }
-                op::Opcode::V_MUL_VF { rd, rs1, rs2, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                op::Opcode::V_MUL_VF {
+                    rd,
+                    rs1,
+                    rs2,
+                    rmask,
+                } => {
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .mul_scalar(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1237,7 +1593,11 @@ impl Accelerator {
                         .await;
                 }
                 op::Opcode::V_EXP_V { rd, rs1, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .exp(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1248,7 +1608,11 @@ impl Accelerator {
                         .await;
                 }
                 op::Opcode::V_RECI_V { rd, rs1, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     self.v_machine
                         .reciprocal(
                             self.reg_file.gp_reg[*rd as usize],
@@ -1263,7 +1627,11 @@ impl Accelerator {
                 op::Opcode::V_RED_SUM { rd: 0, .. } | op::Opcode::V_RED_MAX { rd: 0, .. } => (),
 
                 op::Opcode::V_RED_SUM { rd, rs1, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     let result = self
                         .v_machine
                         .reduce_sum(
@@ -1276,7 +1644,11 @@ impl Accelerator {
                     self.reg_file.fp_reg[*rd as usize] = f16::from_f32(result);
                 }
                 op::Opcode::V_RED_MAX { rd, rs1, rmask } => {
-                    let mask = if *rmask == 0 { (1 << *HLEN as u32) - 1 } else {self.reg_file.v_mask };
+                    let mask = if *rmask == 0 {
+                        (1 << *HLEN as u32) - 1
+                    } else {
+                        self.reg_file.v_mask
+                    };
                     let result = self
                         .v_machine
                         .reduce_max(
@@ -1350,10 +1722,7 @@ impl Accelerator {
                     let end_idx = start_idx + *VLEN as usize;
                     let f = &self.fpsram[start_idx..end_idx];
                     self.v_machine
-                        .vector_transfer_fp(
-                            self.reg_file.gp_reg[*rd as usize],
-                            f,
-                        )
+                        .vector_transfer_fp(self.reg_file.gp_reg[*rd as usize], f)
                         .await;
                     cycle!(*VLEN);
                 }
@@ -1445,7 +1814,7 @@ impl Accelerator {
                     let addr = self.reg_file.hbm_addr_reg[*rs2 as usize];
                     let dtype = match precision {
                         op::VectorPrecision::Activation => *VECTOR_ACTIVATION_TYPE,
-                        op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE
+                        op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE,
                     };
 
                     let scale = match dtype {
@@ -1477,8 +1846,41 @@ impl Accelerator {
                     rs1,
                     rs2,
                     rstride,
-                    precision: _,
-                } => todo!(),
+                    precision,
+                } => {
+                    let src_addr = self.reg_file.gp_reg[*rd as usize];
+                    let offset = self.reg_file.gp_reg[*rs1 as usize];
+                    let addr = self.reg_file.hbm_addr_reg[*rs2 as usize];
+                    let dtype = match precision {
+                        op::VectorPrecision::Activation => *VECTOR_ACTIVATION_TYPE,
+                        op::VectorPrecision::KeyValue => *VECTOR_KV_TYPE,
+                    };
+
+                    let scale = match dtype {
+                        MxDataType::Plain(_) => 0,
+                        MxDataType::Mx { elem, scale, block } => {
+                            offset
+                                / (elem.size_in_bits() as u32 * block / scale.size_in_bits() as u32)
+                        }
+                    };
+
+                    let element_index = addr + offset as u64;
+                    // Scales are stored AFTER elements, so scale_index = element_index + scale_reg + scale
+                    // where scale_reg is the offset from element start to scale start
+                    let scale_index = addr + self.reg_file.scale as u64 + scale as u64;
+
+                    self.transfer_mx_to_hbm(
+                        src_addr,
+                        element_index,
+                        scale_index,
+                        self.v_machine.vram.ty(),
+                        dtype,
+                        *rstride,
+                        *VLEN,
+                        *STORE_V_AMOUNT,
+                    )
+                    .await;
+                }
                 op::Opcode::C_SET_ADDR_REG { rd, rs1, rs2 } => {
                     let imm = ((self.reg_file.gp_reg[*rs1 as usize] as u64) << 32)
                         | (self.reg_file.gp_reg[*rs2 as usize] as u64);
@@ -1502,7 +1904,7 @@ impl Accelerator {
                     assert!(*imm > 0, "Iteration count must be greater than 0");
                     let iteration_count = *imm as u32;
                     self.reg_file.gp_reg[*rd as usize] = iteration_count;
-                    
+
                     // Push new loop onto stack
                     self.loop_stack.push(LoopInfo {
                         start_pc: pc,
@@ -1511,49 +1913,66 @@ impl Accelerator {
                         instruction_count: 0,
                         loop_reg: *rd,
                     });
-                    
+
                     if !is_quiet() {
-                        println!("C_LOOP_START: Starting loop at PC {} with {} iterations", pc, iteration_count);
+                        println!(
+                            "C_LOOP_START: Starting loop at PC {} with {} iterations",
+                            pc, iteration_count
+                        );
                     }
                     cycle!(1);
                 }
                 op::Opcode::C_LOOP_END { rd } => {
                     // Find the matching loop (most recent loop with matching register)
-                    if let Some(loop_info) = self.loop_stack.iter_mut().rev().find(|l| l.loop_reg == *rd) {
+                    if let Some(loop_info) =
+                        self.loop_stack.iter_mut().rev().find(|l| l.loop_reg == *rd)
+                    {
                         // Decrement the register (as per spec)
                         let reg_value = self.reg_file.gp_reg[*rd as usize];
                         if reg_value > 1 {
                             // More iterations remaining, loop back
                             self.reg_file.gp_reg[*rd as usize] = reg_value - 1;
-                            
+
                             // Update loop state
                             loop_info.current_iteration = reg_value - 1;
                             loop_info.instruction_count = 0; // Reset instruction count for next iteration
-                            
+
                             // Jump back to C_LOOP_START + 1 (skip the C_LOOP_START instruction itself)
                             jump_pc = Some(loop_info.start_pc + 1);
-                            
+
                             if !is_quiet() {
-                                println!("C_LOOP_END: Looping back to PC {} (remaining iterations: {})", 
-                                    loop_info.start_pc + 1, reg_value - 1);
+                                println!(
+                                    "C_LOOP_END: Looping back to PC {} (remaining iterations: {})",
+                                    loop_info.start_pc + 1,
+                                    reg_value - 1
+                                );
                             }
                         } else {
                             // Last iteration (reg_value == 1) or already done (reg_value == 0)
                             // Decrement to 0 and exit the loop
                             self.reg_file.gp_reg[*rd as usize] = 0;
-                            
+
                             // Loop is complete, pop it from stack
                             if !is_quiet() {
-                                println!("C_LOOP_END: Loop at PC {} completed (executed {} times)", 
-                                    loop_info.start_pc, loop_info.iteration_count);
+                                println!(
+                                    "C_LOOP_END: Loop at PC {} completed (executed {} times)",
+                                    loop_info.start_pc, loop_info.iteration_count
+                                );
                             }
                             // Remove this loop from the stack
                             let loop_reg = loop_info.loop_reg;
-                            let pos = self.loop_stack.iter().rposition(|l| l.loop_reg == loop_reg).unwrap();
+                            let pos = self
+                                .loop_stack
+                                .iter()
+                                .rposition(|l| l.loop_reg == loop_reg)
+                                .unwrap();
                             self.loop_stack.remove(pos);
                         }
                     } else {
-                        panic!("C_LOOP_END: No matching C_LOOP_START found for register {}", *rd);
+                        panic!(
+                            "C_LOOP_END: No matching C_LOOP_START found for register {}",
+                            *rd
+                        );
                     }
                     cycle!(1);
                 }
@@ -1571,7 +1990,7 @@ impl Accelerator {
                     cycle!(1);
                 }
             }
-            
+
             // Handle loop jumps
             if let Some(target_pc) = jump_pc {
                 pc = target_pc;
@@ -1620,8 +2039,12 @@ async fn start() {
     let opts = Opts::parse();
     QUIET_MODE.store(opts.quiet, std::sync::atomic::Ordering::Relaxed);
     let mram = Arc::new(MatrixSram::new(*MLEN, *MATRIX_SRAM_SIZE, *MATRIX_SRAM_TYPE)); // Matrix SRAM
-    let vram = Arc::new(VectorSram::from_mx_type(*VLEN, *VECTOR_SRAM_SIZE, *VECTOR_SRAM_TYPE)); // Vector SRAM
-    
+    let vram = Arc::new(VectorSram::from_mx_type(
+        *VLEN,
+        *VECTOR_SRAM_SIZE,
+        *VECTOR_SRAM_TYPE,
+    )); // Vector SRAM
+
     let m_machine = MatrixMachine {
         mram,
         vram: vram.clone(),
@@ -1640,9 +2063,9 @@ async fn start() {
         broadcast_amount: *BROADCAST_AMOUNT,
     };
 
-    let v_machine = VectorMachine { 
-        vram, 
-        tile_size: *VLEN, 
+    let v_machine = VectorMachine {
+        vram,
+        tile_size: *VLEN,
         mask_unit: *HLEN,
     }; // Share same dim with VSRAM
 
@@ -1677,7 +2100,6 @@ async fn start() {
         .split_whitespace() // split by spaces/newlines
         .map(|tok| u32::from_str_radix(tok.trim_start_matches("0x"), 16).unwrap())
         .collect();
-
 
     // Memory Initialization
     // - HBM Preload
@@ -1756,6 +2178,17 @@ async fn start() {
     if !is_quiet() {
         eprintln!("Dumped VRAM content to: {:?}", vram_dump_path);
     }
+
+    // Dump HBM
+    let hbm_dump_path = "hbm_dump.bin";
+    let hbm_size = *HBM_SIZE;
+    let mut hbm_bytes = vec![0u8; hbm_size];
+    hbm.model().data().with_data(|f| {
+        let len = std::cmp::min(hbm_size, f.len());
+        hbm_bytes[..len].copy_from_slice(&f[..len]);
+    });
+    let mut hbm_file = std::fs::File::create(hbm_dump_path).unwrap();
+    hbm_file.write_all(&hbm_bytes).unwrap();
 
     let memory_stats = hbm.statistics();
     let utilization = (memory_stats.total_bytes_read + memory_stats.total_bytes_written) as f64

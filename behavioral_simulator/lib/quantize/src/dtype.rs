@@ -9,6 +9,15 @@ const fn mask(x: u8) -> u32 {
     ((1u64 << x) - 1) as _
 }
 
+/// Count leading zeros in an n-bit value (not the full 32-bit value)
+const fn clz_n(val: u32, n: u8) -> u8 {
+    if val == 0 {
+        n
+    } else {
+        (n as u32 - (32 - val.leading_zeros())) as u8
+    }
+}
+
 impl FpType {
     pub const E8M0: Self = FpType {
         sign: false,
@@ -56,32 +65,78 @@ impl FpType {
 
         let new_exponent_mask = mask(new_ty.exponent);
 
-        let mut converted_exponent = match exponent {
-            // Subnormal -> subnormal
-            0 => 0,
+        // For subnormal source when converting to larger format, we need to normalize
+        // and convert to a normal number in the dest format.
+        // E.g., E4M3 subnormal 0x07 = (7/8) * 2^(-7) = 0.0068359375 should become F32 normal.
+        let (mut converted_exponent, subnormal_normalize_shift) = match exponent {
+            // Subnormal handling
+            0 => {
+                if mantissa_bits == 0 {
+                    // Zero stays zero
+                    (0, 0)
+                } else if self.exponent < new_ty.exponent {
+                    // Source subnormal can become dest normal
+                    // Subnormal value = (mantissa / 2^m) * 2^(-src_bias)
+                    // Need to normalize: find leading 1 in mantissa and shift
+                    let leading_zeros = clz_n(mantissa_bits, self.mantissa);
+                    let normalize_shift = leading_zeros + 1; // +1 to make leading 1 implicit
+
+                    // Source effective exponent for subnormal: -src_bias
+                    // Note: Python quantizer uses -bias (not IEEE's 1-bias) for subnormals
+                    let src_bias = (exponent_mask >> 1) as i32;
+                    let effective_src_exp = -src_bias; // E4M3: -7 (matching Python quantizer)
+
+                    // After normalization, exponent decreases
+                    let normalized_exp = effective_src_exp - (normalize_shift as i32);
+
+                    // Convert to dest biased exponent
+                    let dst_bias = (new_exponent_mask >> 1) as i32;
+                    let dst_exp = normalized_exp + dst_bias;
+
+                    if dst_exp <= 0 {
+                        // Underflow to dest subnormal - keep as subnormal
+                        (0, 0)
+                    } else {
+                        (dst_exp as u32, normalize_shift)
+                    }
+                } else {
+                    // Source and dest have same or dest has smaller exponent range
+                    // Subnormal stays subnormal
+                    (0, 0)
+                }
+            }
             // Inf/NaN -> Inf/NaN
-            _ if exponent == exponent_mask => new_exponent_mask,
+            _ if exponent == exponent_mask => (new_exponent_mask, 0),
             // Normal number bias conversion
             _ if self.exponent <= new_ty.exponent => {
-                exponent + ((new_exponent_mask - exponent_mask) >> 1)
+                (exponent + ((new_exponent_mask - exponent_mask) >> 1), 0)
             }
             _ => {
-                // In this case, the conversion is lossy, we need to check the bias diff first.
+                // TODO: Needs to reimplment the underflow and overflow treatment.
                 let bias_diff = (exponent - new_exponent_mask) >> 1;
                 if exponent <= bias_diff {
-                    // Underflow
-                    todo!();
+                    // Underflow: saturate to zero (subnormal)
+                    (0, 0)
                 } else if exponent - bias_diff >= new_exponent_mask {
-                    // Overflow
-                    todo!();
+                    // Overflow: saturate to infinity
+                    (new_exponent_mask, 0)
                 } else {
-                    exponent - bias_diff
+                    (exponent - bias_diff, 0)
                 }
             }
         };
 
+        // For subnormal normalization, we need to shift the mantissa to remove the leading 1
+        // that becomes implicit in the normalized representation.
+        let normalized_mantissa = if subnormal_normalize_shift > 0 {
+            // Shift left to normalize, masking off the now-implicit leading 1
+            (mantissa_bits << subnormal_normalize_shift) & mask(self.mantissa)
+        } else {
+            mantissa_bits
+        };
+
         let converted_mantissa = if self.mantissa <= new_ty.mantissa {
-            mantissa_bits << (new_ty.mantissa - self.mantissa)
+            normalized_mantissa << (new_ty.mantissa - self.mantissa)
         } else {
             // In this case, the conversion is lossy, we need to perform rounding.
             let discarded_bits = (mantissa_bits & mask(self.mantissa - new_ty.mantissa - 1)) != 0;
@@ -160,6 +215,48 @@ fn test_f16() {
         ty.convert_bits_to_f32(f16::NEG_INFINITY.to_bits() as u32),
         f32::NEG_INFINITY
     );
+}
+
+#[test]
+fn test_e4m3_subnormal() {
+    // E4M3 format: 1 sign, 4 exp, 3 mantissa. Bias = 7.
+    let ty = FpType {
+        sign: true,
+        exponent: 4,
+        mantissa: 3,
+    };
+
+    // Test subnormal values (exponent = 0)
+    // E4M3 subnormal: value = (mantissa / 8) * 2^(-7) (matching Python quantizer convention)
+    // Note: IEEE standard uses 2^(1-bias)=2^(-6), but Python uses 2^(-bias)=2^(-7)
+
+    // 0x07 = exp=0, man=7 -> (7/8) * 2^(-7) = 0.875 * 0.0078125 = 0.0068359375
+    let val = ty.convert_bits_to_f32(0x07);
+    assert!((val - 0.0068359375).abs() < 1e-9, "E4M3 subnormal 0x07: got {}, expected 0.0068359375", val);
+
+    // 0x87 = sign=1, exp=0, man=7 -> -0.0068359375
+    let val = ty.convert_bits_to_f32(0x87);
+    assert!((val - (-0.0068359375)).abs() < 1e-9, "E4M3 subnormal 0x87: got {}, expected -0.0068359375", val);
+
+    // 0x01 = exp=0, man=1 -> (1/8) * 2^(-7) = 0.0009765625
+    let val = ty.convert_bits_to_f32(0x01);
+    assert!((val - 0.0009765625).abs() < 1e-9, "E4M3 subnormal 0x01: got {}, expected 0.0009765625", val);
+
+    // 0x04 = exp=0, man=4 -> (4/8) * 2^(-7) = 0.5 * 0.0078125 = 0.00390625
+    let val = ty.convert_bits_to_f32(0x04);
+    assert!((val - 0.00390625).abs() < 1e-9, "E4M3 subnormal 0x04: got {}, expected 0.00390625", val);
+
+    // 0x00 = zero
+    assert_eq!(ty.convert_bits_to_f32(0x00), 0.0);
+
+    // Test some normal values for sanity
+    // 0x38 = exp=7, man=0 -> 1.0 * 2^(7-7) = 1.0
+    let val = ty.convert_bits_to_f32(0x38);
+    assert!((val - 1.0).abs() < 1e-6, "E4M3 normal 0x38: got {}, expected 1.0", val);
+
+    // 0x3F = exp=7, man=7 -> 1.875 * 2^(7-7) = 1.875
+    let val = ty.convert_bits_to_f32(0x3F);
+    assert!((val - 1.875).abs() < 1e-6, "E4M3 normal 0x3F: got {}, expected 1.875", val);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 use quantize::{DataType, MxDataType, QuantTensor};
-use tokio::sync::Mutex;
-use tokio::sync::oneshot::Receiver;
 use tch::Tensor;
+use tokio::sync::oneshot::Receiver;
+use tokio::sync::Mutex;
 
 /// Vector SRAM that stores data in pure binary format with row-based storage.
 ///
@@ -39,20 +39,13 @@ impl VectorSram {
     /// * `depth` - Number of rows in the SRAM
     /// * `fp_type` - Floating point data type for FP operations
     /// * `int_size_bytes` - Size of integer in bytes (typically 4 for i32)
-    pub fn new(
-        vlen: u32,
-        depth: usize,
-        fp_type: DataType,
-        int_size_bytes: usize,
-    ) -> Self {
+    pub fn new(vlen: u32, depth: usize, fp_type: DataType, int_size_bytes: usize) -> Self {
         // Use FP type size for row width (can be changed if needed)
         let element_size = fp_type.size_in_bits() as usize / 8;
         let row_width = vlen as usize * element_size;
 
         let rows = (0..depth)
-            .map(|_| {
-                Mutex::new(RowData::Ready(vec![0u8; row_width]))
-            })
+            .map(|_| Mutex::new(RowData::Ready(vec![0u8; row_width])))
             .collect();
 
         Self {
@@ -67,11 +60,7 @@ impl VectorSram {
     /// Create a new Vector SRAM from MxDataType (for backward compatibility).
     ///
     /// Extracts the Plain DataType from MxDataType and uses it for FP storage.
-    pub fn from_mx_type(
-        vlen: u32,
-        depth: usize,
-        mx_type: MxDataType,
-    ) -> Self {
+    pub fn from_mx_type(vlen: u32, depth: usize, mx_type: MxDataType) -> Self {
         let fp_type = match mx_type {
             MxDataType::Plain(dt) => dt,
             MxDataType::Mx { elem, .. } => elem,
@@ -105,7 +94,7 @@ impl VectorSram {
         assert!(row_idx < self.depth, "Address out of bounds");
 
         let mut guard = self.rows[row_idx].lock().await;
-        
+
         // Handle pending writes
         if let RowData::Pending(ref mut receiver) = *guard {
             let tensor = receiver.await.unwrap();
@@ -132,7 +121,7 @@ impl VectorSram {
         assert!(row_idx < self.depth, "Address out of bounds");
 
         let mut guard = self.rows[row_idx].lock().await;
-        
+
         // Handle pending writes (convert to bytes first)
         if let RowData::Pending(ref mut receiver) = *guard {
             let tensor = receiver.await.unwrap();
@@ -160,7 +149,7 @@ impl VectorSram {
 
         // Clip to VLEN
         let clipped = self.clip_to_vlen(&tensor);
-        
+
         // Convert to bytes
         let row_bytes = self.quant_tensor_to_bytes(&clipped);
 
@@ -198,17 +187,16 @@ impl VectorSram {
         tensor: Receiver<QuantTensor>,
     ) {
         let start_row_idx = self.addr_to_row_idx(addr);
-        
+
         // Await the tensor from the channel and extract data immediately to make it Send
         let tensor = tensor.await.unwrap();
         let tensor_data = tensor.as_tensor();
         let total_elements = tensor_data.size1().unwrap() as usize;
-        
+
         // Extract f32 data from tensor to make it Send-safe
         let len = total_elements;
-        let f32_slice = unsafe {
-            core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len)
-        };
+        let f32_slice =
+            unsafe { core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) };
         let data_vec: Vec<f32> = f32_slice.to_vec();
 
         let chunk_size = self.vlen as usize;
@@ -245,7 +233,7 @@ impl VectorSram {
         int_vec: Receiver<Vec<i32>>,
     ) {
         let start_row_idx = self.addr_to_row_idx(addr);
-        
+
         // Await the integer vector from the channel
         let int_vec = int_vec.await.unwrap();
         // println!("addr = {:?}", addr);
@@ -289,7 +277,8 @@ impl VectorSram {
 
             // Convert bytes to f32 values
             let mut vec = vec![0f32; elements_in_row];
-            self.fp_type.convert_bytes_to_f32_vec(&bytes[start_byte..end_byte], &mut vec);
+            self.fp_type
+                .convert_bytes_to_f32_vec(&bytes[start_byte..end_byte], &mut vec);
 
             // Pad with zeros if needed
             if elements_in_row < self.vlen as usize {
@@ -313,7 +302,7 @@ impl VectorSram {
 
         for row_mutex in &self.rows {
             let mut guard = row_mutex.lock().await;
-            
+
             // Handle pending writes
             if let RowData::Pending(ref mut receiver) = *guard {
                 let tensor = receiver.await.unwrap();
@@ -345,7 +334,7 @@ impl VectorSram {
     fn clip_to_vlen(&self, tensor: &QuantTensor) -> QuantTensor {
         let tensor_data = tensor.as_tensor();
         let len = tensor_data.size1().unwrap() as i64;
-        
+
         if len <= self.vlen as i64 {
             tensor.clone()
         } else {
@@ -358,9 +347,8 @@ impl VectorSram {
     fn quant_tensor_to_bytes(&self, tensor: &QuantTensor) -> Vec<u8> {
         let tensor_data = tensor.as_tensor();
         let len = tensor_data.size1().unwrap() as usize;
-        let f32_slice = unsafe {
-            core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len)
-        };
+        let f32_slice =
+            unsafe { core::slice::from_raw_parts(tensor_data.data_ptr() as *const f32, len) };
 
         let total_bits = len * self.fp_type.size_in_bits() as usize;
         let bytes_needed = (total_bits + 7) / 8;
@@ -376,10 +364,8 @@ impl VectorSram {
         let actual_len = num_elements.min(expected_len as usize);
 
         let mut vec = vec![0f32; actual_len];
-        self.fp_type.convert_bytes_to_f32_vec(
-            &bytes[..actual_len * bytes_per_element],
-            &mut vec,
-        );
+        self.fp_type
+            .convert_bytes_to_f32_vec(&bytes[..actual_len * bytes_per_element], &mut vec);
 
         // Pad to expected_len if needed
         if actual_len < expected_len as usize {
@@ -393,15 +379,15 @@ impl VectorSram {
     /// Convert integer vector to bytes
     fn int_vec_to_bytes(&self, int_vec: &[i32], expected_len: u32) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(expected_len as usize * self.int_size_bytes);
-        
+
         // Write the actual integers
         for &val in int_vec.iter() {
             bytes.extend_from_slice(&val.to_le_bytes());
         }
-        
+
         // Pad with zeros to expected_len
         bytes.resize(expected_len as usize * self.int_size_bytes, 0);
-        
+
         bytes
     }
 
@@ -409,7 +395,7 @@ impl VectorSram {
     fn bytes_to_int_vec(&self, bytes: &[u8], expected_len: u32) -> Vec<i32> {
         let mut result = Vec::with_capacity(expected_len as usize);
         let mut offset = 0;
-        
+
         for _ in 0..expected_len as usize {
             if offset + self.int_size_bytes <= bytes.len() {
                 let mut int_bytes = [0u8; 4];
@@ -422,7 +408,7 @@ impl VectorSram {
                 result.push(0);
             }
         }
-        
+
         result
     }
 }

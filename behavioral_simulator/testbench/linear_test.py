@@ -7,6 +7,20 @@ from torch import nn
 from compiler.asm_templates import projection_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
+from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+
+
+def quantize_to_mxfp(tensor):
+    """
+    Quantize tensor to MXFP format matching hardware (E4M3 with 8-bit scale per block of 8).
+    Uses the same quantizer as the behavioral simulator's memory loader.
+    Returns the dequantized tensor (what hardware sees after HBM->VRAM load).
+    """
+    orig_shape = tensor.shape
+    bm_x, _, _, _ = _mx_fp_quantize_hardware(
+        tensor, width=8, exponent_width=4, exponent_bias_width=8, block_size=[8]
+    )
+    return bm_x.reshape(orig_shape)
 
 
 if __name__ == "__main__":
@@ -18,20 +32,29 @@ if __name__ == "__main__":
     fp_preload = [0.0, 1e-6, 1/in_features]
 
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, in_features)
-    original_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=False)
+    act_tensor = torch.randn(batch_size, in_features, dtype=torch.bfloat16)
+    original_layer = nn.Linear(in_features=in_features, out_features=out_features, bias=False, dtype=torch.bfloat16)
     weights = original_layer.state_dict()
 
-    original_output = original_layer(act_tensor)
+    # Quantize inputs to MXFP (E4M3) to match hardware precision
+    # Hardware stores data in HBM as MXFP, then loads to VRAM as dequantized values
+    # bm_x is the dequantized value that hardware computes with
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)  # (batch_size, in_features)
+    weights_mxfp = quantize_to_mxfp(weights['weight'].t()).to(act_tensor.dtype)  # (in_features, out_features)
+
+    # Compute golden with MXFP-quantized inputs (float32 accumulation like hardware)
+    original_output = torch.mm(act_mxfp, weights_mxfp)
+
     print(f"Linear: ({batch_size}, {in_features}) @ ({in_features}, {out_features}) -> ({batch_size}, {out_features})")
     print("original_output shape:", original_output.shape)
     print("original_output is:\n", original_output)
 
     # Weight is stored as (out_features, in_features) in PyTorch, we transpose for our layout
     # Our layout: (in_features, out_features) for matmul: act @ weight
+    # Store original (non-quantized) tensors - they will be quantized when loaded to HBM
     input_tensor = {
-        "act_tensor": act_tensor,
-        "weights": weights['weight'].t(),  # (in_features, out_features)
+        "act_tensor": act_mxfp,  # Use MXFP-quantized to match simulator
+        "weights": weights_mxfp,  # Use MXFP-quantized to match simulator
     }
 
     golden_result = {

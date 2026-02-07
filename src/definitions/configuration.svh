@@ -31,7 +31,7 @@ package configuration_pkg;
     // HBM Related
     parameter   HBM_M_Prefetch_Amount   = 16;
     parameter   HBM_V_Prefetch_Amount   = 16;
-    parameter   HBM_V_Writeback_Amount  = 16;
+    parameter   HBM_V_Writeback_Amount  = 4;
     parameter   HBM_ELE_WIDTH           = 512;
     parameter   HBM_SCALE_WIDTH         = 512;
     parameter   HBM_WIDTH               = 512;

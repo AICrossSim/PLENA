@@ -14,8 +14,9 @@ def np_array_to_str_2f(arr):
         # For higher dimensions, default to numpy's print (rare for this context)
         return np.array2string(arr, formatter={'float_kind':lambda x: "%.2f" % x})
 
-def create_sim_env(input_tensor, generated_code, golden_result, fp_preload = None, int_preload = None):
-    build_dir = os.path.join(os.path.dirname(__file__), "build")
+def create_sim_env(input_tensor, generated_code, golden_result, fp_preload = None, int_preload = None, build_dir = None):
+    if build_dir is None:
+        build_dir = os.path.join(os.path.dirname(__file__), "build")
     os.makedirs(build_dir, exist_ok=True)
     if isinstance(input_tensor, dict):
         for key, value in input_tensor.items():

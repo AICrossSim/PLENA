@@ -23,7 +23,7 @@ Controller:
   RefreshManager:
     impl: AllBank
   RowPolicy:
-    impl: ClosedRowPolicy
+    impl: OpenRowPolicy
     cap: 4
   plugins:
 

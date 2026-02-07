@@ -4,11 +4,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import torch
 from torch import Tensor, nn
-# from acc_simulator.quantize.quantized_layers.linear import MXFPLinearPTQ
 from test_data_gen import get_weights_path, generate_and_save_random_weights
 from compiler.asm_templates import rms_norm_asm, preload_act_asm, reset_reg_asm, preload_addr_reg_asm
 from create_sim_env import create_sim_env
 from sim_env_utils import create_mem_for_sim
+from quant.quantizer.hardware_quantizer.mxfp import _mx_fp_quantize_hardware
+from config_utils import update_plena_config, get_comparison_params
+
+
+def quantize_to_mxfp(tensor):
+    """
+    Quantize tensor to MXFP format matching hardware (E4M3 with 8-bit scale per block of 8).
+    """
+    orig_shape = tensor.shape
+    bm_x, _, _, _ = _mx_fp_quantize_hardware(
+        tensor, width=8, exponent_width=4, exponent_bias_width=8, block_size=[8]
+    )
+    return bm_x.reshape(orig_shape)
 
 
 # Taken from LLAMA RMSNorm implementation
@@ -44,7 +56,7 @@ class RMSNorm(torch.nn.Module):
         print("x", x)
         print("x.pow(2)", x.pow(2))
         print("x.pow(2).mean(-1, keepdim=True)", x.pow(2).mean(-1, keepdim=True))
-        
+
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x):
@@ -68,12 +80,13 @@ if __name__ == "__main__":
     batch_size = 4
     real_data_ratio = (8*8 + 8) / (8 * 8)
     fp_preload = [0.0, 1e-6, 1/hidden_size]
+    vlen = 64
 
     # Gen Weight and Test Data
     # generate_and_save_random_weights(hidden_size, hidden_size, get_weights_path('model_weights.pt'))
-    
+
     torch.manual_seed(42)
-    act_tensor = torch.randn(batch_size, hidden_size)
+    act_tensor = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16)
     # Print input_tensor split in half along columns, as two (4, 64) tensors
     print("act_tensor lhs (4, 64):\n", act_tensor[:, :64])
     print("act_tensor rhs (4, 64):\n", act_tensor[:, 64:])
@@ -81,12 +94,16 @@ if __name__ == "__main__":
     original_layer = RMSNorm(dim=hidden_size)
     weights = original_layer.state_dict()
 
+    # Quantize input to MXFP to match hardware precision
+    act_mxfp = quantize_to_mxfp(act_tensor).to(act_tensor.dtype)
+
     input_tensor = {
         "act_tensor": act_tensor,
         "weights": weights['weight'].t(),
     }
 
-    original_output = original_layer(act_tensor)
+    # Compute golden with MXFP-quantized input
+    original_output = original_layer(act_mxfp)
 
     golden_result = {
         "input_tensor": input_tensor,
@@ -97,16 +114,16 @@ if __name__ == "__main__":
 
     # print("hidden_size * batch_size * real_data_ratio", hidden_size * batch_size * real_data_ratio)
     # print("(hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio", (hidden_size * (batch_size + 1) + hidden_size * hidden_size) * real_data_ratio)
-    
+
 
     # Reset the registers
     gen_assembly_code += reset_reg_asm(
         alive_registers=[1,2,3]
     )
-    
+
     # Gen Activation Preload
     gen_assembly_code += preload_act_asm(
-        vlen=64,
+        vlen=vlen,
         preload_len=4,
         batch=4,
         hidden_size=128,
@@ -127,10 +144,13 @@ if __name__ == "__main__":
         alive_registers=[1,2,3,4,5],
         activation_base_address = 0,
         scratchpad_base_address = hidden_size * batch_size,
-        vlen=64,
+        vlen=vlen,
         batch_size=4,
         hidden_dim=128
     )
+
+    # Update plena_settings.toml with test-specific vlen/mlen
+    update_plena_config(vlen=vlen, mlen=vlen)
 
     create_sim_env(input_tensor, gen_assembly_code, golden_result, fp_preload)
     create_mem_for_sim(data_size=256, mode="behave_sim", asm="rms", data=None, specified_data_order = ["act_tensor", "weights"])
@@ -138,22 +158,19 @@ if __name__ == "__main__":
     # Save comparison parameters for view_mem.py
     # RMS stores result at activation_base_address (overwrites input in-place)
     import json
-    vlen = 64
     result_vram_offset = 0  # activation_base_address
-    result_start_row = result_vram_offset // vlen
-    num_result_rows = (batch_size * hidden_size) // vlen
-    comparison_params = {
-        "start_row_idx": result_start_row,
-        "num_rows": num_result_rows,
-        "num_batches": batch_size,
-        "elements_per_batch": hidden_size
-    }
+    comparison_params = get_comparison_params(
+        vlen=vlen,
+        batch_size=batch_size,
+        hidden_size=hidden_size,
+        result_vram_offset=result_vram_offset
+    )
     build_dir = Path(__file__).parent / "build"
     with open(build_dir / "comparison_params.json", "w") as f:
         json.dump(comparison_params, f, indent=2)
 
     print("================================================")
     print("Finished generating assembly code")
-    print(f"Result location: row {result_start_row}, {num_result_rows} rows")
+    print(f"Result location: row {comparison_params['start_row_idx']}, {comparison_params['num_rows']} rows")
     print(f"Comparison params: {comparison_params}")
     print("================================================")

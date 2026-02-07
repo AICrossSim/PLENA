@@ -1,3 +1,3 @@
-from .eval_harness import evaluate_with_lm_eval
-from .eval_ppl import evaluate_perplexity
-from . import eval_utils
+# Eval module - contains evaluation code for different model types
+# - ar_model: Autoregressive model evaluation (original)
+# - dllm: Diffusion LLM evaluation (Fast-dLLM based)
