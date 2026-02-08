@@ -4,11 +4,10 @@
 __pycache__/
 build/
 
+/site
 .DS_Store
 **/.DS_Store
-
 *.egg-info
-
 .vscode
 
 *.gtkw
@@ -64,10 +63,3 @@ ckpts_*
 *.db-journal
 co_design/interface/config.toml
 target/
-
-# behavioral simulator
-behavioral_simulator/target
-behavioral_simulator/result
-.direnv
-behavioral_simulator/vendor
-behavioral_simulator/testbench/build/
