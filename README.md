@@ -1,9 +1,21 @@
 # PLENA: A Programmable Long-context Efficient Neural Accelerator
 
-This repository contains the design and implementation of PLENA. 
+<table>
+<tr>
+<td width="300">
+  <img src="doc/plena_logo.png" alt="PLENA Logo" width="300"/>
+</td>
+<td>
+
+PLENA is a complete hardware–software system that realizes the above optimizations. PLENA addresses key limitations of prior LLM accelerators by providing: (i) a custom instruction set (PLENA\_ISA) for large Transformer inference; (ii) a PyTorch-to-PLENA\_ISA compiler; (iii) an HBM-enabled transactional simulator; (iv) an automated, accuracy-aware design-space exploration (DSE) flow; and (v) a full RTL implementation. We demonstrate that PLENA supports different SOTA transformer model variants (e.g., GQA, MHA and MLA, Dense and MoE).
+
+</td>
+</tr>
+</table>
+
 
 ## Publication
-* Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference, [link](https://arxiv.org/abs/2509.09505)
+* Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference, [Paper](https://arxiv.org/abs/2509.09505)
   ```
     @misc{wu2025combatingmemorywallsoptimization,
         title={Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference}, 
@@ -17,46 +29,17 @@ This repository contains the design and implementation of PLENA.
   ```
 
 
-![Figure 1: Diagram of the PLENA](doc/Accelerator_Config.png)
-
-**ISA Summary:**  
-[View Document on Notion](https://www.notion.so/Custom-ISA-1e228f1ee68e80d29f05ec130b72a3ce?source=copy_link)
-
-**Progress Report:**  
-[View Document on Notion](https://www.notion.so/Coprocessor-Project-Plan-1d628f1ee68e8052ab7dc51a36905c15?pvs=4)
-
-**Design Space and Tuning Method:**  
-[View Document](src/definitions/config.md)
-
-**SystemVerilog RTL Format:**  
-[LowRISC Format](https://github.com/lowRISC/style-guides)
-
-## Prerequisite
-```
-nix
-direnv 
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
-source ~/.bashrc
-
-```
-
-## Configure your environment
-
-```
-direnv allow
-nix develop
-git submodule update --init --recursive
-```
-
-## Run Behavioral Simulation
-
-```
-just build-behave-sim [ Task to simulate e.g. linear]
-```
-Debug mode
-```
-just build-behave-sim-debug [ Task to simulate e.g. linear]
-```
+## PLENA System Architecture
+- **PLENA\_ISA**: A custom instruction set for large Transformer inference, [Specification](https://github.com/AICrossSim/PLENA_Compiler/blob/main/doc/plena_isa_spec.md)
+- **PLENA\_Compiler**: A PyTorch-to-PLENA\_ISA compiler, [Code](https://github.com/AICrossSim/PLENA_Compiler)
+- **PLENA\_Simulator**: An HBM-enabled transactional simulator, [Code](https://github.com/AICrossSim/PLENA_Simulator)
+- **PLENA\_RTL**: A full RTL implementation, [Code](https://github.com/AICrossSim/PLENA_RTL)
 
 
-zun
+<p align="center">
+  <img src="doc/PLENA_Sys.png" alt="PLENA System Architecture" width="600"/>
+</p>
+
+
+
+

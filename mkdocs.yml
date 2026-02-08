@@ -1,0 +1,65 @@
+site_name: PLENA Documentation
+site_description: Documentation for PLENA - A Programmable Long-context Efficient Neural Accelerator
+site_author: PLENA Team
+site_url: https://aicrosssim.github.io/plena/
+repo_url: https://github.com/aicrosssim/plena
+repo_name: aicrosssim/plena
+
+docs_dir: doc
+site_dir: site
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - content.code.copy
+  logo: plena_logo.png
+  favicon: plena_logo.png
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - Configuration:
+      - Overview: configuration.md
+      - Hardware Constraints: constraints.md
+  - API Reference:
+      - Interface Module: api/interface.md
+      - Search Module: api/search.md
+  - Model Library: models.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/aicrosssim/plena
