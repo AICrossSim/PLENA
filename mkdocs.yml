@@ -1,9 +1,9 @@
 site_name: PLENA Documentation
 site_description: Documentation for PLENA - A Programmable Long-context Efficient Neural Accelerator
 site_author: PLENA Team
-site_url: https://aicrosssim.github.io/plena/
-repo_url: https://github.com/aicrosssim/plena
-repo_name: aicrosssim/plena
+site_url: https://AICrossSim.github.io/PLENA/
+repo_url: https://github.com/AICrossSim/PLENA
+repo_name: AICrossSim/PLENA
 
 docs_dir: doc
 site_dir: site
@@ -62,4 +62,4 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/aicrosssim/plena
+      link: https://github.com/AICrossSim/PLENA

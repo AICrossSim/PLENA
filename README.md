@@ -2,8 +2,8 @@
 
 <table>
 <tr>
-<td width="300">
-  <img src="doc/plena_logo.png" alt="PLENA Logo" width="300"/>
+<td width="400">
+  <img src="doc/plena_logo.png" alt="PLENA Logo" width="400"/>
 </td>
 <td>
 
