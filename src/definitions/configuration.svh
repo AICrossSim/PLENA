@@ -9,12 +9,15 @@ package configuration_pkg;
     // Compute Unit Related
     localparam   BLEN = 8; // 4
     localparam   HLEN = 8;
-    localparam   MLEN = 40; // 16
+    localparam   MLEN = 64; // 16
     localparam   Matrix_Parallel_Rd_Dim = 1;
-    localparam   VLEN = 40; // 16
+    localparam   VLEN = 64; // 16
     localparam   INST_BUFF_DEPTH = 16;
     localparam   ON_CHIP_ADDR_WIDTH = precision_pkg::INT_DATA_WIDTH;
-    localparam   SourceWidth = 5;  // Increased for wider HBM data width (1792 bits)
+    // SourceWidth must satisfy: SourceWidth + SubbeatBits <= DeviceSourceWidth
+    // where SubbeatBits = $clog2(HBM_WIDTH/32) for 32-bit host bus
+    // Formula: base (2) + $clog2(HBM_WIDTH/32) + margin (2)
+    localparam   SourceWidth = 4 + $clog2((precision_pkg::WT_MX_MANT_WIDTH + precision_pkg::WT_MX_EXP_WIDTH + 1) * MLEN / 16);  // [original: 5, tested: 6]
     localparam   SinkWidth = 1;
     // Memory Related
     localparam   MATRIX_SRAM_WIDTH = (precision_pkg::WT_MX_MANT_WIDTH + precision_pkg::WT_MX_EXP_WIDTH + 1 + precision_pkg::MX_SCALE_WIDTH) * MLEN;
@@ -28,13 +31,18 @@ package configuration_pkg;
     localparam   FP_SRAM_DEPTH       = 512;
     localparam   HBM_ADDR_WIDTH      = 128;
 
-    // HBM Related (adjusted for 14-bit element precision for DSP experiment)
+    // HBM Related (calculated from precision parameters)
     localparam   HBM_M_Prefetch_Amount   = 16;
     localparam   HBM_V_Prefetch_Amount   = 16;
     localparam   HBM_V_Writeback_Amount  = 4;
-    localparam   HBM_ELE_WIDTH           = 1792;  // 14-bit precision * 64 = 896 bits, 2x = 1792 for power-of-2 ratio
-    localparam   HBM_SCALE_WIDTH         = 512;   // Scale width stays same (8-bit scales)
-    localparam   HBM_WIDTH               = 1792;  // Match HBM_ELE_WIDTH
+    // Element width: (mant + exp + sign) * MLEN
+    localparam   HBM_ELE_WIDTH_RAW       = (precision_pkg::WT_MX_MANT_WIDTH + precision_pkg::WT_MX_EXP_WIDTH + 1) * MLEN;
+    // Round up to next power of 2 >= 2*raw (ensures power-of-2 for TileLink)
+    // For original (4-bit): 256 raw -> 512
+    // For tested (14-bit): 896 raw -> 2048
+    localparam   HBM_ELE_WIDTH           = (1 << $clog2(HBM_ELE_WIDTH_RAW * 2));
+    localparam   HBM_SCALE_WIDTH         = precision_pkg::MX_SCALE_WIDTH * (MLEN / precision_pkg::BLOCK_DIM);
+    localparam   HBM_WIDTH               = HBM_ELE_WIDTH;
 endpackage
 
 package instruction_pkg;

@@ -100,7 +100,7 @@ module prim_generic_ram_2p import prim_ram_2p_pkg::*; #(
   generate
       for (k = 0; k < MaskWidth; k++) begin : gen_mem_slice
           // Declare a slice of memory for this lane
-          (* ram_style = "block", DONT_TOUCH = "TRUE" *) logic [DataBitsPerMask-1:0] mem_slice [Depth];
+          (* ram_style = "block" *) logic [DataBitsPerMask-1:0] mem_slice [Depth]; // ram_style hint not strictly necessary
 
           // PORT A - separate always block for BRAM inference
           always @(posedge clk_i) begin

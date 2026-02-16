@@ -4,15 +4,15 @@
 /*
 Module      : Sub SRAM units within the Matrix Machine SRAM
 Timing      : Sequential Logic, 1 cycle for read/write process.
-Description : 
+Description :
 Status      : Passed Simple Tests
 */
 
 module subsram #(
 
-  parameter  int DataWidth                  = 4, 
+  parameter  int DataWidth                  = 4,
   parameter  int SRAM_DEPTH                 = 128,
-  parameter  int SubSRAMIndex               = 0,                                // Index of the sub SRAM    
+  parameter  int SubSRAMIndex               = 0,                                // Index of the sub SRAM
   parameter  int MLEN                       = 8,                                // The dimension of the sub SRAM, or the TileSize of the matrix.
   parameter  int PARALLEL_DIM               = 2,                                // The number of row/col read in parallel
   localparam int AdrWidth                   = $clog2(SRAM_DEPTH),               // derived parameter
@@ -28,7 +28,7 @@ module subsram #(
     input  logic                                  transposed_read,
     output logic [ElementWidth-1:0]               rdata,               // Read data. Data is returned one cycle after req_i is high.
     output logic                                  read_data_valid,
-  
+
     // Write Port
     input  logic                                  wen,
     input  logic [AdrWidth-1:0]                   waddr,
@@ -56,7 +56,8 @@ logic transpose_rawdata;
 // Memory
 // -----
 logic [AdrWidth-1:0]                translated_raddr;
-(* ram_style = "block", DONT_TOUCH = "TRUE" *) logic [ElementWidth-1:0] mem [SRAM_DEPTH];
+// (* ram_style = "block" *) logic [ElementWidth-1:0] mem [SRAM_DEPTH]; // pragma not necessary
+logic [ElementWidth-1:0] mem [SRAM_DEPTH];
 logic signed [Parallel_Rd_Index_Width-1:0]    sram_index, addr_offset;
 
 initial begin
