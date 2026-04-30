@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"- 2026-04-14 12:26 | phase=PLACE \\(Phase 2.4 Global Place\\) | elapsed=00:01:03 sub | log=artix7_150mhz_20260414_123332\")",
+      "Bash(ls -la .claude/settings*.json)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(sed -i 's|- 13:00 | UNKNOWN |- 13:00 | ROUTE \\(Phase 5 Rip-up\\) |' /home/khl22/new_plena/PLENA_RTL/.claude/artix7_150mhz_progress.md)",
+      "Bash(python3 -c ':*)",
+      "Bash(wait 3931555)",
+      "Bash(echo \"Harness process exited with code: $?\")"
+    ]
+  }
+}
