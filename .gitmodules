@@ -4,3 +4,6 @@
 [submodule "PLENA_RTL"]
 	path = PLENA_RTL
 	url = git@github.com:AICrossSim/PLENA_RTL.git
+[submodule "PLENA_Software"]
+	path = PLENA_Software
+	url = git@github.com:AICrossSim/PLENA_Software.git
