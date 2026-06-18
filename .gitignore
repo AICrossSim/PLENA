@@ -63,3 +63,10 @@ ckpts_*
 *.db-journal
 co_design/interface/config.toml
 target/
+
+# Local scratch / non-submodule runtime copies / reference models
+.claude/
+smollm_ref/
+PLENA_Simulator_tilelang_runtime/
+PLENA_Simulator_yw_online_emulator/
+smollm_ref
