@@ -18,9 +18,11 @@ This repository contains three submodules:
 
 | Submodule | Description |
 |-----------|-------------|
-| [PLENA_RTL](./PLENA_RTL) | Full RTL implementation of the PLENA accelerator |
+| [PLENA_RTL](./PLENA_RTL) | Full RTL implementation of the PLENA accelerator (work in progress) |
 | [PLENA_Simulator](./PLENA_Simulator) | HBM-enabled transactional simulator |
 | [PLENA_Software](./PLENA_Software) | Software stack including compiler and tools |
+
+> **Note:** The RTL implementation ([PLENA_RTL](./PLENA_RTL)) is a work in progress and will be open sourced by the end of August 2026.
 
 ### Getting Started
 
@@ -34,18 +36,19 @@ git submodule update --init --recursive
 
 ## Publication
 
-**Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference** [[Paper](https://arxiv.org/abs/2509.09505)]
+**Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference** (ISCA 2026) [[Paper](https://doi.org/10.1109/ISCA66397.2026.00023)] [[arXiv](https://arxiv.org/abs/2509.09505)]
 
 ```bibtex
-@misc{wu2025combatingmemorywallsoptimization,
-    title={Combating the Memory Walls: Optimization Pathways for Long-Context Agentic LLM Inference},
-    author={Haoran Wu and Can Xiao and Jiayi Nie and Xuan Guo and Binglei Lou and Jeffrey T. H. Wong and Zhiwen Mo and Cheng Zhang and Przemyslaw Forys and Wayne Luk and Hongxiang Fan and Jianyi Cheng and Timothy M. Jones and Rika Antonova and Robert Mullins and Aaron Zhao},
-    year={2025},
-    eprint={2509.09505},
-    archivePrefix={arXiv},
-    primaryClass={cs.AR},
-    url={https://arxiv.org/abs/2509.09505},
-}
+@INPROCEEDINGS{11617831,
+  author={Wu, Haoran and Xiao, Can and Nie, Jiayi and Guo, Xuan and Lou, Binglei and Wong, Jeffrey T.H. and Mo, Zhiwen and Zhang, Cheng and Forys, Przemyslaw and Ai, Chengyang and Adeniran, Timi and Luk, Wayne and Fan, Hongxiang and Cheng, Jianyi and Jones, Timothy M. and Antonova, Rika and Mullins, Robert and Zhao, Aaron},
+  booktitle={2026 ACM/IEEE 53rd Annual International Symposium on Computer Architecture (ISCA)}, 
+  title={Combating the Memory Walls: Optimization Pathways for Long-Context Agentic Llm Inference}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={100-115},
+  keywords={Arrays;Modeling;Printing;Quantization (signal);Memory;Optimization;Design methodology;Systolic arrays;Large language models;Matrices;LLM Accelerator;Agentic Inference;Systolic Array;FlashAttention;Quantization},
+  doi={10.1109/ISCA66397.2026.00023}}
 ```
 
 
